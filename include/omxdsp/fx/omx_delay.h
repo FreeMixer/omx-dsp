@@ -82,13 +82,16 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   for (uint32_t i = 0; i < n; i++) {
     uint32_t rl = w >= dl ? w - dl : w + cap - dl;
     uint32_t rr = w >= dr ? w - dr : w + cap - dr;
-    float tapL = s->ring_l[rl];
-    float tapR = s->ring_r[rr];
+    float xl = l[i], xr = r[i];
+    /* D == 0 reads the sample ARRIVING this frame, not the w-slot that still holds the value from a
+     * full ring ago (which would echo `cap` samples ≈ 2 s of stale audio). Reading the input makes a
+     * 0 ms delay an exact passthrough, matching omx_delay_apply's write-then-read at tgt=0. */
+    float tapL = dl == 0 ? xl : s->ring_l[rl];
+    float tapR = dr == 0 ? xr : s->ring_r[rr];
     /* one-pole low-pass in the feedback path (tone, Freeverb-style damping): tone=0 passes the tap
      * through (bright), tone->1 freezes it toward its running average (dark repeats). */
     dampL = tapL * (1.0f - tone) + dampL * tone;
     dampR = tapR * (1.0f - tone) + dampR * tone;
-    float xl = l[i], xr = r[i];
     /* ping-pong: each leg's feedback comes from the OTHER leg's damped tap */
     float fbL = p->pingpong ? dampR : dampL;
     float fbR = p->pingpong ? dampL : dampR;
