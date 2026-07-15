@@ -101,6 +101,37 @@ static void test_pingpong_alternates_legs(void) {
   free_state(s);
 }
 
+/* A bypassed-then-re-enabled delay must start clean. The mixer's re-enable path zeroes the rings and
+ * resets wpos + the tone-damp state; this validates that reset primitive: after echoes are buffered,
+ * that clear makes a silence-fed delay emit nothing (vs. a non-cleared state that bursts the buffered
+ * echoes). */
+static void test_reenable_clears_stale_tail(void) {
+  const uint32_t CAP = 1024;
+  struct omx_fx_delay p = { .enabled = 1, .d_l = 100, .d_r = 100, .feedback = 0.6f,
+                            .mix = 1.0f, .tone = 0.0f, .pingpong = 0 };
+  float l[256], r[256];
+  /* dirty reference: build echoes, feed silence WITHOUT clearing -> buffered echoes still emerge. */
+  struct omx_fx_delay_state *dirty = make_state(CAP);
+  memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); l[0] = 1.0f; r[0] = 1.0f;
+  omx_fx_delay_process(l, r, 256, &p, dirty);
+  memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); /* silence in */
+  omx_fx_delay_process(l, r, 256, &p, dirty);
+  float dirtyE = 0.0f; for (int i = 0; i < 256; i++) dirtyE += l[i] * l[i] + r[i] * r[i];
+  check(dirtyE > 1e-6f, "without clearing, a re-fed delay still emits buffered echoes");
+  free_state(dirty);
+  /* clean: build echoes, then apply the mixer's clear (memset rings + reset wpos/damp). */
+  struct omx_fx_delay_state *s = make_state(CAP);
+  memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); l[0] = 1.0f; r[0] = 1.0f;
+  omx_fx_delay_process(l, r, 256, &p, s);
+  memset(s->ring_l, 0, CAP * sizeof(float)); memset(s->ring_r, 0, CAP * sizeof(float));
+  s->wpos = 0; s->damp_l = s->damp_r = 0.0f;
+  memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); /* silence in */
+  omx_fx_delay_process(l, r, 256, &p, s);
+  float cleanE = 0.0f; for (int i = 0; i < 256; i++) cleanE += l[i] * l[i] + r[i] * r[i];
+  check(cleanE == 0.0f, "clearing rings + resetting wpos/damp makes a re-enabled delay start silent");
+  free_state(s);
+}
+
 int main(void) {
   test_division_ms();
   test_impulse_reappears_at_time();
@@ -108,6 +139,7 @@ int main(void) {
   test_mix_zero_is_bit_identical_dry();
   test_feedback_clamp_prevents_runaway();
   test_pingpong_alternates_legs();
+  test_reenable_clears_stale_tail();
   printf("mix_delay: %d checks, %d failures\n", g_checks, g_fail);
   return g_fail == 0 ? 0 : 1;
 }
