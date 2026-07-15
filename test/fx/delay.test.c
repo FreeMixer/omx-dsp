@@ -132,6 +132,27 @@ static void test_reenable_clears_stale_tail(void) {
   free_state(s);
 }
 
+/* An ENABLED delay at d==0 must be a clean passthrough (output == input), NOT a full-ring echo of
+ * the value sitting `cap` samples ago in the write slot. Regression: reading ring[w] before writing
+ * it echoed ~2 s of stale audio. Uses full wet mix + feedback + tone to prove the passthrough holds
+ * regardless of the wet path (the d==0 tap is the input itself, so dry+wet reconstruct it). */
+static void test_zero_delay_is_passthrough(void) {
+  struct omx_fx_delay_state *s = make_state(1024);
+  struct omx_fx_delay p = { .enabled = 1, .d_l = 0, .d_r = 0, .feedback = 0.7f,
+                            .mix = 1.0f, .tone = 0.4f, .pingpong = 1 };
+  float l[64], r[64], l0[64], r0[64];
+  for (int i = 0; i < 64; i++) { l[i] = sinf(i * 0.31f); r[i] = cosf(i * 0.19f); l0[i] = l[i]; r0[i] = r[i]; }
+  /* prime the ring with a prior block so ring[w] holds non-zero stale audio (the echo source). */
+  omx_fx_delay_process(l, r, 64, &p, s);
+  for (int i = 0; i < 64; i++) { l[i] = l0[i]; r[i] = r0[i]; }
+  omx_fx_delay_process(l, r, 64, &p, s);
+  for (int i = 0; i < 64; i++) {
+    close_to(l[i], l0[i], "d==0 is exact passthrough (L), no stale-ring echo");
+    close_to(r[i], r0[i], "d==0 is exact passthrough (R), no stale-ring echo");
+  }
+  free_state(s);
+}
+
 int main(void) {
   test_division_ms();
   test_impulse_reappears_at_time();
@@ -140,6 +161,7 @@ int main(void) {
   test_feedback_clamp_prevents_runaway();
   test_pingpong_alternates_legs();
   test_reenable_clears_stale_tail();
+  test_zero_delay_is_passthrough();
   printf("mix_delay: %d checks, %d failures\n", g_checks, g_fail);
   return g_fail == 0 ? 0 : 1;
 }
