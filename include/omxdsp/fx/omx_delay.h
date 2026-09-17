@@ -72,13 +72,11 @@ static inline float omx_bpm_division_ms(float bpm, float division_beats) {
 #define OMX_FXDELAY_TONE_REFERENCE_RATE 96000.0f
 
 /*
- * THE TONE KNOB TURNED INTO THE POLE THE LIVE RATE NEEDS (R-058). `tone` is a UNIT-RANGE knob and
- * it used to be handed to the feedback one-pole as its pole directly — so the same knob was a
- * 3 585 Hz filter at 44.1 kHz and a 15 610 Hz one at 192 kHz, measured: |H(8 kHz)| ran
- * 0.4315 / 0.4588 / 0.7063 / 0.8924 across the four declared rates
- * (docs/design/notes/2026-09-17-delay-math-review.md finding D-2). That is the same defect
- * R-058 was minted for in `mix_reverb.h`, in a second kernel, and this is the same fix:
- * `p^(REF/sr)`, which holds the corner constant.
+ * THE TONE KNOB'S POLE HOLDS ITS CORNER ACROSS RATES (R-058). `tone` is a UNIT-RANGE knob raised
+ * to `p^(REF/sr)` before it reaches the feedback one-pole, so the same knob is the same corner
+ * at every declared rate — the same fix R-058 minted for `mix_reverb.h`'s second kernel.
+ * Bug: handing `tone` to the pole directly made the same knob a 3 585 Hz filter at 44.1 kHz and
+ * a 15 610 Hz one at 192 kHz (docs/design/notes/2026-09-17-delay-math-review.md finding D-2).
  *
  * CALLED ONCE PER BLOCK, never per sample — a `powf` inside the per-sample feedback path would
  * be the most expensive line in this kernel by an order of magnitude, and the per-sample filter
