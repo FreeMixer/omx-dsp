@@ -20,6 +20,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "omx_contract.h"
+
 /** Max FX delay time (ms). ~2 s covers slow ambient repeats. */
 #define OMX_FXDELAY_MAX_MS 2000
 /** Highest graph rate the ring is sized for, so MAX_MS is reachable at 44.1/48/96/192 kHz. */
@@ -65,8 +67,21 @@ static inline uint32_t omx_fxdelay_clamp(uint32_t d, uint32_t cap) {
  * Process one block IN PLACE. `l`/`r` are the strip's two legs (distinct buffers). A disabled atom /
  * NULL ring is a passthrough. RT-safe: fixed work per sample, no allocation.
  */
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "fx-delay"
 static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
                                         const struct omx_fx_delay *p, struct omx_fx_delay_state *s) {
+  /* CONTRACT (omx_contract.h). A delay is a LINEAR, time-invariant transformation with memory:
+   * out = dry*in + mix*in[k-d], and the recursion in the ring is bounded by a feedback strictly
+   * below 1 — that bound is the whole reason this stage cannot run away, and it is a claim about
+   * the CONTROL thread's clamp, checked here because here is where breaking it is audible. The
+   * taps are inside the ring (the clamp below is the enforcement; this is its statement), and a
+   * mix of 0 must leave the block bit-identical, which the battery asserts around the call. */
+  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(p->feedback >= 0.0f && p->feedback < 1.0f, "feedback-strictly-below-unity");
+  OMX_PRE(p->mix >= 0.0f && p->mix <= 1.0f, "mix-in-unit-range");
+  OMX_PRE(p->tone >= 0.0f && p->tone <= 1.0f, "tone-in-unit-range");
+  OMX_PRE(s->cap == 0u || (p->d_l < s->cap && p->d_r < s->cap), "taps-inside-the-ring");
   if (!p->enabled || n == 0 || s->ring_l == NULL || s->ring_r == NULL || s->cap == 0) return;
   uint32_t cap = s->cap;
   uint32_t dl = omx_fxdelay_clamp(p->d_l, cap);
@@ -104,6 +119,11 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   s->wpos = w;
   s->damp_l = dampL;
   s->damp_r = dampR;
+  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(s->wpos < s->cap, "write-cursor-inside-the-ring");
+  OMX_INVARIANT(s->damp_l - s->damp_l == 0.0f && s->damp_r - s->damp_r == 0.0f,
+                "damping-state-finite");
 }
+#undef OMX_CONTRACT_STAGE
 
 #endif /* OMX_MIX_DELAY_H */
