@@ -52,16 +52,57 @@ struct omx_fx_delay_state {
 };
 
 /** Tempo-synced delay time in ms: `division_beats * 60000 / bpm` (1/4=1.0, 1/8=0.5, dotted-1/8=0.75, 1/8T=1/3). */
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "fx-delay/bpm-division"
 static inline float omx_bpm_division_ms(float bpm, float division_beats) {
-  if (bpm <= 0.0f) return 0.0f;
-  return division_beats * 60000.0f / bpm;
+  /* CONTRACT (omx_contract.h). A synced time is a DERIVATION, and the one way it goes wrong is
+   * silently: a zero/negative bpm or a negative division returns a time that is not a time, and
+   * it is then converted to samples and indexed into a ring. Both halves are stated here so the
+   * fault is attributed to the tempo, not to the ring read three calls later. */
+  OMX_PRE(division_beats >= 0.0f, "division-is-not-negative");
+  float ms = bpm <= 0.0f ? 0.0f : division_beats * 60000.0f / bpm;
+  OMX_POST(ms >= 0.0f && ms - ms == 0.0f, "a-synced-time-is-a-finite-non-negative-ms");
+  return ms;
+}
+#undef OMX_CONTRACT_STAGE
+
+/** The rate the `tone` knob is quoted at — the rate this desk runs (R-058). At 96 kHz the
+ * exponent below is exactly 1, no `powf` is taken, and the repeats are bit-for-bit what they
+ * always were; any other reference would retune the desk on the day the law landed. */
+#define OMX_FXDELAY_TONE_REFERENCE_RATE 96000.0f
+
+/*
+ * THE TONE KNOB TURNED INTO THE POLE THE LIVE RATE NEEDS (R-058). `tone` is a UNIT-RANGE knob and
+ * it used to be handed to the feedback one-pole as its pole directly — so the same knob was a
+ * 3 585 Hz filter at 44.1 kHz and a 15 610 Hz one at 192 kHz, measured: |H(8 kHz)| ran
+ * 0.4315 / 0.4588 / 0.7063 / 0.8924 across the four declared rates
+ * (docs/design/notes/2026-09-17-delay-math-review.md finding D-2). That is the same defect
+ * R-058 was minted for in `mix_reverb.h`, in a second kernel, and this is the same fix:
+ * `p^(REF/sr)`, which holds the corner constant.
+ *
+ * CALLED ONCE PER BLOCK, never per sample — a `powf` inside the per-sample feedback path would
+ * be the most expensive line in this kernel by an order of magnitude, and the per-sample filter
+ * stays the plain one-pole it always was.
+ */
+static inline float omx_fxdelay_tone_pole(float tone, float sr) {
+  float p = tone < 0.0f ? 0.0f : (tone > 1.0f ? 1.0f : tone);
+  /* pole 0 (bright) and pole 1 (frozen) are their own fixed points; so is the reference rate,
+   * and an sr the caller could not supply leaves the knob exactly as it was. */
+  if (p <= 0.0f || p >= 1.0f || sr <= 0.0f || sr == OMX_FXDELAY_TONE_REFERENCE_RATE) return p;
+  return powf(p, OMX_FXDELAY_TONE_REFERENCE_RATE / sr);
 }
 
 /** Clamp a per-leg delay to [0, cap-1]. */
+#define OMX_CONTRACT_STAGE "fx-delay/clamp"
 static inline uint32_t omx_fxdelay_clamp(uint32_t d, uint32_t cap) {
-  if (cap == 0) return 0;
-  return d >= cap ? cap - 1 : d;
+  /* CONTRACT (omx_contract.h). The enforcement half of omx_fx_delay_process's
+   * "taps-inside-the-ring" precondition: whatever the control thread asked for, what comes back
+   * is an index the ring holds. Stated because this is the last line before a raw ring[] read. */
+  uint32_t c = cap == 0 ? 0u : (d >= cap ? cap - 1 : d);
+  OMX_POST(cap == 0u || c < cap, "clamped-tap-is-inside-the-ring");
+  return c;
 }
+#undef OMX_CONTRACT_STAGE
 
 /**
  * Process one block IN PLACE. `l`/`r` are the strip's two legs (distinct buffers). A disabled atom /
@@ -70,7 +111,8 @@ static inline uint32_t omx_fxdelay_clamp(uint32_t d, uint32_t cap) {
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay"
 static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
-                                        const struct omx_fx_delay *p, struct omx_fx_delay_state *s) {
+                                        const struct omx_fx_delay *p, struct omx_fx_delay_state *s,
+                                        float sr) {
   /* CONTRACT (omx_contract.h). A delay is a LINEAR, time-invariant transformation with memory:
    * out = dry*in + mix*in[k-d], and the recursion in the ring is bounded by a feedback strictly
    * below 1 — that bound is the whole reason this stage cannot run away, and it is a claim about
@@ -82,6 +124,7 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   OMX_PRE(p->mix >= 0.0f && p->mix <= 1.0f, "mix-in-unit-range");
   OMX_PRE(p->tone >= 0.0f && p->tone <= 1.0f, "tone-in-unit-range");
   OMX_PRE(s->cap == 0u || (p->d_l < s->cap && p->d_r < s->cap), "taps-inside-the-ring");
+  OMX_PRE(sr <= 0.0f || OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
   if (!p->enabled || n == 0 || s->ring_l == NULL || s->ring_r == NULL || s->cap == 0) return;
   uint32_t cap = s->cap;
   uint32_t dl = omx_fxdelay_clamp(p->d_l, cap);
@@ -91,7 +134,9 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   if (fb > 0.99f) fb = 0.99f; /* hard clamp < 1: repeats can never grow without bound */
   float mix = p->mix < 0.0f ? 0.0f : (p->mix > 1.0f ? 1.0f : p->mix);
   float dry = 1.0f - mix;
-  float tone = p->tone < 0.0f ? 0.0f : (p->tone > 1.0f ? 1.0f : p->tone);
+  /* R-058: the tone knob is quoted at 96 kHz and raised to REF/sr HERE, once per block, so the
+   * repeats darken by the same filter at every clock. */
+  float tone = omx_fxdelay_tone_pole(p->tone, sr);
   uint32_t w = s->wpos;
   float dampL = s->damp_l, dampR = s->damp_r;
   for (uint32_t i = 0; i < n; i++) {

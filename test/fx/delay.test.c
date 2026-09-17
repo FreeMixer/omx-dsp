@@ -43,7 +43,7 @@ static void test_impulse_reappears_at_time(void) {
   float l[256], r[256];
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r));
   l[0] = 1.0f; r[0] = 1.0f;
-  omx_fx_delay_process(l, r, 256, &p, s);
+  omx_fx_delay_process(l, r, 256, &p, s, 48000.0f);
   // 100% wet, no feedback: the impulse reappears exactly 100 frames later, dry gone.
   close_to(l[0], 0.0f, "wet-only: dry sample suppressed at t=0");
   close_to(l[100], 1.0f, "impulse reappears at exactly d=100 frames (L)");
@@ -58,7 +58,7 @@ static void test_feedback_decays_geometrically(void) {
   float l[64], r[64];
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r));
   l[0] = 1.0f; r[0] = 1.0f;
-  omx_fx_delay_process(l, r, 64, &p, s);
+  omx_fx_delay_process(l, r, 64, &p, s, 48000.0f);
   close_to(l[10], 1.0f, "first echo");
   close_to(l[20], 0.5f, "second echo = fb^1");
   close_to(l[30], 0.25f, "third echo = fb^2");
@@ -71,7 +71,7 @@ static void test_mix_zero_is_bit_identical_dry(void) {
                             .mix = 0.0f, .tone = 0.3f, .pingpong = 1 };
   float l[32], r[32], l0[32];
   for (int i = 0; i < 32; i++) { l[i] = sinf(i * 0.3f); r[i] = cosf(i * 0.2f); l0[i] = l[i]; }
-  omx_fx_delay_process(l, r, 32, &p, s);
+  omx_fx_delay_process(l, r, 32, &p, s, 48000.0f);
   for (int i = 0; i < 32; i++) check(l[i] == l0[i], "mix=0 is bit-identical dry");
   free_state(s);
 }
@@ -83,7 +83,7 @@ static void test_feedback_clamp_prevents_runaway(void) {
   float l[64], r[64];
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r));
   l[0] = 1.0f; r[0] = 1.0f;
-  for (int blk = 0; blk < 4; blk++) omx_fx_delay_process(l + blk * 16, r + blk * 16, 16, &p, s);
+  for (int blk = 0; blk < 4; blk++) omx_fx_delay_process(l + blk * 16, r + blk * 16, 16, &p, s, 48000.0f);
   for (int i = 0; i < 64; i++) check(fabsf(l[i]) <= 1.001f, "clamped feedback never grows > 1");
   free_state(s);
 }
@@ -95,7 +95,7 @@ static void test_pingpong_alternates_legs(void) {
   float l[64], r[64];
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r));
   l[0] = 1.0f; /* feed L only */
-  omx_fx_delay_process(l, r, 64, &p, s);
+  omx_fx_delay_process(l, r, 64, &p, s, 48000.0f);
   // ping-pong cross-feeds: the L input's repeats bounce onto the R leg on the next tap.
   check(fabsf(r[16]) > 0.1f, "ping-pong: energy crosses to the R leg on the 2nd tap");
   free_state(s);
@@ -113,20 +113,20 @@ static void test_reenable_clears_stale_tail(void) {
   /* dirty reference: build echoes, feed silence WITHOUT clearing -> buffered echoes still emerge. */
   struct omx_fx_delay_state *dirty = make_state(CAP);
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); l[0] = 1.0f; r[0] = 1.0f;
-  omx_fx_delay_process(l, r, 256, &p, dirty);
+  omx_fx_delay_process(l, r, 256, &p, dirty, 48000.0f);
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); /* silence in */
-  omx_fx_delay_process(l, r, 256, &p, dirty);
+  omx_fx_delay_process(l, r, 256, &p, dirty, 48000.0f);
   float dirtyE = 0.0f; for (int i = 0; i < 256; i++) dirtyE += l[i] * l[i] + r[i] * r[i];
   check(dirtyE > 1e-6f, "without clearing, a re-fed delay still emits buffered echoes");
   free_state(dirty);
   /* clean: build echoes, then apply the mixer's clear (memset rings + reset wpos/damp). */
   struct omx_fx_delay_state *s = make_state(CAP);
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); l[0] = 1.0f; r[0] = 1.0f;
-  omx_fx_delay_process(l, r, 256, &p, s);
+  omx_fx_delay_process(l, r, 256, &p, s, 48000.0f);
   memset(s->ring_l, 0, CAP * sizeof(float)); memset(s->ring_r, 0, CAP * sizeof(float));
   s->wpos = 0; s->damp_l = s->damp_r = 0.0f;
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); /* silence in */
-  omx_fx_delay_process(l, r, 256, &p, s);
+  omx_fx_delay_process(l, r, 256, &p, s, 48000.0f);
   float cleanE = 0.0f; for (int i = 0; i < 256; i++) cleanE += l[i] * l[i] + r[i] * r[i];
   check(cleanE == 0.0f, "clearing rings + resetting wpos/damp makes a re-enabled delay start silent");
   free_state(s);
@@ -143,9 +143,9 @@ static void test_zero_delay_is_passthrough(void) {
   float l[64], r[64], l0[64], r0[64];
   for (int i = 0; i < 64; i++) { l[i] = sinf(i * 0.31f); r[i] = cosf(i * 0.19f); l0[i] = l[i]; r0[i] = r[i]; }
   /* prime the ring with a prior block so ring[w] holds non-zero stale audio (the echo source). */
-  omx_fx_delay_process(l, r, 64, &p, s);
+  omx_fx_delay_process(l, r, 64, &p, s, 48000.0f);
   for (int i = 0; i < 64; i++) { l[i] = l0[i]; r[i] = r0[i]; }
-  omx_fx_delay_process(l, r, 64, &p, s);
+  omx_fx_delay_process(l, r, 64, &p, s, 48000.0f);
   for (int i = 0; i < 64; i++) {
     close_to(l[i], l0[i], "d==0 is exact passthrough (L), no stale-ring echo");
     close_to(r[i], r0[i], "d==0 is exact passthrough (R), no stale-ring echo");
