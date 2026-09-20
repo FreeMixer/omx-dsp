@@ -22,8 +22,10 @@
 
 #include "omx_contract.h"
 
-/** Max FX delay time (ms). ~2 s covers slow ambient repeats. */
-#define OMX_FXDELAY_MAX_MS 2000
+/** Max FX delay time (ms). ~2 s covers slow ambient repeats. Read from the generated header
+ * (OMX_DELAY_TIME_MS_MAX, FX_DELAY_TIME_RANGE.max — F7): this ring's ceiling and the TS travel
+ * the row offers are the same declared fact, not two numbers a test has to hold equal. */
+#define OMX_FXDELAY_MAX_MS ((int)OMX_DELAY_TIME_MS_MAX)
 /** Highest graph rate the ring is sized for, so MAX_MS is reachable at 44.1/48/96/192 kHz. */
 #define OMX_FXDELAY_MAX_RATE 192000
 /** Per-leg ring capacity, samples: MAX_MS at MAX_RATE, +1 so the full max delay is usable. */
