@@ -102,18 +102,31 @@ static inline int omx_delay_lv2_init(OmxDelayLv2 *s, float sr, float *ring_l, fl
  * (mixer_strip.c, "a re-enable of an already allocated (bypassed) delay CLEARS the stale
  * tail"). Off the audio thread on the desk; here it runs inside run() on the engage edge, which
  * is a bounded memset over a fixed ring and no allocation — the same cost class as the block. */
+#define OMX_CONTRACT_STAGE "fx-delay/lv2-clear"
 static inline void omx_delay_lv2_clear(OmxDelayLv2 *s) {
   if (!s || !s->ready) return;
+  /* CONTRACT (omx_contract.h). A cleared delay holds nothing: the next tap read, at any
+   * delay, is silence until the ring has been written that far. */
   memset(s->state.ring_l, 0, (size_t)s->state.cap * sizeof(float));
   memset(s->state.ring_r, 0, (size_t)s->state.cap * sizeof(float));
   s->state.wpos = 0u;
   s->state.damp_l = s->state.damp_r = 0.0f;
+  OMX_POST(s->state.ring_l[0] == 0.0f && s->state.ring_r[s->state.cap - 1u] == 0.0f &&
+               s->state.wpos == 0u,
+           "cleared-ring-is-silent");
 }
+#undef OMX_CONTRACT_STAGE
 
 /** A unit knob from a port: NaN and out-of-range floor/ceil into [0, hi]. */
+#define OMX_CONTRACT_STAGE "fx-delay/lv2-unit"
 static inline float omx_delay_lv2_unit(float v, float hi) {
-  return v > 0.0f ? (v > hi ? hi : v) : 0.0f;
+  /* CONTRACT (omx_contract.h). `> hi` / `<= 0` both false is what makes a NaN floor to 0
+   * rather than reach the kernel, whose PREs would name it three calls later. */
+  float u = v > 0.0f ? (v > hi ? hi : v) : 0.0f;
+  OMX_POST(u >= 0.0f && u <= hi, "unit-knob-inside-its-travel");
+  return u;
 }
+#undef OMX_CONTRACT_STAGE
 
 /**
  * Resolve the host's control-port values into the kernel's atom for one cycle.
@@ -123,10 +136,15 @@ static inline float omx_delay_lv2_unit(float v, float hi) {
  * to [0, {@link OMX_DELAY_LV2_FEEDBACK_MAX}] — the desk's declared travel, which already stops
  * short of the unity the kernel refuses — `mix` and `tone` to unit range.
  */
+#define OMX_CONTRACT_STAGE "fx-delay/lv2-resolve"
 static inline void omx_delay_lv2_resolve(OmxDelayLv2 *s, int bypass, float time_l_ms,
                                          float time_r_ms, float feedback, float mix, float tone,
                                          int pingpong) {
   if (!s || !s->ready) return;
+  /* CONTRACT (omx_contract.h). The atom this leaves behind satisfies every PRE
+   * omx_fx_delay_process states — feedback strictly below unity, mix and tone in unit range,
+   * both taps inside the ring — whatever the host's ports held. This is the shell's whole
+   * promise to the kernel, and the POST below is that promise verbatim. */
   const int engaged = bypass ? 0 : 1;
   if (engaged && !s->was_engaged) omx_delay_lv2_clear(s);
   s->was_engaged = engaged;
@@ -137,7 +155,12 @@ static inline void omx_delay_lv2_resolve(OmxDelayLv2 *s, int bypass, float time_
   s->atom.mix = omx_delay_lv2_unit(mix, 1.0f);
   s->atom.tone = omx_delay_lv2_unit(tone, 1.0f);
   s->atom.pingpong = pingpong ? 1 : 0;
+  OMX_POST(s->atom.feedback >= 0.0f && s->atom.feedback < 1.0f && s->atom.mix >= 0.0f &&
+               s->atom.mix <= 1.0f && s->atom.tone >= 0.0f && s->atom.tone <= 1.0f &&
+               s->atom.d_l <= s->state.cap && s->atom.d_r <= s->state.cap,
+           "atom-meets-the-kernel-preconditions");
 }
+#undef OMX_CONTRACT_STAGE
 
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
