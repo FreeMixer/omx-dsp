@@ -100,8 +100,16 @@ static inline int omx_delay_lv2_init(OmxDelayLv2 *s, float sr, float *ring_l, fl
 
 /** Clear the rings and the per-leg damping — the console's own re-enable recipe
  * (mixer_strip.c, "a re-enable of an already allocated (bypassed) delay CLEARS the stale
- * tail"). Off the audio thread on the desk; here it runs inside run() on the engage edge, which
- * is a bounded memset over a fixed ring and no allocation — the same cost class as the block. */
+ * tail"). Off the audio thread on the desk; here it runs inside run() on the engage edge, a
+ * bounded memset over the fixed ring and no allocation. MEASURED COST, 2026-09-23 (Core Ultra 9
+ * 275HX, 192 kHz, 256-frame quantum = 1.333 ms): the two rings are 3 072 008 bytes at every rate
+ * (OMX_FXDELAY_CAP); the shipped .so's edge run() takes 0.039 ms median, <= 0.097 ms worst of
+ * 600 cold-cache edges (<= 7 % of the quantum) against 0.001 ms for the same cycle with no edge
+ * (`npm run probe:lv2-delay-edge`); the bare clear, cache evicted, 0.037 ms median, 0.2 ms worst
+ * (15 %). Kept whole rather than spread across cycles: an incremental clear would add a
+ * cursor and a "not yet clean" window the tap could read into, for a cost already under a sixth
+ * of the tightest quantum. The page-fault cost of first touch (0.8 ms) is paid in activate(),
+ * which LV2 runs off the audio thread, never here. */
 #define OMX_CONTRACT_STAGE "fx-delay/lv2-clear"
 static inline void omx_delay_lv2_clear(OmxDelayLv2 *s) {
   if (!s || !s->ready) return;
