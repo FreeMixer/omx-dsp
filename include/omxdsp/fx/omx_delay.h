@@ -92,6 +92,33 @@ static inline float omx_fxdelay_tone_pole(float tone, float sr) {
   return powf(p, OMX_FXDELAY_TONE_REFERENCE_RATE / sr);
 }
 
+/**
+ * A per-leg delay TIME (ms) -> the ring tap (samples) at the live rate, saturated to the ring.
+ *
+ * ONE derivation, read by both shells that own a `struct omx_fx_delay`: the console's
+ * `resolve_fx_delay` (mixer_rt.c) and the LV2 plugin's port resolve (mix_lv2_delay.h) — so a
+ * millisecond means the same tap on the desk and in a foreign host, and the LV2 shell carries
+ * no second copy of the conversion. The clamp happens in FLOAT before the uint32 cast: a
+ * huge/NaN/negative ms (a bad tempo-sync division resolved at a low BPM) would make the
+ * float->uint32 conversion UB. `> capf` saturates to the ring; `<= 0 / NaN` (both comparisons
+ * false) floors to 0. omx_fxdelay_clamp then bounds to cap-1. Fixed work, no alloc — RT-safe.
+ */
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "fx-delay/ms-to-samples"
+static inline uint32_t omx_fxdelay_ms_to_samples(float ms, float sr) {
+  /* CONTRACT (omx_contract.h). Whatever the millisecond was — NaN, negative, a tempo-sync
+   * division resolved absurdly — the tap that comes back is a count the ring can hold; it is
+   * the statement omx_fxdelay_clamp then enforces against cap-1. */
+  OMX_PRE(sr <= 0.0f || OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
+  float s = ms * 0.001f * sr;
+  float capf = (float)OMX_FXDELAY_CAP;
+  s = s > 0.0f ? (s > capf ? capf : s) : 0.0f;
+  uint32_t d = (uint32_t)(s + 0.5f);
+  OMX_POST(d <= (uint32_t)OMX_FXDELAY_CAP, "tap-is-within-the-ring-capacity");
+  return d;
+}
+#undef OMX_CONTRACT_STAGE
+
 /** Clamp a per-leg delay to [0, cap-1]. */
 #define OMX_CONTRACT_STAGE "fx-delay/clamp"
 static inline uint32_t omx_fxdelay_clamp(uint32_t d, uint32_t cap) {
