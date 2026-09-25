@@ -5,6 +5,7 @@
  *   cc -Wall -Wextra -O2 -o build/mix_delay_test src/mix_delay.test.c -lm && ./build/mix_delay_test
  */
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -153,7 +154,61 @@ static void test_zero_delay_is_passthrough(void) {
   free_state(s);
 }
 
+
+/* The arms moved here from mix_fx_rt_review.test.c (2026-09-25-native-fx-rt-review.md) report a
+ * measurement beside the verdict. */
+static void review_ok(int cond, const char *what, double measured, double limit) {
+  char b[320];
+  snprintf(b, sizeof b, "%s — measured %.9g, limit %.9g", what, measured, limit);
+  check(cond, b);
+}
+static const float REVIEW_RATES[4] = {44100.0f, 48000.0f, 96000.0f, 192000.0f};
+
+/* ---- F5 --------------------------------------------------------------------------------------- */
+
+/*
+ * resolve_fx_delay (mixer_rt.c) loads `feedback` and `tone` straight off their atoms, and
+ * omx_fx_delay_process's clamps (`fb < 0`, `fb > 0.99f`, the tone pole's `p <= 0 || p >= 1`) are
+ * all FALSE for a NaN, so one non-finite word writes NaN into the ring and into the damping
+ * state, and every later block reads it back — measured: 400 of 400 blocks non-finite for 2.1 s
+ * after ONE bad block, i.e. until the insert is toggled. The flanger's clamp says the rule this
+ * stage lacks: "a non-finite feedback is no feedback at all".
+ *
+ * The law: a block with a non-finite feedback or tone word produces finite output, and so does
+ * every block after it once the controls are finite again.
+ */
+static void delay_nonfinite_control_is_no_control(void) {
+  for (int ri = 0; ri < 4; ri++) {
+    const float sr = REVIEW_RATES[ri];
+    /* which == 2 is the CONTROL: finite controls throughout must read clean. */
+    for (int which = 0; which < 3; which++) {
+      float *rl = calloc(OMX_FXDELAY_CAP, sizeof(float)), *rr = calloc(OMX_FXDELAY_CAP, sizeof(float));
+      struct omx_fx_delay_state s = {rl, rr, OMX_FXDELAY_CAP, 0u, 0.0f, 0.0f};
+      const uint32_t d = omx_fxdelay_ms_to_samples(10.0f, sr);
+      struct omx_fx_delay p = {1, d, d, 0.3f, 0.5f, 0.3f, 0};
+      if (which == 0) p.feedback = NAN;
+      else if (which == 1) p.tone = NAN;
+      float l[256], r[256];
+      int bad = 0;
+      for (int b = 0; b < 64; b++) {
+        for (int i = 0; i < 256; i++) l[i] = r[i] = (b == 0) ? 0.1f : 0.0f;
+        if (b == 1) { p.feedback = 0.3f; p.tone = 0.3f; } /* the controls come back */
+        omx_fx_delay_process(l, r, 256, &p, &s, sr);
+        for (int i = 0; i < 256; i++)
+          if (l[i] - l[i] != 0.0f || r[i] - r[i] != 0.0f) { bad++; break; }
+      }
+      char what[160];
+      snprintf(what, sizeof what,
+               "F5 %.0f Hz: one block with a non-finite %s leaves no non-finite block behind it",
+               (double)sr, which == 0 ? "feedback" : which == 1 ? "tone" : "(CONTROL: none)");
+      review_ok(bad == 0, what, (double)bad, 0.0);
+      free(rl); free(rr);
+    }
+  }
+}
+
 int main(void) {
+  delay_nonfinite_control_is_no_control();
   test_division_ms();
   test_impulse_reappears_at_time();
   test_feedback_decays_geometrically();
