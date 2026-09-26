@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * @file omx_eq_design.h
- * @brief The EQ section design in C, the twin of core's `rbjSection` (eq.ts): matched-Z where
- *        the ruling of 2026-09-14 says matched-Z, the cookbook where it says cookbook.
+ * @brief The EQ section design in C, the twin of core's `rbjSection` (eq.ts): each kind's
+ *        design, matched-Z or cookbook, is the one its `omx_eq_kind` member names.
  *
  * Doubles throughout, narrowed to float at the very end, so a section designed here and one
  * designed in TypeScript run the same bits; held equal by
