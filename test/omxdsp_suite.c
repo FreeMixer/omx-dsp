@@ -405,18 +405,6 @@ static void arm_fdelay(void) {
       ok(omx_fdelay_latency(&l, 1e9f) == omx_fdelay_max_delay(4096u, order), "a huge request is clamped to the ring", omx_fdelay_latency(&l, 1e9f), omx_fdelay_max_delay(4096u, order));
       ok(omx_fdelay_latency(&l, 0.3f) == omx_fdelay_min_delay(order), "a fraction below the reach is raised to the shortest whole delay", omx_fdelay_latency(&l, 0.3f), omx_fdelay_min_delay(order));
     }
-    /* the state relocates: a memcpy'd line over the same ring continues bit for bit */
-    memset(ring, 0, sizeof ring); l.wpos = 0u;
-    struct omx_fdelay moved;
-    float a[64], b[64];
-    for (int i = 0; i < 64; i++) a[i] = omx_fdelay_tick(&l, rnd(-1.0f, 1.0f), 7.25f);
-    memcpy(&moved, &l, omx_fdelay_state_size());
-    g_seed = 0x2f6e2b1du;
-    struct omx_fdelay ref = l;
-    for (int i = 0; i < 64; i++) b[i] = omx_fdelay_tick(&moved, rnd(-1.0f, 1.0f), 7.25f);
-    (void)ref;
-    ok(memcmp(a, a, sizeof a) == 0 && omx_block_finite(b, 64u), "a relocated line keeps reading", 0.0, 0.0);
-    ok(moved.wpos == (l.wpos + 64u) % 4096u, "the relocated line's cursor advanced from where the original stood", moved.wpos, (l.wpos + 64u) % 4096u);
   }
   ok(omx_fdelay_cap_for(100.0f, 5) == 100u + 2u + 2u, "the cap is the delay plus the reach plus the slot", omx_fdelay_cap_for(100.0f, 5), 104.0);
   ok(omx_fdelay_max_delay(omx_fdelay_cap_for(100.0f, 3), 3) >= 100.0f, "a cap sized for a delay serves it", omx_fdelay_max_delay(omx_fdelay_cap_for(100.0f, 3), 3), 100.0);
@@ -484,6 +472,77 @@ static void arm_oversampler(void) {
   expect_clean();
 }
 
+/* ---- state relocation ----------------------------------------------------------------------- */
+
+/* A block sized and aligned as the primitive exports, the size rounded up to the alignment. */
+static void *state_block(size_t size, size_t align) {
+  const size_t rounded = (size + align - 1u) / align * align;
+  return aligned_alloc(align, rounded);
+}
+
+/* Every stateful primitive: a reference run in one state, then a second run whose state is
+ * memcpy'd to a fresh aligned block halfway (the old block poisoned, so nothing reads it) —
+ * the two outputs bit-identical. The line's ring is caller memory the state points at: it
+ * stays where it is and only the state moves. */
+static void arm_relocation(void) {
+  g_arm = "relocation";
+  enum { N = 512, HALF = 256, BLOCK = 64 };
+  static float x[N], ref[N], out[N], up[BLOCK * 4];
+  for (int i = 0; i < N; i++) x[i] = rnd(-0.5f, 0.5f);
+  ok(omx_lfo_state_align() > 0u && (omx_lfo_state_align() & (omx_lfo_state_align() - 1u)) == 0u, "the LFO's alignment is a power of two", (double)omx_lfo_state_align(), 0.0);
+  ok(omx_fdelay_state_align() > 0u && (omx_fdelay_state_align() & (omx_fdelay_state_align() - 1u)) == 0u, "the line's alignment is a power of two", (double)omx_fdelay_state_align(), 0.0);
+  ok(omx_oversampler_state_align() > 0u && (omx_oversampler_state_align() & (omx_oversampler_state_align() - 1u)) == 0u, "the oversampler's alignment is a power of two", (double)omx_oversampler_state_align(), 0.0);
+  {
+    struct omx_lfo l = {0.0f, omx_lfo_inc(3.0f, 48000.0f)};
+    for (int i = 0; i < N; i++) { ref[i] = omx_lfo_at(&l, 0.25f); omx_lfo_advance(&l); }
+    struct omx_lfo *a = state_block(omx_lfo_state_size(), omx_lfo_state_align());
+    struct omx_lfo *b = state_block(omx_lfo_state_size(), omx_lfo_state_align());
+    ok(a != 0 && b != 0, "two aligned blocks for the LFO", 0.0, 0.0);
+    a->phase = 0.0f; a->inc = omx_lfo_inc(3.0f, 48000.0f);
+    for (int i = 0; i < HALF; i++) { out[i] = omx_lfo_at(a, 0.25f); omx_lfo_advance(a); }
+    memcpy(b, a, omx_lfo_state_size());
+    memset(a, 0xAA, omx_lfo_state_size());
+    for (int i = HALF; i < N; i++) { out[i] = omx_lfo_at(b, 0.25f); omx_lfo_advance(b); }
+    ok(memcmp(ref, out, sizeof ref) == 0, "a relocated LFO continues bit for bit", 0.0, 0.0);
+    free(a); free(b);
+  }
+  {
+    static float ring[1024];
+    struct omx_fdelay l;
+    memset(ring, 0, sizeof ring);
+    ok(omx_fdelay_init(&l, ring, 1024u, 5) == OMX_FDELAY_OK, "the reference line arms", 0.0, 0.0);
+    for (int i = 0; i < N; i++) ref[i] = omx_fdelay_tick(&l, x[i], 7.25f + 3.0f * (float)(i % 5));
+    memset(ring, 0, sizeof ring);
+    struct omx_fdelay *a = state_block(omx_fdelay_state_size(), omx_fdelay_state_align());
+    struct omx_fdelay *b = state_block(omx_fdelay_state_size(), omx_fdelay_state_align());
+    ok(a != 0 && b != 0, "two aligned blocks for the line", 0.0, 0.0);
+    ok(omx_fdelay_init(a, ring, 1024u, 5) == OMX_FDELAY_OK, "the relocating line arms", 0.0, 0.0);
+    for (int i = 0; i < HALF; i++) out[i] = omx_fdelay_tick(a, x[i], 7.25f + 3.0f * (float)(i % 5));
+    memcpy(b, a, omx_fdelay_state_size());
+    memset(a, 0xAA, omx_fdelay_state_size());
+    for (int i = HALF; i < N; i++) out[i] = omx_fdelay_tick(b, x[i], 7.25f + 3.0f * (float)(i % 5));
+    ok(memcmp(ref, out, sizeof ref) == 0, "a relocated line over the same ring continues bit for bit", 0.0, 0.0);
+    ok(b->ring == ring, "the relocated line still points at the caller's ring", 0.0, 0.0);
+    free(a); free(b);
+  }
+  {
+    struct omx_oversampler o;
+    omx_oversampler_init(&o, 4u);
+    for (int i = 0; i < N; i += BLOCK) { omx_oversampler_up(&o, x + i, BLOCK, up); omx_oversampler_down(&o, up, BLOCK, ref + i); }
+    struct omx_oversampler *a = state_block(omx_oversampler_state_size(), omx_oversampler_state_align());
+    struct omx_oversampler *b = state_block(omx_oversampler_state_size(), omx_oversampler_state_align());
+    ok(a != 0 && b != 0, "two aligned blocks for the oversampler", 0.0, 0.0);
+    omx_oversampler_init(a, 4u);
+    for (int i = 0; i < HALF; i += BLOCK) { omx_oversampler_up(a, x + i, BLOCK, up); omx_oversampler_down(a, up, BLOCK, out + i); }
+    memcpy(b, a, omx_oversampler_state_size());
+    memset(a, 0xAA, omx_oversampler_state_size());
+    for (int i = HALF; i < N; i += BLOCK) { omx_oversampler_up(b, x + i, BLOCK, up); omx_oversampler_down(b, up, BLOCK, out + i); }
+    ok(memcmp(ref, out, sizeof ref) == 0, "a relocated oversampler continues bit for bit", 0.0, 0.0);
+    free(a); free(b);
+  }
+  expect_clean();
+}
+
 int main(void) {
   omx_contract_reset();
   arm_ledger();
@@ -499,6 +558,7 @@ int main(void) {
   arm_lfo();
   arm_fdelay();
   arm_oversampler();
+  arm_relocation();
   const uint32_t violations = omx_contract_log.count;
   const uint32_t evaluated = omx_contract_log.checks;
   printf("omxdsp_suite: %d checks, %d failed; %u contracts evaluated, %u violations left\n", g_checks,
