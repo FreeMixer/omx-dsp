@@ -21,7 +21,7 @@ SRC      = $(wildcard src/*.c)
 OBJ      = $(patsubst src/%.c,$(BUILD)/%.o,$(SRC))
 TESTFLAGS = $(CFLAGS) $(INC) -DOMX_CONTRACTS
 
-SUITE_BINS = $(BUILD)/omxdsp_suite $(BUILD)/omxdsp_negative $(BUILD)/omxdsp_threads
+
 
 .PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks
 
@@ -50,7 +50,7 @@ $(BUILD)/omxdsp_threads: test/omxdsp_threads.c $(SRC) $(HEADERS) | $(BUILD)
 # the real include directory: the tree is never edited.
 $(BUILD)/omxdsp_negative: test/omxdsp_negative.c test/sabotage.sh $(SRC) $(HEADERS) | $(BUILD)
 	bash test/sabotage.sh $(BUILD)/sabotage
-	$(CC) $(TESTFLAGS) -I$(BUILD)/sabotage -o $@ test/omxdsp_negative.c $(SRC) -lm
+	$(CC) $(CFLAGS) -I$(BUILD)/sabotage $(INC) -DOMX_CONTRACTS -o $@ test/omxdsp_negative.c $(SRC) -lm
 
 suite: $(BUILD)/omxdsp_suite
 	./$(BUILD)/omxdsp_suite
@@ -70,7 +70,7 @@ checks:
 
 lint: checks
 
-test: lib checks suite $(MORE_TEST_TARGETS)
+test: lib checks suite negative perturb threads
 	@echo "omxdsp: make test green"
 
 test-tsan: test/omxdsp_threads.c $(SRC) $(HEADERS) | $(BUILD)
