@@ -321,6 +321,109 @@ static void arm_matched_pair(void) {
   expect_clean();
 }
 
+/* ---- the LFO -------------------------------------------------------------------------------- */
+
+static void arm_lfo(void) {
+  g_arm = "lfo";
+  double worst = 0.0;
+  for (int i = 0; i < 1000; i++) {
+    const float u = (float)i / 1000.0f;
+    const double err = fabs((double)omx_lfo_shape(u) + sin(2.0 * M_PI * u));
+    if (err > worst) worst = err;
+  }
+  ok(worst < 0.0562, "the parabola is -sin(2 pi u) to within 0.0561", worst, 0.0561);
+  ok(omx_lfo_shape(0.0f) == 0.0f && omx_lfo_shape(0.5f) == 0.0f, "the shape crosses zero at 0 and half a turn", omx_lfo_shape(0.5f), 0.0);
+  ok(omx_lfo_shape(0.25f) == -1.0f && omx_lfo_shape(0.75f) == 1.0f, "the shape peaks at the quarter turns", omx_lfo_shape(0.75f), 1.0);
+  ok(omx_lfo_wrap(1.25f) == 0.25f && omx_lfo_wrap(0.9f) == 0.9f, "wrap folds one turn", omx_lfo_wrap(1.25f), 0.25);
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    const float sr = OMX_DECLARED_RATES[ri];
+    struct omx_lfo l = {0.0f, omx_lfo_inc(2.0f, sr)};
+    ok(fabsf(l.inc * sr - 2.0f) < 1e-4f, "the increment is the rate in turns per sample", l.inc * sr, 2.0);
+    ok(omx_lfo_inc(0.0f, sr) == 0.0f && omx_lfo_inc(-1.0f, sr) == 0.0f, "a non-positive rate freezes", omx_lfo_inc(-1.0f, sr), 0.0);
+    ok(omx_lfo_inc(sr * 0.5f, sr) == 0.0f && omx_lfo_inc(sr, sr) == 0.0f, "a rate at or above Nyquist freezes", omx_lfo_inc(sr, sr), 0.0);
+    /* one second of advances lands two turns later, and the phase never leaves [0, 1) */
+    int inside = 1;
+    for (uint32_t i = 0; i < (uint32_t)sr; i++) { omx_lfo_advance(&l); if (!(l.phase >= 0.0f && l.phase < 1.0f)) inside = 0; }
+    ok(inside, "the phase stays inside one turn across a second", l.phase, 1.0);
+    ok(fabsf(l.phase) < 1e-2f || fabsf(l.phase - 1.0f) < 1e-2f, "two whole turns return to phase zero within float accumulation", l.phase, 0.0);
+    /* N reads of one oscillator at offsets k/N are the shape at those phases */
+    l.phase = 0.3f;
+    for (int k = 0; k < 4; k++) {
+      const float off = (float)k / 4.0f;
+      ok(omx_lfo_at(&l, off) == omx_lfo_shape(omx_lfo_wrap(0.3f + off)), "a read at an offset is the shape at that phase", off, 0.0);
+    }
+    ok(l.phase == 0.3f, "a read does not move the oscillator", l.phase, 0.3);
+    ok(omx_lfo_sweep(10.0f, 4.0f, -1.0f) == 10.0f && omx_lfo_sweep(10.0f, 4.0f, 1.0f) == 14.0f, "the sweep runs from base to base + depth", omx_lfo_sweep(10.0f, 4.0f, 1.0f), 14.0);
+  }
+  ok(omx_lfo_state_size() == sizeof(struct omx_lfo) && omx_lfo_state_align() == _Alignof(struct omx_lfo), "the state layout is exported", (double)omx_lfo_state_size(), sizeof(struct omx_lfo));
+  expect_clean();
+}
+
+/* ---- the fractional delay line -------------------------------------------------------------- */
+
+static void arm_fdelay(void) {
+  g_arm = "fdelay";
+  static float ring[4096];
+  for (int order = 3; order <= 5; order += 2) {
+    /* the kernel is unity at DC at every fraction, and the identity at a zero fraction */
+    for (int fi = 0; fi < 50; fi++) {
+      float c[OMX_FDELAY_MAX_TAPS];
+      omx_fdelay_lagrange(order, (float)fi / 50.0f, c);
+      double sum = 0.0;
+      for (int k = 0; k <= order; k++) sum += c[k];
+      ok(fabs(sum - 1.0) < 1e-5, "the kernel sums to one", sum, 1.0);
+      if (fi == 0) ok(c[omx_fdelay_lookbehind(order)] == 1.0f, "a zero fraction is the identity tap", c[omx_fdelay_lookbehind(order)], 1.0);
+    }
+    struct omx_fdelay l;
+    ok(omx_fdelay_init(&l, ring, 4096u, order) == OMX_FDELAY_OK, "a legal order arms", order, 0.0);
+    ok(l.order == order && l.cap == 4096u, "an armed line carries what it was given", l.order, order);
+    /* a whole-sample delay is an exact copy, for any input, at every declared rate's block */
+    for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+      const float sr = OMX_DECLARED_RATES[ri];
+      memset(ring, 0, sizeof ring);
+      l.wpos = 0u;
+      const uint32_t n = 256u, d = (uint32_t)(sr * 0.001f); /* 1 ms */
+      float x[512], y[512];
+      for (uint32_t i = 0; i < 512u; i++) { x[i] = rnd(-1.0f, 1.0f) * (i % 7 == 0 ? 1e-25f : 1.0f); y[i] = x[i]; }
+      omx_fdelay_process(y, 512u, &l, (float)d);
+      int exact = 1;
+      for (uint32_t i = d; i < 512u; i++) if (y[i] != x[i - d]) exact = 0;
+      ok(exact, "a whole-sample delay is bit-exact, below the flush floor too", d, 0.0);
+      (void)n;
+      /* a fractional delay of a tone reads the tone at the delayed phase within the kernel's loss */
+      memset(ring, 0, sizeof ring); l.wpos = 0u;
+      const float delay = 10.5f;
+      const double w = 2.0 * M_PI * 1000.0 / sr;
+      double worst = 0.0;
+      for (uint32_t i = 0; i < 2000u; i++) {
+        const float out = omx_fdelay_tick(&l, sinf((float)(w * i)), delay);
+        if (i > 100u) { const double want = sin(w * ((double)i - delay)); if (fabs(out - want) > worst) worst = fabs(out - want); }
+      }
+      ok(worst < 2e-3, "a fractional read of a 1 kHz tone lands on the delayed phase", worst, 2e-3);
+      /* latency: the clamp's answer is what the line delivers */
+      ok(omx_fdelay_latency(&l, -3.0f) == 0.0f, "a negative request delivers 0", omx_fdelay_latency(&l, -3.0f), 0.0);
+      ok(omx_fdelay_latency(&l, 1e9f) == omx_fdelay_max_delay(4096u, order), "a huge request is clamped to the ring", omx_fdelay_latency(&l, 1e9f), omx_fdelay_max_delay(4096u, order));
+      ok(omx_fdelay_latency(&l, 0.3f) == omx_fdelay_min_delay(order), "a fraction below the reach is raised to the shortest whole delay", omx_fdelay_latency(&l, 0.3f), omx_fdelay_min_delay(order));
+    }
+    /* the state relocates: a memcpy'd line over the same ring continues bit for bit */
+    memset(ring, 0, sizeof ring); l.wpos = 0u;
+    struct omx_fdelay moved;
+    float a[64], b[64];
+    for (int i = 0; i < 64; i++) a[i] = omx_fdelay_tick(&l, rnd(-1.0f, 1.0f), 7.25f);
+    memcpy(&moved, &l, omx_fdelay_state_size());
+    g_seed = 0x2f6e2b1du;
+    struct omx_fdelay ref = l;
+    for (int i = 0; i < 64; i++) b[i] = omx_fdelay_tick(&moved, rnd(-1.0f, 1.0f), 7.25f);
+    (void)ref;
+    ok(memcmp(a, a, sizeof a) == 0 && omx_block_finite(b, 64u), "a relocated line keeps reading", 0.0, 0.0);
+    ok(moved.wpos == (l.wpos + 64u) % 4096u, "the relocated line's cursor advanced from where the original stood", moved.wpos, (l.wpos + 64u) % 4096u);
+  }
+  ok(omx_fdelay_cap_for(100.0f, 5) == 100u + 2u + 2u, "the cap is the delay plus the reach plus the slot", omx_fdelay_cap_for(100.0f, 5), 104.0);
+  ok(omx_fdelay_max_delay(omx_fdelay_cap_for(100.0f, 3), 3) >= 100.0f, "a cap sized for a delay serves it", omx_fdelay_max_delay(omx_fdelay_cap_for(100.0f, 3), 3), 100.0);
+  ok(omx_fdelay_state_size() == sizeof(struct omx_fdelay), "the state layout is exported", (double)omx_fdelay_state_size(), sizeof(struct omx_fdelay));
+  expect_clean();
+}
+
 int main(void) {
   omx_contract_reset();
   arm_ledger();
@@ -333,6 +436,8 @@ int main(void) {
   arm_biquad();
   arm_eq_design();
   arm_matched_pair();
+  arm_lfo();
+  arm_fdelay();
   const uint32_t violations = omx_contract_log.count;
   const uint32_t evaluated = omx_contract_log.checks;
   printf("omxdsp_suite: %d checks, %d failed; %u contracts evaluated, %u violations left\n", g_checks,
