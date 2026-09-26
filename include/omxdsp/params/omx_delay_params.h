@@ -3,7 +3,7 @@
 /*
  * GENERATED — DO NOT EDIT BY HAND.
  * Produced by packages/omx-plugins/tools/params-gen.mjs from @freemixer/core:
- * CONSOLE_TRAVEL_DECLS['/channel/{kind}/{index}/delay'], fxMixLimit({ kind: 'input' }), FX_DELAY_PINGPONG_DEFAULT.
+ * CONSOLE_TRAVEL_DECLS['/channel/{kind}/{index}/delay'], limitForKind(DELAY_MIX_RANGE, 'input'), FX_DELAY_PINGPONG_DEFAULT.
  * Regenerate: `node packages/omx-plugins/tools/params-gen.mjs`, then commit the result
  * (docs/design/specs/2026-09-25-omx-plugins-dpf.md §3c). Order is append-only (§3b).
  */
