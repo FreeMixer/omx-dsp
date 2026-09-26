@@ -120,18 +120,147 @@ static void arm_version(void) {
   expect_clean();
 }
 
+/* ---- denormal ------------------------------------------------------------------------------- */
+
+static void arm_denormal(void) {
+  g_arm = "denormal";
+  ok(omx_flush(1e-30f) == 0.0f, "a value below the floor flushes to zero", 1e-30, 0.0);
+  ok(omx_flush(-1e-30f) == 0.0f, "a negative value below the floor flushes to zero", -1e-30, 0.0);
+  ok(omx_flush(1e-19f) == 1e-19f, "a value above the floor is untouched", 1e-19, 1e-19);
+  ok(omx_flush(-0.5f) == -0.5f, "an ordinary value is untouched", -0.5, -0.5);
+  omx_denormals_off();
+#if defined(__x86_64__) || defined(__i386__)
+  ok((_mm_getcsr() & 0x8040u) == 0x8040u, "FTZ and DAZ are set for this thread", (double)(_mm_getcsr() & 0x8040u), 0x8040);
+#endif
+  expect_clean();
+}
+
+/* ---- units ---------------------------------------------------------------------------------- */
+
+static void arm_units(void) {
+  g_arm = "units";
+  ok(omx_db_to_lin(0.0f) == 1.0f, "0 dB is unity", omx_db_to_lin(0.0f), 1.0);
+  ok(fabsf(omx_db_to_lin(-6.0f) - 0.501187f) < 1e-5f, "-6 dB is 0.501187", omx_db_to_lin(-6.0f), 0.501187);
+  ok(fabsf(omx_db_to_lin(20.0f) - 10.0f) < 1e-5f, "+20 dB is 10", omx_db_to_lin(20.0f), 10.0);
+  for (float db = -120.0f; db <= 24.0f; db += 3.7f) {
+    const float back = omx_lin_to_db(omx_db_to_lin(db));
+    ok(fabsf(back - db) < 1e-3f, "dB -> lin -> dB round trip", back, db);
+  }
+  ok(omx_lin_to_db(0.0f) == -180.0f, "silence is a finite -180 dB", omx_lin_to_db(0.0f), -180.0);
+  ok(omx_lin_to_db(1e-12f) == -180.0f, "below the floor reads as the floor", omx_lin_to_db(1e-12f), -180.0);
+  expect_clean();
+}
+
+/* ---- one-pole ------------------------------------------------------------------------------- */
+
+static void arm_onepole(void) {
+  g_arm = "onepole";
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    const float sr = OMX_DECLARED_RATES[ri];
+    /* time constant: the step response covers 1 - 1/e after tau */
+    const float tau_ms = 5.0f;
+    const float p = omx_pole_from_time_ms(tau_ms, sr);
+    ok(p > 0.0f && p < 1.0f, "a positive time gives a pole inside (0, 1)", p, 1.0);
+    float y = 0.0f;
+    const uint32_t n_tau = (uint32_t)(tau_ms * 0.001f * sr + 0.5f);
+    for (uint32_t i = 0; i < n_tau; i++) omx_onepole(&y, 1.0f, p);
+    ok(fabsf(y - (1.0f - expf(-1.0f))) < 2e-3f, "the step response covers 1-1/e after one time constant", y, 1.0 - exp(-1.0));
+    /* corner: |H| at fc for the impulse-invariant pole is (1-p)/sqrt(1 - 2p cos w + p^2) */
+    const float fc = 1000.0f;
+    const float pc = omx_pole_from_cutoff_hz(fc, sr);
+    const double w = 2.0 * M_PI * fc / sr;
+    const double closed = (1.0 - pc) / sqrt(1.0 - 2.0 * pc * cos(w) + (double)pc * pc);
+    float st = 0.0f;
+    double re = 0.0, im = 0.0;
+    const uint32_t settle = (uint32_t)(sr * 0.2f), meas = (uint32_t)(sr * 0.1f);
+    for (uint32_t i = 0; i < settle + meas; i++) {
+      const float x = sinf((float)(w * i));
+      const float o = omx_onepole(&st, x, pc);
+      if (i >= settle) { re += o * cos(w * i); im += o * sin(w * i); }
+    }
+    const double mag = 2.0 * sqrt(re * re + im * im) / meas;
+    ok(fabs(mag - closed) < 2e-3, "the corner's magnitude matches the closed form", mag, closed);
+    ok(fabs(20.0 * log10(closed) + 3.0) < 0.2, "the corner sits near -3 dB", 20.0 * log10(closed), -3.0);
+    /* wires and exactness */
+    ok(omx_pole_from_time_ms(0.0f, sr) == 0.0f, "ms <= 0 is a wire", omx_pole_from_time_ms(0.0f, sr), 0.0);
+    ok(omx_pole_from_cutoff_hz(-1.0f, sr) == 0.0f, "hz <= 0 is a wire", omx_pole_from_cutoff_hz(-1.0f, sr), 0.0);
+    float wire = 0.25f;
+    ok(omx_onepole(&wire, 0.75f, 0.0f) == 0.75f, "pole 0 passes the input through", wire, 0.75);
+    float held = 0.3125f;
+    omx_onepole_toward(&held, 0.3125f, p);
+    ok(held == 0.3125f, "the increment form holds a state equal to its target bit for bit", held, 0.3125);
+    float conv = 0.0f, incr = 0.0f;
+    for (int i = 0; i < 100; i++) { omx_onepole(&conv, 0.8f, p); omx_onepole_toward(&incr, 0.8f, p); }
+    ok(fabsf(conv - incr) < 1e-5f, "both forms are the same filter", conv, incr);
+  }
+  expect_clean();
+}
+
+/* ---- biquad --------------------------------------------------------------------------------- */
+
+static void arm_biquad(void) {
+  g_arm = "biquad";
+  const float unity[5] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+  float s[4] = {0};
+  float in[64], out[64];
+  for (int i = 0; i < 64; i++) { in[i] = rnd(-1.0f, 1.0f); out[i] = omx_biquad(in[i], unity, s); }
+  ok(memcmp(in, out, sizeof in) == 0, "unity coefficients are the identity bit for bit", 0.0, 0.0);
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    const float sr = OMX_DECLARED_RATES[ri];
+    /* a cookbook low-pass at 1 kHz, Q 1/sqrt2, designed here in double; the section's impulse
+     * response against the same recursion run in double */
+    const double w0 = 2.0 * M_PI * 1000.0 / sr, alpha = sin(w0) / (2.0 * M_SQRT1_2), cw = cos(w0), a0 = 1.0 + alpha;
+    const float c[5] = {(float)((1.0 - cw) / 2.0 / a0), (float)((1.0 - cw) / a0), (float)((1.0 - cw) / 2.0 / a0),
+                        (float)(-2.0 * cw / a0), (float)((1.0 - alpha) / a0)};
+    float st[4] = {0};
+    double x1 = 0, x2 = 0, y1 = 0, y2 = 0, worst = 0.0;
+    for (int i = 0; i < 2000; i++) {
+      const float x = i == 0 ? 1.0f : 0.0f;
+      const float y = omx_biquad(x, c, st);
+      const double yd = c[0] * x + c[1] * x1 + c[2] * x2 - c[3] * y1 - c[4] * y2;
+      x2 = x1; x1 = x; y2 = y1; y1 = yd;
+      if (fabs(yd - y) > worst) worst = fabs(yd - y);
+    }
+    ok(worst < 1e-5, "the section's impulse response follows its recursion", worst, 1e-5);
+    ok(omx_block_finite(st, 4u), "the state stays finite", 0.0, 1.0);
+    /* the cascade equals the sections run in series, and a parked section leaves its state alone */
+    float coeffs[3][5]; memcpy(coeffs[0], c, sizeof c); memcpy(coeffs[1], c, sizeof c); memcpy(coeffs[2], c, sizeof c);
+    float sa[3][4] = {{0}}, sb1[4] = {0}, sb2[4] = {0};
+    const uint8_t on[3] = {1, 0, 1};
+    float a[128], b[128];
+    for (int i = 0; i < 128; i++) { a[i] = rnd(-0.7f, 0.7f); b[i] = a[i]; }
+    omx_biquad_cascade(a, 128u, 3u, coeffs, on, sa);
+    for (int i = 0; i < 128; i++) b[i] = omx_biquad(omx_biquad(b[i], c, sb1), c, sb2);
+    ok(memcmp(a, b, sizeof a) == 0, "the cascade is its sections in series, bit for bit", 0.0, 0.0);
+    ok(sa[1][0] == 0.0f && sa[1][2] == 0.0f, "a parked section's state does not advance", sa[1][0], 0.0);
+    ok(memcmp(sa[0], sb1, sizeof sb1) == 0 && memcmp(sa[2], sb2, sizeof sb2) == 0, "each section keeps its own slot", 0.0, 0.0);
+    /* a 0 dB cascade is the identity over a block */
+    float d[64]; for (int i = 0; i < 64; i++) d[i] = rnd(-1.0f, 1.0f);
+    float e[64]; memcpy(e, d, sizeof d);
+    float un[2][5] = {{1, 0, 0, 0, 0}, {1, 0, 0, 0, 0}}; float su[2][4] = {{0}};
+    omx_biquad_cascade(e, 64u, 2u, un, NULL, su);
+    ok(memcmp(d, e, sizeof d) == 0, "a unity cascade is the identity", 0.0, 0.0);
+  }
+  ok(OMX_EQ_MAX_BANDS == 24, "the cascade cap is the declared joint budget", OMX_EQ_MAX_BANDS, 24.0);
+  expect_clean();
+}
+
 int main(void) {
   omx_contract_reset();
   arm_ledger();
   arm_rates();
   arm_block_helpers();
   arm_version();
+  arm_denormal();
+  arm_units();
+  arm_onepole();
+  arm_biquad();
   const uint32_t violations = omx_contract_log.count;
   const uint32_t evaluated = omx_contract_log.checks;
   printf("omxdsp_suite: %d checks, %d failed; %u contracts evaluated, %u violations left\n", g_checks,
          g_failed, evaluated, violations);
-  if (evaluated < 20u) {
-    printf("FAIL the suite evaluated %u contracts — floor is 20\n", evaluated);
+  if (evaluated < 1000u) {
+    printf("FAIL the suite evaluated %u contracts — floor is 1000\n", evaluated);
     return 1;
   }
   if (violations != 0u) return 1;

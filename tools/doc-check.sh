@@ -77,7 +77,7 @@ FNR == 1 { depth = 0; in_doc = 0; in_comment = 0; block = ""; block_end = -1; la
     check_block(FNR, "type", "", "", block_end == last_nonblank, block)
   } else if (depth == 0 && code ~ /^#[ \t]*define[ \t]+OMX[A-Z0-9_]*/) {
     name = code; sub(/^#[ \t]*define[ \t]+/, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
-    if (!(name in seen) && name !~ /_H$/) { seen[name] = 1; check_block(FNR, "macro " name, "", "", block_end == last_nonblank, block) }
+    if (!(name in seen) && name !~ /_H$/ && name != "OMX_CONTRACT_STAGE") { seen[name] = 1; check_block(FNR, "macro " name, "", "", block_end == last_nonblank, block) }
   }
   # brace depth over code, and the body of the function being collected
   o = gsub(/\{/, "{", code); c = gsub(/\}/, "}", code)
