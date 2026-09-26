@@ -15,19 +15,62 @@
 #      `static const` table is allowed. Positive control: a planted `static float g_last;`
 #      in a scratch copy must be caught.
 #
+#  (c) --rt MODE (§4.3 (f)). `writable-data-check.sh --rt <scratch> <unit.c> <cc flags…>` LISTS,
+#      never judges: the unit compiled with -g at release and at -DOMX_CONTRACTS flags, every
+#      writable symbol of (a) as `file<TAB>symbol<TAB>symbol:<nm type>` (file from `nm -l`,
+#      relative to the working directory, a function-static's `.N` suffix dropped), plus the
+#      source scan of (b) over the unit's own include closure as `file<TAB>name<TAB>source`.
+#      The shrink-only ratchet that consumes the list is the judge
+#      (packages/server/src/rt-writable-data-conformance.test.ts).
+#
 # Usage: writable-data-check.sh <scratch-dir>   (CC and CFLAGS from the environment)
+#        writable-data-check.sh --rt <scratch-dir> <unit.c> [cc flags…]
 set -euo pipefail
 shopt -s nullglob
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PKG="$(cd "$HERE/.." && pwd)"
-OUT="${1:?scratch dir}"
 CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2}"
+
+writable() { nm "$1" | awk '$2 ~ /^[bBdDcCgGsS]$/ { print $3 }'; }
+scan() { # files…
+  grep -nE '^[[:space:]]*static[[:space:]]' "$@" 2>/dev/null \
+    | grep -vE 'static[[:space:]]+(inline|const)[[:space:]]' \
+    | grep -vE '\(' || true
+  grep -nE '(_Thread_local|__thread|[^_[:alnum:]]thread_local)[[:space:]]' "$@" 2>/dev/null || true
+}
+
+if [ "${1:-}" = --rt ]; then
+  OUT="${2:?scratch dir}"; UNIT="${3:?unit.c}"; shift 3
+  mkdir -p "$OUT"
+  base="$(basename "$UNIT" .c)"
+  rel() { realpath -m --relative-to="$PWD" "$1"; }
+  {
+    for extra in "" -DOMX_CONTRACTS; do
+      obj="$OUT/$base${extra:+.con}.o"
+      # shellcheck disable=SC2086
+      $CC $CFLAGS -g $extra "$@" -c -o "$obj" "$UNIT"
+      nm -l "$obj" | awk '$2 ~ /^[bBdDcCgGsS]$/ { n=$3; sub(/\.[0-9]+$/, "", n); l=$4; sub(/:[0-9]+$/, "", l); print $2 "\t" n "\t" l }' \
+        | while IFS=$'\t' read -r type name loc; do
+            [ "$name" = omx_contract_log ] && [ -n "$extra" ] && continue
+            printf '%s\t%s\tsymbol:%s\n' "$(rel "${loc:-$UNIT}")" "$name" "$type"
+          done
+    done
+    # shellcheck disable=SC2086
+    mapfile -t closure < <($CC -MM $CFLAGS "$@" "$UNIT" | tr ' \\' '\n\n' | grep -E '\.(c|h)$' | grep -v '^/usr/' | sort -u)
+    scan "${closure[@]}" | while IFS= read -r hit; do
+      file="${hit%%:*}"; text="${hit#*:*:}"
+      name="$(printf '%s' "$text" | sed -E 's/[=;[].*//; s/[[:space:]]+$//; s/.*[^_[:alnum:]]//')"
+      printf '%s\t%s\tsource\n' "$(rel "$file")" "$name"
+    done
+  } | sort -u
+  exit 0
+fi
+
+OUT="${1:?scratch dir}"
 mkdir -p "$OUT"
 cd "$PKG"
-
 fail=0
-writable() { nm "$1" | awk '$2 ~ /^[bBdDcCgGsS]$/ { print $3 }'; }
 
 # ---- (a) symbols -----------------------------------------------------------------------------
 for h in include/omxdsp/*.h; do
@@ -60,16 +103,12 @@ $CC $CFLAGS -c -o "$OUT/probe.o" "$OUT/probe.c"
 if [ -z "$(writable "$OUT/probe.o")" ]; then echo "writable-data-check: FAIL the symbol probe cannot see a planted static"; fail=1; fi
 
 # ---- (b) source ------------------------------------------------------------------------------
-scan() { # files…
-  grep -nE '^[[:space:]]*static[[:space:]]' "$@" 2>/dev/null \
-    | grep -vE 'static[[:space:]]+(inline|const)[[:space:]]' \
-    | grep -vE '\(' || true
-  grep -nE '_Thread_local' "$@" 2>/dev/null || true
-}
 hits="$(scan include/omxdsp/*.h src/*.c)"
 if [ -n "$hits" ]; then echo "writable-data-check: FAIL mutable static or thread-local state in the library:"; echo "$hits"; fail=1; fi
 printf 'static float g_last;\n' > "$OUT/probe_src.h"
 if [ -z "$(scan "$OUT/probe_src.h")" ]; then echo "writable-data-check: FAIL the source scan cannot see a planted static"; fail=1; fi
+printf 'static __thread int t_last;\n' > "$OUT/probe_tls.h"
+if [ -z "$(scan "$OUT/probe_tls.h")" ]; then echo "writable-data-check: FAIL the source scan cannot see a planted thread-local"; fail=1; fi
 printf 'static const float k_tab[2] = {1.0f, 2.0f};\nstatic inline float omx_x(float a) { return a; }\nstatic void helper(void) {}\n' > "$OUT/probe_ok.h"
 if [ -n "$(scan "$OUT/probe_ok.h")" ]; then echo "writable-data-check: FAIL the source scan refuses a const table, an inline or a static function"; fail=1; fi
 
