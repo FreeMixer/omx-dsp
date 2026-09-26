@@ -125,7 +125,7 @@ typedef struct {
  *
  * The squared magnitude of the numerator equals the target magnitude-squared times the pole
  * pair's squared magnitude at DC, the corner and Nyquist. The operations and their order are
- * the contract: both callers are bit-identical to core's `rbjSection('lowpass')` through it.
+ * the contract: both callers are bit-identical to the lowpass design in core through it.
  * @param u The pole pair's squared magnitude at `z = 1`, positive.
  * @param n_nyq The target squared magnitude at Nyquist, finite.
  * @param n_f0 The target squared magnitude at the corner, finite.

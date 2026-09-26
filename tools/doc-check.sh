@@ -25,7 +25,7 @@ AWK_PROG='
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
 function report(line, what) { printf("doc-check: %s:%d: %s\n", FILENAME, line, what); bad++ }
 function param_names(sig,   inner, n, parts, i, p, m, k, name) {
-  inner = sig; sub(/^[^(]*\(/, "", inner); sub(/\)[^)]*$/, "", inner)
+  inner = sig; sub(/[{;].*$/, "", inner); sub(/^[^(]*\(/, "", inner); sub(/\)[^)]*$/, "", inner)
   n = split(inner, parts, ",")
   names = ""
   for (i = 1; i <= n; i++) {
