@@ -73,9 +73,11 @@ lint: checks
 test: lib checks suite negative perturb threads
 	@echo "omxdsp: make test green"
 
-test-tsan: test/omxdsp_threads.c $(SRC) $(HEADERS) | $(BUILD)
-	$(CC) $(TESTFLAGS) -fsanitize=thread -g -pthread -o $(BUILD)/omxdsp_threads_tsan test/omxdsp_threads.c $(SRC) -lm
-	./$(BUILD)/omxdsp_threads_tsan
+# §4.3 (e): NOT RUN (exit 0, never a pass) where the toolchain has no TSan; where it has, the
+# thread arm must be report-free and its shared-state sabotage must race.
+test-tsan: test/omxdsp_threads.c tools/tsan-gate.sh $(SRC) $(HEADERS) | $(BUILD)
+	CC="$(CC)" bash tools/tsan-gate.sh $(BUILD)/tsan omxdsp_threads OMXDSP_THREADS_SABOTAGE_SHARED_STATE \
+	  $(TESTFLAGS) -pthread test/omxdsp_threads.c $(SRC) -lm
 
 docs: $(HEADERS) | $(BUILD)
 	doxygen Doxyfile

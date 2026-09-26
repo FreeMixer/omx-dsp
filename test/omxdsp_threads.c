@@ -3,7 +3,9 @@
 /*
  * omxdsp_threads.c — N threads, each over its own state, contracts ON, every output byte-identical
  * to the single-threaded reference, the ledger empty (docs/design/specs/2026-09-26-dsp-primitives.md
- * §4.3 (c)). Built with -pthread; `make test-tsan` runs it under ThreadSanitizer.
+ * §4.3 (c)). Built with -pthread; `make test-tsan` runs it under ThreadSanitizer (§4.3 (e)), and
+ * again with OMXDSP_THREADS_SABOTAGE_SHARED_STATE — every worker handed ONE fractional line — which
+ * TSan must report as a race.
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omxdsp.h>
@@ -28,13 +30,23 @@ struct worker {
 
 static const uint32_t BLOCK_SIZES[] = {64u, 37u, 128u, 1u, 256u, 100u, 64u, 9u};
 
+#ifdef OMXDSP_THREADS_SABOTAGE_SHARED_STATE
+static struct omx_fdelay g_shared_line;
+static float g_shared_ring[1024];
+#endif
+
 /* The one signal every worker processes, and the one chain of primitives it runs it through. */
 static void run_chain(struct worker *w) {
   const float sr = OMX_DECLARED_RATES[w->rate_index % OMX_DECLARED_RATE_COUNT];
   omx_denormals_off();
+#ifdef OMXDSP_THREADS_SABOTAGE_SHARED_STATE
+#define line g_shared_line
+  omx_fdelay_init(&line, g_shared_ring, 1024u, 3);
+#else
   struct omx_fdelay line;
   omx_fdelay_init(&line, w->ring, 1024u, 3);
   memset(w->ring, 0, sizeof w->ring);
+#endif
   struct omx_lfo lfo = {0.0f, omx_lfo_inc(1.5f, sr)};
   float coeffs[2][5];
   omx_eq_design_f(OMX_EQ_PEAKING, 1000.0, 1.0, 6.0, sr, coeffs[0]);
@@ -66,6 +78,7 @@ static void run_chain(struct worker *w) {
     }
     written += n;
   }
+#undef line
 }
 
 static void *worker_main(void *arg) {
