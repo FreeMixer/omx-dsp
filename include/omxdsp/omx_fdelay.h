@@ -155,7 +155,9 @@ static inline enum omx_fdelay_code omx_fdelay_init(struct omx_fdelay *l, float *
  * @param f The fraction, in [0, 1).
  * @param c `order + 1` coefficients.
  * @pre `kernel-order-is-within-the-tap-array`, `fraction-is-inside-one-sample`.
- * @post `the-kernel-is-unity-at-dc`: the coefficients sum to 1 within 1e-5.
+ * @post `the-kernel-is-unity-at-dc`: the coefficients sum to 1 within 1e-5;
+ *       `an-order-3-kernel-is-inside-the-declared-l1-norm`: at order 3, Σ|c| is at most
+ *       `OMX_FDELAY_READ_L1_NORM` (the declared bound of the order-3 read's worst fraction).
  * @note RT-safe: bounded products, no call. Thread-safe: pure.
  */
 static inline void omx_fdelay_lagrange(int order, float f, float *c) {
@@ -173,9 +175,11 @@ static inline void omx_fdelay_lagrange(int order, float f, float *c) {
   }
 #ifdef OMX_CONTRACTS
   {
-    double sum = 0.0;
-    for (int k = 0; k <= order; k++) sum += (double)c[k];
+    double sum = 0.0, l1 = 0.0;
+    for (int k = 0; k <= order; k++) { sum += (double)c[k]; l1 += fabs((double)c[k]); }
     OMX_POST(fabs(sum - 1.0) < 1e-5, "the-kernel-is-unity-at-dc");
+    OMX_POST(order != 3 || l1 <= (double)OMX_FDELAY_READ_L1_NORM + 1e-6,
+             "an-order-3-kernel-is-inside-the-declared-l1-norm");
   }
 #endif
 }
