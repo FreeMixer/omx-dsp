@@ -11,6 +11,9 @@
 #     to every link (a runtime outside the toolchain's default path).
 #  2. CLEAN. The test built with -fsanitize=thread must exit 0 under halt_on_error=1 and print no
 #     ThreadSanitizer report.
+#     A standalone atomic_thread_fence is not modelled by TSan (gcc -Wtsan): the build keeps it a
+#     warning and the gate prints each site as `tsan-gate: NOTE — … fence unmodelled`, so a
+#     publication TSan cannot check is named, never silently trusted (§4.2 F10).
 #  3. SABOTAGE. The same test built with -D<sabotage> (every worker handed ONE state) must print
 #     `ThreadSanitizer: data race`. A race the gate does not see is a blind gate: FAIL.
 #
@@ -37,7 +40,10 @@ fi
 
 export TSAN_OPTIONS="halt_on_error=1 exitcode=66 ${TSAN_OPTIONS:-}"
 # shellcheck disable=SC2086
-$CC -fsanitize=thread -g "$@" $LDX -o "$OUT/$NAME" || { echo "tsan-gate: FAIL — $NAME does not build under TSan"; exit 1; }
+if ! blog="$($CC -fsanitize=thread -Wno-error=tsan -g "$@" $LDX -o "$OUT/$NAME" 2>&1)"; then
+  printf '%s\n' "$blog" | tail -20; echo "tsan-gate: FAIL — $NAME does not build under TSan"; exit 1
+fi
+printf '%s\n' "$blog" | grep -E "atomic_thread_fence' is not supported" | sed -E 's/^([^:]+:[0-9]+):.*/tsan-gate: NOTE — \1: atomic_thread_fence, a publication TSan does not model/' | sort -u
 out="$("$OUT/$NAME" 2>&1)"; rc=$?
 if [ "$rc" -ne 0 ] || printf '%s\n' "$out" | grep -q 'ThreadSanitizer'; then
   printf '%s\n' "$out" | tail -40
@@ -45,7 +51,7 @@ if [ "$rc" -ne 0 ] || printf '%s\n' "$out" | grep -q 'ThreadSanitizer'; then
 fi
 
 # shellcheck disable=SC2086
-$CC -fsanitize=thread -g "-D$SABOTAGE" "$@" $LDX -o "$OUT/$NAME.sabotage" || { echo "tsan-gate: FAIL — the $NAME sabotage does not build"; exit 1; }
+$CC -fsanitize=thread -Wno-error=tsan -Wno-tsan -g "-D$SABOTAGE" "$@" $LDX -o "$OUT/$NAME.sabotage" || { echo "tsan-gate: FAIL — the $NAME sabotage does not build"; exit 1; }
 sab="$("$OUT/$NAME.sabotage" 2>&1)"; src=$?
 if ! printf '%s\n' "$sab" | grep -q 'ThreadSanitizer: data race' || [ "$src" -eq 0 ]; then
   printf '%s\n' "$sab" | tail -20
