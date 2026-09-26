@@ -49,6 +49,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_lfo.h"
 #include "omx_matched_pair.h"
 #include "omx_onepole.h"
+#include "omx_oversampler.h"
 #include "omx_units.h"
 
 #endif /* OMXDSP_H */
