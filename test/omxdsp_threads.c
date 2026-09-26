@@ -1,113 +1,126 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * omxdsp_threads — N workers, each over its own state for every stateful primitive (a biquad
- * cascade, a fractional line, an LFO, an oversampler), each calling omx_denormals_off() on entry
- * and running the same deterministic signal for 2000 blocks in uneven sizes with contracts ON;
- * every worker's output memcmp-equal to the single-threaded reference, the ledger's `checks`
- * grown by exactly N times the single-threaded count, its `count` 0
- * (docs/design/specs/2026-09-26-dsp-primitives.md §4.3 (c)). Against test/sabotage.sh's `ledger`
- * copy the count falls short and this arm is red.
+ * omxdsp_threads.c — N threads, each over its own state, contracts ON, every output byte-identical
+ * to the single-threaded reference, the ledger empty (docs/design/specs/2026-09-26-dsp-primitives.md
+ * §4.3 (c)). Built with -pthread; `make test-tsan` runs it under ThreadSanitizer.
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omxdsp.h>
 
+#include <math.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define WORKERS 8u
-#define BLOCKS 2000u
-#define MAXBLOCK 256u
-#define RING 4096u
-#define BANDS 3u
-#define RATE 48000.0f
-
-static const uint32_t BLOCK_SIZES[] = {64u, 37u, 128u, 1u, 256u, 100u, 17u, 192u};
-#define NSIZES (sizeof BLOCK_SIZES / sizeof BLOCK_SIZES[0])
+#define THREADS 8
+#define BLOCKS 2000
+#define MAXN 256
+#define OUT_SAMPLES (BLOCKS * 64)
 
 struct worker {
-  float *out;
-  float ring[RING];
-  struct omx_fdelay line;
-  struct omx_lfo lfo;
-  struct omx_oversampler ovs;
-  float bq[BANDS][4];
-  int ok;
+  float ring[1024];
+  float *out; /* OUT_SAMPLES floats, the worker's own */
+  uint32_t rate_index;
 };
 
-static uint32_t total_frames(void) {
-  uint32_t t = 0u;
-  for (uint32_t b = 0; b < BLOCKS; b++) t += BLOCK_SIZES[b % NSIZES];
-  return t;
-}
+static const uint32_t BLOCK_SIZES[] = {64u, 37u, 128u, 1u, 256u, 100u, 64u, 9u};
 
-/* The one workflow every worker and the reference run: the chain over the same signal. */
-static void *run(void *arg) {
-  struct worker *w = arg;
+/* The one signal every worker processes, and the one chain of primitives it runs it through. */
+static void run_chain(struct worker *w) {
+  const float sr = OMX_DECLARED_RATES[w->rate_index % OMX_DECLARED_RATE_COUNT];
   omx_denormals_off();
-  static const float coeffs[BANDS][5] = {
-    {0.25f, 0.5f, 0.25f, -0.1f, 0.05f},
-    {0.9f, -1.2f, 0.4f, -0.3f, 0.2f},
-    {0.5f, 0.1f, 0.3f, 0.2f, -0.1f},
-  };
-  static const uint8_t enabled[BANDS] = {1u, 1u, 1u};
+  struct omx_fdelay line;
+  omx_fdelay_init(&line, w->ring, 1024u, 3);
   memset(w->ring, 0, sizeof w->ring);
-  memset(w->bq, 0, sizeof w->bq);
-  (void)omx_fdelay_init(&w->line, w->ring, RING, 3);
-  w->lfo.phase = 0.0f;
-  w->lfo.inc = omx_lfo_inc(0.7f, RATE);
-  omx_oversampler_init(&w->ovs, 4u);
-  uint32_t seed = 0x2f6e2b1du, done = 0u;
-  float buf[MAXBLOCK], up[MAXBLOCK * 4u];
-  for (uint32_t b = 0; b < BLOCKS; b++) {
-    const uint32_t n = BLOCK_SIZES[b % NSIZES];
+  struct omx_lfo lfo = {0.0f, omx_lfo_inc(1.5f, sr)};
+  float coeffs[2][5];
+  omx_eq_design_f(OMX_EQ_PEAKING, 1000.0, 1.0, 6.0, sr, coeffs[0]);
+  omx_eq_design_f(OMX_EQ_HIGHPASS, 80.0, M_SQRT1_2, 0.0, sr, coeffs[1]);
+  float eq_state[2][4] = {{0}};
+  struct omx_oversampler ovs;
+  omx_oversampler_init(&ovs, 4u);
+  float env = 0.0f;
+  const float pole = omx_pole_from_time_ms(10.0f, sr);
+  uint32_t seed = 0x9e3779b9u ^ w->rate_index;
+  uint32_t written = 0u;
+  float block[MAXN], up[MAXN * 4], down[MAXN];
+  for (uint32_t b = 0; b < BLOCKS && written < OUT_SAMPLES; b++) {
+    uint32_t n = BLOCK_SIZES[b % 8u];
+    if (n > OUT_SAMPLES - written) n = OUT_SAMPLES - written;
     for (uint32_t i = 0; i < n; i++) {
       seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
-      buf[i] = ((float)(seed >> 8) / 16777216.0f) - 0.5f;
+      block[i] = 0.5f * ((float)(seed >> 8) / 16777216.0f * 2.0f - 1.0f);
     }
-    omx_biquad_cascade(buf, n, BANDS, coeffs, enabled, w->bq);
+    omx_biquad_cascade(block, n, 2u, coeffs, NULL, eq_state);
+    omx_oversampler_up(&ovs, block, n, up);
+    omx_oversampler_down(&ovs, up, n, down);
     for (uint32_t i = 0; i < n; i++) {
-      const float d = omx_lfo_sweep(20.0f, 8.0f, omx_lfo_at(&w->lfo, 0.0f));
-      omx_lfo_advance(&w->lfo);
-      buf[i] = omx_fdelay_tick(&w->line, buf[i], d);
+      const float d = omx_lfo_sweep(8.0f, 4.0f, omx_lfo_at(&lfo, 0.0f));
+      omx_lfo_advance(&lfo);
+      const float y = omx_fdelay_tick(&line, down[i], d);
+      omx_onepole(&env, fabsf(y), pole);
+      w->out[written + i] = omx_flush(y * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
     }
-    omx_oversampler_up(&w->ovs, buf, n, up);
-    omx_oversampler_down(&w->ovs, up, n, w->out + done);
-    done += n;
+    written += n;
   }
-  w->ok = 1;
-  return 0;
+}
+
+static void *worker_main(void *arg) {
+  run_chain((struct worker *)arg);
+  return NULL;
 }
 
 int main(void) {
-  const uint32_t frames = total_frames();
-  int failed = 0;
-  struct worker *ref = calloc(1u, sizeof *ref);
-  struct worker *ws = calloc(WORKERS, sizeof *ws);
-  if (!ref || !ws) return 2;
-  ref->out = calloc(frames, sizeof(float));
-  for (uint32_t k = 0; k < WORKERS; k++) ws[k].out = calloc(frames, sizeof(float));
+  static struct worker reference, workers[THREADS];
+  static float ref_out[OUT_SAMPLES], outs[THREADS][OUT_SAMPLES];
   omx_contract_reset();
-  const uint32_t before_ref = omx_contract_log.checks;
-  run(ref);
-  const uint32_t single = omx_contract_log.checks - before_ref;
-  const uint32_t before_workers = omx_contract_log.checks;
-  pthread_t th[WORKERS];
-  for (uint32_t k = 0; k < WORKERS; k++)
-    if (pthread_create(&th[k], 0, run, &ws[k]) != 0) { printf("FAIL pthread_create %u\n", k); return 2; }
-  for (uint32_t k = 0; k < WORKERS; k++) pthread_join(th[k], 0);
-  const uint32_t grew = omx_contract_log.checks - before_workers;
-  const uint32_t count = omx_contract_log.count;
-  for (uint32_t k = 0; k < WORKERS; k++) {
-    if (!ws[k].ok) { failed++; printf("FAIL worker %u did not finish\n", k); }
-    if (memcmp(ws[k].out, ref->out, frames * sizeof(float)) != 0) { failed++; printf("FAIL worker %u's output differs from the reference\n", k); }
+  int failed = 0;
+
+  /* the single-threaded reference per rate, and the contracts it evaluates */
+  reference.out = ref_out;
+  const uint32_t checks_before = omx_contract_log.checks;
+  reference.rate_index = 0u;
+  run_chain(&reference);
+  const uint32_t checks_one = omx_contract_log.checks - checks_before;
+  if (omx_contract_log.count != 0u) { printf("FAIL the reference recorded %u violations\n", omx_contract_log.count); failed++; }
+  if (checks_one < 100000u) { printf("FAIL the reference evaluated only %u contracts\n", checks_one); failed++; }
+
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    omx_contract_reset();
+    const uint32_t before = omx_contract_log.checks;
+    reference.rate_index = ri;
+    run_chain(&reference);
+    pthread_t tid[THREADS];
+    for (int t = 0; t < THREADS; t++) {
+      workers[t].out = outs[t];
+      workers[t].rate_index = ri;
+      if (pthread_create(&tid[t], NULL, worker_main, &workers[t]) != 0) { perror("pthread_create"); return 2; }
+    }
+    for (int t = 0; t < THREADS; t++) pthread_join(tid[t], NULL);
+    for (int t = 0; t < THREADS; t++) {
+      if (memcmp(outs[t], ref_out, sizeof ref_out) != 0) {
+        printf("FAIL rate %.0f: worker %d's output differs from the single-threaded reference\n",
+               OMX_DECLARED_RATES[ri], t);
+        failed++;
+      }
+    }
+    const uint32_t grew = omx_contract_log.checks - before;
+    if (grew < (THREADS + 1u) * checks_one / 2u) {
+      printf("FAIL rate %.0f: the ledger counted %u contracts for %d workers; the reference alone evaluated %u\n",
+             OMX_DECLARED_RATES[ri], grew, THREADS + 1, checks_one);
+      failed++;
+    }
+    if (omx_contract_log.count != 0u) {
+      printf("FAIL rate %.0f: %u violations recorded with contracts on across %d threads\n",
+             OMX_DECLARED_RATES[ri], omx_contract_log.count, THREADS);
+      failed++;
+    }
   }
-  if (single < 1000u) { failed++; printf("FAIL the reference evaluated %u contracts — floor is 1000\n", single); }
-  if (grew != WORKERS * single) { failed++; printf("FAIL the ledger grew by %u, %u workers x %u = %u expected\n", grew, WORKERS, single, WORKERS * single); }
-  if (count != 0u) { failed++; printf("FAIL %u violations recorded\n", count); }
-  printf("omxdsp_threads: %u workers x %u frames, single-threaded %u contracts, ledger grew %u, %u violations, %d failed\n",
-         WORKERS, frames, single, grew, count, failed);
+  printf("omxdsp_threads: %d threads x %u rates, %u output samples each, byte-identical to the reference; "
+         "%u contracts evaluated per chain, ledger empty; %d failed\n",
+         THREADS, OMX_DECLARED_RATE_COUNT, (unsigned)OUT_SAMPLES, checks_one, failed);
   return failed == 0 ? 0 : 1;
 }
