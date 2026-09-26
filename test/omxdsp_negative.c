@@ -23,12 +23,13 @@ static void ok(int cond, const char *what) {
   }
 }
 
-/* The ledger holds exactly `n` records, each with the given stage, kind and token. */
-static void expect_exactly(uint32_t n, const char *stage, const char *kind, const char *token) {
+/* The ledger holds exactly `n` records of the given stage and kind, carrying `tokens` in order. */
+static void expect_exactly(uint32_t n, const char *stage, const char *kind, const char *const *tokens) {
   ok(omx_contract_log.count == n, "the arm recorded exactly the expected number of violations");
   const uint32_t kept = omx_contract_log.count < OMX_CONTRACT_MAX ? omx_contract_log.count : OMX_CONTRACT_MAX;
   for (uint32_t i = 0; i < kept; i++) {
     const struct omx_contract_record *r = &omx_contract_log.rec[i];
+    const char *token = i < n ? tokens[i] : "";
     ok(omx_contract_record_ready(r), "the record is published");
     ok(strcmp(r->stage, stage) == 0, "the record names the stage");
     ok(strcmp(r->kind, kind) == 0, "the record names the kind");
@@ -47,15 +48,19 @@ int main(void) {
   /* PRE: an even Lagrange order is refused by code, and the contract records the refusal. */
   ok(omx_fdelay_init(&l, ring, 256u, 4) == OMX_FDELAY_BAD_ORDER, "an even order is refused with its code");
   ok(l.order == 0, "the refused line is unarmed");
-  expect_exactly(1u, "fdelay/init", "pre", "order-is-odd-and-within-the-kernel");
+  static const char *const pre_tokens[] = {"order-is-odd-and-within-the-kernel"};
+  expect_exactly(1u, "fdelay/init", "pre", pre_tokens);
 
-  /* POST: the sabotaged kernel does not sum to one; the kernel's own postcondition sees it. */
+  /* POST: the sabotaged kernel does not sum to one, which also carries it past the declared L1
+   * norm; the kernel's own postconditions see both, in their order. */
   float c[OMX_FDELAY_MAX_TAPS];
   omx_fdelay_lagrange(3, 0.5f, c);
   double sum = 0.0;
   for (int k = 0; k <= 3; k++) sum += c[k];
   ok(sum > 1.2, "the sabotage landed: the kernel sums past one");
-  expect_exactly(1u, "fdelay/kernel", "post", "the-kernel-is-unity-at-dc");
+  static const char *const post_tokens[] = {"the-kernel-is-unity-at-dc",
+                                            "an-order-3-kernel-is-inside-the-declared-l1-norm"};
+  expect_exactly(2u, "fdelay/kernel", "post", post_tokens);
 
   /* INVARIANT: a write cursor placed AT the ring's capacity, over an allocation with room past
    * it, walks out of the ring; the block door's invariant records it once. */
@@ -66,7 +71,8 @@ int main(void) {
   float one[1] = {0.25f};
   omx_fdelay_process(one, 1u, &l, 3.0f);
   ok(l.wpos == 65u, "the cursor kept walking past the ring");
-  expect_exactly(1u, "fdelay", "invariant", "write-cursor-inside-the-ring");
+  static const char *const invariant_tokens[] = {"write-cursor-inside-the-ring"};
+  expect_exactly(1u, "fdelay", "invariant", invariant_tokens);
 
   /* The control: the same doors, used legally, record nothing. */
   ok(omx_fdelay_init(&l, wide, 64u, 3) == OMX_FDELAY_OK, "the control arms");
