@@ -30,3 +30,4 @@ ALIASES               += "pre=\par Precondition:^^" \
                          "post=\par Postcondition:^^" \
                          "invariant=\par Invariant:^^"
 HAVE_DOT               = NO
+EXCLUDE_SYMBOLS        = OMX_CONTRACT_STAGE M_PI
