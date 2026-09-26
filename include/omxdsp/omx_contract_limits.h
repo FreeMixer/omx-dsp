@@ -5,8 +5,8 @@
  * Produced by harness/contract-limits-gen.mjs from packages/core/src/channel-contract.ts's
  * `laws` column, packages/core/src/strip-dynamics-limits.ts's GATE_LIMITS/COMP_LIMITS
  * (R-056), packages/core/src/control-bounds.ts's CORE_LIMITS for the pan/delay/reverb/drive
- * facts, packages/core/src/fdelay-kernel.ts's read-kernel l1 norm and packages/core/src/row-codecs.ts's
- * STANDARD_SAMPLE_RATES. Regenerate:
+ * facts, packages/core/src/fdelay-kernel.ts's read-kernel l1 norm and
+ * packages/core/src/row-codecs.ts's STANDARD_SAMPLE_RATES. Regenerate:
  * `node harness/contract-limits-gen.mjs`, then commit the result — see this file's own
  * generator for why it is committed rather than gitignored.
  *
@@ -28,11 +28,6 @@ typedef enum {
   OMX_LAW_FINITE,
   OMX_LAW_NO_DENORMAL_STATE,
 } omx_contract_law_t;
-
-/* The sample rates the console declares (core's STANDARD_SAMPLE_RATES, row-codecs.ts): the set a
- * contract's rate-is-declared precondition accepts, through omx_rate_is_declared(). */
-#define OMX_DECLARED_RATE_COUNT 6u
-static const float OMX_DECLARED_RATES[OMX_DECLARED_RATE_COUNT] = { 44100.0f, 48000.0f, 88200.0f, 96000.0f, 176400.0f, 192000.0f };
 
 /* Per-stage law lists, one per channel fact whose row declares `laws` — the SAME array
  * harness/contracts-scaffold.mjs's applier and the MCP contract_laws tool read; a stage's
@@ -166,3 +161,21 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_LV2_STAGE_CLAMP_LINEAR 15.8489323f
 
 #endif /* OMX_CONTRACT_LIMITS_H */
+
+/* The sample rates the console declares (core's STANDARD_SAMPLE_RATES, row-codecs.ts): the set a
+ * contract's rate-is-declared precondition accepts, through omx_rate_is_declared(), and the grid a
+ * native tool iterates. Guarded on its own so a tool built against a pinned copy of this header
+ * (lv2-inprocess-pin.sh) can include this tree's copy after it and gain the rates without mixing
+ * the pin's limits. */
+#ifndef OMX_DECLARED_RATE_COUNT
+#define OMX_DECLARED_RATE_COUNT 6u
+static const float OMX_DECLARED_RATES[OMX_DECLARED_RATE_COUNT] = { 44100.0f, 48000.0f, 88200.0f, 96000.0f, 176400.0f, 192000.0f };
+/* The declared rates that are whole multiples of `base` (a tool's default grid: the 48 kHz family),
+ * in declaration order, at most `cap` of them; returns how many were written to `out`. */
+static inline int omx_declared_rates_multiple_of(unsigned base, int *out, int cap) {
+  int n = 0;
+  for (unsigned k = 0; k < OMX_DECLARED_RATE_COUNT && n < cap; k++)
+    if ((unsigned)OMX_DECLARED_RATES[k] % base == 0) out[n++] = (int)OMX_DECLARED_RATES[k];
+  return n;
+}
+#endif
