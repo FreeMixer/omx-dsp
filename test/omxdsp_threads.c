@@ -57,6 +57,12 @@ static void run_chain(struct worker *w) {
   omx_oversampler_init(&ovs, 4u);
   float env = 0.0f;
   const float pole = omx_pole_from_time_ms(10.0f, sr);
+  const struct omx_env_params ep = {omx_pole_from_time_ms(2.0f, sr), omx_pole_from_time_ms(80.0f, sr), OMX_DETECT_RMS};
+  const struct omx_gaincomp_params gc = {OMX_DYN_ABOVE, -24.0f, 4.0f, 6.0f, 0.0f, 1.5f};
+  struct omx_env det;
+  memset(&det, 0, sizeof det);
+  float ac, rc;
+  omx_env_stage_poles(&ep, 1u, &ac, &rc);
   uint32_t seed = 0x9e3779b9u ^ w->rate_index;
   uint32_t written = 0u;
   float block[MAXN], side[MAXN], up[MAXN * 4], down[MAXN];
@@ -78,7 +84,8 @@ static void run_chain(struct worker *w) {
       omx_lfo_advance(&lfo);
       const float y = omx_fdelay_tick(&line, down[i], d);
       omx_onepole(&env, fabsf(y), pole);
-      w->out[written + i] = omx_flush(y * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
+      const float g = omx_gaincomp_gain(&gc, omx_env_step(&det, &ep, y * y, ac, rc));
+      w->out[written + i] = omx_flush(g * y * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
     }
     written += n;
   }

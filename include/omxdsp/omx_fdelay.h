@@ -147,6 +147,31 @@ static inline enum omx_fdelay_code omx_fdelay_init(struct omx_fdelay *l, float *
 }
 #undef OMX_CONTRACT_STAGE
 
+/**
+ * @brief The one body of the Lagrange product, `c[k] = Π(j≠k) (f − (j − off)) / (k − j)` in
+ *        double, left to right. `omx_fdelay_lagrange` instantiates it at a CONSTANT order 3 and
+ *        at the runtime order: the constant lets the compiler unroll the loops and fold the
+ *        integer denominators, and because it is the same expression evaluated in the same order
+ *        the coefficients are bit-identical either way (omxdsp_suite's fdelay arm).
+ * @param order The Lagrange order, in [1, OMX_FDELAY_MAX_ORDER]; the caller checked it.
+ * @param f The fraction, in [0, 1).
+ * @param c `order + 1` coefficients.
+ * @note RT-safe: bounded products, no call. Thread-safe: pure.
+ */
+static inline __attribute__((always_inline)) void omx_fdelay_lagrange_body(const int order,
+                                                                           float f, float *c) {
+  const int off = (int)omx_fdelay_lookbehind(order);
+  for (int k = 0; k <= order; k++) {
+    double num = 1.0, den = 1.0;
+    for (int j = 0; j <= order; j++) {
+      if (j == k) continue;
+      num *= (double)f - (double)(j - off);
+      den *= (double)(k - j);
+    }
+    c[k] = (float)(num / den);
+  }
+}
+
 #define OMX_CONTRACT_STAGE "fdelay/kernel"
 /**
  * @brief The Lagrange coefficients of `order` at fraction `f`, measured from the tap at local
@@ -158,21 +183,14 @@ static inline enum omx_fdelay_code omx_fdelay_init(struct omx_fdelay *l, float *
  * @post `the-kernel-is-unity-at-dc`: the coefficients sum to 1 within 1e-5;
  *       `an-order-3-kernel-is-inside-the-declared-l1-norm`: at order 3, Σ|c| is at most
  *       `OMX_FDELAY_READ_L1_NORM` (the declared bound of the order-3 read's worst fraction).
- * @note RT-safe: bounded products, no call. Thread-safe: pure.
+ * @note RT-safe: bounded products, no call; order 3 is the body at a constant order, unrolled,
+ *       bit-identical to the runtime-order loop. Thread-safe: pure.
  */
 static inline void omx_fdelay_lagrange(int order, float f, float *c) {
   OMX_PRE(order >= 1 && order <= OMX_FDELAY_MAX_ORDER, "kernel-order-is-within-the-tap-array");
   OMX_PRE(f >= 0.0f && f < 1.0f, "fraction-is-inside-one-sample");
-  const int off = (int)omx_fdelay_lookbehind(order);
-  for (int k = 0; k <= order; k++) {
-    double num = 1.0, den = 1.0;
-    for (int j = 0; j <= order; j++) {
-      if (j == k) continue;
-      num *= (double)f - (double)(j - off);
-      den *= (double)(k - j);
-    }
-    c[k] = (float)(num / den);
-  }
+  if (order == 3) omx_fdelay_lagrange_body(3, f, c); /* the chorus/flanger order, unrolled */
+  else omx_fdelay_lagrange_body(order, f, c);
 #ifdef OMX_CONTRACTS
   {
     double sum = 0.0, l1 = 0.0;
