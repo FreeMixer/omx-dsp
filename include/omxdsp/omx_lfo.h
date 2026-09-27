@@ -40,6 +40,17 @@ static inline size_t omx_lfo_state_size(void) { return sizeof(struct omx_lfo); }
  */
 static inline size_t omx_lfo_state_align(void) { return _Alignof(struct omx_lfo); }
 
+/**
+ * @brief Start an oscillator at phase zero, frozen, its carry cleared.
+ * @param l The oscillator.
+ * @note RT-safe: three stores.
+ */
+static inline void omx_lfo_start(struct omx_lfo *l) {
+  l->phase = 0.0f;
+  l->inc = 0.0f;
+  l->carry = 0.0f;
+}
+
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "lfo/inc"
 /**
