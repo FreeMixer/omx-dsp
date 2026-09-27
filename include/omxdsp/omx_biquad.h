@@ -153,6 +153,10 @@ static inline void omx_biquad_cascade(float *buf, uint32_t n, uint32_t nbands,
   OMX_PRE(omx_block_finite(buf, n), "finite-in");
   OMX_PRE(nbands <= OMX_EQ_MAX_BANDS, "bands-within-cap");
   omx_biquad_cascade_stereo(buf, NULL, n, nbands, coeffs, enabled, state, NULL);
+  /* The stateful kernel's own postcondition, at this entry too: every section run left its state
+   * finite. A no-op loop, dropped by the compiler, unless OMX_CONTRACTS is defined. */
+  for (uint32_t b = 0; b < nbands && b < OMX_EQ_MAX_BANDS; b++)
+    if (!enabled || enabled[b]) OMX_POST(omx_block_finite(state[b], 4u), "finite-state");
   OMX_POST(omx_block_finite(buf, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
