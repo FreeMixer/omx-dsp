@@ -52,13 +52,14 @@ static void run_chain(struct worker *w) {
   omx_eq_design_f(OMX_EQ_PEAKING, 1000.0, 1.0, 6.0, sr, coeffs[0]);
   omx_eq_design_f(OMX_EQ_HIGHPASS, 80.0, M_SQRT1_2, 0.0, sr, coeffs[1]);
   float eq_state[2][4] = {{0}};
+  float eq2_l[2][4] = {{0}}, eq2_r[2][4] = {{0}}; /* the two-leg cascade's own state */
   struct omx_oversampler ovs;
   omx_oversampler_init(&ovs, 4u);
   float env = 0.0f;
   const float pole = omx_pole_from_time_ms(10.0f, sr);
   uint32_t seed = 0x9e3779b9u ^ w->rate_index;
   uint32_t written = 0u;
-  float block[MAXN], up[MAXN * 4], down[MAXN];
+  float block[MAXN], side[MAXN], up[MAXN * 4], down[MAXN];
   for (uint32_t b = 0; b < BLOCKS && written < OUT_SAMPLES; b++) {
     uint32_t n = BLOCK_SIZES[b % 8u];
     if (n > OUT_SAMPLES - written) n = OUT_SAMPLES - written;
@@ -67,6 +68,9 @@ static void run_chain(struct worker *w) {
       block[i] = 0.5f * ((float)(seed >> 8) / 16777216.0f * 2.0f - 1.0f);
     }
     omx_biquad_cascade(block, n, 2u, coeffs, NULL, eq_state);
+    for (uint32_t i = 0; i < n; i++) side[i] = 0.5f * block[(i * 7u) % n];
+    omx_biquad_cascade_stereo(block, side, n, 2u, coeffs, NULL, eq2_l, eq2_r);
+    for (uint32_t i = 0; i < n; i++) block[i] = 0.5f * (block[i] + side[i]);
     omx_oversampler_up(&ovs, block, n, up);
     omx_oversampler_down(&ovs, up, n, down);
     for (uint32_t i = 0; i < n; i++) {
