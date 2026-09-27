@@ -166,6 +166,18 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_LV2_STAGE_CLAMP_DBFS 24.0f
 #define OMX_LV2_STAGE_CLAMP_LINEAR 15.8489323f
 
+/* The precision limiter's travels (packages/core/src/limiter-limits.ts, LIMITER_LIMITS;
+ * docs/design/specs/2026-09-27-precision-limiter.md §2) — read by mix_limiter.h, never restated. */
+#define OMX_LIMITER_CEILING_DB_MIN -12.0f
+#define OMX_LIMITER_CEILING_DB_MAX 0.0f
+#define OMX_LIMITER_CEILING_DB_DEFAULT -1.0f
+#define OMX_LIMITER_LOOKAHEAD_MS_MIN 0.5f
+#define OMX_LIMITER_LOOKAHEAD_MS_MAX 5.0f
+#define OMX_LIMITER_LOOKAHEAD_MS_DEFAULT 1.5f
+#define OMX_LIMITER_RELEASE_MS_MIN 1.0f
+#define OMX_LIMITER_RELEASE_MS_MAX 1000.0f
+#define OMX_LIMITER_RELEASE_MS_DEFAULT 50.0f
+
 #endif /* OMX_CONTRACT_LIMITS_H */
 
 /* The sample rates the console declares (core's STANDARD_SAMPLE_RATES, row-codecs.ts): the set a
