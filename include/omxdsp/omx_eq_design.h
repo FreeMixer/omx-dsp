@@ -146,7 +146,7 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       break;
     }
     case OMX_EQ_ALLPASS1: {
-      const double t = tan(0.5 * w0);
+      const double t = sin(w0) / (1.0 + cos(w0));
       const double k = (t - 1.0) / (t + 1.0);
       c[0] = k; c[1] = 1.0; c[2] = 0.0; c[3] = k; c[4] = 0.0;
       break;
