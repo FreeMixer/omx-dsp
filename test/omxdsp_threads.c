@@ -47,7 +47,7 @@ static void run_chain(struct worker *w) {
   omx_fdelay_init(&line, w->ring, 1024u, 3);
   memset(w->ring, 0, sizeof w->ring);
 #endif
-  struct omx_lfo lfo = {0.0f, omx_lfo_inc(1.5f, sr)};
+  struct omx_lfo lfo = {0.0f, omx_lfo_inc(1.5f, sr), 0.0f};
   float coeffs[2][5];
   omx_eq_design_f(OMX_EQ_PEAKING, 1000.0, 1.0, 6.0, sr, coeffs[0]);
   omx_eq_design_f(OMX_EQ_HIGHPASS, 80.0, M_SQRT1_2, 0.0, sr, coeffs[1]);
@@ -58,6 +58,8 @@ static void run_chain(struct worker *w) {
   float env = 0.0f;
   struct omx_allpass1 ap[6] = {{0.0f}};
   const float ap_a = omx_allpass1_coef(700.0f, sr);
+  struct omx_divider div;
+  omx_divider_init(&div);
   const float pole = omx_pole_from_time_ms(10.0f, sr);
   const struct omx_env_params ep = {omx_pole_from_time_ms(2.0f, sr), omx_pole_from_time_ms(80.0f, sr), OMX_DETECT_RMS};
   const struct omx_gaincomp_params gc = {OMX_DYN_ABOVE, -24.0f, 4.0f, 6.0f, 0.0f, 1.5f};
@@ -87,7 +89,8 @@ static void run_chain(struct worker *w) {
       const float y = omx_allpass1_cascade(ap, 6u, omx_fdelay_tick(&line, down[i], d), ap_a);
       omx_onepole(&env, fabsf(y), pole);
       const float g = omx_gaincomp_gain(&gc, omx_env_step(&det, &ep, y * y, ac, rc));
-      w->out[written + i] = omx_flush(g * y * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
+      const float sub = omx_divider_step(&div, y, 0.05f);
+      w->out[written + i] = omx_flush(g * (y + 0.5f * sub) * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
     }
     written += n;
   }
