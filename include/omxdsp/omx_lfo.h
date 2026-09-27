@@ -16,10 +16,14 @@
 
 #include "omx_contract.h"
 
-/** @brief One oscillator: a phase in turns, always in [0, 1), and its increment per sample. */
+/**
+ * @brief One oscillator: a phase in turns, always in [0, 1), its increment per sample, and the
+ *        advance's compensation word. A `{phase, inc}` initializer leaves `carry` at zero.
+ */
 struct omx_lfo {
   float phase; /**< Turns, in [0, 1). */
   float inc;   /**< Turns per sample, in [0, 0.5); 0 is a legal, frozen oscillator. */
+  float carry; /**< The rounding the last advance lost, turns (Kahan); zero at init. */
 };
 
 /**
@@ -102,15 +106,21 @@ static inline float omx_lfo_at(const struct omx_lfo *l, float offset) {
 
 #define OMX_CONTRACT_STAGE "lfo/advance"
 /**
- * @brief Advance the oscillator one sample.
- * @param l The oscillator, its phase updated in place.
+ * @brief Advance the oscillator one sample, compensated: the phase is the running sum of the
+ *        increments to within a float's rounding over any run, so the period is the rate's.
+ * @param l The oscillator, its phase and carry updated in place; `inc = 0` does not move it.
  * @pre `an-increment-is-inside-one-turn`.
  * @post `an-advanced-phase-is-still-inside-one-turn`.
- * @note RT-safe: one add and one wrap. Thread-safe on distinct state.
+ * @note RT-safe: four adds and one wrap; the wrap's subtraction of one turn is exact. Thread-safe
+ *       on distinct state. Needs IEEE evaluation (no `-ffast-math`), as every kernel here does.
  */
 static inline void omx_lfo_advance(struct omx_lfo *l) {
   OMX_PRE(l->inc >= 0.0f && l->inc < 1.0f, "an-increment-is-inside-one-turn");
-  l->phase = omx_lfo_wrap(l->phase + l->inc);
+  float y = l->inc - l->carry;
+  if (!(y > 0.0f)) y = 0.0f;
+  const float t = l->phase + y;
+  l->carry = (t - l->phase) - y;
+  l->phase = omx_lfo_wrap(t);
   OMX_POST(l->phase >= 0.0f && l->phase < 1.0f, "an-advanced-phase-is-still-inside-one-turn");
 }
 #undef OMX_CONTRACT_STAGE
