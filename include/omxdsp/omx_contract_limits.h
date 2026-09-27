@@ -157,6 +157,21 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
  * (docs/design/specs/2026-09-22-chorus-and-flanger.md §6, F6). */
 #define OMX_FDELAY_READ_L1_NORM 1.25f
 
+/* The rotary speaker's rotor constants (packages/core/src/strip-fx-limits.ts, ROTARY_*;
+ * docs/design/specs/2026-09-26-rotary-speaker.md §3) — read by mix_rotor.h and mix_rotary.h. */
+#define OMX_ROTARY_CROSSOVER_HZ 800.0f
+#define OMX_ROTARY_BASE_MS 0.1f
+#define OMX_ROTARY_HORN_DOPPLER_MS 0.44f
+#define OMX_ROTARY_DRUM_DOPPLER_MS 0.29f
+#define OMX_ROTARY_HORN_AM 0.5f
+#define OMX_ROTARY_DRUM_AM 0.3f
+#define OMX_ROTARY_HORN_ACCEL_MS 330.0f
+#define OMX_ROTARY_HORN_DECEL_MS 500.0f
+#define OMX_ROTARY_DRUM_ACCEL_MS 1700.0f
+#define OMX_ROTARY_DRUM_DECEL_MS 1800.0f
+#define OMX_ROTARY_STOP_EPS 0.0001f
+#define OMX_ROTARY_RING_FLOATS 256u
+
 /* The in-process LV2 stage's numbers (packages/core/src/lv2-stage-limits.ts, LV2_STAGE_LIMITS;
  * docs/design/specs/2026-09-04-lv2-hosting-path.md §4/§5) — read by mix_lv2.h, never restated. */
 #define OMX_LV2_STAGE_WARMUP_BLOCKS 64u
