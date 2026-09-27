@@ -41,6 +41,27 @@ static inline float omx_biquad(float x, const float c[5], float s[4]) {
   return y;
 }
 
+/**
+ * @brief One biquad section in double, transposed direct form II: `y = b0·x + s₁`,
+ *        `s₁ ← b1·x − a1·y + s₂`, `s₂ ← b2·x − a2·y`.
+ *
+ * The section a crossover runs: its identity `lo + hi = AP` holds to the double's rounding at a
+ * corner whose poles sit within `2π·fc/sr` of the unit circle, where the float section loses it
+ * (dsp-primitives spec Appendix A).
+ * @param x The input sample.
+ * @param c The normalised coefficients `{b0, b1, b2, a1, a2}`.
+ * @param s The section's state `{s₁, s₂}`, updated in place.
+ * @return The output sample.
+ * @note RT-safe: five multiplies, no call, no branch; the state's denormals are covered by the
+ *       thread's FTZ mode. Thread-safe on distinct state.
+ */
+static inline double omx_biquad_d(double x, const double c[5], double s[2]) {
+  const double y = c[0] * x + s[0];
+  s[0] = c[1] * x - c[3] * y + s[1];
+  s[1] = c[2] * x - c[4] * y;
+  return y;
+}
+
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "eq/biquad-cascade"
 /**

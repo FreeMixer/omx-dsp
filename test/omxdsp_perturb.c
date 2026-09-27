@@ -80,7 +80,7 @@ int main(void) {
 #else
   const int want_unity = energy_err > OMX_ALLPASS_UNITY_TOL, want_partition = partition_err > OMX_XOVER_PARTITION_TOL;
   if (!want_unity || !want_partition) { printf("FAIL tolerances: the measured errors do not exceed 1e-12\n"); failed++; }
-  if (unity != want_unity || partition != want_partition) {
+  if (unity != want_unity || partition != want_partition || recorded != (uint32_t)(want_unity + want_partition)) {
     printf("FAIL tolerances: predicted %d unity / %d partition from the measured %.3g / %.3g, recorded %d / %d\n",
            want_unity, want_partition, energy_err, partition_err, unity, partition);
     failed++;
@@ -107,12 +107,15 @@ int main(void) {
   if (!declared) { printf("FAIL control: 96000 is not declared against the real header\n"); failed++; }
   if (count != 0u) { printf("FAIL control: %u violations against the real header\n", count); failed++; }
   printf("omxdsp_perturb (real header): 96000 declared, nothing recorded; %d failed\n", failed);
+#endif
   double energy_err, partition_err;
   const uint32_t recorded = run_primitives(&energy_err, &partition_err);
-  if (recorded != 0u) { printf("FAIL control: the all-pass and crossover recorded %u violations against the real header\n", recorded); failed++; }
-  printf("omxdsp_perturb (real header): all-pass energy %.3g, crossover partition %.3g, nothing recorded; %d failed\n",
-         energy_err, partition_err, failed);
-#endif
+  if (recorded != 0u || count_token("unity-magnitude") + count_token("bands-partition-unity") != 0) {
+    printf("FAIL: the all-pass and crossover recorded %u violations over an unmoved Q and tolerances\n", recorded);
+    failed++;
+  }
+  printf("omxdsp_perturb: all-pass energy %.3g, crossover partition %.3g under the unmoved primitive numbers, "
+         "nothing recorded; %d failed\n", energy_err, partition_err, failed);
   return failed == 0 ? 0 : 1;
 #endif
 }

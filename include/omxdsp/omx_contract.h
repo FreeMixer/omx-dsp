@@ -161,6 +161,20 @@ static inline int omx_block_finite(const float *b, uint32_t n) {
 }
 
 /**
+ * @brief Whether every word of a double block is finite: `Σ b[i]·0` is 0, or NaN when a word is
+ *        NaN or infinite.
+ * @param b The block.
+ * @param n Words in the block.
+ * @return 1 when every word is finite, else 0.
+ * @note RT-safe and thread-safe: a read-only pass, no call.
+ */
+static inline int omx_block_finite_d(const double *b, uint32_t n) {
+  double z = 0.0;
+  for (uint32_t i = 0; i < n; i++) z += b[i] * 0.0;
+  return z == 0.0;
+}
+
+/**
  * @brief Whether both legs of a lane are finite.
  * @param l The L leg.
  * @param r The R leg, or NULL on a mono lane.

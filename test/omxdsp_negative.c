@@ -95,10 +95,10 @@ int main(void) {
   expect_exactly(1u, "allpass1/coeff", "pre", rate_pre);
 
   ap.s = 1e-30f;
-  float blk[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  omx_allpass1_process(blk, 4u, -0.5f, &ap);
+  omx_allpass1(0.0f, -0.5f, &ap);
+  ok(ap.s == 0.0f, "the section flushed the state it was handed");
   static const char *const ap_inv[] = {"state-finite-and-flushed"};
-  expect_exactly(1u, "allpass1/process", "invariant", ap_inv);
+  expect_exactly(1u, "allpass1", "invariant", ap_inv);
 
   /* POST: the sabotaged lattice adds half a t to its output, so a block is no longer lossless. */
   ap.s = 0.0f;
