@@ -44,6 +44,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_contract.h"
 #include "omx_contract_limits.h"
 #include "omx_denormal.h"
+#include "omx_divider.h"
 #include "omx_envelope.h"
 #include "omx_eq_design.h"
 #include "omx_fdelay.h"
