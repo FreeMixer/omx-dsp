@@ -19,7 +19,7 @@ if cmp -s "$PKG/include/omxdsp/omx_fdelay.h" "$OUT/omxdsp/omx_fdelay.h"; then
   echo "sabotage.sh: FAIL — the kernel line the sabotage targets is gone; the negative POST arm would test nothing"
   exit 1
 fi
-sed -i 's|    const float y = st->s + t;|    const float y = st->s + 1.5f * t;|' "$OUT/omxdsp/omx_allpass.h"
+sed -i 's|  const float y = st->s + t;|  const float y = st->s + 1.5f * t;|' "$OUT/omxdsp/omx_allpass.h"
 if cmp -s "$PKG/include/omxdsp/omx_allpass.h" "$OUT/omxdsp/omx_allpass.h"; then
   echo "sabotage.sh: FAIL — the lattice line the sabotage targets is gone; the all-pass POST arm would test nothing"
   exit 1
