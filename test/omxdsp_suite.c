@@ -563,6 +563,95 @@ static void arm_oversampler(void) {
   expect_clean();
 }
 
+/* ---- look-ahead ----------------------------------------------------------------------------- */
+
+static void arm_lookahead(void) {
+  g_arm = "lookahead";
+  enum { N = 3000, CAP = 1024 };
+  static float x[N], ring[CAP], val[CAP];
+  static uint32_t when[CAP];
+  for (int i = 0; i < N; i++) x[i] = rnd(-2.0f, 2.0f);
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    const float sr = OMX_DECLARED_RATES[ri];
+    const uint32_t ms_tap = (uint32_t)lrintf(OMX_LIMITER_LOOKAHEAD_MS_DEFAULT * sr / 1000.0f);
+    const uint32_t taps[] = {0u, 1u, 7u, ms_tap, CAP - 1u};
+    for (int ti = 0; ti < 5; ti++) {
+      const uint32_t d = taps[ti] < CAP ? taps[ti] : CAP - 1u;
+      struct omx_lookahead la;
+      omx_lookahead_init(&la, ring, CAP, 0.25f);
+      int exact = 1;
+      for (int i = 0; i < N; i++) {
+        const float y = omx_lookahead_tick(&la, x[i], d);
+        const float want = (uint32_t)i >= d ? x[i - (int)d] : 0.25f;
+        exact &= memcmp(&y, &want, sizeof y) == 0;
+      }
+      ok(exact, "out[n] is in[n - D] bit for bit, the fill before D writes", (double)d, 0.0);
+    }
+    const uint32_t wins[] = {1u, 2u, ms_tap + 2u < CAP ? ms_tap + 2u : CAP, CAP};
+    for (int wi = 0; wi < 4; wi++) {
+      struct omx_lookahead_min h;
+      omx_lookahead_min_init(&h, val, when, CAP);
+      int exact = 1;
+      for (int i = 0; i < N; i++) {
+        const float m = omx_lookahead_min_push(&h, x[i], wins[wi]);
+        float want = x[i];
+        for (int k = i; k > i - (int)wins[wi] && k >= 0; k--) want = x[k] < want ? x[k] : want;
+        exact &= memcmp(&m, &want, sizeof m) == 0;
+      }
+      ok(exact, "the hold is the brute-force minimum of the last W pushes, bit for bit", (double)wins[wi], 0.0);
+    }
+  }
+  expect_clean();
+}
+
+/* ---- true peak ------------------------------------------------------------------------------ */
+
+static void arm_truepeak(void) {
+  g_arm = "truepeak";
+  enum { N = 2048 };
+  static float x[N], p[N];
+  const uint32_t u = omx_truepeak_delay();
+  ok(u == 36u, "the reading lags by the x4 interpolator's group delay", u, 36.0);
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    struct omx_truepeak t;
+    /* an impulse reads its peak exactly U frames later */
+    memset(x, 0, sizeof x);
+    x[100] = 0.9f;
+    omx_truepeak_init(&t);
+    omx_truepeak_block(&t, x, N, p);
+    uint32_t at = 0u;
+    for (uint32_t i = 0; i < N; i++) if (p[i] > p[at]) at = i;
+    ok(at == 100u + u, "an impulse's reading lands U frames late", (double)at, 100.0 + u);
+    ok(fabsf(p[at] - 0.9f) < 1e-6f, "an impulse reads its own level", p[at], 0.9);
+    /* a DC block reads its own level */
+    for (int i = 0; i < N; i++) x[i] = 0.5f;
+    omx_truepeak_init(&t);
+    omx_truepeak_block(&t, x, N, p);
+    double worst = 0.0;
+    for (int i = 512; i < N; i++) worst = fmax(worst, fabs(p[i] - 0.5));
+    ok(worst < 1e-6, "a DC block reads its own level", worst, 1e-6);
+    /* the inter-sample peak: a tone at rate/4, phase pi/4, samples at A/sqrt2, true peak A */
+    const float a = 0.8f;
+    for (int i = 0; i < N; i++) x[i] = a * sinf((float)(M_PI / 2.0) * (float)(i % 4) + (float)(M_PI / 4.0));
+    omx_truepeak_init(&t);
+    uint32_t done = 0u;
+    const uint32_t blocks[] = {64u, 37u, 128u, 1u, 256u, 100u};
+    for (uint32_t bi = 0; done < N; bi++) {
+      uint32_t n = blocks[bi % 6u];
+      if (n > N - done) n = N - done;
+      omx_truepeak_block(&t, x + done, n, p + done);
+      done += n;
+    }
+    double lo = 1e9, hi = 0.0, sample_peak = 0.0;
+    for (int i = 512; i < N; i++) { lo = fmin(lo, p[i]); hi = fmax(hi, p[i]); sample_peak = fmax(sample_peak, fabsf(x[i])); }
+    ok(fabs(hi - a) < a * 0.0023, "the inter-sample peak reads the tone's level within 0.02 dB", hi, a);
+    ok(fabs(hi / sample_peak - M_SQRT2) < M_SQRT2 * 0.0023, "the true peak reads the closed-form overshoot, sqrt 2, above the sample peak", hi / sample_peak, M_SQRT2);
+    ok(fabs(lo - sample_peak) < sample_peak * 1e-6, "a frame whose interval holds no crest reads the sample peak", lo, sample_peak);
+  }
+  ok(omx_truepeak_state_size() == sizeof(struct omx_truepeak), "the state layout is exported", (double)omx_truepeak_state_size(), sizeof(struct omx_truepeak));
+  expect_clean();
+}
+
 /* ---- envelope ------------------------------------------------------------------------------- */
 
 /* The N-stage cascade of identical one-poles q from rest: P(Bin(n+N, 1-q) >= N). */
@@ -784,6 +873,8 @@ int main(void) {
   arm_oversampler();
   arm_envelope();
   arm_gaincomp();
+  arm_lookahead();
+  arm_truepeak();
   arm_relocation();
   const uint32_t violations = omx_contract_log.count;
   const uint32_t evaluated = omx_contract_log.checks;
