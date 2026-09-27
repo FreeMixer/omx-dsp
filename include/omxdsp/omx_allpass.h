@@ -17,6 +17,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "omx_biquad.h"
 #include "omx_contract.h"
 #include "omx_contract_limits.h"
 #include "omx_denormal.h"
@@ -140,7 +141,7 @@ static inline void omx_allpass1_process(float *buf, uint32_t n, float a, struct 
   e_out = p * (double)st->s * st->s;
   for (uint32_t i = 0; i < n; i++) e_out += (double)buf[i] * buf[i];
   const double flushed = (double)n * p * (double)OMX_FLUSH_THRESHOLD * (double)OMX_FLUSH_THRESHOLD;
-  OMX_POST(fabs(e_out - e_in) <= (double)OMX_ALLPASS_UNITY_TOL * fmax(e_in, e_out) + flushed, "unity-magnitude");
+  OMX_POST(fabs(e_out - e_in) <= (double)OMX_ALLPASS_UNITY_TOL * (e_in > e_out ? e_in : e_out) + flushed, "unity-magnitude");
 #endif
   OMX_POST(omx_block_finite(buf, n), "finite-out");
   OMX_INVARIANT(st->s - st->s == 0.0f && (st->s == 0.0f || fabsf(st->s) >= OMX_FLUSH_THRESHOLD),
@@ -178,9 +179,8 @@ static inline void omx_allpass2_design(double fc, double q, double sr, double c[
     c[1] = c[3];
     c[2] = 1.0;
   }
-  OMX_POST(isfinite(c[0]) && isfinite(c[1]) && isfinite(c[2]) && isfinite(c[3]) && isfinite(c[4]),
-           "finite-coeffs");
-  OMX_POST(fabs(c[3]) < 1.0 + c[4] && c[4] < 1.0, "poles-inside-the-unit-circle");
+  OMX_POST(omx_block_finite_d(c, 5u), "finite-coeffs");
+  OMX_POST(omx_biquad_stable(c), "poles-inside-the-unit-circle");
   OMX_POST(c[0] == c[4] && c[1] == c[3] && c[2] == 1.0, "allpass-unity");
 }
 #undef OMX_CONTRACT_STAGE

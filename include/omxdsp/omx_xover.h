@@ -175,12 +175,13 @@ static inline void omx_xover_process(const float *x, float *lo, float *hi, uint3
     hi[i] = sign * (float)h;
 #ifdef OMX_CONTRACTS
     const double r = omx_biquad_d(xi, c->ap, s->ref);
-    worst = fmax(worst, fabs((double)lo[i] + (double)hi[i] - r));
-    peak = fmax(peak, fabs(xi));
+    const double d = fabs((double)lo[i] + (double)hi[i] - r), m = fabs(xi);
+    worst = d > worst ? d : worst;
+    peak = m > peak ? m : peak;
 #endif
   }
 #ifdef OMX_CONTRACTS
-  OMX_POST(worst <= (double)OMX_XOVER_PARTITION_TOL * fmax(1.0, peak), "bands-partition-unity");
+  OMX_POST(worst <= (double)OMX_XOVER_PARTITION_TOL * (peak > 1.0 ? peak : 1.0), "bands-partition-unity");
 #endif
   OMX_POST(omx_block_finite(lo, n) && omx_block_finite(hi, n), "finite-out");
   OMX_INVARIANT(omx_block_finite_d(&s->lp[0][0], 4u) && omx_block_finite_d(&s->hp[0][0], 4u) &&

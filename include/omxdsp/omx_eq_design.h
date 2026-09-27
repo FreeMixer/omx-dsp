@@ -16,6 +16,7 @@
 #include <math.h>
 #include <stdint.h>
 
+#include "omx_biquad.h"
 #include "omx_contract.h"
 #include "omx_matched_pair.h"
 
@@ -147,9 +148,8 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       break;
     }
   }
-  OMX_POST(isfinite(c[0]) && isfinite(c[1]) && isfinite(c[2]) && isfinite(c[3]) && isfinite(c[4]),
-           "finite-coeffs");
-  OMX_POST(fabs(c[3]) < 1.0 + c[4] && c[4] < 1.0, "poles-inside-the-unit-circle");
+  OMX_POST(omx_block_finite_d(c, 5u), "finite-coeffs");
+  OMX_POST(omx_biquad_stable(c), "poles-inside-the-unit-circle");
 }
 #undef OMX_CONTRACT_STAGE
 
