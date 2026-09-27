@@ -1,0 +1,20 @@
+{
+  "name": "@freemixer/omx-dsp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "libomxdsp — the DSP primitives library: one header per building block, caller-owned state, pure C + -lm, contracts inside",
+  "license": "GPL-3.0-or-later",
+  "author": "Pau Aliagas <linuxnow@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FreeMixer/openmixer.git",
+    "directory": "packages/omx-dsp"
+  },
+  "scripts": {
+    "build": "make lib",
+    "test": "make test",
+    "lint": "make lint",
+    "docs": "make docs",
+    "clean": "make clean"
+  }
+}
