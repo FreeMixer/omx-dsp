@@ -54,5 +54,6 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_onepole.h"
 #include "omx_oversampler.h"
 #include "omx_units.h"
+#include "omx_wetdry.h"
 
 #endif /* OMXDSP_H */
