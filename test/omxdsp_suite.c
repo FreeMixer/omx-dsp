@@ -241,6 +241,45 @@ static void arm_biquad(void) {
     omx_biquad_cascade(e, 64u, 2u, un, NULL, su);
     ok(memcmp(d, e, sizeof d) == 0, "a unity cascade is the identity", 0.0, 0.0);
   }
+  {
+    /* THE COST DOOR'S ORACLE (spec §1 row 2): omx_biquad_cascade_stereo — parked bands dropped
+     * once, two sections and both legs per pass, state in locals — is the band-outer loop of
+     * omx_biquad over the live bands, BIT FOR BIT, output and state, for every band count to the
+     * cap, odd and even live counts, one and two legs, and block lengths 1, 7, 64 and 513. */
+    static float cf[OMX_EQ_MAX_BANDS][5];
+    for (int b = 0; b < OMX_EQ_MAX_BANDS; b++)
+      omx_eq_design_f((enum omx_eq_kind)(b % 6), 40.0 * pow(400.0, b / 23.0), 0.5 + 0.1 * b,
+                      (b & 1) ? 6.0 : -9.0, 96000.0, cf[b]);
+    static const uint32_t ns[4] = {1u, 7u, 64u, 513u};
+    int bad = 0, cases = 0;
+    for (uint32_t nb = 0; nb <= OMX_EQ_MAX_BANDS; nb++)
+      for (int mask = 0; mask < 4; mask++)
+        for (int ni = 0; ni < 4; ni++)
+          for (int legs = 1; legs <= 2; legs++) {
+            const uint32_t n = ns[ni];
+            uint8_t en[OMX_EQ_MAX_BANDS];
+            for (uint32_t b = 0; b < OMX_EQ_MAX_BANDS; b++)
+              en[b] = mask == 0 ? 1 : mask == 1 ? (b % 3 != 1) : mask == 2 ? (b & 1) : (b * 7 % 5 < 2);
+            static float l0[513], r0[513], l1[513], r1[513];
+            float sl0[OMX_EQ_MAX_BANDS][4], sr0[OMX_EQ_MAX_BANDS][4], sl1[OMX_EQ_MAX_BANDS][4], sr1[OMX_EQ_MAX_BANDS][4];
+            for (uint32_t b = 0; b < OMX_EQ_MAX_BANDS; b++)
+              for (int j = 0; j < 4; j++) sl0[b][j] = sl1[b][j] = rnd(-0.3f, 0.3f), sr0[b][j] = sr1[b][j] = rnd(-0.3f, 0.3f);
+            for (uint32_t i = 0; i < n; i++) l0[i] = l1[i] = rnd(-1.0f, 1.0f), r0[i] = r1[i] = rnd(-1.0f, 1.0f);
+            for (uint32_t b = 0; b < nb; b++) {
+              if (mask && !en[b]) continue;
+              for (uint32_t i = 0; i < n; i++) l0[i] = omx_biquad(l0[i], cf[b], sl0[b]);
+              if (legs == 2) for (uint32_t i = 0; i < n; i++) r0[i] = omx_biquad(r0[i], cf[b], sr0[b]);
+            }
+            if (legs == 2) omx_biquad_cascade_stereo(l1, r1, n, nb, cf, mask ? en : NULL, sl1, sr1);
+            else omx_biquad_cascade(l1, n, nb, cf, mask ? en : NULL, sl1);
+            cases++;
+            if (memcmp(l0, l1, n * sizeof(float)) || memcmp(sl0, sl1, sizeof sl0) ||
+                (legs == 2 && (memcmp(r0, r1, n * sizeof(float)) || memcmp(sr0, sr1, sizeof sr0))))
+              bad++;
+          }
+    ok(bad == 0 && cases == 25 * 4 * 4 * 2,
+       "the fused two-leg cascade is the band-outer omx_biquad loop, bit for bit (output and state)", bad, 0.0);
+  }
   ok(OMX_EQ_MAX_BANDS == 24, "the cascade cap is the declared joint budget", OMX_EQ_MAX_BANDS, 24.0);
   expect_clean();
 }
