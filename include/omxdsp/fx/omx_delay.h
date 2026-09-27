@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "omx_contract.h"
+#include <omxdsp/omx_contract.h>
 
 /** Max FX delay time (ms). ~2 s covers slow ambient repeats. Read from the generated header
  * (OMX_DELAY_TIME_MS_MAX, FX_DELAY_TIME_RANGE.max — F7): this ring's ceiling and the TS travel
