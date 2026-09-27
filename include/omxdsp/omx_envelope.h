@@ -153,7 +153,8 @@ struct omx_envdiff_poles {
  * level is the upper one, `Δ = 20·log10(max(fast, F) / max(slow, F))` (the onset contrast ΔA);
  * with a slower release the slow level is the upper one and the operands swap (the decay
  * contrast ΔS). Both envelopes scale with the input, so `Δ` does not depend on its level while
- * both stay above `F`.
+ * both stay above `F`. The ordering holds in float32 to rounding: a held input settles both
+ * cascades onto `d`, each stage stalling within `2⁻²⁴/(1 − q)` of it, so the ratio is floored at 1.
  * @param slow The slow cascade's state, updated in place.
  * @param e The parameters (`detect` is read).
  * @param d The input, rectified into the detector's domain; finite.
@@ -164,7 +165,8 @@ struct omx_envdiff_poles {
  * @pre `finite-in`, `floor-positive`, `pole-in-declared-range`, `differ-in-exactly-one-pole`,
  *      `slow-is-slower`.
  * @post `contrast-non-negative`, `finite`.
- * @invariant `both-cascades-finite`.
+ * @invariant `both-cascades-finite`; `ordering-within-rounding`: the unfloored ratio is at least
+ *            `1 − N·2⁻²⁴/(1 − q)`, `q` the fast cascade's slower per-stage pole.
  * @note RT-safe: one omx_env_step(), one division, one omx_lin_to_db_poly(), no libm call.
  *       Thread-safe on distinct state.
  */
@@ -180,11 +182,14 @@ static inline float omx_envdiff_step(struct omx_env *slow, const struct omx_env_
   const int slow_above = p->slow_release != p->fast_release;
   const float hi = fmaxf(slow_above ? s : fast_level, floor);
   const float lo = fmaxf(slow_above ? fast_level : s, floor);
-  const float delta = omx_lin_to_db_poly(hi / lo);
+  const float ratio = hi / lo;
+  const float delta = omx_lin_to_db_poly(fmaxf(ratio, 1.0f));
   OMX_POST(delta >= 0.0f, "contrast-non-negative");
   OMX_POST(delta - delta == 0.0f, "finite");
   OMX_INVARIANT(omx_block_finite(slow->stage, (uint32_t)OMX_DYN_ENV_STAGES) && fast_level - fast_level == 0.0f,
                 "both-cascades-finite");
+  OMX_INVARIANT(ratio >= 1.0f - (float)OMX_DYN_ENV_STAGES * 0x1p-24f / (1.0f - fmaxf(p->fast_attack, p->fast_release)),
+                "ordering-within-rounding");
   return delta;
 }
 #undef OMX_CONTRACT_STAGE
