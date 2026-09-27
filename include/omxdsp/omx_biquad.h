@@ -11,6 +11,7 @@
 #ifndef OMX_BIQUAD_H
 #define OMX_BIQUAD_H
 
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -39,6 +40,17 @@ static inline float omx_biquad(float x, const float c[5], float s[4]) {
   s[3] = s[2];
   s[2] = y;
   return y;
+}
+
+/**
+ * @brief Whether a normalised section's poles lie inside the unit circle: `|a1| < 1 + a2` and
+ *        `a2 < 1`, the stability triangle.
+ * @param c The coefficients `{b0, b1, b2, a1, a2}`.
+ * @return 1 when both poles are inside, else 0.
+ * @note RT-safe and thread-safe: two compares, pure.
+ */
+static inline int omx_biquad_stable(const double c[5]) {
+  return fabs(c[3]) < 1.0 + c[4] && c[4] < 1.0;
 }
 
 /**
