@@ -399,7 +399,7 @@ static void arm_lfo(void) {
   ok(omx_lfo_wrap(1.25f) == 0.25f && omx_lfo_wrap(0.9f) == 0.9f, "wrap folds one turn", omx_lfo_wrap(1.25f), 0.25);
   for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
     const float sr = OMX_DECLARED_RATES[ri];
-    struct omx_lfo l = {0.0f, omx_lfo_inc(2.0f, sr)};
+    struct omx_lfo l = {0.0f, omx_lfo_inc(2.0f, sr), 0.0f};
     ok(fabsf(l.inc * sr - 2.0f) < 1e-4f, "the increment is the rate in turns per sample", l.inc * sr, 2.0);
     ok(omx_lfo_inc(0.0f, sr) == 0.0f && omx_lfo_inc(-1.0f, sr) == 0.0f, "a non-positive rate freezes", omx_lfo_inc(-1.0f, sr), 0.0);
     ok(omx_lfo_inc(sr * 0.5f, sr) == 0.0f && omx_lfo_inc(sr, sr) == 0.0f, "a rate at or above Nyquist freezes", omx_lfo_inc(sr, sr), 0.0);
@@ -417,6 +417,24 @@ static void arm_lfo(void) {
     ok(l.phase == 0.3f, "a read does not move the oscillator", l.phase, 0.3);
     ok(omx_lfo_sweep(10.0f, 4.0f, -1.0f) == 10.0f && omx_lfo_sweep(10.0f, 4.0f, 1.0f) == 14.0f, "the sweep runs from base to base + depth", omx_lfo_sweep(10.0f, 4.0f, 1.0f), 14.0);
   }
+  /* THE PERIOD IS THE RATE's (dsp-primitives §1 row 12): 1/rate seconds of advances land back
+   * on the phase they started from, at the slow end of every consumer's travel, every rate. A bare
+   * float add rounds each step to the phase's ulp and missed by up to 0.024 of a turn here. */
+  static const float SLOW[4] = {0.05f, 0.1f, 1.0f, 20.0f};
+  double worst_turns = 0.0;
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++)
+    for (int k = 0; k < 4; k++) {
+      const float sr = OMX_DECLARED_RATES[ri];
+      struct omx_lfo l = {0.0f, omx_lfo_inc(SLOW[k], sr), 0.0f};
+      const uint64_t turn = (uint64_t)llround((double)sr / (double)SLOW[k]);
+      for (uint64_t i = 0; i < turn; i++) omx_lfo_advance(&l);
+      const double off = l.phase > 0.5f ? 1.0 - (double)l.phase : (double)l.phase;
+      if (off > worst_turns) worst_turns = off;
+    }
+  ok(worst_turns < 1e-5, "one period of advances returns to the start, every rate (turns)", worst_turns, 1e-5);
+  struct omx_lfo frozen = {0.25f, 0.0f, 0.0f};
+  for (int i = 0; i < 1000; i++) omx_lfo_advance(&frozen);
+  ok(frozen.phase == 0.25f, "a frozen oscillator does not move", frozen.phase, 0.25);
   ok(omx_lfo_state_size() == sizeof(struct omx_lfo) && omx_lfo_state_align() == _Alignof(struct omx_lfo), "the state layout is exported", (double)omx_lfo_state_size(), sizeof(struct omx_lfo));
   expect_clean();
 }
@@ -555,7 +573,7 @@ static void arm_relocation(void) {
   ok(omx_fdelay_state_align() > 0u && (omx_fdelay_state_align() & (omx_fdelay_state_align() - 1u)) == 0u, "the line's alignment is a power of two", (double)omx_fdelay_state_align(), 0.0);
   ok(omx_oversampler_state_align() > 0u && (omx_oversampler_state_align() & (omx_oversampler_state_align() - 1u)) == 0u, "the oversampler's alignment is a power of two", (double)omx_oversampler_state_align(), 0.0);
   {
-    struct omx_lfo l = {0.0f, omx_lfo_inc(3.0f, 48000.0f)};
+    struct omx_lfo l = {0.0f, omx_lfo_inc(3.0f, 48000.0f), 0.0f};
     for (int i = 0; i < N; i++) { ref[i] = omx_lfo_at(&l, 0.25f); omx_lfo_advance(&l); }
     struct omx_lfo *a = state_block(omx_lfo_state_size(), omx_lfo_state_align());
     struct omx_lfo *b = state_block(omx_lfo_state_size(), omx_lfo_state_align());
