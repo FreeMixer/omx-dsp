@@ -16,6 +16,7 @@
 #include <math.h>
 #include <stdint.h>
 
+#include "omx_allpass.h"
 #include "omx_biquad.h"
 #include "omx_contract.h"
 #include "omx_matched_pair.h"
@@ -28,6 +29,9 @@ enum omx_eq_kind {
   OMX_EQ_HIGHPASS = 3,  /**< The cookbook high-pass. */
   OMX_EQ_LOWPASS = 4,   /**< Matched poles, fitted numerator. */
   OMX_EQ_NOTCH = 5,     /**< Matched poles under the cookbook numerator, a total null. */
+  OMX_EQ_BANDPASS = 6,  /**< The cookbook constant-0 dB-peak bandpass, cookbook poles: `½(1 − AP₂)`. */
+  OMX_EQ_ALLPASS1 = 7,  /**< A first-order allpass `(k + z⁻¹)/(1 + k z⁻¹)`, −90° at the corner. */
+  OMX_EQ_ALLPASS2 = 8,  /**< The second-order allpass, −180° at the corner: omx_allpass2_design(). */
 };
 
 #undef OMX_CONTRACT_STAGE
@@ -138,6 +142,21 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       c[0] = n.b0; c[1] = n.b1; c[2] = n.b2; c[3] = p[0]; c[4] = p[1];
       break;
     }
+    case OMX_EQ_BANDPASS: {
+      const double alpha = sin(w0) / (2.0 * qq);
+      const double a0 = 1.0 + alpha;
+      c[0] = alpha / a0; c[1] = 0.0; c[2] = -alpha / a0; c[3] = -2.0 * cos(w0) / a0; c[4] = (1.0 - alpha) / a0;
+      break;
+    }
+    case OMX_EQ_ALLPASS1: {
+      const double t = sin(w0) / (1.0 + cos(w0));
+      const double k = (t - 1.0) / (t + 1.0);
+      c[0] = k; c[1] = 1.0; c[2] = 0.0; c[3] = k; c[4] = 0.0;
+      break;
+    }
+    case OMX_EQ_ALLPASS2:
+      omx_allpass2_design(f0, qq, sample_rate, c);
+      break;
     case OMX_EQ_NOTCH:
     default: {
       const double b1 = -2.0 * cos(w0);

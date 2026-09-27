@@ -4,12 +4,14 @@
 #
 # perturb.sh <dir> — the C reads the generated limits header, not a copy of it
 # (docs/design/specs/2026-09-26-dsp-primitives.md §7). A PERTURBED omx_contract_limits.h is
-# rendered from the committed one (one declared rate dropped; then, one at a time, the LR4 section Q
-# and the all-pass/crossover tolerances) inside a
+# rendered from the committed one (one declared rate dropped, the comp's ratio floor moved; then,
+# one at a time, the LR4 section Q and the all-pass/crossover tolerances; the ledger cap untouched)
+# inside a
 # copy of the include directory (the headers include each other by quoted name, so the copy is
 # whole), and test/omxdsp_perturb.c is built against that copy: the rate
 # that was dropped must now be refused by omx_rate_is_declared and recorded by a rate
-# precondition. The same source built against the REAL header is the control and records
+# precondition, and a ratio between the real floor and the moved one recorded by the gain
+# computer's precondition. The same source built against the REAL header is the control and records
 # nothing. Usage: CC=… CFLAGS=… perturb.sh <scratch-dir>
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -25,6 +27,10 @@ sed -i 's|, 96000.0f||; s|^#define OMX_DECLARED_RATE_COUNT \([0-9]*\)u$|#define 
 count="$(grep -oE '^#define OMX_DECLARED_RATE_COUNT \$\(\([0-9]+ - 1\)\)u' "$OUT/omxdsp/omx_contract_limits.h" | grep -oE '[0-9]+' | head -1)"
 [ -n "$count" ] || { echo "perturb.sh: FAIL — the declared rate count line was not found in the header"; exit 1; }
 sed -i "s|^#define OMX_DECLARED_RATE_COUNT .*|#define OMX_DECLARED_RATE_COUNT $((count - 1))u|" "$OUT/omxdsp/omx_contract_limits.h"
+# move one bound: the comp's ratio floor from its declared value to 1.5
+sed -i 's|^#define OMX_COMP_RATIO_MIN .*$|#define OMX_COMP_RATIO_MIN 1.5f|' "$OUT/omxdsp/omx_contract_limits.h"
+grep -q '^#define OMX_COMP_RATIO_MIN 1.5f$' "$OUT/omxdsp/omx_contract_limits.h" || { echo "perturb.sh: FAIL — the comp ratio floor line was not found in the header"; exit 1; }
+grep -q '^#define OMX_COMP_RATIO_MIN 1.5f$' "$REAL" && { echo "perturb.sh: FAIL — the real comp ratio floor is already the perturbed value"; exit 1; }
 if cmp -s "$REAL" "$OUT/omxdsp/omx_contract_limits.h"; then echo "perturb.sh: FAIL — the perturbation changed nothing"; exit 1; fi
 grep -q "96000.0f" "$OUT/omxdsp/omx_contract_limits.h" && { echo "perturb.sh: FAIL — 96000 is still declared in the perturbed header"; exit 1; }
 
