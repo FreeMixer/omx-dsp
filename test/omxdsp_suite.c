@@ -436,6 +436,35 @@ static void arm_fdelay(void) {
       ok(fabs(sum - 1.0) < 1e-5, "the kernel sums to one", sum, 1.0);
       if (fi == 0) ok(c[omx_fdelay_lookbehind(order)] == 1.0f, "a zero fraction is the identity tap", c[omx_fdelay_lookbehind(order)], 1.0);
     }
+    /* The kernel IS its documented product, bit for bit, whatever instantiation computes it (the
+     * order-3 instantiation a constant order lets the compiler unroll is the chorus lane's cost
+     * change, and it must not move one bit): c[k] = (float)(Π(j≠k)(f − (j − off)) / Π(j≠k)(k − j))
+     * in double, left to right, over 2^20 grid fractions and 2^16 scattered ones. */
+    {
+      const int off = (int)omx_fdelay_lookbehind(order);
+      long diff = 0, n = 0;
+      uint32_t seed = 12345u;
+      for (uint32_t i = 0; i < (1u << 20) + (1u << 16); i++) {
+        float f;
+        if (i < (1u << 20)) f = (float)i / (float)(1u << 20);
+        else { seed = seed * 1664525u + 1013904223u; f = (float)(seed >> 8) / 16777216.0f; }
+        float c[OMX_FDELAY_MAX_TAPS], want[OMX_FDELAY_MAX_TAPS];
+        omx_fdelay_lagrange(order, f, c);
+        for (int k = 0; k <= order; k++) {
+          double num = 1.0, den = 1.0;
+          for (int j = 0; j <= order; j++) {
+            if (j == k) continue;
+            num *= (double)f - (double)(j - off);
+            den *= (double)(k - j);
+          }
+          want[k] = (float)(num / den);
+        }
+        n++;
+        if (memcmp(c, want, (size_t)(order + 1) * sizeof(float)) != 0) diff++;
+      }
+      ok(diff == 0, "the kernel is its documented product, bit for bit", (double)diff, 0.0);
+      printf("omxdsp_suite fdelay: order %d, %ld/%ld fractions bit-identical to the product\n", order, n - diff, n);
+    }
     struct omx_fdelay l;
     ok(omx_fdelay_init(&l, ring, 4096u, order) == OMX_FDELAY_OK, "a legal order arms", order, 0.0);
     ok(l.order == order && l.cap == 4096u, "an armed line carries what it was given", l.order, order);
