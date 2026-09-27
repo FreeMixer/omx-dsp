@@ -80,6 +80,61 @@ int main(void) {
   omx_fdelay_process(one, 1u, &l, 3.0f);
   ok(omx_contract_log.count == 0u, "a legal call records no violation");
 
+  /* The all-pass and crossover doors (dsp-primitives §1 rows 4–6). */
+  struct omx_allpass1_state ap = {0.0f};
+  omx_allpass1(0.25f, 1.0f, &ap);
+  static const char *const ap_pre[] = {"coefficient-inside-unity"};
+  expect_exactly(1u, "allpass1", "pre", ap_pre);
+
+  omx_allpass1_coeff(24000.0, 48000.0);
+  static const char *const corner_pre[] = {"corner-inside-the-band"};
+  expect_exactly(1u, "allpass1/coeff", "pre", corner_pre);
+
+  omx_allpass1_coeff(1000.0, 12345.0);
+  static const char *const rate_pre[] = {"rate-is-declared"};
+  expect_exactly(1u, "allpass1/coeff", "pre", rate_pre);
+
+  ap.s = 1e-30f;
+  float blk[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  omx_allpass1_process(blk, 4u, -0.5f, &ap);
+  static const char *const ap_inv[] = {"state-finite-and-flushed"};
+  expect_exactly(1u, "allpass1/process", "invariant", ap_inv);
+
+  /* POST: the sabotaged lattice adds half a t to its output, so a block is no longer lossless. */
+  ap.s = 0.0f;
+  float tone[64];
+  for (int i = 0; i < 64; i++) tone[i] = (i & 1) ? 0.5f : -0.25f;
+  omx_allpass1_process(tone, 64u, 0.3f, &ap);
+  static const char *const ap_post[] = {"unity-magnitude"};
+  expect_exactly(1u, "allpass1/process", "post", ap_post);
+
+  struct omx_xover xo;
+  ok(omx_xover_design(&xo, 3u, 1000.0, 48000.0) == OMX_XOVER_BAD_ORDER, "an odd order is refused with its code");
+  static const char *const order_pre[] = {"order-is-two-or-four"};
+  expect_exactly(1u, "xover/design", "pre", order_pre);
+  ok(omx_xover_design(&xo, 4u, 30000.0, 48000.0) == OMX_XOVER_BAD_CORNER, "a corner past Nyquist is refused with its code");
+  expect_exactly(1u, "xover/design", "pre", corner_pre);
+
+  /* POST: a crossover whose all-pass belongs to another corner does not partition into it. */
+  struct omx_xover other;
+  ok(omx_xover_design(&xo, 4u, 1000.0, 48000.0) == OMX_XOVER_OK, "a legal crossover designs");
+  ok(omx_xover_design(&other, 4u, 3000.0, 48000.0) == OMX_XOVER_OK, "a second corner designs");
+  omx_contract_reset();
+  memcpy(xo.ap, other.ap, sizeof xo.ap);
+  struct omx_xover_state xs;
+  memset(&xs, 0, sizeof xs);
+  float lo[64], hi[64];
+  omx_xover_process(tone, lo, hi, 64u, &xo, &xs);
+  static const char *const xo_post[] = {"bands-partition-unity"};
+  expect_exactly(1u, "xover/process", "post", xo_post);
+
+  /* The control for the new doors: legal calls record nothing. */
+  ok(omx_xover_design(&xo, 2u, 1000.0, 48000.0) == OMX_XOVER_OK, "the LR2 control designs");
+  memset(&xs, 0, sizeof xs);
+  omx_contract_reset();
+  omx_xover_process(tone, lo, hi, 64u, &xo, &xs);
+  ok(omx_contract_log.count == 0u, "a legal crossover records no violation");
+
   printf("omxdsp_negative: %d checks, %d failed; the three contract kinds each recorded their violation\n",
          g_checks, g_failed);
   return g_failed == 0 ? 0 : 1;
