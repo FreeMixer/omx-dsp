@@ -534,6 +534,120 @@ static void arm_oversampler(void) {
   expect_clean();
 }
 
+/* ---- envelope ------------------------------------------------------------------------------- */
+
+/* The N-stage cascade of identical one-poles q from rest: P(Bin(n+N, 1-q) >= N). */
+static double cascade_step(uint32_t n, double q) {
+  double below = 0.0, c = 1.0;
+  for (int k = 0; k < OMX_DYN_ENV_STAGES; k++) {
+    if (k > 0) c *= (double)(n + OMX_DYN_ENV_STAGES + 1u - (uint32_t)k) / (double)k;
+    below += c * pow(1.0 - q, k) * pow(q, (double)(n + OMX_DYN_ENV_STAGES) - k);
+  }
+  return 1.0 - below;
+}
+
+static void arm_envelope(void) {
+  g_arm = "envelope";
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    const float sr = OMX_DECLARED_RATES[ri];
+    const struct omx_env_params e = {omx_pole_from_time_ms(5.0f, sr), omx_pole_from_time_ms(120.0f, sr), OMX_DETECT_PEAK};
+    float ac, rc;
+    omx_env_stage_poles(&e, 1u, &ac, &rc);
+    const double qa = pow((double)e.attack_pole, OMX_DYN_ENV_STAGES), qr = pow((double)e.release_pole, OMX_DYN_ENV_STAGES);
+    ok(fabs(ac - qa) <= 1e-6 * qa, "the base-rate attack stage pole is pole^N", ac, qa);
+    ok(fabs(rc - qr) <= 1e-6 * qr, "the base-rate release stage pole is pole^N", rc, qr);
+    float a4, r4;
+    omx_env_stage_poles(&e, 4u, &a4, &r4);
+    const double q4 = pow((double)e.attack_pole, OMX_DYN_ENV_STAGES / 4.0);
+    ok(fabs(a4 - q4) <= 1e-6 * q4, "at 4x the stage pole is pole^(N/4)", a4, q4);
+    struct omx_env env;
+    memset(&env, 0, sizeof env);
+    const uint32_t len = (uint32_t)(0.03f * sr);
+    double worst = 0.0;
+    for (uint32_t i = 0; i < len; i++) {
+      const float y = omx_env_step(&env, &e, 1.0f, ac, rc);
+      const double d = fabs((double)y - cascade_step(i, ac));
+      if (d > worst) worst = d;
+    }
+    ok(worst <= 1e-4, "the attack step response is the N-stage closed form (float state)", worst, 1e-4);
+    ok(omx_env_level(&env, &e) == env.stage[OMX_DYN_ENV_STAGES - 1], "the peak level is the last stage", omx_env_level(&env, &e), env.stage[OMX_DYN_ENV_STAGES - 1]);
+    for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) env.stage[s] = 1.0f;
+    worst = 0.0;
+    for (uint32_t i = 0; i < len; i++) {
+      const float y = omx_env_step(&env, &e, 0.0f, ac, rc);
+      const double d = fabs((double)y - (1.0 - cascade_step(i, rc)));
+      if (d > worst) worst = d;
+    }
+    ok(worst <= 1e-4, "the release decay is the N-stage closed form (float state)", worst, 1e-4);
+    const struct omx_env_params rms = {e.attack_pole, e.release_pole, OMX_DETECT_RMS};
+    memset(&env, 0, sizeof env);
+    float lev = 0.0f;
+    for (uint32_t i = 0; i < (uint32_t)(0.2f * sr); i++) lev = omx_env_step(&env, &rms, 0.25f * 0.25f, ac, rc);
+    ok(fabsf(lev - 0.25f) < 1e-4f, "RMS of a settled 0.25 square is 0.25", lev, 0.25);
+    ok(lev == sqrtf(env.stage[OMX_DYN_ENV_STAGES - 1]) && lev == omx_env_level(&env, &rms), "the RMS level is the root of the last stage", lev, 0.0);
+    const struct omx_env_params inst = {0.0f, 0.0f, OMX_DETECT_PEAK};
+    float a0, r0;
+    omx_env_stage_poles(&inst, 1u, &a0, &r0);
+    memset(&env, 0, sizeof env);
+    ok(omx_env_step(&env, &inst, 0.7f, a0, r0) == 0.7f, "pole 0 is instant", env.stage[OMX_DYN_ENV_STAGES - 1], 0.7);
+  }
+  ok(omx_env_state_size() == sizeof(struct omx_env) && omx_env_state_align() == _Alignof(struct omx_env), "the state layout is exported", (double)omx_env_state_size(), sizeof(struct omx_env));
+  expect_clean();
+}
+
+/* ---- gain computer -------------------------------------------------------------------------- */
+
+static double gaincomp_closed(int mode, double t, double r, double k, double range, double l) {
+  const double x = l - t, h = 0.5 * k;
+  if (mode == OMX_DYN_ABOVE) {
+    if (x <= -h) return 0.0;
+    if (k > 0.0 && x < h) return (1.0 / r - 1.0) * (x + h) * (x + h) / (2.0 * k);
+    return (1.0 / r - 1.0) * x;
+  }
+  double g;
+  if (x >= h) g = 0.0;
+  else if (k > 0.0 && x > -h) g = (1.0 - r) * (x - h) * (x - h) / (2.0 * k);
+  else g = (r - 1.0) * x;
+  return g < range ? range : g;
+}
+
+static void arm_gaincomp(void) {
+  g_arm = "gaincomp";
+  static const struct omx_gaincomp_params cases[] = {
+      {OMX_DYN_ABOVE, -20.0f, 4.0f, 6.0f, 0.0f, 1.0f},
+      {OMX_DYN_ABOVE, -12.0f, 20.0f, 0.0f, 0.0f, 2.0f},
+      {OMX_DYN_ABOVE, -30.0f, 1.0f, 12.0f, 0.0f, 1.0f},
+      {OMX_DYN_BELOW, -40.0f, 16.0f, 6.0f, -60.0f, 1.0f},
+      {OMX_DYN_BELOW, -50.0f, 100.0f, 0.0f, -90.0f, 1.0f},
+      {OMX_DYN_BELOW, -35.0f, 2.0f, 10.0f, -20.0f, 1.5f},
+  };
+  for (size_t c = 0; c < sizeof cases / sizeof cases[0]; c++) {
+    const struct omx_gaincomp_params *p = &cases[c];
+    double worst = 0.0, lo = 1e9, hi = -1e9;
+    for (int i = 0; i < 200; i++) {
+      const float l = -100.0f + 0.5f * (float)i;
+      const double d = fabs((double)omx_gaincomp_db(p, l) - gaincomp_closed(p->mode, p->thresh_db, p->ratio, p->knee_db, p->range_db, l));
+      if (d > worst) worst = d;
+      const float g = omx_gaincomp_gain(p, omx_db_to_lin(l));
+      if (g < lo) lo = g;
+      if (g > hi) hi = g;
+    }
+    ok(worst <= 1e-4, "the characteristic is the closed form at 200 levels", worst, 1e-4);
+    ok(lo >= 0.0 && hi <= p->makeup_lin * (1.0 + 1e-6), "the gain lies in [0, makeup]", hi, p->makeup_lin);
+    if (p->knee_db > 0.0f) {
+      const float h = 0.5f * p->knee_db, eps = 1e-3f;
+      for (int side = -1; side <= 1; side += 2) {
+        const float edge = p->thresh_db + (float)side * h;
+        const float in = omx_gaincomp_db(p, edge - (float)side * eps), out = omx_gaincomp_db(p, edge + (float)side * eps);
+        ok(fabsf(in - out) <= 2.0f * eps * p->ratio + 1e-4f, "the knee joins its neighbour without a step", fabsf(in - out), 2.0f * eps * p->ratio + 1e-4f);
+      }
+    }
+  }
+  const struct omx_gaincomp_params unity = {OMX_DYN_ABOVE, 0.0f, 4.0f, 0.0f, 0.0f, 1.0f};
+  ok(omx_gaincomp_gain(&unity, 0.5f) == 1.0f, "below the threshold the comp is unity bit for bit", omx_gaincomp_gain(&unity, 0.5f), 1.0);
+  expect_clean();
+}
+
 /* ---- state relocation ----------------------------------------------------------------------- */
 
 /* A block sized and aligned as the primitive exports, the size rounded up to the alignment. */
@@ -553,6 +667,7 @@ static void arm_relocation(void) {
   for (int i = 0; i < N; i++) x[i] = rnd(-0.5f, 0.5f);
   ok(omx_lfo_state_align() > 0u && (omx_lfo_state_align() & (omx_lfo_state_align() - 1u)) == 0u, "the LFO's alignment is a power of two", (double)omx_lfo_state_align(), 0.0);
   ok(omx_fdelay_state_align() > 0u && (omx_fdelay_state_align() & (omx_fdelay_state_align() - 1u)) == 0u, "the line's alignment is a power of two", (double)omx_fdelay_state_align(), 0.0);
+  ok(omx_env_state_align() > 0u && (omx_env_state_align() & (omx_env_state_align() - 1u)) == 0u, "the envelope's alignment is a power of two", (double)omx_env_state_align(), 0.0);
   ok(omx_oversampler_state_align() > 0u && (omx_oversampler_state_align() & (omx_oversampler_state_align() - 1u)) == 0u, "the oversampler's alignment is a power of two", (double)omx_oversampler_state_align(), 0.0);
   {
     struct omx_lfo l = {0.0f, omx_lfo_inc(3.0f, 48000.0f)};
@@ -588,6 +703,24 @@ static void arm_relocation(void) {
     free(a); free(b);
   }
   {
+    const struct omx_env_params e = {omx_pole_from_time_ms(1.0f, 48000.0f), omx_pole_from_time_ms(30.0f, 48000.0f), OMX_DETECT_RMS};
+    float ac, rc;
+    omx_env_stage_poles(&e, 1u, &ac, &rc);
+    struct omx_env ref_env;
+    memset(&ref_env, 0, sizeof ref_env);
+    for (int i = 0; i < N; i++) ref[i] = omx_env_step(&ref_env, &e, x[i] * x[i], ac, rc);
+    struct omx_env *a = state_block(omx_env_state_size(), omx_env_state_align());
+    struct omx_env *b = state_block(omx_env_state_size(), omx_env_state_align());
+    ok(a != 0 && b != 0, "two aligned blocks for the envelope", 0.0, 0.0);
+    memset(a, 0, omx_env_state_size());
+    for (int i = 0; i < HALF; i++) out[i] = omx_env_step(a, &e, x[i] * x[i], ac, rc);
+    memcpy(b, a, omx_env_state_size());
+    memset(a, 0xAA, omx_env_state_size());
+    for (int i = HALF; i < N; i++) out[i] = omx_env_step(b, &e, x[i] * x[i], ac, rc);
+    ok(memcmp(ref, out, sizeof ref) == 0, "a relocated envelope continues bit for bit", 0.0, 0.0);
+    free(a); free(b);
+  }
+  {
     struct omx_oversampler o;
     omx_oversampler_init(&o, 4u);
     for (int i = 0; i < N; i += BLOCK) { omx_oversampler_up(&o, x + i, BLOCK, up); omx_oversampler_down(&o, up, BLOCK, ref + i); }
@@ -620,6 +753,8 @@ int main(void) {
   arm_lfo();
   arm_fdelay();
   arm_oversampler();
+  arm_envelope();
+  arm_gaincomp();
   arm_relocation();
   const uint32_t violations = omx_contract_log.count;
   const uint32_t evaluated = omx_contract_log.checks;
