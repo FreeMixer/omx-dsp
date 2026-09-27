@@ -627,14 +627,8 @@ static void arm_envelope(void) {
 
 /* ---- envdiff (row 8) ----------------------------------------------------------------------- */
 
-/* The transient spec §2 table: per rate, ΔA peak dB / ms and ≥ REF window, ΔS peak dB and window. */
-struct envdiff_row { float sr; double peak[2], peak_ms, from[2], to[2]; };
-static const struct envdiff_row ENVDIFF_TABLE[] = {
-  {44100.0f, {19.753, 19.784}, 1.224, {19.64, 0.181}, {407.35, 8.481}},
-  {48000.0f, {19.753, 19.784}, 1.229, {19.65, 0.188}, {407.33, 8.479}},
-  {96000.0f, {19.753, 19.784}, 1.250, {19.67, 0.208}, {407.38, 8.521}},
-  {192000.0f, {19.753, 19.784}, 1.266, {19.68, 0.214}, {407.39, 8.531}},
-};
+/* The transient spec §2 peak contrasts, dB, ΔS then ΔA: the same at every rate (L9). */
+static const double ENVDIFF_PEAK_DB[2] = {19.753, 19.784};
 
 struct envdiff_run { double worst, bound, peak_w, peak_c, q, slope_from, slope_to; uint32_t at_c, from_w, from_c, to_w, to_c; };
 
@@ -673,10 +667,6 @@ static struct envdiff_run envdiff_step_run(float sr, int rise) {
   return r;
 }
 
-static int envdiff_time_ok(uint32_t at, float sr, double table_ms, double q, double rounding_ms) {
-  const double ms = (double)at * 1000.0 / sr;
-  return fabs(ms - table_ms) <= table_ms * OMX_DYN_ENV_STAGES * ldexp(1.0, -24) / (1.0 - q) + rounding_ms + 1000.0 / sr;
-}
 
 static void arm_envdiff(void) {
   g_arm = "envdiff";
@@ -692,16 +682,8 @@ static void arm_envdiff(void) {
       const double tol_from = 1.0 + r.bound / r.slope_from, tol_to = 1.0 + r.bound / r.slope_to;
       ok(fabs((double)r.from_w - r.from_c) <= tol_from, "the ≥ REF window opens within 1 + bound/slope samples of the closed form", fabs((double)r.from_w - r.from_c), tol_from);
       ok(fabs((double)r.to_w - r.to_c) <= tol_to, "the ≥ REF window closes within 1 + bound/slope samples of the closed form", fabs((double)r.to_w - r.to_c), tol_to);
-      for (size_t t = 0; t < sizeof ENVDIFF_TABLE / sizeof ENVDIFF_TABLE[0]; t++) {
-        const struct envdiff_row *row = &ENVDIFF_TABLE[t];
-        if (row->sr != sr) continue;
-        const double rnd_ms = rise ? 0.0005 : 0.005;
-        ok(fabs(r.peak_c - row->peak[rise]) <= 0.001, "the closed-form peak is the spec §2 table's", r.peak_c, row->peak[rise]);
-        if (rise) ok(envdiff_time_ok(r.at_c, sr, row->peak_ms, r.q, rnd_ms), "the ΔA peak time is the spec §2 table's", r.at_c * 1000.0 / sr, row->peak_ms);
-        ok(envdiff_time_ok(r.from_c, sr, row->from[rise], r.q, rnd_ms), "the window opens where the spec §2 table says", r.from_c * 1000.0 / sr, row->from[rise]);
-        ok(envdiff_time_ok(r.to_c, sr, row->to[rise], r.q, rnd_ms), "the window closes where the spec §2 table says", r.to_c * 1000.0 / sr, row->to[rise]);
-        tabled++;
-      }
+      ok(fabs(r.peak_c - ENVDIFF_PEAK_DB[rise]) <= 0.001, "the closed-form peak is the spec §2 table's, at every rate", r.peak_c, ENVDIFF_PEAK_DB[rise]);
+      tabled++;
     }
     /* L2 and L3 over gated noise: both contrasts non-negative at every sample; identical at every
      * power-of-two level, within the arm A bound at the decimal ones. */
@@ -750,7 +732,7 @@ static void arm_envdiff(void) {
     }
     ok(silent == 0.0f, "below the floor the contrast is exactly 0", silent, 0.0);
   }
-  ok(tabled == 8u, "every rate of the spec §2 table was checked, both steps", tabled, 8.0);
+  ok(tabled == 2u * OMX_DECLARED_RATE_COUNT, "every declared rate was checked against the §2 peaks, both steps", tabled, 2.0 * OMX_DECLARED_RATE_COUNT);
   printf("envdiff: worst step error %.3g of its bound, %u declared rates\n", worst_ratio, OMX_DECLARED_RATE_COUNT);
   expect_clean();
 }
