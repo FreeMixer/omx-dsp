@@ -53,6 +53,9 @@ static void run_chain(struct worker *w) {
   omx_eq_design_f(OMX_EQ_HIGHPASS, 80.0, M_SQRT1_2, 0.0, sr, coeffs[1]);
   float eq_state[2][4] = {{0}};
   float eq2_l[2][4] = {{0}}, eq2_r[2][4] = {{0}}; /* the two-leg cascade's own state */
+  double dcoeffs[2][5], eqd_l[2][4] = {{0}}, eqd_r[2][4] = {{0}}; /* the double cascade (row 2a) */
+  omx_eq_design(OMX_EQ_PEAKING, 20.0, 4.3, 15.0, sr, dcoeffs[0]);
+  omx_eq_design(OMX_EQ_PEAKING, 1000.0, 4.3, -9.0, sr, dcoeffs[1]);
   struct omx_oversampler ovs;
   omx_oversampler_init(&ovs, 4u);
   float env = 0.0f;
@@ -76,6 +79,7 @@ static void run_chain(struct worker *w) {
     omx_biquad_cascade(block, n, 2u, coeffs, NULL, eq_state);
     for (uint32_t i = 0; i < n; i++) side[i] = 0.5f * block[(i * 7u) % n];
     omx_biquad_cascade_stereo(block, side, n, 2u, coeffs, NULL, eq2_l, eq2_r);
+    omx_biquad_cascade_d_stereo(block, side, n, 2u, (const double(*)[5])dcoeffs, NULL, eqd_l, eqd_r);
     for (uint32_t i = 0; i < n; i++) block[i] = 0.5f * (block[i] + side[i]);
     omx_oversampler_up(&ovs, block, n, up);
     omx_oversampler_down(&ovs, up, n, down);
