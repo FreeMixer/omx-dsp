@@ -135,6 +135,22 @@ int main(void) {
   omx_xover_process(tone, lo, hi, 64u, &xo, &xs);
   ok(omx_contract_log.count == 0u, "a legal crossover records no violation");
 
+  /* The divider: a negative hysteresis is refused by PRE; a sign word that is not a unit is
+   * caught by the INVARIANT; the legal call records nothing. */
+  struct omx_divider dv;
+  omx_divider_init(&dv);
+  omx_contract_reset();
+  omx_divider_step(&dv, 0.1f, -0.25f);
+  static const char *const div_pre_tokens[] = {"hysteresis-non-negative"};
+  expect_exactly(1u, "divider", "pre", div_pre_tokens);
+  dv.q = 0.5f;
+  omx_divider_step(&dv, 0.1f, 0.25f);
+  static const char *const div_inv_tokens[] = {"sign-word-is-unit"};
+  expect_exactly(1u, "divider", "invariant", div_inv_tokens);
+  omx_divider_init(&dv);
+  omx_divider_step(&dv, 0.1f, 0.25f);
+  ok(omx_contract_log.count == 0u, "a legal divider step records no violation");
+
   printf("omxdsp_negative: %d checks, %d failed; the three contract kinds each recorded their violation\n",
          g_checks, g_failed);
   return g_failed == 0 ? 0 : 1;
