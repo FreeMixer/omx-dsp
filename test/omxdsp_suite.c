@@ -8,6 +8,7 @@
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omxdsp.h>
 
+#include <complex.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -534,6 +535,212 @@ static void arm_oversampler(void) {
   expect_clean();
 }
 
+/* ---- all-pass and crossover ------------------------------------------------------------------ */
+
+/* The complex response of `{b0, b1, b2, a1, a2}` at `w` radians per sample. */
+static double complex section_h(const double c[5], double w) {
+  const double complex z1 = cexp(-I * w), z2 = z1 * z1;
+  return (c[0] + c[1] * z1 + c[2] * z2) / (1.0 + c[3] * z1 + c[4] * z2);
+}
+
+/* Ten test frequencies, log-spaced from 20 Hz to 0.45·sr. */
+static void ten_freqs(double sr, double f[10]) {
+  for (int k = 0; k < 10; k++) f[k] = 20.0 * pow(0.45 * sr / 20.0, k / 9.0);
+}
+
+static void arm_allpass(void) {
+  g_arm = "allpass";
+  enum { IMP = 1 << 17 };
+  static float h[IMP];
+  static const double fcs[5] = {50.0, 500.0, 1000.0, 5000.0, 15000.0};
+  double worst_mag = 0.0, worst_phase = 0.0, worst_fc = 0.0, worst_energy = 0.0;
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    const double sr = OMX_DECLARED_RATES[ri];
+    double f[10];
+    ten_freqs(sr, f);
+    for (int fi = 0; fi < 5; fi++) {
+      const double fc = fcs[fi], K = tan(M_PI * fc / sr);
+      const float a = (float)omx_allpass1_coeff(fc, sr);
+      ok(fabs(a) < 1.0f, "the coefficient is inside unity", a, 1.0);
+      struct omx_allpass1_state st = {0.0f};
+      memset(h, 0, sizeof h);
+      h[0] = 1.0f;
+      omx_allpass1_process(h, IMP, a, &st);
+      for (int k = 0; k <= 10; k++) {
+        const double w = 2.0 * M_PI * (k < 10 ? f[k] : fc) / sr;
+        double complex H = 0.0;
+        for (uint32_t n = 0; n < IMP; n++) H += h[n] * cexp(-I * w * n);
+        const double phase = carg(H), want = -2.0 * atan(tan(w / 2.0) / K);
+        double dphi = fabs(remainder(phase - want, 2.0 * M_PI)) * 180.0 / M_PI;
+        if (fabs(cabs(H) - 1.0) > worst_mag) worst_mag = fabs(cabs(H) - 1.0);
+        if (k < 10 && dphi > worst_phase) worst_phase = dphi;
+        if (k == 10) {
+          dphi = fabs(remainder(phase + M_PI / 2.0, 2.0 * M_PI)) * 180.0 / M_PI;
+          if (dphi > worst_fc) worst_fc = dphi;
+        }
+      }
+      /* the lossless identity over a block that starts and ends with state in the section */
+      float x[777], y[777];
+      for (int i = 0; i < 777; i++) x[i] = y[i] = rnd(-0.8f, 0.8f);
+      struct omx_allpass1_state s0 = {rnd(-0.5f, 0.5f)}, s1 = s0;
+      omx_allpass1_process(y, 777u, a, &s1);
+      double ein = s0.s * (double)s0.s / K, eout = s1.s * (double)s1.s / K;
+      for (int i = 0; i < 777; i++) { ein += (double)x[i] * x[i]; eout += (double)y[i] * y[i]; }
+      if (fabs(eout - ein) / ein > worst_energy) worst_energy = fabs(eout - ein) / ein;
+      /* the block word is the per-sample word, bit for bit */
+      struct omx_allpass1_state s2 = s0;
+      float z[777];
+      for (int i = 0; i < 777; i++) z[i] = omx_allpass1(x[i], a, &s2);
+      ok(memcmp(y, z, sizeof z) == 0 && s1.s == s2.s, "the block word is the per-sample word, bit for bit", 0.0, 0.0);
+    }
+    /* the second-order design: the reversed denominator, unity at ten frequencies, −180° at fc */
+    static const double qs[3] = {0.5, OMX_XOVER_LR4_SECTION_Q, 2.0};
+    for (int qi = 0; qi < 3; qi++) {
+      double c[5];
+      omx_allpass2_design(1000.0, qs[qi], sr, c);
+      ok(c[0] == c[4] && c[1] == c[3] && c[2] == 1.0, "the numerator is the reversed denominator, bit for bit", c[0] - c[4], 0.0);
+      for (int k = 0; k < 10; k++) {
+        const double m = cabs(section_h(c, 2.0 * M_PI * f[k] / sr));
+        if (fabs(m - 1.0) > worst_mag) worst_mag = fabs(m - 1.0);
+      }
+      const double at = carg(section_h(c, 2.0 * M_PI * 1000.0 / sr));
+      ok(fabs(fabs(at) - M_PI) < 1e-9, "the second-order all-pass is −180° at its corner", at, M_PI);
+    }
+  }
+  ok(worst_mag < OMX_ALLPASS_UNITY_TOL, "|H| = 1 at ten frequencies, every rate", worst_mag, OMX_ALLPASS_UNITY_TOL);
+  ok(worst_phase < 0.1, "the phase is -2·atan(tan(w/2)/tan(π·fc/sr)) at ten frequencies to 0.1°", worst_phase, 0.1);
+  ok(worst_fc < 0.1, "the section is −90° at fc to 0.1°", worst_fc, 0.1);
+  ok(worst_energy < OMX_ALLPASS_UNITY_TOL, "a block conserves Σx² + P·s² with P = 1/tan(π·fc/sr)", worst_energy, OMX_ALLPASS_UNITY_TOL);
+  printf("allpass: |H|-1 worst %.3g, phase worst %.3g deg, at fc %.3g deg, block energy worst %.3g\n", worst_mag,
+         worst_phase, worst_fc, worst_energy);
+  expect_clean();
+}
+
+/* The polynomial product `p ⊛ q` of degrees `np − 1` and `nq − 1`. */
+static void poly_mul(const double *p, int np, const double *q, int nq, double *out) {
+  for (int i = 0; i < np + nq - 1; i++) out[i] = 0.0;
+  for (int i = 0; i < np; i++)
+    for (int j = 0; j < nq; j++) out[i + j] += p[i] * q[j];
+}
+
+/* One crossover over `n` samples of noise: the worst |lo + hi − AP(x)|, lo in place over x. */
+static double xover_partition(const struct omx_xover *c, uint32_t n) {
+  static float x[20000], lo[20000], hi[20000], ap[20000];
+  struct omx_xover_state s;
+  struct omx_xover_ap_state as;
+  memset(&s, 0, sizeof s);
+  memset(&as, 0, sizeof as);
+  for (uint32_t i = 0; i < n; i++) x[i] = lo[i] = ap[i] = rnd(-0.5f, 0.5f);
+  omx_xover_process(lo, lo, hi, n, c, &s);
+  omx_xover_allpass(ap, n, c, &as);
+  double worst = 0.0;
+  for (uint32_t i = 0; i < n; i++) {
+    const double d = fabs((double)lo[i] + hi[i] - ap[i]);
+    if (d > worst) worst = d;
+  }
+  static float lo2[20000], hi2[20000];
+  memset(&s, 0, sizeof s);
+  omx_xover_process(x, lo2, hi2, n, c, &s);
+  ok(memcmp(lo, lo2, n * sizeof(float)) == 0 && memcmp(hi, hi2, n * sizeof(float)) == 0,
+     "the crossover in place over its input is the crossover into fresh buffers", 0.0, 0.0);
+  return worst;
+}
+
+static void arm_xover(void) {
+  g_arm = "xover";
+  static const double fcs[5] = {20.0, 100.0, 1000.0, 10000.0, 20000.0};
+  double worst_sum = 0.0, worst_fc = 0.0, worst_phase = 0.0, worst_ap = 0.0, worst_poly = 0.0, worst_time = 0.0;
+  double worst_tree = 0.0, worst_tree_time = 0.0;
+  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
+    const double sr = OMX_DECLARED_RATES[ri];
+    double f[10];
+    ten_freqs(sr, f);
+    for (uint32_t order = 2; order <= 4; order += 2) {
+      for (int fi = 0; fi < 5; fi++) {
+        const double fc = fcs[fi];
+        struct omx_xover c;
+        ok(omx_xover_design(&c, order, fc, sr) == OMX_XOVER_OK, "a corner inside the band designs", fc, sr / 2.0);
+        const double sgn = order == 2 ? -1.0 : 1.0;
+        for (int k = 0; k <= 10; k++) {
+          const double w = 2.0 * M_PI * (k < 10 ? f[k] : fc) / sr;
+          double complex L = section_h(c.lp, w), Hh = sgn * section_h(c.hp, w);
+          if (order == 4) { L *= section_h(c.lp, w); Hh = section_h(c.hp, w) * section_h(c.hp, w); }
+          const double ml = cabs(L), mh = cabs(Hh);
+          if (fabs(ml + mh - 1.0) > worst_sum) worst_sum = fabs(ml + mh - 1.0);
+          if (ml > 1e-3 && mh > 1e-3) {
+            const double dphi = fabs(remainder(carg(L) - carg(Hh), 2.0 * M_PI));
+            if (dphi > worst_phase) worst_phase = dphi;
+          }
+          const double dap = cabs(L + Hh - section_h(c.ap, w));
+          if (dap > worst_ap) worst_ap = dap;
+          if (k == 10) {
+            const double d = fmax(fabs(20.0 * log10(ml) + 6.0206), fabs(20.0 * log10(mh) + 6.0206));
+            if (d > worst_fc) worst_fc = d;
+          }
+        }
+        double lhs[5], rhs[5], t1[5], t2[5], scale = 0.0;
+        const double den[3] = {1.0, c.lp[3], c.lp[4]};
+        if (order == 4) {
+          poly_mul(c.lp, 3, c.lp, 3, t1);
+          poly_mul(c.hp, 3, c.hp, 3, t2);
+          for (int i = 0; i < 5; i++) lhs[i] = t1[i] + t2[i];
+          poly_mul(c.ap, 3, den, 3, rhs);
+          for (int i = 0; i < 5; i++) { scale = fmax(scale, fabs(rhs[i])); worst_poly = fmax(worst_poly, fabs(lhs[i] - rhs[i])); }
+        } else {
+          const double diff[3] = {c.lp[0] - c.hp[0], c.lp[1] - c.hp[1], c.lp[2] - c.hp[2]};
+          const double ap_den[2] = {1.0, c.ap[3]};
+          poly_mul(diff, 3, ap_den, 2, lhs);
+          poly_mul(c.ap, 2, den, 3, rhs);
+          for (int i = 0; i < 4; i++) { scale = fmax(scale, fabs(rhs[i])); worst_poly = fmax(worst_poly, fabs(lhs[i] - rhs[i])); }
+          ok(c.ap[2] == 0.0 && c.ap[4] == 0.0 && c.ap[1] == 1.0 && c.ap[0] == c.ap[3] &&
+             (float)c.ap[0] == (float)omx_allpass1_coeff(fc, sr),
+             "LR2's all-pass is omx_allpass1's section {a, 1, 0, a, 0}", c.ap[0], 0.0);
+        }
+        ok(scale > 0.0, "the all-pass polynomial is not empty", scale, 0.0);
+        const double t = xover_partition(&c, 20000u);
+        if (t > worst_time) worst_time = t;
+      }
+    }
+    /* a three-band LR4 tree at rest: band 1 = AP(f2)·LP(f1), band 2 = LP(f2)·HP(f1), band 3 =
+     * HP(f2)·HP(f1); Σ|B_k| = 1 and |Σ B_k| = 1, and in time Σ bands = AP(f2)·AP(f1) */
+    struct omx_xover x1, x2;
+    ok(omx_xover_design(&x1, 4u, 200.0, sr) == OMX_XOVER_OK && omx_xover_design(&x2, 4u, 2000.0, sr) == OMX_XOVER_OK,
+       "the tree's two corners design", 0.0, 0.0);
+    for (int k = 0; k < 10; k++) {
+      const double w = 2.0 * M_PI * f[k] / sr;
+      const double complex l1 = cpow(section_h(x1.lp, w), 2), h1 = cpow(section_h(x1.hp, w), 2);
+      const double complex l2 = cpow(section_h(x2.lp, w), 2), h2 = cpow(section_h(x2.hp, w), 2);
+      const double complex b1 = l1 * section_h(x2.ap, w), b2 = h1 * l2, b3 = h1 * h2;
+      worst_tree = fmax(worst_tree, fabs(cabs(b1) + cabs(b2) + cabs(b3) - 1.0));
+      worst_tree = fmax(worst_tree, fabs(cabs(b1 + b2 + b3) - 1.0));
+    }
+    enum { N = 4096 };
+    static float x[N], b1[N], hi1[N], b2[N], b3[N], ref[N];
+    struct omx_xover_state s1, s2;
+    struct omx_xover_ap_state a2, r1, r2;
+    memset(&s1, 0, sizeof s1); memset(&s2, 0, sizeof s2);
+    memset(&a2, 0, sizeof a2); memset(&r1, 0, sizeof r1); memset(&r2, 0, sizeof r2);
+    for (int i = 0; i < N; i++) x[i] = ref[i] = rnd(-0.5f, 0.5f);
+    omx_xover_process(x, b1, hi1, N, &x1, &s1);
+    omx_xover_allpass(b1, N, &x2, &a2);
+    omx_xover_process(hi1, b2, b3, N, &x2, &s2);
+    omx_xover_allpass(ref, N, &x1, &r1);
+    omx_xover_allpass(ref, N, &x2, &r2);
+    for (int i = 0; i < N; i++) worst_tree_time = fmax(worst_tree_time, fabs((double)b1[i] + b2[i] + b3[i] - ref[i]));
+  }
+  ok(worst_sum < 1e-6, "|LP| + |HP| = 1 at ten frequencies, LR2 and LR4, every rate", worst_sum, 1e-6);
+  ok(worst_fc < 1e-6, "each band is -6.02 dB at its corner", worst_fc, 1e-6);
+  ok(worst_phase < 1e-6, "the two bands are in phase", worst_phase, 1e-6);
+  ok(worst_ap < 1e-6, "lo + hi is the all-pass at ten frequencies", worst_ap, 1e-6);
+  ok(worst_poly < 1e-12, "the sum's polynomial is the all-pass's", worst_poly, 1e-12);
+  ok(worst_time < OMX_XOVER_PARTITION_TOL, "lo + hi = AP(x) over noise, corners 20 Hz to 20 kHz", worst_time, OMX_XOVER_PARTITION_TOL);
+  ok(worst_tree < 1e-6, "a three-band tree at rest partitions unity and is an all-pass", worst_tree, 1e-6);
+  ok(worst_tree_time < 2.0 * OMX_XOVER_PARTITION_TOL, "a three-band tree's bands sum to AP(f2)·AP(f1) in time", worst_tree_time, 2.0 * OMX_XOVER_PARTITION_TOL);
+  printf("xover: |LP|+|HP|-1 %.3g, at fc %.3g dB, phase %.3g rad, vs AP %.3g, poly %.3g, time %.3g, tree %.3g / %.3g\n",
+         worst_sum, worst_fc, worst_phase, worst_ap, worst_poly, worst_time, worst_tree, worst_tree_time);
+  expect_clean();
+}
+
 /* ---- state relocation ----------------------------------------------------------------------- */
 
 /* A block sized and aligned as the primitive exports, the size rounded up to the alignment. */
@@ -602,6 +809,45 @@ static void arm_relocation(void) {
     ok(memcmp(ref, out, sizeof ref) == 0, "a relocated oversampler continues bit for bit", 0.0, 0.0);
     free(a); free(b);
   }
+  {
+    const float a = (float)omx_allpass1_coeff(700.0, 48000.0);
+    struct omx_allpass1_state r0 = {0.0f};
+    memcpy(ref, x, sizeof ref);
+    omx_allpass1_process(ref, N, a, &r0);
+    struct omx_allpass1_state *a1 = state_block(omx_allpass1_state_size(), omx_allpass1_state_align());
+    struct omx_allpass1_state *b1 = state_block(omx_allpass1_state_size(), omx_allpass1_state_align());
+    ok(a1 != 0 && b1 != 0, "two aligned blocks for the all-pass", 0.0, 0.0);
+    a1->s = 0.0f;
+    memcpy(out, x, sizeof out);
+    omx_allpass1_process(out, HALF, a, a1);
+    memcpy(b1, a1, omx_allpass1_state_size());
+    memset(a1, 0xAA, omx_allpass1_state_size());
+    omx_allpass1_process(out + HALF, N - HALF, a, b1);
+    ok(memcmp(ref, out, sizeof ref) == 0, "a relocated all-pass continues bit for bit", 0.0, 0.0);
+    free(a1); free(b1);
+  }
+  {
+    static float hr[N], ho[N];
+    struct omx_xover c;
+    ok(omx_xover_design(&c, 4u, 300.0, 96000.0) == OMX_XOVER_OK, "the relocating crossover designs", 0.0, 0.0);
+    struct omx_xover_state r0;
+    memset(&r0, 0, sizeof r0);
+    omx_xover_process(x, ref, hr, N, &c, &r0);
+    struct omx_xover_state *a1 = state_block(omx_xover_state_size(), omx_xover_state_align());
+    struct omx_xover_state *b1 = state_block(omx_xover_state_size(), omx_xover_state_align());
+    ok(a1 != 0 && b1 != 0, "two aligned blocks for the crossover", 0.0, 0.0);
+    ok((omx_xover_state_align() & (omx_xover_state_align() - 1u)) == 0u, "the crossover's alignment is a power of two", (double)omx_xover_state_align(), 0.0);
+    memset(a1, 0, omx_xover_state_size());
+    omx_xover_process(x, out, ho, HALF, &c, a1);
+    memcpy(b1, a1, omx_xover_state_size());
+    memset(a1, 0xAA, omx_xover_state_size());
+    omx_xover_process(x + HALF, out + HALF, ho + HALF, N - HALF, &c, b1);
+    ok(memcmp(ref, out, sizeof ref) == 0 && memcmp(hr, ho, sizeof hr) == 0, "a relocated crossover continues bit for bit", 0.0, 0.0);
+    free(a1); free(b1);
+    struct omx_xover_ap_state *p = state_block(omx_xover_ap_state_size(), omx_xover_ap_state_align());
+    ok(p != 0 && omx_xover_ap_state_size() == sizeof(struct omx_xover_ap_state), "the tree all-pass exports its layout", 0.0, 0.0);
+    free(p);
+  }
   expect_clean();
 }
 
@@ -620,6 +866,8 @@ int main(void) {
   arm_lfo();
   arm_fdelay();
   arm_oversampler();
+  arm_allpass();
+  arm_xover();
   arm_relocation();
   const uint32_t violations = omx_contract_log.count;
   const uint32_t evaluated = omx_contract_log.checks;
