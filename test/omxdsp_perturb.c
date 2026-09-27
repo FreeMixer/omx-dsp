@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * omxdsp_perturb.c — built twice by test/perturb.sh: against a perturbed omx_contract_limits.h
- * (OMXDSP_PERTURBED defined; 96000 dropped from the declared rates) and against the real one.
+ * (OMXDSP_PERTURBED defined; 96000 dropped from the declared rates, the comp's ratio floor and the
+ * opto release's fastMs moved) and against the real one.
  * The perturbed build must see the drop through the contracts; the control must not.
  */
 #define OMX_CONTRACT_STORAGE 1
@@ -46,6 +47,22 @@ int main(void) {
 #ifndef OMXDSP_PERTURBED
   if (gc_count != 0u) { printf("FAIL control: ratio 1.25 recorded %u violations against the real header\n", gc_count); failed++; }
   printf("omxdsp_perturb (real header): ratio 1.25 above the declared floor, nothing recorded; %d failed\n", failed);
+#endif
+  struct omx_env_program_release_params pr;
+  omx_env_program_release_opto(&pr, 48000.0f, 1u);
+#ifdef OMXDSP_PERTURBED
+  if (pr.fast_pole != omx_pole_from_time_ms(35.0f, 48000.0f)) {
+    printf("FAIL perturbed: the opto fast pole did not follow the moved fastMs — a copy of the profile\n");
+    failed++;
+  }
+  printf("omxdsp_perturb (perturbed header): the opto release's fast pole is the moved 35 ms; %d failed\n", failed);
+#else
+  if (pr.fast_pole != omx_pole_from_time_ms(OMX_PROGRAM_RELEASE_OPTO_FAST_MS, 48000.0f) ||
+      pr.fast_pole == omx_pole_from_time_ms(35.0f, 48000.0f)) {
+    printf("FAIL control: the opto fast pole is not the declared fastMs\n");
+    failed++;
+  }
+  printf("omxdsp_perturb (real header): the opto release's fast pole is the declared fastMs; %d failed\n", failed);
 #endif
   return failed == 0 ? 0 : 1;
 }
