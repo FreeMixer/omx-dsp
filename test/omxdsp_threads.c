@@ -47,7 +47,7 @@ static void run_chain(struct worker *w) {
   omx_fdelay_init(&line, w->ring, 1024u, 3);
   memset(w->ring, 0, sizeof w->ring);
 #endif
-  struct omx_lfo lfo = {0.0f, omx_lfo_inc(1.5f, sr)};
+  struct omx_lfo lfo = {0.0f, omx_lfo_inc(1.5f, sr), 0.0f};
   float coeffs[2][5];
   omx_eq_design_f(OMX_EQ_PEAKING, 1000.0, 1.0, 6.0, sr, coeffs[0]);
   omx_eq_design_f(OMX_EQ_HIGHPASS, 80.0, M_SQRT1_2, 0.0, sr, coeffs[1]);
