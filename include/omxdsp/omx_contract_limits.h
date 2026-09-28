@@ -218,6 +218,13 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_CLAP_HOST_EXTENSION_COUNT 6u
 #define OMX_CLAP_HOST_EXTENSIONS_INIT { "clap.log", "clap.thread-check", "clap.latency", "clap.params", "clap.audio-ports", "clap.state", NULL }
 
+/* The console's plugin-host verb set (packages/declarations/src/index.ts, HOST_VERBS;
+ * 2026-09-29-host-backend-one-contract.md §4) — read by mix_host_backend.test.c against the fork's
+ * scenario list. */
+#define OMX_HOST_VERB_COUNT 9u
+#define OMX_HOST_VERBS_INIT { "add", "remove", "bypass", "param_set", "param_get", "patch_set", "preset_load", "connect", "disconnect", NULL }
+#define OMX_HOST_VERBS_BACKEND_INIT { 1, 1, 1, 1, 1, 0, 1, 1, 1 }
+
 /* The all-pass and Linkwitz-Riley crossover primitives' numbers (packages/core/src/
  * dsp-primitive-limits.ts; docs/design/specs/2026-09-26-dsp-primitives.md §1 rows 4–6) — the
  * section Qs omx_xover.h designs with and the tolerances its and omx_allpass.h's POSTs read. */
