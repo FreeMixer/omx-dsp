@@ -21,7 +21,7 @@
 
 /** @brief The detector's oversampling factor: BS.1770-4's four. */
 #define OMX_TRUEPEAK_FACTOR 4u
-_Static_assert(OMX_TRUEPEAK_FACTOR <= OMX_OVS_MAX_FACTOR, "the detector's factor is one the shared element runs");
+OMXDSP_STATIC_ASSERT(OMX_TRUEPEAK_FACTOR <= OMX_OVS_MAX_FACTOR, "the detector's factor is one the shared element runs");
 
 /** @brief Base-rate frames interpolated per inner step (bounded stack scratch). */
 #define OMX_TRUEPEAK_CHUNK 64u

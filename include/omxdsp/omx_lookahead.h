@@ -2,11 +2,17 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * @file omx_lookahead.h
- * @brief The look-ahead ring: the integer law `out[n] = in[n − D]`, an exact copy, and its hold,
- *        the minimum of the last `W` pushes.
+ * @brief The look-ahead ring: the cursor law of an exact integer delay, `out[n] = in[n − D]`, the
+ *        ring that carries it, and its hold, the minimum of the last `W` pushes.
  *
- * Design: docs/design/specs/2026-09-26-dsp-primitives.md §1 row 10. Caller-owned buffers of
- * `cap` elements, one cursor, write-then-read; nothing is allocated and no sample is filtered.
+ * The ring is caller-owned memory of `cap` samples per leg and ONE write cursor the caller keeps;
+ * a kernel writes the current sample at the cursor, reads any tap `D < cap` at
+ * `omx_lookahead_back(pos, D, cap)` (write-then-read, so `D = 0` is the sample just written) and
+ * moves the cursor with `omx_lookahead_fwd`. One cursor serves every leg's buffer and every tap.
+ * `struct omx_lookahead` keeps one buffer and its cursor together for a kernel with one tap per
+ * leg, and `omx_lookahead_tick` is the two words in one call. Never a fractional read: a
+ * look-ahead never reads between samples. Design: docs/design/specs/2026-09-26-dsp-primitives.md
+ * §1 row 10.
  */
 #ifndef OMX_LOOKAHEAD_H
 #define OMX_LOOKAHEAD_H
@@ -15,6 +21,50 @@
 
 #include "omx_contract.h"
 #include "omxdsp.h"
+
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "lookahead/back"
+/**
+ * @brief The slot written `d` writes before the slot at `pos`.
+ * @param pos The write cursor, in [0, cap).
+ * @param d The tap in samples, in [0, cap).
+ * @param cap The ring's length in samples, at least 1.
+ * @return `(pos − d) mod cap`.
+ * @pre `tap-inside-the-ring`.
+ * @post `index-inside-the-ring`.
+ * @invariant `write-cursor-inside-the-ring`.
+ * @note RT-safe: one compare, one add. Thread-safe: no state.
+ */
+static inline uint32_t omx_lookahead_back(uint32_t pos, uint32_t d, uint32_t cap) {
+  OMX_PRE(d < cap, "tap-inside-the-ring");
+  OMX_INVARIANT(pos < cap, "write-cursor-inside-the-ring");
+  const uint32_t i = pos >= d ? pos - d : pos + cap - d;
+  OMX_POST(i < cap, "index-inside-the-ring");
+  return i;
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "lookahead/fwd"
+/**
+ * @brief The cursor `k` writes after `pos`.
+ * @param pos The write cursor, in [0, cap).
+ * @param k The writes to advance by, in [0, cap].
+ * @param cap The ring's length in samples, at least 1.
+ * @return `(pos + k) mod cap`.
+ * @pre `step-inside-the-ring`.
+ * @post `index-inside-the-ring`.
+ * @invariant `write-cursor-inside-the-ring`.
+ * @note RT-safe: one add, one compare. Thread-safe: no state.
+ */
+static inline uint32_t omx_lookahead_fwd(uint32_t pos, uint32_t k, uint32_t cap) {
+  OMX_PRE(k <= cap, "step-inside-the-ring");
+  OMX_INVARIANT(pos < cap, "write-cursor-inside-the-ring");
+  const uint32_t w = pos + k;
+  const uint32_t i = w >= cap ? w - cap : w;
+  OMX_POST(i < cap, "index-inside-the-ring");
+  return i;
+}
+#undef OMX_CONTRACT_STAGE
 
 /** @brief One ring: `cap` caller-owned floats and the write cursor. */
 struct omx_lookahead {
@@ -25,7 +75,6 @@ struct omx_lookahead {
 
 OMXDSP_STATE_LAYOUT(lookahead, struct omx_lookahead)
 
-#undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "lookahead/init"
 /**
  * @brief Arm a ring over `buf`, every slot holding `fill`.
@@ -48,7 +97,8 @@ static inline void omx_lookahead_init(struct omx_lookahead *la, float *buf, uint
 
 #define OMX_CONTRACT_STAGE "lookahead/tick"
 /**
- * @brief Write `x`, then read the sample written `d` writes ago (`d = 0` returns `x`).
+ * @brief Write `x`, then read the sample written `d` writes ago (`d = 0` returns `x`); the
+ *        cursor law's two words over the ring's own cursor.
  * @param la The ring.
  * @param x The input sample; finite.
  * @param d The tap, in samples, in `[0, cap)`.
@@ -63,8 +113,8 @@ static inline float omx_lookahead_tick(struct omx_lookahead *la, float x, uint32
   OMX_PRE(x - x == 0.0f, "finite-in");
   const uint32_t w = la->pos;
   la->buf[w] = x;
-  const float y = la->buf[w >= d ? w - d : w + la->cap - d];
-  la->pos = w + 1u == la->cap ? 0u : w + 1u;
+  const float y = la->buf[omx_lookahead_back(w, d, la->cap)];
+  la->pos = omx_lookahead_fwd(w, 1u, la->cap);
   OMX_POST(d != 0u || y == x, "delayed-copy");
   OMX_INVARIANT(la->pos < la->cap, "write-cursor-inside-the-ring");
   return y;
@@ -120,15 +170,15 @@ static inline float omx_lookahead_min_push(struct omx_lookahead_min *h, float x,
   OMX_PRE(w >= 1u && w <= h->cap, "window-inside-the-ring");
   OMX_PRE(x - x == 0.0f, "finite-in");
   while (h->count > 0u) {
-    const uint32_t tail = (h->head + h->count - 1u) % h->cap;
+    const uint32_t tail = omx_lookahead_fwd(h->head, h->count - 1u, h->cap);
     if (h->val[tail] < x) break;
     h->count--;
   }
   while (h->count > 0u && h->t - h->when[h->head] >= w) {
-    h->head = h->head + 1u == h->cap ? 0u : h->head + 1u;
+    h->head = omx_lookahead_fwd(h->head, 1u, h->cap);
     h->count--;
   }
-  const uint32_t slot = (h->head + h->count) % h->cap;
+  const uint32_t slot = omx_lookahead_fwd(h->head, h->count, h->cap);
   h->val[slot] = x;
   h->when[slot] = h->t;
   h->count++;
