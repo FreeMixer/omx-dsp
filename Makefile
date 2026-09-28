@@ -9,6 +9,7 @@
 #   make lint   the doc check and the source scan only
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
+#   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
 
 CC      ?= cc
 AR      ?= ar
@@ -24,7 +25,7 @@ KERNELS  = $(wildcard test/kernels/*.c)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel
 
 all: lib
 
@@ -90,3 +91,7 @@ docs: $(HEADERS) | $(BUILD)
 
 clean:
 	rm -rf $(BUILD)
+
+cost-prel: tools/prel-cost.c $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/prel-cost tools/prel-cost.c -lm
+	./$(BUILD)/prel-cost
