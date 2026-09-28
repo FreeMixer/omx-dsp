@@ -119,6 +119,16 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_GATE_RATIO_MAX 100.0f
 #define OMX_GATE_RATIO_DEFAULT 16.0f
 
+#define OMX_PITCH_SEMITONES_MIN -12.0f
+#define OMX_PITCH_SEMITONES_MAX 12.0f
+#define OMX_PITCH_SEMITONES_DEFAULT 0.0f
+#define OMX_PITCH_CENTS_MIN -50.0f
+#define OMX_PITCH_CENTS_MAX 50.0f
+#define OMX_PITCH_CENTS_DEFAULT 0.0f
+#define OMX_PITCH_MIX_MIN 0.0f
+#define OMX_PITCH_MIX_MAX 100.0f
+#define OMX_PITCH_MIX_DEFAULT 100.0f
+
 /* The program-dependent release's model constants (PROGRAM_RELEASE, strip-dynamics-limits.ts;
  * docs/design/specs/2026-09-26-compressor-models.md §3b) — read by omx_envelope.h's
  * omx_env_program_release_profile(), never restated. */
@@ -168,6 +178,13 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
  * A read is not convex: |read| ≤ Λ·max|x|. The chorus and flanger gain bounds carry it
  * (docs/design/specs/2026-09-22-chorus-and-flanger.md §6, F6). */
 #define OMX_FDELAY_READ_L1_NORM 1.25f
+
+/* The pitch shifter's declared constants (packages/core/src/pitch-kernel.ts, PITCH_KERNEL; its travels
+ * are PITCH_LIMITS, rendered above with every other table;
+ * docs/design/specs/2026-09-22-native-pitch-shift.md §11) — read by mix_pitch.h and its oracle. */
+#define OMX_PITCH_WINDOW_MS 40.0f
+#define OMX_PITCH_PREFILTER_CEILING_HZ 20000.0f
+#define OMX_PITCH_PREFILTER_Q 0.7071067811865476f
 
 /* The in-process LV2 stage's numbers (packages/core/src/lv2-stage-limits.ts, LV2_STAGE_LIMITS;
  * docs/design/specs/2026-09-04-lv2-hosting-path.md §4/§5) — read by mix_lv2.h, never restated. */
