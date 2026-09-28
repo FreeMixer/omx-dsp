@@ -81,7 +81,7 @@ static inline float omx_halfband_dot(const float *c) {
  */
 #define OMX_OVS_LATENCY_4X 72
 
-_Static_assert(OMX_OVS_LATENCY_4X == OMX_OVS_UP_DELAY + OMX_OVS_UP_DELAY / 2u
+OMXDSP_STATIC_ASSERT(OMX_OVS_LATENCY_4X == OMX_OVS_UP_DELAY + OMX_OVS_UP_DELAY / 2u
                                          + OMX_OVS_DOWN_DELAY / 4u + OMX_OVS_DOWN_DELAY / 2u,
                "the declared 4x latency must be the one the half-band stages actually cost");
 
@@ -102,10 +102,10 @@ static inline size_t omx_oversampler_state_size(void) { return sizeof(struct omx
 
 /**
  * @brief The state's alignment, for a host that lays the state out itself.
- * @return `_Alignof(struct omx_oversampler)`.
+ * @return `OMXDSP_ALIGNOF(struct omx_oversampler)`.
  * @note RT-safe and thread-safe: a constant.
  */
-static inline size_t omx_oversampler_state_align(void) { return _Alignof(struct omx_oversampler); }
+static inline size_t omx_oversampler_state_align(void) { return OMXDSP_ALIGNOF(struct omx_oversampler); }
 
 /**
  * @brief Set the factor and clear the history; the factor is rounded down to 1, 2 or 4.
