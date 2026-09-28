@@ -14,14 +14,17 @@
 
 #include "omx_contract.h"
 
+/** @brief The magnitude below which omx_flush() answers exactly zero. */
+#define OMX_FLUSH_THRESHOLD 1e-20f
+
 /**
- * @brief Flush a value below 1e-20 in magnitude to exactly zero.
+ * @brief Flush a value below OMX_FLUSH_THRESHOLD (1e-20) in magnitude to exactly zero.
  * @param x Any sample or state word.
- * @return `x`, or 0 when |x| < 1e-20.
+ * @return `x`, or 0 when |x| < OMX_FLUSH_THRESHOLD.
  * @note RT-safe and thread-safe: one compare, no call.
  */
 static inline float omx_flush(float x) {
-  return (fabsf(x) < 1e-20f) ? 0.0f : x;
+  return (fabsf(x) < OMX_FLUSH_THRESHOLD) ? 0.0f : x;
 }
 
 /**
