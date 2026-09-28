@@ -54,7 +54,7 @@ static int perturb_allpass_xover(int failed) {
   const int unity = allpass_xover_count_token("unity-magnitude");
   const int partition = allpass_xover_count_token("bands-partition-unity");
 #ifdef OMXDSP_PERTURBED_XOVER_Q
-  if (OMX_XOVER_LR4_SECTION_Q != 0.6) { printf("FAIL xover-q: the header's Q did not move\n"); failed++; }
+  if (OMX_XOVER_LR4_SECTION_Q_DOUBLE != 0.6) { printf("FAIL xover-q: the header's Q did not move\n"); failed++; }
   if (partition_err <= OMX_XOVER_PARTITION_TOLERANCE) {
     printf("FAIL xover-q: an LR4 pair at Q 0.6 still sums to its all-pass (%.3g) — the design did not read the moved Q\n", partition_err);
     failed++;

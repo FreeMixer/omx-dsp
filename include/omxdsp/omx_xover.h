@@ -6,8 +6,9 @@
  *        and whose sum is an all-pass.
  *
  * One corner, one `K = tan(π·fc/sr)`. LR4: the cookbook Butterworth low- and high-pass at
- * OMX_XOVER_LR4_SECTION_Q, each run twice, on the denominator omx_allpass2_design() returns, so
- * `lo + hi = AP2(fc)`. LR2: the same pair at OMX_XOVER_LR2_SECTION_Q run once, the high band
+ * OMX_XOVER_LR4_SECTION_Q_DOUBLE (the declared Q at double precision — the partition law below
+ * holds only there), each run twice, on the denominator omx_allpass2_design() returns, so
+ * `lo + hi = AP2(fc)`. LR2: the same pair at OMX_XOVER_LR2_SECTION_Q_DOUBLE run once, the high band
  * inverted, so `lo + hi = AP1(fc)`, omx_allpass1()'s transfer as the section `{a, 1, 0, a, 0}`.
  * The sections run in omx_biquad_tdf2_d(); the bands are narrowed to float at the end. An N-band tree
  * is N−1 crossovers with omx_xover_allpass() of every later corner on every earlier band. Design:
@@ -116,7 +117,7 @@ static inline enum omx_xover_status omx_xover_design(struct omx_xover *c, uint32
   OMX_PRE(inside, "corner-inside-the-band");
   if (!inside) return OMX_XOVER_BAD_CORNER;
   OMX_PRE(OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
-  const double q = order == 4u ? OMX_XOVER_LR4_SECTION_Q : OMX_XOVER_LR2_SECTION_Q;
+  const double q = order == 4u ? OMX_XOVER_LR4_SECTION_Q_DOUBLE : OMX_XOVER_LR2_SECTION_Q_DOUBLE;
   double den[5];
   omx_allpass2_design(fc, q, sr, den);
   const double K = omx_allpass_prewarp(fc, sr);

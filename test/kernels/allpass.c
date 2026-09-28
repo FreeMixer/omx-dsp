@@ -60,7 +60,7 @@ static void arm_allpass(void) {
       ok(memcmp(y, z, sizeof z) == 0 && s1.s == s2.s, "the block word is the per-sample word, bit for bit", 0.0, 0.0);
     }
     /* the second-order design: the reversed denominator, unity at ten frequencies, −180° at fc */
-    static const double qs[3] = {0.5, OMX_XOVER_LR4_SECTION_Q, 2.0};
+    static const double qs[3] = {0.5, OMX_XOVER_LR4_SECTION_Q_DOUBLE, 2.0};
     for (int qi = 0; qi < 3; qi++) {
       double c[5];
       omx_allpass2_design(1000.0, qs[qi], sr, c);

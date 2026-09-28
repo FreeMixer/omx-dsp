@@ -58,6 +58,6 @@ perturb_one() { # <name> <sed expression> <define>
   $CC $CFLAGS -I"$dir" -I"$PKG/build" -DOMX_CONTRACTS -D"$3"=1 -o "$dir/perturbed" "$HERE/omxdsp_perturb.c" -lm
   "$dir/perturbed"
 }
-perturb_one xover-q 's|^#define OMX_XOVER_LR4_SECTION_Q .*|#define OMX_XOVER_LR4_SECTION_Q 0.6f|' OMXDSP_PERTURBED_XOVER_Q
+perturb_one xover-q 's|^#define OMX_XOVER_LR4_SECTION_Q_DOUBLE .*|#define OMX_XOVER_LR4_SECTION_Q_DOUBLE 0.6|' OMXDSP_PERTURBED_XOVER_Q
 perturb_one tolerances 's|^#define OMX_ALLPASS_UNITY_TOLERANCE .*|#define OMX_ALLPASS_UNITY_TOLERANCE 1e-12f|; s|^#define OMX_XOVER_PARTITION_TOLERANCE .*|#define OMX_XOVER_PARTITION_TOLERANCE 1e-12f|' OMXDSP_PERTURBED_TOLERANCES
 echo "perturb.sh: the C followed every perturbed declaration and the control followed the real one"
