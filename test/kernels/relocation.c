@@ -87,6 +87,45 @@ static void arm_relocation(void) {
     free(a); free(b);
   }
   {
+    const float a = (float)omx_allpass1_coef_d(700.0, 48000.0);
+    struct omx_allpass1 r0 = {0.0f};
+    memcpy(ref, x, sizeof ref);
+    omx_allpass1_block(&r0, ref, N, a);
+    struct omx_allpass1 *a1 = state_block(omx_allpass1_state_size(), omx_allpass1_state_align());
+    struct omx_allpass1 *b1 = state_block(omx_allpass1_state_size(), omx_allpass1_state_align());
+    ok(a1 != 0 && b1 != 0, "two aligned blocks for the all-pass", 0.0, 0.0);
+    a1->s = 0.0f;
+    memcpy(out, x, sizeof out);
+    omx_allpass1_block(a1, out, HALF, a);
+    memcpy(b1, a1, omx_allpass1_state_size());
+    memset(a1, 0xAA, omx_allpass1_state_size());
+    omx_allpass1_block(b1, out + HALF, N - HALF, a);
+    ok(memcmp(ref, out, sizeof ref) == 0, "a relocated all-pass continues bit for bit", 0.0, 0.0);
+    free(a1); free(b1);
+  }
+  {
+    static float hr[N], ho[N];
+    struct omx_xover c;
+    ok(omx_xover_design(&c, 4u, 300.0, 96000.0) == OMX_XOVER_OK, "the relocating crossover designs", 0.0, 0.0);
+    struct omx_xover_state r0;
+    memset(&r0, 0, sizeof r0);
+    omx_xover_process(x, ref, hr, N, &c, &r0);
+    struct omx_xover_state *a1 = state_block(omx_xover_state_size(), omx_xover_state_align());
+    struct omx_xover_state *b1 = state_block(omx_xover_state_size(), omx_xover_state_align());
+    ok(a1 != 0 && b1 != 0, "two aligned blocks for the crossover", 0.0, 0.0);
+    ok((omx_xover_state_align() & (omx_xover_state_align() - 1u)) == 0u, "the crossover's alignment is a power of two", (double)omx_xover_state_align(), 0.0);
+    memset(a1, 0, omx_xover_state_size());
+    omx_xover_process(x, out, ho, HALF, &c, a1);
+    memcpy(b1, a1, omx_xover_state_size());
+    memset(a1, 0xAA, omx_xover_state_size());
+    omx_xover_process(x + HALF, out + HALF, ho + HALF, N - HALF, &c, b1);
+    ok(memcmp(ref, out, sizeof ref) == 0 && memcmp(hr, ho, sizeof hr) == 0, "a relocated crossover continues bit for bit", 0.0, 0.0);
+    free(a1); free(b1);
+    struct omx_xover_ap_state *p = state_block(omx_xover_ap_state_size(), omx_xover_ap_state_align());
+    ok(p != 0 && omx_xover_ap_state_size() == sizeof(struct omx_xover_ap_state), "the tree all-pass exports its layout", 0.0, 0.0);
+    free(p);
+  }
+  {
     struct omx_divider ref_d;
     omx_divider_init(&ref_d);
     omx_divider_block(&ref_d, x, ref, N, 0.1f);

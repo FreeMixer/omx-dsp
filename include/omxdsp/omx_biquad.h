@@ -42,6 +42,42 @@ static inline float omx_biquad(float x, const float c[5], float s[4]) {
   return y;
 }
 
+/**
+ * @brief Whether a normalised section's poles lie inside the unit circle: `|a1| < 1 + a2` and
+ *        `a2 < 1`, the stability triangle.
+ * @param c The coefficients `{b0, b1, b2, a1, a2}`.
+ * @return 1 when both poles are inside, else 0.
+ * @note RT-safe and thread-safe: two compares, pure.
+ */
+static inline int omx_biquad_stable(const double c[5]) {
+  return fabs(c[3]) < 1.0 + c[4] && c[4] < 1.0;
+}
+
+/**
+ * @brief One biquad section in double, transposed direct form II: `y = b0·x + s₁`,
+ *        `s₁ ← b1·x − a1·y + s₂`, `s₂ ← b2·x − a2·y`.
+ *
+ * The section a crossover runs: its identity `lo + hi = AP` holds to the double's rounding at a
+ * corner whose poles sit within `2π·fc/sr` of the unit circle, where the float section loses it
+ * (dsp-primitives spec Appendix A). Named distinctly from omx_biquad_d() (direct form I, double
+ * coefficients, `s[4]`): both forms are needed — DF1 for the float cascade's bit-identical
+ * per-section history, TDF2 double for the all-pass/crossover's coefficient sensitivity at a
+ * corner near the unit circle (ruling 2026-09-28: the primitive collision between
+ * lane/cat-allpass-band and graphic-eq/dsp-primitives row 2a; dsp-primitives spec §1 row 2b).
+ * @param x The input sample.
+ * @param c The normalised coefficients `{b0, b1, b2, a1, a2}`.
+ * @param s The section's state `{s₁, s₂}`, updated in place.
+ * @return The output sample.
+ * @note RT-safe: five multiplies, no call, no branch; the state's denormals are covered by the
+ *       thread's FTZ mode. Thread-safe on distinct state.
+ */
+static inline double omx_biquad_tdf2_d(double x, const double c[5], double s[2]) {
+  const double y = c[0] * x + s[0];
+  s[0] = c[1] * x - c[3] * y + s[1];
+  s[1] = c[2] * x - c[4] * y;
+  return y;
+}
+
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "eq/biquad-cascade"
 /**

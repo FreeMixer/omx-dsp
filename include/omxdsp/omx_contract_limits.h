@@ -6,7 +6,9 @@
  * `laws` column (R-056), every table packages/core/src/native-limit-tables.ts's registry
  * holds, packages/core/src/strip-dynamics-limits.ts's PROGRAM_RELEASE profile,
  * packages/core/src/control-bounds.ts's CORE_LIMITS for the pan/delay/reverb/drive
- * facts, packages/core/src/fdelay-kernel.ts's read-kernel l1 norm and
+ * facts, packages/core/src/fdelay-kernel.ts's read-kernel l1 norm,
+ * packages/core/src/dsp-primitive-limits.ts's all-pass and crossover numbers (not a
+ * NativeLimitTable shape — design constants and contract tolerances, hand-imported) and
  * packages/core/src/row-codecs.ts's STANDARD_SAMPLE_RATES. Regenerate:
  * `node harness/contract-limits-gen.mjs`, then commit the result — see this file's own
  * generator for why it is committed rather than gitignored.
@@ -227,6 +229,14 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_LV2_STAGE_NONFINITE_STRIKES 3u
 #define OMX_LV2_STAGE_CLAMP_DBFS 24.0f
 #define OMX_LV2_STAGE_CLAMP_LINEAR 15.8489323f
+
+/* The all-pass and Linkwitz-Riley crossover primitives' numbers (packages/core/src/
+ * dsp-primitive-limits.ts; docs/design/specs/2026-09-26-dsp-primitives.md §1 rows 4–6) — the
+ * section Qs omx_xover.h designs with and the tolerances its and omx_allpass.h's POSTs read. */
+#define OMX_ALLPASS_UNITY_TOL 0.0001f
+#define OMX_XOVER_LR2_SECTION_Q 0.5
+#define OMX_XOVER_LR4_SECTION_Q 0.7071067811865476
+#define OMX_XOVER_PARTITION_TOL 0.00001f
 
 #endif /* OMX_CONTRACT_LIMITS_H */
 

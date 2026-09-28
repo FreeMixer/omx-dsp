@@ -16,6 +16,8 @@
 #include <math.h>
 #include <stdint.h>
 
+#include "omx_allpass.h"
+#include "omx_biquad.h"
 #include "omx_contract.h"
 #include "omx_matched_pair.h"
 
@@ -29,6 +31,7 @@ enum omx_eq_kind {
   OMX_EQ_NOTCH = 5,     /**< Matched poles under the cookbook numerator, a total null. */
   OMX_EQ_BANDPASS = 6,  /**< The cookbook constant-0 dB-peak bandpass, cookbook poles: `½(1 − AP₂)`. */
   OMX_EQ_ALLPASS1 = 7,  /**< A first-order allpass `(k + z⁻¹)/(1 + k z⁻¹)`, −90° at the corner. */
+  OMX_EQ_ALLPASS2 = 8,  /**< The second-order allpass, −180° at the corner: omx_allpass2_design(). */
 };
 
 #undef OMX_CONTRACT_STAGE
@@ -151,6 +154,9 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       c[0] = k; c[1] = 1.0; c[2] = 0.0; c[3] = k; c[4] = 0.0;
       break;
     }
+    case OMX_EQ_ALLPASS2:
+      omx_allpass2_design(f0, qq, sample_rate, c);
+      break;
     case OMX_EQ_NOTCH:
     default: {
       const double b1 = -2.0 * cos(w0);
@@ -161,9 +167,8 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       break;
     }
   }
-  OMX_POST(isfinite(c[0]) && isfinite(c[1]) && isfinite(c[2]) && isfinite(c[3]) && isfinite(c[4]),
-           "finite-coeffs");
-  OMX_POST(fabs(c[3]) < 1.0 + c[4] && c[4] < 1.0, "poles-inside-the-unit-circle");
+  OMX_POST(omx_block_finite_d(c, 5u), "finite-coeffs");
+  OMX_POST(omx_biquad_stable(c), "poles-inside-the-unit-circle");
 }
 #undef OMX_CONTRACT_STAGE
 
