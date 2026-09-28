@@ -141,6 +141,19 @@ static inline float omx_env_step(struct omx_env *env, const struct omx_env_param
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "env/flush"
+/**
+ * @brief Flush every stage of the cascade out of the subnormal range, once per block.
+ * @param env The state.
+ * @post `no-denormal-state`: every stage is a fixed point of omx_flush().
+ * @note RT-safe: `OMX_DYN_ENV_STAGES` selects. Thread-safe on distinct state.
+ */
+static inline void omx_env_flush(struct omx_env *env) {
+  for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) env->stage[s] = omx_flush(env->stage[s]);
+  OMX_POST(env->stage[OMX_DYN_ENV_STAGES - 1] == omx_flush(env->stage[OMX_DYN_ENV_STAGES - 1]), "no-denormal-state");
+}
+#undef OMX_CONTRACT_STAGE
+
 /** @brief The program-dependent release's state. A zeroed state is no reduction and no memory. */
 struct omx_env_program_release {
   float fast; /**< The fast component of the applied reduction, dB, at most 0. */
