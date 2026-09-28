@@ -141,6 +141,29 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_PITCH_MIX_MAX 100.0f
 #define OMX_PITCH_MIX_DEFAULT 100.0f
 
+#define OMX_TRANSIENT_ATTACK_DB_MIN -24.0f
+#define OMX_TRANSIENT_ATTACK_DB_MAX 24.0f
+#define OMX_TRANSIENT_ATTACK_DB_DEFAULT 0.0f
+#define OMX_TRANSIENT_SUSTAIN_DB_MIN -24.0f
+#define OMX_TRANSIENT_SUSTAIN_DB_MAX 24.0f
+#define OMX_TRANSIENT_SUSTAIN_DB_DEFAULT 0.0f
+#define OMX_TRANSIENT_ATTACK_TIME_MS_MIN 2.0f
+#define OMX_TRANSIENT_ATTACK_TIME_MS_MAX 50.0f
+#define OMX_TRANSIENT_ATTACK_TIME_MS_DEFAULT 10.0f
+#define OMX_TRANSIENT_SUSTAIN_TIME_MS_MIN 50.0f
+#define OMX_TRANSIENT_SUSTAIN_TIME_MS_MAX 2000.0f
+#define OMX_TRANSIENT_SUSTAIN_TIME_MS_DEFAULT 250.0f
+#define OMX_TRANSIENT_OUTPUT_DB_MIN -24.0f
+#define OMX_TRANSIENT_OUTPUT_DB_MAX 12.0f
+#define OMX_TRANSIENT_OUTPUT_DB_DEFAULT 0.0f
+
+/* The transient designer's four named scalars (TRANSIENT_* in strip-dynamics-limits.ts;
+ * transient spec §3); its travels are the TRANSIENT block above. */
+#define OMX_TRANSIENT_FAST_ATTACK_MS 0.5f
+#define OMX_TRANSIENT_FAST_RELEASE_MS 20.0f
+#define OMX_TRANSIENT_REF_DB 6.0f
+#define OMX_TRANSIENT_FLOOR_LIN 0.00001f
+
 /* The program-dependent release's model constants (PROGRAM_RELEASE, strip-dynamics-limits.ts;
  * docs/design/specs/2026-09-26-compressor-models.md §3b) — read by omx_envelope.h's
  * omx_env_program_release_profile(), never restated. */
