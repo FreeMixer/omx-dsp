@@ -79,6 +79,10 @@ static void run_chain(struct worker *w) {
   struct omx_env dfast, dslow;
   memset(&dfast, 0, sizeof dfast);
   memset(&dslow, 0, sizeof dslow);
+  struct omx_env_program_release prel;
+  memset(&prel, 0, sizeof prel);
+  struct omx_env_program_release_params pp;
+  omx_env_program_release_opto(&pp, sr, 1u);
   uint32_t seed = 0x9e3779b9u ^ w->rate_index;
   uint32_t written = 0u;
   float block[MAXN], side[MAXN], up[MAXN * 4], down[MAXN];
@@ -103,7 +107,8 @@ static void run_chain(struct worker *w) {
       omx_onepole(&env, fabsf(y), pole);
       const float fl = omx_env_step(&dfast, &fe, fabsf(y), dp.fast_attack, dp.fast_release);
       const float onset = omx_envdiff_step(&dslow, &fe, fabsf(y), fl, &dp, OMX_TRANSIENT_FLOOR_LIN);
-      const float g = omx_gaincomp_gain(&gc, omx_env_step(&det, &ep, y * y, ac, rc)) * omx_db_to_lin_poly(0.5f * onset);
+      const float t = omx_gaincomp_db(&gc, omx_lin_to_db(omx_env_step(&det, &ep, y * y, ac, rc)));
+      const float g = omx_db_to_lin(omx_env_program_release(&prel, &pp, t < 0.0f ? t : 0.0f)) * omx_db_to_lin_poly(0.5f * onset);
       const float sub = omx_divider_step(&div, y, 0.05f);
       w->out[written + i] = omx_flush(g * (y + 0.5f * sub) * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
     }
