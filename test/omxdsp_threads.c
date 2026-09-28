@@ -59,6 +59,8 @@ static void run_chain(struct worker *w) {
   struct omx_oversampler ovs;
   omx_oversampler_init(&ovs, 4u);
   float env = 0.0f;
+  struct omx_allpass1 ap[6] = {{0.0f}};
+  const float ap_a = omx_allpass1_coef(700.0f, sr);
   struct omx_divider div;
   omx_divider_init(&div);
   const float pole = omx_pole_from_time_ms(10.0f, sr);
@@ -97,7 +99,7 @@ static void run_chain(struct worker *w) {
     for (uint32_t i = 0; i < n; i++) {
       const float d = omx_lfo_sweep(8.0f, 4.0f, omx_lfo_at(&lfo, 0.0f));
       omx_lfo_advance(&lfo);
-      const float y = omx_fdelay_tick(&line, down[i], d);
+      const float y = omx_allpass1_cascade(ap, 6u, omx_fdelay_tick(&line, down[i], d), ap_a);
       omx_onepole(&env, fabsf(y), pole);
       const float fl = omx_env_step(&dfast, &fe, fabsf(y), dp.fast_attack, dp.fast_release);
       const float onset = omx_envdiff_step(&dslow, &fe, fabsf(y), fl, &dp, OMX_TRANSIENT_FLOOR_LIN);
