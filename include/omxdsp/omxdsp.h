@@ -40,10 +40,12 @@ static inline uint32_t omxdsp_version(void) {
   static inline size_t omx_##word##_state_size(void) { return sizeof(type); }     \
   static inline size_t omx_##word##_state_align(void) { return _Alignof(type); }
 
+#include "omx_allpass.h"
 #include "omx_biquad.h"
 #include "omx_contract.h"
 #include "omx_contract_limits.h"
 #include "omx_denormal.h"
+#include "omx_divider.h"
 #include "omx_envelope.h"
 #include "omx_eq_design.h"
 #include "omx_fdelay.h"
@@ -53,5 +55,6 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_onepole.h"
 #include "omx_oversampler.h"
 #include "omx_units.h"
+#include "omx_wetdry.h"
 
 #endif /* OMXDSP_H */
