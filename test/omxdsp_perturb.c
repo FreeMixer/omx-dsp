@@ -4,7 +4,9 @@
  * omxdsp_perturb.c — built twice by test/perturb.sh: against a perturbed omx_contract_limits.h
  * (OMXDSP_PERTURBED defined; 96000 dropped from the declared rates, the comp's ratio floor and the
  * opto release's fastMs moved) and against the real one.
- * A perturbed build must see the drop through the contracts; the control must not.
+ * A perturbed build must see the drop through the contracts; the control must not. Built again
+ * with OMXDSP_PERTURBED_XOVER_Q (the LR4 section Q moved) and OMXDSP_PERTURBED_TOLERANCES (the
+ * all-pass and crossover tolerances moved to 1e-12): each must record what the move predicts.
  *
  * Each primitive's case lives in its own test/kernels/<name>.perturb.c
  * (`static int perturb_<name>(int failed)`) instead of being appended here —
@@ -14,6 +16,7 @@
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omxdsp.h>
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 

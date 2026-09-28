@@ -80,6 +80,61 @@ int main(void) {
   omx_fdelay_process(one, 1u, &l, 3.0f);
   ok(omx_contract_log.count == 0u, "a legal call records no violation");
 
+  /* The all-pass and crossover doors (dsp-primitives §1 rows 4–6). */
+  struct omx_allpass1 ap = {0.0f};
+  omx_allpass1_tick(&ap, 0.25f, 1.0f);
+  static const char *const ap_pre[] = {"coefficient-inside-unity"};
+  expect_exactly(1u, "allpass1/tick", "pre", ap_pre);
+
+  omx_allpass1_coef_d(24000.0, 48000.0);
+  static const char *const corner_pre[] = {"corner-inside-the-band"};
+  expect_exactly(1u, "allpass1/coef_d", "pre", corner_pre);
+
+  omx_allpass1_coef_d(1000.0, 12345.0);
+  static const char *const rate_pre[] = {"rate-is-declared"};
+  expect_exactly(1u, "allpass1/coef_d", "pre", rate_pre);
+
+  /* No entry-invariant scenario here (unlike the lattice this replaced, dedup ruling
+   * 2026-09-25/R-097): omx_allpass1_tick() checks state-finite-and-flushed only on the way OUT,
+   * over its own omx_flush() write — never independently violable through the public tick, so
+   * poking `ap.s` before a call proves nothing past omx_flush()'s own (separately covered)
+   * contract. */
+
+  /* POST: the sabotaged lattice adds half a t to its output, so a block is no longer lossless. */
+  ap.s = 0.0f;
+  float tone[64];
+  for (int i = 0; i < 64; i++) tone[i] = (i & 1) ? 0.5f : -0.25f;
+  omx_allpass1_block(&ap, tone, 64u, 0.3f);
+  static const char *const ap_post[] = {"unity-magnitude"};
+  expect_exactly(1u, "allpass1/block", "post", ap_post);
+
+  struct omx_xover xo;
+  ok(omx_xover_design(&xo, 3u, 1000.0, 48000.0) == OMX_XOVER_BAD_ORDER, "an odd order is refused with its code");
+  static const char *const order_pre[] = {"order-is-two-or-four"};
+  expect_exactly(1u, "xover/design", "pre", order_pre);
+  ok(omx_xover_design(&xo, 4u, 30000.0, 48000.0) == OMX_XOVER_BAD_CORNER, "a corner past Nyquist is refused with its code");
+  expect_exactly(1u, "xover/design", "pre", corner_pre);
+
+  /* POST: a crossover whose all-pass belongs to another corner does not partition into it. */
+  struct omx_xover other;
+  ok(omx_xover_design(&xo, 4u, 1000.0, 48000.0) == OMX_XOVER_OK, "a legal crossover designs");
+  ok(omx_xover_design(&other, 4u, 3000.0, 48000.0) == OMX_XOVER_OK, "a second corner designs");
+  omx_contract_reset();
+  memcpy(xo.ap, other.ap, sizeof xo.ap);
+  struct omx_xover_state xs;
+  memset(&xs, 0, sizeof xs);
+  float lo[64], hi[64];
+  omx_xover_process(tone, lo, hi, 64u, &xo, &xs);
+  static const char *const xo_post[] = {"bands-partition-unity"};
+  expect_exactly(1u, "xover/process", "post", xo_post);
+
+  /* The control for the new doors: legal calls record nothing. */
+  ok(omx_xover_design(&xo, 2u, 1000.0, 48000.0) == OMX_XOVER_OK, "the LR2 control designs");
+  memset(&xs, 0, sizeof xs);
+  omx_contract_reset();
+  omx_xover_process(tone, lo, hi, 64u, &xo, &xs);
+  ok(omx_contract_log.count == 0u, "a legal crossover records no violation");
+
   /* The divider: a negative hysteresis is refused by PRE; a sign word that is not a unit is
    * caught by the INVARIANT; the legal call records nothing. */
   struct omx_divider dv;
