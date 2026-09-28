@@ -20,6 +20,7 @@ HEADERS  = $(wildcard include/omxdsp/*.h)
 SRC      = $(wildcard src/*.c)
 OBJ      = $(patsubst src/%.c,$(BUILD)/%.o,$(SRC))
 TESTFLAGS = $(CFLAGS) $(INC) -DOMX_CONTRACTS
+KERNELS  = $(wildcard test/kernels/*.c)
 
 
 
@@ -39,9 +40,14 @@ $(LIB): $(OBJ) | $(BUILD)
 	$(AR) rcs $@ $(OBJ)
 
 # ---- the suite ---------------------------------------------------------------------------------
+# Each primitive's arm lives in its own test/kernels/<name>.c; tools/kernels-gen.sh globs them
+# (sorted by filename, never a hand list) into $(BUILD)/kernels-suite.inc.c, which
+# omxdsp_suite.c #includes — a kernel lane adds ONE file and never touches this Makefile or
+# omxdsp_suite.c's main().
 
-$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(SRC) $(HEADERS) | $(BUILD)
-	$(CC) $(TESTFLAGS) -o $@ test/omxdsp_suite.c $(SRC) -lm
+$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(SRC) $(HEADERS) tools/kernels-gen.sh | $(BUILD)
+	bash tools/kernels-gen.sh $(BUILD)
+	$(CC) $(TESTFLAGS) -I$(BUILD) -o $@ test/omxdsp_suite.c $(SRC) -lm
 
 $(BUILD)/omxdsp_threads: test/omxdsp_threads.c $(SRC) $(HEADERS) | $(BUILD)
 	$(CC) $(TESTFLAGS) -pthread -o $@ test/omxdsp_threads.c $(SRC) -lm
@@ -61,7 +67,7 @@ negative: $(BUILD)/omxdsp_negative
 threads: $(BUILD)/omxdsp_threads
 	./$(BUILD)/omxdsp_threads
 
-perturb: $(HEADERS) | $(BUILD)
+perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
 
 checks:
