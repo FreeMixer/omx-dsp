@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * omxdsp_perturb.c — built twice by test/perturb.sh: against a perturbed omx_contract_limits.h
- * (OMXDSP_PERTURBED defined; 96000 dropped from the declared rates) and against the real one.
+ * (OMXDSP_PERTURBED defined; 96000 dropped from the declared rates, the comp's ratio floor and the
+ * opto release's fastMs moved) and against the real one.
  * A perturbed build must see the drop through the contracts; the control must not.
  *
  * Each primitive's case lives in its own test/kernels/<name>.perturb.c
