@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 #include <omxdsp/omx_contract.h>
+#include <omxdsp/omx_lookahead.h>
 
 /** Max FX delay time (ms). ~2 s covers slow ambient repeats. Read from the generated header
  * (OMX_DELAY_TIME_MS_MAX, FX_DELAY_TIME_RANGE.max — F7): this ring's ceiling and the TS travel
@@ -174,8 +175,8 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   uint32_t w = s->wpos;
   float dampL = s->damp_l, dampR = s->damp_r;
   for (uint32_t i = 0; i < n; i++) {
-    uint32_t rl = w >= dl ? w - dl : w + cap - dl;
-    uint32_t rr = w >= dr ? w - dr : w + cap - dr;
+    uint32_t rl = omx_lookahead_back(w, dl, cap);
+    uint32_t rr = omx_lookahead_back(w, dr, cap);
     float xl = l[i], xr = r[i];
     /* D == 0 reads the sample ARRIVING this frame, not the w-slot that still holds the value from a
      * full ring ago (which would echo `cap` samples ≈ 2 s of stale audio). Reading the input makes a
@@ -193,7 +194,7 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
     s->ring_r[w] = xr + fb * fbR;
     l[i] = dry * xl + mix * tapL;
     r[i] = dry * xr + mix * tapR;
-    w = (w + 1 == cap) ? 0 : w + 1;
+    w = omx_lookahead_fwd(w, 1u, cap);
   }
   s->wpos = w;
   s->damp_l = dampL;
