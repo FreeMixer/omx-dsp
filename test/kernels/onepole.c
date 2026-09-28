@@ -40,6 +40,18 @@ static void arm_onepole(void) {
     float conv = 0.0f, incr = 0.0f;
     for (int i = 0; i < 100; i++) { omx_onepole(&conv, 0.8f, p); omx_onepole_toward(&incr, 0.8f, p); }
     ok(fabsf(conv - incr) < 1e-5f, "both forms are the same filter", conv, incr);
+    int same = 1;
+    float a = 0.0f, b = 0.0f;
+    for (uint32_t i = 0; i < 4096; i++) {
+      const float x = (i & 256u) ? 0.5f : -0.25f;
+      const float want = omx_flush(omx_onepole(&b, x, p));
+      b = want;
+      if (omx_onepole_flush(&a, x, p) != want || a != b) same = 0;
+    }
+    ok(same, "the flushed one-pole is omx_flush(omx_onepole()) bit for bit", same, 1.0);
+    float tail = 1e-19f;
+    for (uint32_t i = 0; i < 64; i++) omx_onepole_flush(&tail, 0.0f, 0.5f);
+    ok(tail == 0.0f, "a decaying state flushes to exactly 0, never a subnormal", tail, 0.0);
   }
   expect_clean();
 }
