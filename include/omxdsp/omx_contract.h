@@ -161,6 +161,18 @@ static inline int omx_block_finite(const float *b, uint32_t n) {
 }
 
 /**
+ * @brief Whether every sample of both legs of a stereo block is finite.
+ * @param l The left leg, or NULL.
+ * @param r The right leg, or NULL.
+ * @param n Frames in the block.
+ * @return 1 when both legs are finite (omx_block_finite), else 0.
+ * @note RT-safe and thread-safe: two read-only passes, no call.
+ */
+static inline int omx_block_pair_finite(const float *l, const float *r, uint32_t n) {
+  return omx_block_finite(l, n) && omx_block_finite(r, n);
+}
+
+/**
  * @brief Whether both legs of a lane are finite.
  * @param l The L leg.
  * @param r The R leg, or NULL on a mono lane.
