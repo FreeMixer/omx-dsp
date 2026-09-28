@@ -4,7 +4,8 @@
  * GENERATED — DO NOT EDIT BY HAND.
  * Produced by harness/contract-limits-gen.mjs from packages/core/src/channel-contract.ts's
  * `laws` column (R-056), every table packages/core/src/native-limit-tables.ts's registry
- * holds, packages/core/src/control-bounds.ts's CORE_LIMITS for the pan/delay/reverb/drive
+ * holds, packages/core/src/strip-dynamics-limits.ts's PROGRAM_RELEASE profile,
+ * packages/core/src/control-bounds.ts's CORE_LIMITS for the pan/delay/reverb/drive
  * facts, packages/core/src/fdelay-kernel.ts's read-kernel l1 norm,
  * packages/core/src/dsp-primitive-limits.ts's all-pass and crossover numbers (not a
  * NativeLimitTable shape — design constants and contract tolerances, hand-imported) and
@@ -129,6 +130,16 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_PITCH_MIX_MIN 0.0f
 #define OMX_PITCH_MIX_MAX 100.0f
 #define OMX_PITCH_MIX_DEFAULT 100.0f
+
+/* The program-dependent release's model constants (PROGRAM_RELEASE, strip-dynamics-limits.ts;
+ * docs/design/specs/2026-09-26-compressor-models.md §3b) — read by omx_envelope.h's
+ * omx_env_program_release_profile(), never restated. */
+#define OMX_PROGRAM_RELEASE_CHARGE_MS 1000.0f
+#define OMX_PROGRAM_RELEASE_DISCHARGE_MS 5000.0f
+#define OMX_PROGRAM_RELEASE_OPTO_FAST_MS 70.0f
+#define OMX_PROGRAM_RELEASE_OPTO_SLOW_MIN_MS 110.0f
+#define OMX_PROGRAM_RELEASE_OPTO_SLOW_MAX_MS 1100.0f
+#define OMX_PROGRAM_RELEASE_OPTO_SHARE 0.5f
 
 /* The four coreLimits-sourced facts with a native meaning — pan, delay, reverb, drive
  * (CORE_LIMITS, control-bounds.ts; F7). Not every field here has a C-side literal to replace:
