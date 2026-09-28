@@ -51,10 +51,10 @@ static inline size_t omx_fdelay_state_size(void) { return sizeof(struct omx_fdel
 
 /**
  * @brief The state's alignment, for a host that lays the state out itself.
- * @return `_Alignof(struct omx_fdelay)`.
+ * @return `OMXDSP_ALIGNOF(struct omx_fdelay)`.
  * @note RT-safe and thread-safe: a constant.
  */
-static inline size_t omx_fdelay_state_align(void) { return _Alignof(struct omx_fdelay); }
+static inline size_t omx_fdelay_state_align(void) { return OMXDSP_ALIGNOF(struct omx_fdelay); }
 
 /**
  * @brief Samples of context the kernel reads behind the read point: (order − 1) / 2.

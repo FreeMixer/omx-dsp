@@ -69,10 +69,10 @@ static inline size_t omx_xover_state_size(void) { return sizeof(struct omx_xover
 
 /**
  * @brief The crossover state's alignment, for a host that lays the state out itself.
- * @return `_Alignof(struct omx_xover_state)`.
+ * @return `OMXDSP_ALIGNOF(struct omx_xover_state)`.
  * @note RT-safe and thread-safe: a constant.
  */
-static inline size_t omx_xover_state_align(void) { return _Alignof(struct omx_xover_state); }
+static inline size_t omx_xover_state_align(void) { return OMXDSP_ALIGNOF(struct omx_xover_state); }
 
 /**
  * @brief The tree all-pass state's size, for a host that lays the state out itself.
@@ -83,10 +83,10 @@ static inline size_t omx_xover_ap_state_size(void) { return sizeof(struct omx_xo
 
 /**
  * @brief The tree all-pass state's alignment, for a host that lays the state out itself.
- * @return `_Alignof(struct omx_xover_ap_state)`.
+ * @return `OMXDSP_ALIGNOF(struct omx_xover_ap_state)`.
  * @note RT-safe and thread-safe: a constant.
  */
-static inline size_t omx_xover_ap_state_align(void) { return _Alignof(struct omx_xover_ap_state); }
+static inline size_t omx_xover_ap_state_align(void) { return OMXDSP_ALIGNOF(struct omx_xover_ap_state); }
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "xover/design"

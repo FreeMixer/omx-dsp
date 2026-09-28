@@ -30,15 +30,17 @@ static inline uint32_t omxdsp_version(void) {
          (uint32_t)OMXDSP_VERSION_PATCH;
 }
 
+#include "omx_contract.h"
+
 /**
  * @brief Export a stateful primitive's state size and alignment so a host lays it out itself.
  *
  * Expands to `omx_<word>_state_size()` and `omx_<word>_state_align()`, both `static inline`,
- * returning `sizeof` and `_Alignof` of `type`. A state so exported holds no pointer to itself.
+ * returning `sizeof` and `OMXDSP_ALIGNOF` of `type`. A state so exported holds no pointer to itself.
  */
 #define OMXDSP_STATE_LAYOUT(word, type)                                            \
   static inline size_t omx_##word##_state_size(void) { return sizeof(type); }     \
-  static inline size_t omx_##word##_state_align(void) { return _Alignof(type); }
+  static inline size_t omx_##word##_state_align(void) { return OMXDSP_ALIGNOF(type); }
 
 #include "omx_allpass.h"
 #include "omx_biquad.h"
@@ -56,6 +58,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_onepole.h"
 #include "omx_ramp.h"
 #include "omx_oversampler.h"
+#include "omx_truepeak.h"
 #include "omx_units.h"
 #include "omx_wetdry.h"
 #include "omx_xover.h"
