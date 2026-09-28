@@ -35,9 +35,9 @@ sed -i 's|^#define OMX_COMP_RATIO_MIN .*$|#define OMX_COMP_RATIO_MIN 1.5f|' "$OU
 grep -q '^#define OMX_COMP_RATIO_MIN 1.5f$' "$OUT/omxdsp/omx_contract_limits.h" || { echo "perturb.sh: FAIL — the comp ratio floor line was not found in the header"; exit 1; }
 grep -q '^#define OMX_COMP_RATIO_MIN 1.5f$' "$REAL" && { echo "perturb.sh: FAIL — the real comp ratio floor is already the perturbed value"; exit 1; }
 # move one profile constant: the opto release's fastMs from its declared value to 35
-sed -i 's|^#define OMX_PROGRAM_RELEASE_OPTO_FAST_MS .*$|#define OMX_PROGRAM_RELEASE_OPTO_FAST_MS 35.0f|' "$OUT/omxdsp/omx_contract_limits.h"
-grep -q '^#define OMX_PROGRAM_RELEASE_OPTO_FAST_MS 35.0f$' "$OUT/omxdsp/omx_contract_limits.h" || { echo "perturb.sh: FAIL — the opto fastMs line was not found in the header"; exit 1; }
-grep -q '^#define OMX_PROGRAM_RELEASE_OPTO_FAST_MS 35.0f$' "$REAL" && { echo "perturb.sh: FAIL — the real opto fastMs is already the perturbed value"; exit 1; }
+sed -i 's|^#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS .*$|#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS 35|' "$OUT/omxdsp/omx_contract_limits.h"
+grep -q '^#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS 35$' "$OUT/omxdsp/omx_contract_limits.h" || { echo "perturb.sh: FAIL — the opto fastMs line was not found in the header"; exit 1; }
+grep -q '^#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS 35$' "$REAL" && { echo "perturb.sh: FAIL — the real opto fastMs is already the perturbed value"; exit 1; }
 if cmp -s "$REAL" "$OUT/omxdsp/omx_contract_limits.h"; then echo "perturb.sh: FAIL — the perturbation changed nothing"; exit 1; fi
 grep -q "96000.0f" "$OUT/omxdsp/omx_contract_limits.h" && { echo "perturb.sh: FAIL — 96000 is still declared in the perturbed header"; exit 1; }
 
@@ -58,6 +58,6 @@ perturb_one() { # <name> <sed expression> <define>
   $CC $CFLAGS -I"$dir" -I"$PKG/build" -DOMX_CONTRACTS -D"$3"=1 -o "$dir/perturbed" "$HERE/omxdsp_perturb.c" -lm
   "$dir/perturbed"
 }
-perturb_one xover-q 's|^#define OMX_XOVER_LR4_SECTION_Q .*|#define OMX_XOVER_LR4_SECTION_Q 0.6|' OMXDSP_PERTURBED_XOVER_Q
-perturb_one tolerances 's|^#define OMX_ALLPASS_UNITY_TOL .*|#define OMX_ALLPASS_UNITY_TOL 1e-12f|; s|^#define OMX_XOVER_PARTITION_TOL .*|#define OMX_XOVER_PARTITION_TOL 1e-12f|' OMXDSP_PERTURBED_TOLERANCES
+perturb_one xover-q 's|^#define OMX_XOVER_LR4_SECTION_Q .*|#define OMX_XOVER_LR4_SECTION_Q 0.6f|' OMXDSP_PERTURBED_XOVER_Q
+perturb_one tolerances 's|^#define OMX_ALLPASS_UNITY_TOLERANCE .*|#define OMX_ALLPASS_UNITY_TOLERANCE 1e-12f|; s|^#define OMX_XOVER_PARTITION_TOLERANCE .*|#define OMX_XOVER_PARTITION_TOLERANCE 1e-12f|' OMXDSP_PERTURBED_TOLERANCES
 echo "perturb.sh: the C followed every perturbed declaration and the control followed the real one"
