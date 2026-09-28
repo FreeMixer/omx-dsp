@@ -27,6 +27,16 @@ static inline float omx_flush(float x) {
   return (fabsf(x) < OMX_FLUSH_THRESHOLD) ? 0.0f : x;
 }
 
+/**
+ * @brief omx_flush() for a double-precision state word: below 1e-20 in magnitude, exactly zero.
+ * @param x Any double state word.
+ * @return `x`, or 0 when |x| < 1e-20.
+ * @note RT-safe and thread-safe: one compare, no call.
+ */
+static inline double omx_flush_d(double x) {
+  return (fabs(x) < 1e-20) ? 0.0 : x;
+}
+
 #if defined(__x86_64__) || defined(__i386__)
 #include <xmmintrin.h>
 #undef OMX_CONTRACT_STAGE
