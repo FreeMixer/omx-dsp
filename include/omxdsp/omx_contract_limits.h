@@ -3,8 +3,8 @@
 /*
  * GENERATED — DO NOT EDIT BY HAND.
  * Produced by harness/contract-limits-gen.mjs from packages/core/src/channel-contract.ts's
- * `laws` column, packages/core/src/strip-dynamics-limits.ts's GATE_LIMITS/COMP_LIMITS
- * (R-056), packages/core/src/control-bounds.ts's CORE_LIMITS for the pan/delay/reverb/drive
+ * `laws` column (R-056), every table packages/core/src/native-limit-tables.ts's registry
+ * holds, packages/core/src/control-bounds.ts's CORE_LIMITS for the pan/delay/reverb/drive
  * facts, packages/core/src/fdelay-kernel.ts's read-kernel l1 norm and
  * packages/core/src/row-codecs.ts's STANDARD_SAMPLE_RATES. Regenerate:
  * `node harness/contract-limits-gen.mjs`, then commit the result — see this file's own
@@ -65,8 +65,31 @@ static const omx_contract_law_t OMX_STAGE_LAWS_FLANGER[] = { OMX_LAW_FINITE, OMX
 static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_LAW_LINEAR_SUM };
 #define OMX_STAGE_LAWS_TOMAIN_COUNT 2
 
-/* Per-parameter numeric travel, for the stages whose limits are a concrete build-time table
- * (GATE_LIMITS / COMP_LIMITS — catalogLimits-sourced facts). */
+/* Per-parameter numeric travel, one block per table registered in
+ * packages/core/src/native-limit-tables.ts (GATE/COMP today; a kernel that registers a table
+ * lands here because it is REGISTERED, not because this generator names it). */
+#define OMX_COMP_THRESHOLD_DB_MIN -60.0f
+#define OMX_COMP_THRESHOLD_DB_MAX 0.0f
+#define OMX_COMP_THRESHOLD_DB_DEFAULT -18.0f
+#define OMX_COMP_RATIO_MIN 1.0f
+#define OMX_COMP_RATIO_MAX 20.0f
+#define OMX_COMP_RATIO_DEFAULT 4.0f
+#define OMX_COMP_KNEE_DB_MIN 0.0f
+#define OMX_COMP_KNEE_DB_MAX 24.0f
+#define OMX_COMP_KNEE_DB_DEFAULT 6.0f
+#define OMX_COMP_ATTACK_MS_MIN 0.1f
+#define OMX_COMP_ATTACK_MS_MAX 100.0f
+#define OMX_COMP_ATTACK_MS_DEFAULT 5.0f
+#define OMX_COMP_RELEASE_MS_MIN 5.0f
+#define OMX_COMP_RELEASE_MS_MAX 3000.0f
+#define OMX_COMP_RELEASE_MS_DEFAULT 200.0f
+#define OMX_COMP_MAKEUP_DB_MIN 0.0f
+#define OMX_COMP_MAKEUP_DB_MAX 24.0f
+#define OMX_COMP_MAKEUP_DB_DEFAULT 0.0f
+#define OMX_COMP_MIX_PCT_MIN 0.0f
+#define OMX_COMP_MIX_PCT_MAX 100.0f
+#define OMX_COMP_MIX_PCT_DEFAULT 100.0f
+
 #define OMX_GATE_THRESHOLD_DB_MIN -80.0f
 #define OMX_GATE_THRESHOLD_DB_MAX 0.0f
 #define OMX_GATE_THRESHOLD_DB_DEFAULT -40.0f
@@ -95,30 +118,6 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_GATE_RATIO_MAX 100.0f
 #define OMX_GATE_RATIO_DEFAULT 16.0f
 
-#define OMX_COMP_THRESHOLD_DB_MIN -60.0f
-#define OMX_COMP_THRESHOLD_DB_MAX 0.0f
-#define OMX_COMP_THRESHOLD_DB_DEFAULT -18.0f
-#define OMX_COMP_RATIO_MIN 1.0f
-#define OMX_COMP_RATIO_MAX 20.0f
-#define OMX_COMP_RATIO_DEFAULT 4.0f
-#define OMX_COMP_KNEE_DB_MIN 0.0f
-#define OMX_COMP_KNEE_DB_MAX 24.0f
-#define OMX_COMP_KNEE_DB_DEFAULT 6.0f
-#define OMX_COMP_ATTACK_MS_MIN 0.1f
-#define OMX_COMP_ATTACK_MS_MAX 100.0f
-#define OMX_COMP_ATTACK_MS_DEFAULT 5.0f
-#define OMX_COMP_RELEASE_MS_MIN 5.0f
-#define OMX_COMP_RELEASE_MS_MAX 3000.0f
-#define OMX_COMP_RELEASE_MS_DEFAULT 200.0f
-#define OMX_COMP_MAKEUP_DB_MIN 0.0f
-#define OMX_COMP_MAKEUP_DB_MAX 24.0f
-#define OMX_COMP_MAKEUP_DB_DEFAULT 0.0f
-#define OMX_COMP_MIX_PCT_MIN 0.0f
-#define OMX_COMP_MIX_PCT_MAX 100.0f
-#define OMX_COMP_MIX_PCT_DEFAULT 100.0f
-
-/* The transient designer's travels and its four named scalars (TRANSIENT_LIMITS in
- * @freemixer/declarations, TRANSIENT_* in strip-dynamics-limits.ts; transient spec §3). */
 #define OMX_TRANSIENT_ATTACK_DB_MIN -24.0f
 #define OMX_TRANSIENT_ATTACK_DB_MAX 24.0f
 #define OMX_TRANSIENT_ATTACK_DB_DEFAULT 0.0f
@@ -134,6 +133,9 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_TRANSIENT_OUTPUT_DB_MIN -24.0f
 #define OMX_TRANSIENT_OUTPUT_DB_MAX 12.0f
 #define OMX_TRANSIENT_OUTPUT_DB_DEFAULT 0.0f
+
+/* The transient designer's four named scalars (TRANSIENT_* in strip-dynamics-limits.ts;
+ * transient spec §3); its travels are the TRANSIENT block above. */
 #define OMX_TRANSIENT_FAST_ATTACK_MS 0.5f
 #define OMX_TRANSIENT_FAST_RELEASE_MS 20.0f
 #define OMX_TRANSIENT_REF_DB 6.0f
