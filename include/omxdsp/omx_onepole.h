@@ -15,6 +15,7 @@
 #include <math.h>
 
 #include "omx_contract.h"
+#include "omx_denormal.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -43,6 +44,24 @@ static inline float omx_onepole(float *state, float x, float pole) {
   *state = x * (1.0f - pole) + *state * pole;
   OMX_POST(*state - *state == 0.0f, "finite-out");
   OMX_POST(*state >= lo - 1e-6f && *state <= hi + 1e-6f, "no-overshoot-convex-combination");
+  return *state;
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "onepole/flush"
+/**
+ * @brief One step of omx_onepole() with the state flushed after it, for a filter inside a tail
+ *        that decays for seconds.
+ * @param state The filter's one word, updated in place and flushed.
+ * @param x The input sample.
+ * @param pole The pole, in [0, 1).
+ * @return The new, flushed state.
+ * @post `no-denormal-state`: the state is 0 or at least OMX_FLUSH_THRESHOLD in magnitude.
+ * @note RT-safe: omx_onepole() and one compare. Thread-safe on distinct state.
+ */
+static inline float omx_onepole_flush(float *state, float x, float pole) {
+  *state = omx_flush(omx_onepole(state, x, pole));
+  OMX_POST(*state == 0.0f || fabsf(*state) >= OMX_FLUSH_THRESHOLD, "no-denormal-state");
   return *state;
 }
 #undef OMX_CONTRACT_STAGE
