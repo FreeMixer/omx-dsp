@@ -12,6 +12,18 @@
 #ifndef OMX_CONTRACT_H
 #define OMX_CONTRACT_H
 
+#ifdef __cplusplus
+/** @brief The alignment of `type`, as a size: C++ spells it `alignof`. */
+#define OMXDSP_ALIGNOF(type) alignof(type)
+/** @brief A compile-time assertion: C++ spells it `static_assert`. */
+#define OMXDSP_STATIC_ASSERT(cond, msg) static_assert(cond, msg)
+#else
+/** @brief The alignment of `type`, as a size: C spells it `_Alignof`. */
+#define OMXDSP_ALIGNOF(type) _Alignof(type)
+/** @brief A compile-time assertion: C spells it `_Static_assert`. */
+#define OMXDSP_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
+#endif
+
 #include <stdint.h>
 #include "omx_contract_limits.h"
 

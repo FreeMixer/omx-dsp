@@ -46,10 +46,10 @@ static inline size_t omx_allpass1_state_size(void) { return sizeof(struct omx_al
 
 /**
  * @brief The state's alignment, for a host that lays the state out itself.
- * @return `_Alignof(struct omx_allpass1)`.
+ * @return `OMXDSP_ALIGNOF(struct omx_allpass1)`.
  * @note RT-safe and thread-safe: a constant.
  */
-static inline size_t omx_allpass1_state_align(void) { return _Alignof(struct omx_allpass1); }
+static inline size_t omx_allpass1_state_align(void) { return OMXDSP_ALIGNOF(struct omx_allpass1); }
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "allpass1/coef"

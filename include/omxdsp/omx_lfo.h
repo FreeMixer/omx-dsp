@@ -35,10 +35,10 @@ static inline size_t omx_lfo_state_size(void) { return sizeof(struct omx_lfo); }
 
 /**
  * @brief The state's alignment, for a host that lays the state out itself.
- * @return `_Alignof(struct omx_lfo)`.
+ * @return `OMXDSP_ALIGNOF(struct omx_lfo)`.
  * @note RT-safe and thread-safe: a constant.
  */
-static inline size_t omx_lfo_state_align(void) { return _Alignof(struct omx_lfo); }
+static inline size_t omx_lfo_state_align(void) { return OMXDSP_ALIGNOF(struct omx_lfo); }
 
 /**
  * @brief Start an oscillator at phase zero, frozen, its carry cleared.
