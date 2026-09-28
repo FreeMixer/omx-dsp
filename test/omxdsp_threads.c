@@ -53,10 +53,13 @@ static void run_chain(struct worker *w) {
   omx_eq_design_f(OMX_EQ_HIGHPASS, 80.0, M_SQRT1_2, 0.0, sr, coeffs[1]);
   float eq_state[2][4] = {{0}};
   float eq2_l[2][4] = {{0}}, eq2_r[2][4] = {{0}}; /* the two-leg cascade's own state */
+  double dcoeffs[2][5], eqd_l[2][4] = {{0}}, eqd_r[2][4] = {{0}}; /* the double cascade (row 2a) */
+  omx_eq_design(OMX_EQ_PEAKING, 20.0, 4.3, 15.0, sr, dcoeffs[0]);
+  omx_eq_design(OMX_EQ_PEAKING, 1000.0, 4.3, -9.0, sr, dcoeffs[1]);
   struct omx_oversampler ovs;
   omx_oversampler_init(&ovs, 4u);
-  const float ap_a = (float)omx_allpass1_coeff(900.0, sr);
-  struct omx_allpass1_state ap_state = {0.0f};
+  const float apd_a = (float)omx_allpass1_coef_d(900.0, sr);
+  struct omx_allpass1 apd_state = {0.0f};
   struct omx_xover xo;
   omx_xover_design(&xo, 4u, 250.0, sr);
   struct omx_xover_state xo_state;
@@ -64,6 +67,8 @@ static void run_chain(struct worker *w) {
   memset(&xo_state, 0, sizeof xo_state);
   memset(&xo_ap, 0, sizeof xo_ap);
   float env = 0.0f;
+  struct omx_allpass1 ap[6] = {{0.0f}};
+  const float ap_a = omx_allpass1_coef(700.0f, sr);
   struct omx_divider div;
   omx_divider_init(&div);
   const float pole = omx_pole_from_time_ms(10.0f, sr);
@@ -86,8 +91,9 @@ static void run_chain(struct worker *w) {
     omx_biquad_cascade(block, n, 2u, coeffs, NULL, eq_state);
     for (uint32_t i = 0; i < n; i++) side[i] = 0.5f * block[(i * 7u) % n];
     omx_biquad_cascade_stereo(block, side, n, 2u, coeffs, NULL, eq2_l, eq2_r);
+    omx_biquad_cascade_d_stereo(block, side, n, 2u, (const double(*)[5])dcoeffs, NULL, eqd_l, eqd_r);
     for (uint32_t i = 0; i < n; i++) block[i] = 0.5f * (block[i] + side[i]);
-    omx_allpass1_process(block, n, ap_a, &ap_state);
+    omx_allpass1_block(&apd_state, block, n, apd_a);
     omx_xover_process(block, block, side, n, &xo, &xo_state);
     omx_xover_allpass(side, n, &xo, &xo_ap);
     for (uint32_t i = 0; i < n; i++) block[i] = block[i] - 0.5f * side[i];
@@ -96,7 +102,7 @@ static void run_chain(struct worker *w) {
     for (uint32_t i = 0; i < n; i++) {
       const float d = omx_lfo_sweep(8.0f, 4.0f, omx_lfo_at(&lfo, 0.0f));
       omx_lfo_advance(&lfo);
-      const float y = omx_fdelay_tick(&line, down[i], d);
+      const float y = omx_allpass1_cascade(ap, 6u, omx_fdelay_tick(&line, down[i], d), ap_a);
       omx_onepole(&env, fabsf(y), pole);
       const float g = omx_gaincomp_gain(&gc, omx_env_step(&det, &ep, y * y, ac, rc));
       const float sub = omx_divider_step(&div, y, 0.05f);

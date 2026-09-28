@@ -81,32 +81,32 @@ int main(void) {
   ok(omx_contract_log.count == 0u, "a legal call records no violation");
 
   /* The all-pass and crossover doors (dsp-primitives §1 rows 4–6). */
-  struct omx_allpass1_state ap = {0.0f};
-  omx_allpass1(0.25f, 1.0f, &ap);
+  struct omx_allpass1 ap = {0.0f};
+  omx_allpass1_tick(&ap, 0.25f, 1.0f);
   static const char *const ap_pre[] = {"coefficient-inside-unity"};
-  expect_exactly(1u, "allpass1", "pre", ap_pre);
+  expect_exactly(1u, "allpass1/tick", "pre", ap_pre);
 
-  omx_allpass1_coeff(24000.0, 48000.0);
+  omx_allpass1_coef_d(24000.0, 48000.0);
   static const char *const corner_pre[] = {"corner-inside-the-band"};
-  expect_exactly(1u, "allpass1/coeff", "pre", corner_pre);
+  expect_exactly(1u, "allpass1/coef_d", "pre", corner_pre);
 
-  omx_allpass1_coeff(1000.0, 12345.0);
+  omx_allpass1_coef_d(1000.0, 12345.0);
   static const char *const rate_pre[] = {"rate-is-declared"};
-  expect_exactly(1u, "allpass1/coeff", "pre", rate_pre);
+  expect_exactly(1u, "allpass1/coef_d", "pre", rate_pre);
 
-  ap.s = 1e-30f;
-  omx_allpass1(0.0f, -0.5f, &ap);
-  ok(ap.s == 0.0f, "the section flushed the state it was handed");
-  static const char *const ap_inv[] = {"state-finite-and-flushed"};
-  expect_exactly(1u, "allpass1", "invariant", ap_inv);
+  /* No entry-invariant scenario here (unlike the lattice this replaced, dedup ruling
+   * 2026-09-25/R-097): omx_allpass1_tick() checks state-finite-and-flushed only on the way OUT,
+   * over its own omx_flush() write — never independently violable through the public tick, so
+   * poking `ap.s` before a call proves nothing past omx_flush()'s own (separately covered)
+   * contract. */
 
   /* POST: the sabotaged lattice adds half a t to its output, so a block is no longer lossless. */
   ap.s = 0.0f;
   float tone[64];
   for (int i = 0; i < 64; i++) tone[i] = (i & 1) ? 0.5f : -0.25f;
-  omx_allpass1_process(tone, 64u, 0.3f, &ap);
+  omx_allpass1_block(&ap, tone, 64u, 0.3f);
   static const char *const ap_post[] = {"unity-magnitude"};
-  expect_exactly(1u, "allpass1/process", "post", ap_post);
+  expect_exactly(1u, "allpass1/block", "post", ap_post);
 
   struct omx_xover xo;
   ok(omx_xover_design(&xo, 3u, 1000.0, 48000.0) == OMX_XOVER_BAD_ORDER, "an odd order is refused with its code");

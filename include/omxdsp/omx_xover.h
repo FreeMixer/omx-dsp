@@ -9,7 +9,7 @@
  * OMX_XOVER_LR4_SECTION_Q, each run twice, on the denominator omx_allpass2_design() returns, so
  * `lo + hi = AP2(fc)`. LR2: the same pair at OMX_XOVER_LR2_SECTION_Q run once, the high band
  * inverted, so `lo + hi = AP1(fc)`, omx_allpass1()'s transfer as the section `{a, 1, 0, a, 0}`.
- * The sections run in omx_biquad_d(); the bands are narrowed to float at the end. An N-band tree
+ * The sections run in omx_biquad_tdf2_d(); the bands are narrowed to float at the end. An N-band tree
  * is N−1 crossovers with omx_xover_allpass() of every later corner on every earlier band. Design:
  * docs/design/specs/2026-09-26-dsp-primitives.md §1 row 6 and Appendix A.
  */
@@ -129,7 +129,7 @@ static inline enum omx_xover_status omx_xover_design(struct omx_xover *c, uint32
     c->hi_sign = 1.0;
     c->sections = 2u;
   } else {
-    const double a = omx_allpass1_coeff(fc, sr);
+    const double a = omx_allpass1_coef_d(fc, sr);
     c->ap[0] = a; c->ap[1] = 1.0; c->ap[2] = 0.0; c->ap[3] = a; c->ap[4] = 0.0;
     c->hi_sign = -1.0;
     c->sections = 1u;
@@ -165,16 +165,16 @@ static inline void omx_xover_process(const float *x, float *lo, float *hi, uint3
   const float sign = (float)c->hi_sign;
   for (uint32_t i = 0; i < n; i++) {
     const double xi = x[i];
-    double l = omx_biquad_d(xi, c->lp, s->lp[0]);
-    double h = omx_biquad_d(xi, c->hp, s->hp[0]);
+    double l = omx_biquad_tdf2_d(xi, c->lp, s->lp[0]);
+    double h = omx_biquad_tdf2_d(xi, c->hp, s->hp[0]);
     if (c->sections == 2u) {
-      l = omx_biquad_d(l, c->lp, s->lp[1]);
-      h = omx_biquad_d(h, c->hp, s->hp[1]);
+      l = omx_biquad_tdf2_d(l, c->lp, s->lp[1]);
+      h = omx_biquad_tdf2_d(h, c->hp, s->hp[1]);
     }
     lo[i] = (float)l;
     hi[i] = sign * (float)h;
 #ifdef OMX_CONTRACTS
-    const double r = omx_biquad_d(xi, c->ap, s->ref);
+    const double r = omx_biquad_tdf2_d(xi, c->ap, s->ref);
     const double d = fabs((double)lo[i] + (double)hi[i] - r), m = fabs(xi);
     worst = d > worst ? d : worst;
     peak = m > peak ? m : peak;
@@ -206,7 +206,7 @@ static inline void omx_xover_process(const float *x, float *lo, float *hi, uint3
 static inline void omx_xover_allpass(float *buf, uint32_t n, const struct omx_xover *c,
                                      struct omx_xover_ap_state *s) {
   OMX_PRE(omx_block_finite(buf, n), "finite-in");
-  for (uint32_t i = 0; i < n; i++) buf[i] = (float)omx_biquad_d(buf[i], c->ap, s->s);
+  for (uint32_t i = 0; i < n; i++) buf[i] = (float)omx_biquad_tdf2_d(buf[i], c->ap, s->s);
   OMX_POST(omx_block_finite(buf, n), "finite-out");
   OMX_INVARIANT(omx_block_finite_d(s->s, 2u), "state-finite");
 }
