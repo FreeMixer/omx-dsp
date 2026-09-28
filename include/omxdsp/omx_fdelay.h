@@ -320,6 +320,65 @@ static inline float omx_fdelay_read(const struct omx_fdelay *l, float delay) {
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "fdelay/pair"
+/**
+ * @brief Whether a stage over a pair of lines runs this block: switched on, frames to do, a wet
+ *        share, and both lines armed. Any other answer is the stage's announced passthrough.
+ * @param a The left line.
+ * @param b The right line.
+ * @param enabled The stage's switch.
+ * @param n Frames in the block.
+ * @param mix The wet share.
+ * @return 1 when the block is processed, 0 when it passes through untouched.
+ * @note RT-safe and thread-safe: four compares.
+ */
+static inline int omx_fdelay_pair_live(const struct omx_fdelay *a, const struct omx_fdelay *b,
+                                       int enabled, uint32_t n, float mix) {
+  return enabled && n != 0u && mix > 0.0f && a->order != 0 && b->order != 0;
+}
+
+/**
+ * @brief Whether a stage switched on may read as long as `longest` on `l`: it fits the ring. An
+ *        unarmed line or a stage switched off reads nothing and holds.
+ * @param l The line.
+ * @param enabled The stage's switch.
+ * @param longest The longest delay the stage will read, samples.
+ * @return 1 when the read is inside the ring.
+ * @note RT-safe and thread-safe: a read of the geometry.
+ */
+static inline int omx_fdelay_fits_ring(const struct omx_fdelay *l, int enabled, float longest) {
+  return !enabled || l->order == 0 || longest <= omx_fdelay_max_delay(l->cap, l->order);
+}
+
+/**
+ * @brief Read two lines written in lockstep at ONE delay: one split and one kernel serve both
+ *        reads, bit-identical to two omx_fdelay_read() calls.
+ * @param a The left line.
+ * @param b The right line, the same geometry.
+ * @param delay The delay, samples.
+ * @param ya The left read.
+ * @param yb The right read.
+ * @pre `both-legs-share-one-geometry`.
+ * @note RT-safe: one kernel, two reads. Thread-safe: a read of the state.
+ */
+static inline void omx_fdelay_read_pair(const struct omx_fdelay *a, const struct omx_fdelay *b,
+                                        float delay, float *ya, float *yb) {
+  OMX_PRE(a->cap == b->cap && a->order == b->order && a->wpos == b->wpos,
+          "both-legs-share-one-geometry");
+  uint32_t id = 0u;
+  float kf = 0.0f;
+  if (omx_fdelay_split(a, delay, &id, &kf)) {
+    *ya = omx_fdelay_read_at(a, id, 0);
+    *yb = omx_fdelay_read_at(b, id, 0);
+    return;
+  }
+  float c[OMX_FDELAY_MAX_TAPS];
+  omx_fdelay_lagrange(a->order, kf, c);
+  *ya = omx_fdelay_read_at(a, id, c);
+  *yb = omx_fdelay_read_at(b, id, c);
+}
+#undef OMX_CONTRACT_STAGE
+
 #define OMX_CONTRACT_STAGE "fdelay/tick"
 /**
  * @brief Write one sample and read at `delay` in the same step: the per-sample door a modulated
