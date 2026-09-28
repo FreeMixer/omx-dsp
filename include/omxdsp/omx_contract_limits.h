@@ -198,14 +198,22 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_PITCH_PREFILTER_CEILING_HZ 20000.0f
 #define OMX_PITCH_PREFILTER_Q 0.7071067811865476f
 
-/* The in-process LV2 stage's numbers (packages/core/src/lv2-stage-limits.ts, LV2_STAGE_LIMITS;
- * docs/design/specs/2026-09-04-lv2-hosting-path.md §4/§5) — read by mix_lv2.h, never restated. */
-#define OMX_LV2_STAGE_WARMUP_BLOCKS 64u
-#define OMX_LV2_STAGE_WARMUP_LEVEL_DBFS -6.0f
-#define OMX_LV2_STAGE_WARMUP_LEVEL_LINEAR 0.501187205f
-#define OMX_LV2_STAGE_NONFINITE_STRIKES 3u
-#define OMX_LV2_STAGE_CLAMP_DBFS 24.0f
-#define OMX_LV2_STAGE_CLAMP_LINEAR 15.8489323f
+/* The HOSTED stage's numbers (packages/core/src/hosted-stage-limits.ts, HOSTED_STAGE_LIMITS;
+ * docs/design/specs/2026-09-04-lv2-hosting-path.md §4/§5 and 2026-09-26-clap-hosting-path.md §4)
+ * — read by mix_hosted.h, mix_lv2.h and mix_clap.h, never restated. */
+#define OMX_HOSTED_STAGE_WARMUP_BLOCKS 64u
+#define OMX_HOSTED_STAGE_WARMUP_LEVEL_DBFS -6.0f
+#define OMX_HOSTED_STAGE_WARMUP_LEVEL_LINEAR 0.501187205f
+#define OMX_HOSTED_STAGE_NONFINITE_STRIKES 3u
+#define OMX_HOSTED_STAGE_CLAMP_DBFS 24.0f
+#define OMX_HOSTED_STAGE_CLAMP_LINEAR 15.8489323f
+#define OMX_HOSTED_STAGE_PARAM_QUEUE_DEPTH 256u
+#define OMX_HOSTED_STAGE_EVENTS_PER_BLOCK 64u
+
+/* The CLAP host object's extension ids (packages/plugin-qualify/src/hosting-suitability.ts,
+ * OMX_CLAP_HOST_EXTENSIONS; 2026-09-26-clap-hosting-path.md §5) — read by mix_clap_host.c. */
+#define OMX_CLAP_HOST_EXTENSION_COUNT 6u
+#define OMX_CLAP_HOST_EXTENSIONS_INIT { "clap.log", "clap.thread-check", "clap.latency", "clap.params", "clap.audio-ports", "clap.state", NULL }
 
 /* The all-pass and Linkwitz-Riley crossover primitives' numbers (packages/core/src/
  * dsp-primitive-limits.ts; docs/design/specs/2026-09-26-dsp-primitives.md §1 rows 4–6) — the
