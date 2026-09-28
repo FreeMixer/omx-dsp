@@ -15,6 +15,7 @@
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omxdsp.h>
 
+#include <complex.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
