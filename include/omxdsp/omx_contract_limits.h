@@ -673,12 +673,13 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_CLAP_HOST_EXTENSION_COUNT 6u
 #define OMX_CLAP_HOST_EXTENSIONS_INIT { "clap.log", "clap.thread-check", "clap.latency", "clap.params", "clap.audio-ports", "clap.state", NULL }
 
-/* The console's plugin-host verb set (packages/declarations/src/index.ts, HOST_VERBS;
- * 2026-09-29-host-backend-one-contract.md §4) — read by mix_host_backend.test.c against the fork's
- * scenario list. */
-#define OMX_HOST_VERB_COUNT 9u
-#define OMX_HOST_VERBS_INIT { "add", "remove", "bypass", "param_set", "param_get", "patch_set", "preset_load", "connect", "disconnect", NULL }
-#define OMX_HOST_VERBS_BACKEND_INIT { 1, 1, 1, 1, 1, 0, 1, 1, 1 }
+/* EVERY declared record set (packages/core/src/declared-sets.ts over the core barrel and
+ * @freemixer/declarations; dsp-primitives §7) — one block, sorted by set, named by nobody: HOST_VERBS
+ * (2026-09-29-host-backend-one-contract.md §4, read by mix_host_backend.test.c against the fork's
+ * scenario list), … OMX_<SET>_INIT is one { … } row per declared row, fields in declaration order: a
+ * string as a C string literal, a boolean as 0/1, a number as the scalar literal. */
+#define OMX_HOST_VERBS_COUNT 9u
+#define OMX_HOST_VERBS_INIT { { "add", 1 }, { "remove", 1 }, { "bypass", 1 }, { "param_set", 1 }, { "param_get", 1 }, { "patch_set", 0 }, { "preset_load", 1 }, { "connect", 1 }, { "disconnect", 1 } }
 
 /* The running check (dsp-primitives §7): every declared scalar by name with the macro ITSELF, so an
  * entry carries what the including binary COMPILED. ONE translation unit defines
