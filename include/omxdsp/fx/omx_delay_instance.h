@@ -48,6 +48,7 @@
 #include <string.h>
 
 #include "mix_delay.h"
+#include "omx_delay_params.h" /* the declaration's bounds and defaults, generated (omx-plugins-dpf §3c) */
 
 /** Audio legs in and out: TWO, because the kernel is the console's stereo FX delay (ping-pong
  * cross-feeds the legs; a mono shell could not carry that control). */
@@ -63,11 +64,11 @@
  * number that is NOT the desk's: the console's delay is a send/return effect whose return bus
  * does the blending, so its mix ships at 1 (wet-only); a foreign host racks this plugin INLINE
  * on a channel, where wet-only would swallow the dry signal, so the insert ships half-and-half. */
-#define OMX_DELAY_LV2_TIME_MS_DEFAULT OMX_DELAY_TIME_MS_DEFAULT
-#define OMX_DELAY_LV2_FEEDBACK_DEFAULT 0.3f
-#define OMX_DELAY_LV2_FEEDBACK_MAX 0.99f
-#define OMX_DELAY_LV2_MIX_DEFAULT 0.5f
-#define OMX_DELAY_LV2_TONE_DEFAULT 0.3f
+#define OMX_DELAY_LV2_TIME_MS_DEFAULT OMX_DELAY_PARAM_TIME_MS_DEFAULT
+#define OMX_DELAY_LV2_FEEDBACK_DEFAULT OMX_DELAY_PARAM_FEEDBACK_DEFAULT
+#define OMX_DELAY_LV2_FEEDBACK_MAX OMX_DELAY_PARAM_FEEDBACK_MAX
+#define OMX_DELAY_LV2_MIX_DEFAULT OMX_DELAY_PARAM_MIX_DEFAULT
+#define OMX_DELAY_LV2_TONE_DEFAULT OMX_DELAY_PARAM_TONE_DEFAULT
 
 /** One instance. The rings are NOT owned here; {@link omx_delay_lv2_init} is given them. */
 typedef struct {
