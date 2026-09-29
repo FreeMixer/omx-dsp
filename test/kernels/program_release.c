@@ -45,12 +45,12 @@ static void arm_program_release(void) {
     /* Each pole is its declared time constant at this rate: -1/(sr·ln p), within the float pole's spacing. */
     const double tf = -1000.0 / (sr * log((double)p.fast_pole)), tc = -1000.0 / (sr * log((double)p.charge_pole)),
                  td = -1000.0 / (sr * log((double)p.discharge_pole));
-    ok(fabs(tf / OMX_PROGRAM_RELEASE_OPTO_FAST_MS - 1.0) <= 1e-3, "the fast pole is the declared fastMs", tf, OMX_PROGRAM_RELEASE_OPTO_FAST_MS);
+    ok(fabs(tf / OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS - 1.0) <= 1e-3, "the fast pole is the declared fastMs", tf, OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS);
     ok(fabs(tc / OMX_PROGRAM_RELEASE_CHARGE_MS - 1.0) <= 1e-2, "the charge pole is the declared chargeMs", tc, OMX_PROGRAM_RELEASE_CHARGE_MS);
     ok(fabs(td / OMX_PROGRAM_RELEASE_DISCHARGE_MS - 1.0) <= 5e-2, "the discharge pole is the declared dischargeMs", td, OMX_PROGRAM_RELEASE_DISCHARGE_MS);
-    ok(p.slow_min_ms == OMX_PROGRAM_RELEASE_OPTO_SLOW_MIN_MS && p.slow_min_ms + p.slow_span_ms == OMX_PROGRAM_RELEASE_OPTO_SLOW_MAX_MS &&
-           p.share == OMX_PROGRAM_RELEASE_OPTO_SHARE,
-       "the slow constants and the share are the declared profile", p.slow_span_ms, OMX_PROGRAM_RELEASE_OPTO_SLOW_MAX_MS);
+    ok(p.slow_min_ms == OMX_PROGRAM_RELEASE_PROFILES_OPTO_SLOW_MIN_MS && p.slow_min_ms + p.slow_span_ms == OMX_PROGRAM_RELEASE_PROFILES_OPTO_SLOW_MAX_MS &&
+           p.share == OMX_PROGRAM_RELEASE_PROFILES_OPTO_SHARE,
+       "the slow constants and the share are the declared profile", p.slow_span_ms, OMX_PROGRAM_RELEASE_PROFILES_OPTO_SLOW_MAX_MS);
     /* L3: a deeper target is taken on the same sample by both components. */
     struct omx_env_program_release st;
     memset(&st, 0, sizeof st);

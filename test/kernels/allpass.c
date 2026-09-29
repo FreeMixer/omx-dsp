@@ -60,7 +60,7 @@ static void arm_allpass(void) {
       ok(memcmp(y, z, sizeof z) == 0 && s1.s == s2.s, "the block word is the per-sample word, bit for bit", 0.0, 0.0);
     }
     /* the second-order design: the reversed denominator, unity at ten frequencies, −180° at fc */
-    static const double qs[3] = {0.5, OMX_XOVER_LR4_SECTION_Q, 2.0};
+    static const double qs[3] = {0.5, OMX_XOVER_LR4_SECTION_Q_DOUBLE, 2.0};
     for (int qi = 0; qi < 3; qi++) {
       double c[5];
       omx_allpass2_design(1000.0, qs[qi], sr, c);
@@ -73,10 +73,10 @@ static void arm_allpass(void) {
       ok(fabs(fabs(at) - M_PI) < 1e-9, "the second-order all-pass is −180° at its corner", at, M_PI);
     }
   }
-  ok(worst_mag < OMX_ALLPASS_UNITY_TOL, "|H| = 1 at ten frequencies, every rate", worst_mag, OMX_ALLPASS_UNITY_TOL);
+  ok(worst_mag < OMX_ALLPASS_UNITY_TOLERANCE, "|H| = 1 at ten frequencies, every rate", worst_mag, OMX_ALLPASS_UNITY_TOLERANCE);
   ok(worst_phase < 0.1, "the phase is -2·atan(tan(w/2)/tan(π·fc/sr)) at ten frequencies to 0.1°", worst_phase, 0.1);
   ok(worst_fc < 0.1, "the section is −90° at fc to 0.1°", worst_fc, 0.1);
-  ok(worst_energy < OMX_ALLPASS_UNITY_TOL, "a block conserves Σx² + P·s² with P = 1/tan(π·fc/sr)", worst_energy, OMX_ALLPASS_UNITY_TOL);
+  ok(worst_energy < OMX_ALLPASS_UNITY_TOLERANCE, "a block conserves Σx² + P·s² with P = 1/tan(π·fc/sr)", worst_energy, OMX_ALLPASS_UNITY_TOLERANCE);
   printf("allpass: |H|-1 worst %.3g, phase worst %.3g deg, at fc %.3g deg, block energy worst %.3g\n", worst_mag,
          worst_phase, worst_fc, worst_energy);
   expect_clean();

@@ -117,9 +117,9 @@ static void arm_xover(void) {
   ok(worst_phase < 1e-6, "the two bands are in phase", worst_phase, 1e-6);
   ok(worst_ap < 1e-6, "lo + hi is the all-pass at ten frequencies", worst_ap, 1e-6);
   ok(worst_poly < 1e-12, "the sum's polynomial is the all-pass's", worst_poly, 1e-12);
-  ok(worst_time < OMX_XOVER_PARTITION_TOL, "lo + hi = AP(x) over noise, corners 20 Hz to 20 kHz", worst_time, OMX_XOVER_PARTITION_TOL);
+  ok(worst_time < OMX_XOVER_PARTITION_TOLERANCE, "lo + hi = AP(x) over noise, corners 20 Hz to 20 kHz", worst_time, OMX_XOVER_PARTITION_TOLERANCE);
   ok(worst_tree < 1e-6, "a three-band tree at rest partitions unity and is an all-pass", worst_tree, 1e-6);
-  ok(worst_tree_time < 2.0 * OMX_XOVER_PARTITION_TOL, "a three-band tree's bands sum to AP(f2)·AP(f1) in time", worst_tree_time, 2.0 * OMX_XOVER_PARTITION_TOL);
+  ok(worst_tree_time < 2.0 * OMX_XOVER_PARTITION_TOLERANCE, "a three-band tree's bands sum to AP(f2)·AP(f1) in time", worst_tree_time, 2.0 * OMX_XOVER_PARTITION_TOLERANCE);
   printf("xover: |LP|+|HP|-1 %.3g, at fc %.3g dB, phase %.3g rad, vs AP %.3g, poly %.3g, time %.3g, tree %.3g / %.3g\n",
          worst_sum, worst_fc, worst_phase, worst_ap, worst_poly, worst_time, worst_tree, worst_tree_time);
   expect_clean();
