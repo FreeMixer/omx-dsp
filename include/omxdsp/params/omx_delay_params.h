@@ -26,4 +26,21 @@ static const omx_plugin_param OMX_DELAY_PARAMS[OMX_DELAY_PARAM_COUNT] = {
   { "pingpong", "Pingpong", "", 0.0f, 1.0f, 0.0f, OMX_PLUGIN_PARAM_TOGGLE },
 };
 
+/* One macro per declared bound: what a C face reads where a constant is needed. */
+#define OMX_DELAY_PARAM_TIME_MS_MIN 0.0f
+#define OMX_DELAY_PARAM_TIME_MS_MAX 2000.0f
+#define OMX_DELAY_PARAM_TIME_MS_DEFAULT 300.0f
+#define OMX_DELAY_PARAM_FEEDBACK_MIN 0.0f
+#define OMX_DELAY_PARAM_FEEDBACK_MAX 0.99f
+#define OMX_DELAY_PARAM_FEEDBACK_DEFAULT 0.3f
+#define OMX_DELAY_PARAM_MIX_MIN 0.0f
+#define OMX_DELAY_PARAM_MIX_MAX 1.0f
+#define OMX_DELAY_PARAM_MIX_DEFAULT 0.3f
+#define OMX_DELAY_PARAM_TONE_MIN 0.0f
+#define OMX_DELAY_PARAM_TONE_MAX 1.0f
+#define OMX_DELAY_PARAM_TONE_DEFAULT 0.3f
+#define OMX_DELAY_PARAM_PINGPONG_MIN 0.0f
+#define OMX_DELAY_PARAM_PINGPONG_MAX 1.0f
+#define OMX_DELAY_PARAM_PINGPONG_DEFAULT 0.0f
+
 #endif /* OMX_DELAY_PARAMS_H */
