@@ -212,6 +212,8 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_HOSTED_STAGE_CLAMP_LINEAR 15.8489323f
 #define OMX_HOSTED_STAGE_PARAM_QUEUE_DEPTH 256u
 #define OMX_HOSTED_STAGE_EVENTS_PER_BLOCK 64u
+#define OMX_HOSTED_STAGE_UNPUBLISH_POLL_US 100u
+#define OMX_HOSTED_STAGE_UNPUBLISH_TIMEOUT_US 2000000u
 
 /* The CLAP host object's extension ids (packages/plugin-qualify/src/hosting-suitability.ts,
  * OMX_CLAP_HOST_EXTENSIONS; 2026-09-26-clap-hosting-path.md §5) — read by mix_clap_host.c. */
