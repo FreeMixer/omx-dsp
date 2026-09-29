@@ -16,13 +16,13 @@
 #include <string.h>
 
 #include "omx_contract.h"
+#include "omx_contract_limits.h"
 
 /**
  * @brief The most sections one cascade carries: the joint budget of the strip EQ (9), the
- *        feedback corrector (6) and HRP at full polyphony (8), plus one spare. Its twin is
- *        `EQ_MAX_BANDS` in `@freemixer/declarations`.
+ *        feedback corrector (6) and HRP at full polyphony (8), plus one spare. OMX_EQ_MAX_BANDS
+ *        comes from the generated omx_contract_limits.h (declared once, in the declarations package).
  */
-#define OMX_EQ_MAX_BANDS 24
 
 /**
  * @brief One biquad section, direct form I: `y = b0·x + b1·x₁ + b2·x₂ − a1·y₁ − a2·y₂`.
