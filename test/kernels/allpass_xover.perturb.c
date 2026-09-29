@@ -54,8 +54,8 @@ static int perturb_allpass_xover(int failed) {
   const int unity = allpass_xover_count_token("unity-magnitude");
   const int partition = allpass_xover_count_token("bands-partition-unity");
 #ifdef OMXDSP_PERTURBED_XOVER_Q
-  if (OMX_XOVER_LR4_SECTION_Q != 0.6) { printf("FAIL xover-q: the header's Q did not move\n"); failed++; }
-  if (partition_err <= OMX_XOVER_PARTITION_TOL) {
+  if (OMX_XOVER_LR4_SECTION_Q_DOUBLE != 0.6) { printf("FAIL xover-q: the header's Q did not move\n"); failed++; }
+  if (partition_err <= OMX_XOVER_PARTITION_TOLERANCE) {
     printf("FAIL xover-q: an LR4 pair at Q 0.6 still sums to its all-pass (%.3g) — the design did not read the moved Q\n", partition_err);
     failed++;
   }
@@ -66,7 +66,7 @@ static int perturb_allpass_xover(int failed) {
   printf("omxdsp_perturb (LR4 Q moved to 0.6): the pair designed at the moved Q, lo + hi off the all-pass by %.3g, "
          "the partition postcondition recorded it; %d failed\n", partition_err, failed);
 #else
-  const int want_unity = energy_err > OMX_ALLPASS_UNITY_TOL, want_partition = partition_err > OMX_XOVER_PARTITION_TOL;
+  const int want_unity = energy_err > OMX_ALLPASS_UNITY_TOLERANCE, want_partition = partition_err > OMX_XOVER_PARTITION_TOLERANCE;
   if (!want_unity || !want_partition) { printf("FAIL tolerances: the measured errors do not exceed 1e-12\n"); failed++; }
   if (unity != want_unity || partition != want_partition || recorded != (uint32_t)(want_unity + want_partition)) {
     printf("FAIL tolerances: predicted %d unity / %d partition from the measured %.3g / %.3g, recorded %d / %d\n",

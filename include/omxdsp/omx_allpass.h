@@ -122,7 +122,7 @@ static inline float omx_allpass1_cascade(struct omx_allpass1 *st, uint32_t n, fl
  * @param a The coefficient, inside (−1, 1).
  * @pre `coefficient-inside-unity`.
  * @post `unity-magnitude`: `Σy² + c·s_after² = Σx² + c·s_before²`, `c = (1 − a)/(1 + a)`, to
- *       `OMX_ALLPASS_UNITY_TOL` of the larger side.
+ *       `OMX_ALLPASS_UNITY_TOLERANCE` of the larger side.
  * @note RT-safe: one multiply per sample. Thread-safe on distinct state.
  */
 static inline void omx_allpass1_block(struct omx_allpass1 *st, float *buf, uint32_t n, float a) {
@@ -143,7 +143,7 @@ static inline void omx_allpass1_block(struct omx_allpass1 *st, float *buf, uint3
 #ifdef OMX_CONTRACTS
   e_out += c * (double)st->s * (double)st->s;
 #endif
-  OMX_POST(fabs(e_out - e_in) <= OMX_ALLPASS_UNITY_TOL * (e_in > e_out ? e_in : e_out) + 1e-30,
+  OMX_POST(fabs(e_out - e_in) <= OMX_ALLPASS_UNITY_TOLERANCE * (e_in > e_out ? e_in : e_out) + 1e-30,
            "unity-magnitude");
 }
 #undef OMX_CONTRACT_STAGE
@@ -168,7 +168,7 @@ static inline double omx_allpass_prewarp(double fc, double sr) {
  *        every sample the way the phaser sweeps `omx_allpass1_coef()`.
  *
  * Measured (docs/design/specs/2026-09-26-dsp-primitives.md §1, allpass1_coef_d row): against the
- * crossover's own `bands-partition-unity` tolerance (`OMX_XOVER_PARTITION_TOL = 1e-5` relative),
+ * crossover's own `bands-partition-unity` tolerance (`OMX_XOVER_PARTITION_TOLERANCE = 1e-5` relative),
  * this double coefficient leaves the worst residual at ~1.2e-7 across the declared rates and five
  * representative corners — three orders of margin. Narrowing through `omx_allpass1_coef()`'s float
  * result and back leaves as little as ~9.5e-6 at the worst of those same corners (fc = 20 Hz, high
