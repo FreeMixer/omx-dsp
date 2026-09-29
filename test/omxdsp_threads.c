@@ -78,6 +78,15 @@ static void run_chain(struct worker *w) {
   memset(&det, 0, sizeof det);
   float ac, rc;
   omx_env_stage_poles(&ep, 1u, &ac, &rc);
+  const struct omx_env_params fe = {omx_pole_from_time_ms(OMX_TRANSIENT_FAST_ATTACK_MS, sr),
+                                    omx_pole_from_time_ms(OMX_TRANSIENT_FAST_RELEASE_MS, sr), OMX_DETECT_PEAK};
+  const struct omx_env_params se = {omx_pole_from_time_ms(OMX_TRANSIENT_ATTACK_TIME_MS_DEFAULT, sr), fe.release_pole, OMX_DETECT_PEAK};
+  struct omx_envdiff_poles dp;
+  omx_env_stage_poles(&fe, 1u, &dp.fast_attack, &dp.fast_release);
+  omx_env_stage_poles(&se, 1u, &dp.slow_attack, &dp.slow_release);
+  struct omx_env dfast, dslow;
+  memset(&dfast, 0, sizeof dfast);
+  memset(&dslow, 0, sizeof dslow);
   struct omx_env_program_release prel;
   memset(&prel, 0, sizeof prel);
   struct omx_env_program_release_params pp;
@@ -108,8 +117,10 @@ static void run_chain(struct worker *w) {
       omx_lfo_advance(&lfo);
       const float y = omx_allpass1_cascade(ap, 6u, omx_fdelay_tick(&line, down[i], d), ap_a);
       omx_onepole(&env, fabsf(y), pole);
+      const float fl = omx_env_step(&dfast, &fe, fabsf(y), dp.fast_attack, dp.fast_release);
+      const float onset = omx_envdiff_step(&dslow, &fe, fabsf(y), fl, &dp, OMX_TRANSIENT_FLOOR_LIN);
       const float t = omx_gaincomp_db(&gc, omx_lin_to_db(omx_env_step(&det, &ep, y * y, ac, rc)));
-      const float g = omx_db_to_lin(omx_env_program_release(&prel, &pp, t < 0.0f ? t : 0.0f));
+      const float g = omx_db_to_lin(omx_env_program_release(&prel, &pp, t < 0.0f ? t : 0.0f)) * omx_db_to_lin_poly(0.5f * onset);
       const float sub = omx_divider_step(&div, y, 0.05f);
       w->out[written + i] = omx_flush(g * (y + 0.5f * sub) * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
     }
