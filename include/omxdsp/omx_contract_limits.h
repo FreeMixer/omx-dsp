@@ -335,6 +335,8 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_HOSTED_STAGE_UNPUBLISH_TIMEOUT_US 2000000
 #define OMX_HOSTED_STAGE_WARMUP_BLOCKS 64
 #define OMX_HOSTED_STAGE_WARMUP_LEVEL_DBFS -6
+#define OMX_HOSTED_STAGE_WORKER_POLL_US 1000
+#define OMX_HOSTED_STAGE_WORKER_RING_BYTES 16384
 #define OMX_HRP_ATTRIBUTION_CENTS 60
 #define OMX_HRP_BAND_Q 5
 #define OMX_HRP_COLLISION_CENTS 100
@@ -673,12 +675,13 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_CLAP_HOST_EXTENSION_COUNT 6u
 #define OMX_CLAP_HOST_EXTENSIONS_INIT { "clap.log", "clap.thread-check", "clap.latency", "clap.params", "clap.audio-ports", "clap.state", NULL }
 
-/* The console's plugin-host verb set (packages/declarations/src/index.ts, HOST_VERBS;
- * 2026-09-29-host-backend-one-contract.md §4) — read by mix_host_backend.test.c against the fork's
- * scenario list. */
-#define OMX_HOST_VERB_COUNT 9u
-#define OMX_HOST_VERBS_INIT { "add", "remove", "bypass", "param_set", "param_get", "patch_set", "preset_load", "connect", "disconnect", NULL }
-#define OMX_HOST_VERBS_BACKEND_INIT { 1, 1, 1, 1, 1, 0, 1, 1, 1 }
+/* EVERY declared record set (packages/core/src/declared-sets.ts over the core barrel and
+ * @freemixer/declarations; dsp-primitives §7) — one block, sorted by set, named by nobody: HOST_VERBS
+ * (2026-09-29-host-backend-one-contract.md §4, read by mix_host_backend.test.c against the fork's
+ * scenario list), … OMX_<SET>_INIT is one { … } row per declared row, fields in declaration order: a
+ * string as a C string literal, a boolean as 0/1, a number as the scalar literal. */
+#define OMX_HOST_VERBS_COUNT 9u
+#define OMX_HOST_VERBS_INIT { { "add", 1 }, { "remove", 1 }, { "bypass", 1 }, { "param_set", 1 }, { "param_get", 1 }, { "patch_set", 0 }, { "preset_load", 1 }, { "connect", 1 }, { "disconnect", 1 } }
 
 /* The running check (dsp-primitives §7): every declared scalar by name with the macro ITSELF, so an
  * entry carries what the including binary COMPILED. ONE translation unit defines
@@ -802,6 +805,8 @@ static const struct omx_declared_scalar OMX_DECLARED_SCALARS[] = {
   { "HOSTED_STAGE_UNPUBLISH_TIMEOUT_US", (double)OMX_HOSTED_STAGE_UNPUBLISH_TIMEOUT_US },
   { "HOSTED_STAGE_WARMUP_BLOCKS", (double)OMX_HOSTED_STAGE_WARMUP_BLOCKS },
   { "HOSTED_STAGE_WARMUP_LEVEL_DBFS", (double)OMX_HOSTED_STAGE_WARMUP_LEVEL_DBFS },
+  { "HOSTED_STAGE_WORKER_POLL_US", (double)OMX_HOSTED_STAGE_WORKER_POLL_US },
+  { "HOSTED_STAGE_WORKER_RING_BYTES", (double)OMX_HOSTED_STAGE_WORKER_RING_BYTES },
   { "HRP_ATTRIBUTION_CENTS", (double)OMX_HRP_ATTRIBUTION_CENTS },
   { "HRP_BAND_Q", (double)OMX_HRP_BAND_Q },
   { "HRP_COLLISION_CENTS", (double)OMX_HRP_COLLISION_CENTS },
@@ -1036,7 +1041,7 @@ static const struct omx_declared_scalar OMX_DECLARED_SCALARS[] = {
   { "XOVER_LR4_SECTION_Q", (double)OMX_XOVER_LR4_SECTION_Q },
   { "XOVER_PARTITION_TOLERANCE", (double)OMX_XOVER_PARTITION_TOLERANCE },
 };
-#define OMX_DECLARED_SCALAR_COUNT 349u
+#define OMX_DECLARED_SCALAR_COUNT 351u
 #endif
 
 #endif /* OMX_CONTRACT_LIMITS_H */
