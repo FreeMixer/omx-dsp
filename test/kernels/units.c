@@ -12,6 +12,14 @@ static void arm_units(void) {
   }
   ok(omx_lin_to_db(0.0f) == -180.0f, "silence is a finite -180 dB", omx_lin_to_db(0.0f), -180.0);
   ok(omx_lin_to_db(1e-12f) == -180.0f, "below the floor reads as the floor", omx_lin_to_db(1e-12f), -180.0);
+  /* The double-precision analysis word: floored where the CALLER says, exact against its closed form. */
+  ok(omx_lin_to_db_d(1.0, 1e-12) == 0.0, "lin_to_db_d: unity is 0 dB", omx_lin_to_db_d(1.0, 1e-12), 0.0);
+  ok(omx_lin_to_db_d(0.0, 1e-12) == -240.0, "lin_to_db_d: silence reads as the named floor", omx_lin_to_db_d(0.0, 1e-12), -240.0);
+  ok(omx_lin_to_db_d(1e-15, 1e-9) == -180.0, "lin_to_db_d: below the floor reads as the floor", omx_lin_to_db_d(1e-15, 1e-9), -180.0);
+  for (double lg = -11.0; lg <= 3.0; lg += 0.25) {
+    const double x = pow(10.0, lg);
+    ok(fabs(omx_lin_to_db_d(x, 1e-12) - 20.0 * lg) < 1e-9, "lin_to_db_d is 20*log10 over the travel", omx_lin_to_db_d(x, 1e-12), 20.0 * lg);
+  }
   /* The per-sample pair against the libm pair, dense over the declared travel (row 17's oracle).
    * The worst error is PRINTED, so the tolerance the spec declares is read from a run. */
   double worst_db = 0.0, worst_rel = 0.0;

@@ -36,6 +36,21 @@ static inline float omx_lin_to_db(float lin) {
   return 20.0f * log10f(lin < floor_lin ? floor_lin : lin);
 }
 
+/**
+ * @brief Linear magnitude to decibels in double precision, floored at a caller-named level.
+ *
+ * The analysis-tier spelling: a detector that compares ratios of summed spectrum magnitudes
+ * against dB gates reads them in double, and its floor is part of its decision law, so the floor
+ * is a parameter rather than omx_lin_to_db()'s fixed 1e-9.
+ * @param lin Magnitude, linear; values below `floor_lin` read as `floor_lin`.
+ * @param floor_lin The smallest magnitude read, linear, > 0.
+ * @return `20·log10(max(lin, floor_lin))`.
+ * @note Not for a per-sample loop: one `log10`. Thread-safe: pure.
+ */
+static inline double omx_lin_to_db_d(double lin, double floor_lin) {
+  return 20.0 * log10(lin > floor_lin ? lin : floor_lin);
+}
+
 /*
  * THE PER-SAMPLE PAIR (row 17, lane kernel-cost-dynamics, 2026-09-27). The same two maps with no
  * libm call, for a loop that converts every sample: the dynamics gain computer ran `log10f` and
