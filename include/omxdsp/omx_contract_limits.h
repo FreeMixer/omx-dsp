@@ -201,6 +201,7 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_ALIGN_TRUST_COHERENCE_DOUBLE 0.5
 #define OMX_ALLPASS_UNITY_TOLERANCE 0.0001f
 #define OMX_ALLPASS_UNITY_TOLERANCE_DOUBLE 0.0001
+#define OMX_ANALYSIS_FLOOR_DB -240
 #define OMX_BAND_F_MAX_CAP 20000
 #define OMX_BAND_F_MIN 20
 #define OMX_BAND_GATE_DB -60
@@ -788,6 +789,15 @@ static const omx_contract_law_t OMX_STAGE_LAWS_TOMAIN[] = { OMX_LAW_FINITE, OMX_
 #define OMX_HOST_VERBS_COUNT 9u
 #define OMX_HOST_VERBS_INIT { { "add", 1 }, { "remove", 1 }, { "bypass", 1 }, { "param_set", 1 }, { "param_get", 1 }, { "patch_set", 0 }, { "preset_load", 1 }, { "connect", 1 }, { "disconnect", 1 } }
 
+/* EVERY declared number list (packages/core/src/declared-lists.ts; dsp-primitives §7) — sorted by
+ * list, named by nobody: LATENCY_QUANTA (the quantum grid a bench iterates), STANDARD_SAMPLE_RATES,
+ * … A C grid is int qs[OMX_<LIST>_COUNT] = OMX_<LIST>_INIT; a script reads the _INIT line through
+ * harness/lib/declared-list.sh. */
+#define OMX_LATENCY_QUANTA_COUNT 6u
+#define OMX_LATENCY_QUANTA_INIT { 32, 64, 128, 256, 512, 1024 }
+#define OMX_STANDARD_SAMPLE_RATES_COUNT 6u
+#define OMX_STANDARD_SAMPLE_RATES_INIT { 44100, 48000, 88200, 96000, 176400, 192000 }
+
 /* The running check (dsp-primitives §7): every declared scalar by name with the macro ITSELF, so an
  * entry carries what the including binary COMPILED. ONE translation unit defines
  * OMX_DECLARED_SCALARS_TABLE before including this header (declared_scalars.c) and exports it. */
@@ -796,6 +806,7 @@ struct omx_declared_scalar { const char *name; double value; };
 static const struct omx_declared_scalar OMX_DECLARED_SCALARS[] = {
   { "ALIGN_TRUST_COHERENCE", (double)OMX_ALIGN_TRUST_COHERENCE },
   { "ALLPASS_UNITY_TOLERANCE", (double)OMX_ALLPASS_UNITY_TOLERANCE },
+  { "ANALYSIS_FLOOR_DB", (double)OMX_ANALYSIS_FLOOR_DB },
   { "BAND_F_MAX_CAP", (double)OMX_BAND_F_MAX_CAP },
   { "BAND_F_MIN", (double)OMX_BAND_F_MIN },
   { "BAND_GATE_DB", (double)OMX_BAND_GATE_DB },
@@ -1240,7 +1251,7 @@ static const struct omx_declared_scalar OMX_DECLARED_SCALARS[] = {
   { "XOVER_LR4_SECTION_Q", (double)OMX_XOVER_LR4_SECTION_Q },
   { "XOVER_PARTITION_TOLERANCE", (double)OMX_XOVER_PARTITION_TOLERANCE },
 };
-#define OMX_DECLARED_SCALAR_COUNT 445u
+#define OMX_DECLARED_SCALAR_COUNT 446u
 #endif
 
 #endif /* OMX_CONTRACT_LIMITS_H */
