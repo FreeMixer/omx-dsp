@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * Standalone unit test for the native FX delay kernel (mix_delay.h). Compile + run:
- *   cc -Wall -Wextra -O2 -o build/mix_delay_test src/mix_delay.test.c -lm && ./build/mix_delay_test
+ * The FX delay kernel's oracle (omx_delay.h), every arm at every rate in OMX_DECLARED_RATES:
+ *   make test-fx
  */
 #include <math.h>
 #include <stdint.h>
@@ -10,9 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mix_delay.h"
+#include <omxdsp/fx/omx_delay.h>
+
+#include "fx_rates.h"
 
 static int g_fail = 0, g_checks = 0;
+static float g_sr = 48000.0f;
 static void check(int cond, const char *what) {
   g_checks++; if (!cond) { g_fail++; fprintf(stderr, "FAIL: %s\n", what); }
 }
@@ -44,7 +47,7 @@ static void test_impulse_reappears_at_time(void) {
   float l[256], r[256];
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r));
   l[0] = 1.0f; r[0] = 1.0f;
-  omx_fx_delay_process(l, r, 256, &p, s, 48000.0f);
+  omx_fx_delay_process(l, r, 256, &p, s, g_sr);
   // 100% wet, no feedback: the impulse reappears exactly 100 frames later, dry gone.
   close_to(l[0], 0.0f, "wet-only: dry sample suppressed at t=0");
   close_to(l[100], 1.0f, "impulse reappears at exactly d=100 frames (L)");
@@ -59,7 +62,7 @@ static void test_feedback_decays_geometrically(void) {
   float l[64], r[64];
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r));
   l[0] = 1.0f; r[0] = 1.0f;
-  omx_fx_delay_process(l, r, 64, &p, s, 48000.0f);
+  omx_fx_delay_process(l, r, 64, &p, s, g_sr);
   close_to(l[10], 1.0f, "first echo");
   close_to(l[20], 0.5f, "second echo = fb^1");
   close_to(l[30], 0.25f, "third echo = fb^2");
@@ -72,7 +75,7 @@ static void test_mix_zero_is_bit_identical_dry(void) {
                             .mix = 0.0f, .tone = 0.3f, .pingpong = 1 };
   float l[32], r[32], l0[32];
   for (int i = 0; i < 32; i++) { l[i] = sinf(i * 0.3f); r[i] = cosf(i * 0.2f); l0[i] = l[i]; }
-  omx_fx_delay_process(l, r, 32, &p, s, 48000.0f);
+  omx_fx_delay_process(l, r, 32, &p, s, g_sr);
   for (int i = 0; i < 32; i++) check(l[i] == l0[i], "mix=0 is bit-identical dry");
   free_state(s);
 }
@@ -84,7 +87,7 @@ static void test_feedback_clamp_prevents_runaway(void) {
   float l[64], r[64];
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r));
   l[0] = 1.0f; r[0] = 1.0f;
-  for (int blk = 0; blk < 4; blk++) omx_fx_delay_process(l + blk * 16, r + blk * 16, 16, &p, s, 48000.0f);
+  for (int blk = 0; blk < 4; blk++) omx_fx_delay_process(l + blk * 16, r + blk * 16, 16, &p, s, g_sr);
   for (int i = 0; i < 64; i++) check(fabsf(l[i]) <= 1.001f, "clamped feedback never grows > 1");
   free_state(s);
 }
@@ -96,7 +99,7 @@ static void test_pingpong_alternates_legs(void) {
   float l[64], r[64];
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r));
   l[0] = 1.0f; /* feed L only */
-  omx_fx_delay_process(l, r, 64, &p, s, 48000.0f);
+  omx_fx_delay_process(l, r, 64, &p, s, g_sr);
   // ping-pong cross-feeds: the L input's repeats bounce onto the R leg on the next tap.
   check(fabsf(r[16]) > 0.1f, "ping-pong: energy crosses to the R leg on the 2nd tap");
   free_state(s);
@@ -114,20 +117,20 @@ static void test_reenable_clears_stale_tail(void) {
   /* dirty reference: build echoes, feed silence WITHOUT clearing -> buffered echoes still emerge. */
   struct omx_fx_delay_state *dirty = make_state(CAP);
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); l[0] = 1.0f; r[0] = 1.0f;
-  omx_fx_delay_process(l, r, 256, &p, dirty, 48000.0f);
+  omx_fx_delay_process(l, r, 256, &p, dirty, g_sr);
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); /* silence in */
-  omx_fx_delay_process(l, r, 256, &p, dirty, 48000.0f);
+  omx_fx_delay_process(l, r, 256, &p, dirty, g_sr);
   float dirtyE = 0.0f; for (int i = 0; i < 256; i++) dirtyE += l[i] * l[i] + r[i] * r[i];
   check(dirtyE > 1e-6f, "without clearing, a re-fed delay still emits buffered echoes");
   free_state(dirty);
   /* clean: build echoes, then apply the mixer's clear (memset rings + reset wpos/damp). */
   struct omx_fx_delay_state *s = make_state(CAP);
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); l[0] = 1.0f; r[0] = 1.0f;
-  omx_fx_delay_process(l, r, 256, &p, s, 48000.0f);
+  omx_fx_delay_process(l, r, 256, &p, s, g_sr);
   memset(s->ring_l, 0, CAP * sizeof(float)); memset(s->ring_r, 0, CAP * sizeof(float));
   s->wpos = 0; s->damp_l = s->damp_r = 0.0f;
   memset(l, 0, sizeof(l)); memset(r, 0, sizeof(r)); /* silence in */
-  omx_fx_delay_process(l, r, 256, &p, s, 48000.0f);
+  omx_fx_delay_process(l, r, 256, &p, s, g_sr);
   float cleanE = 0.0f; for (int i = 0; i < 256; i++) cleanE += l[i] * l[i] + r[i] * r[i];
   check(cleanE == 0.0f, "clearing rings + resetting wpos/damp makes a re-enabled delay start silent");
   free_state(s);
@@ -144,9 +147,9 @@ static void test_zero_delay_is_passthrough(void) {
   float l[64], r[64], l0[64], r0[64];
   for (int i = 0; i < 64; i++) { l[i] = sinf(i * 0.31f); r[i] = cosf(i * 0.19f); l0[i] = l[i]; r0[i] = r[i]; }
   /* prime the ring with a prior block so ring[w] holds non-zero stale audio (the echo source). */
-  omx_fx_delay_process(l, r, 64, &p, s, 48000.0f);
+  omx_fx_delay_process(l, r, 64, &p, s, g_sr);
   for (int i = 0; i < 64; i++) { l[i] = l0[i]; r[i] = r0[i]; }
-  omx_fx_delay_process(l, r, 64, &p, s, 48000.0f);
+  omx_fx_delay_process(l, r, 64, &p, s, g_sr);
   for (int i = 0; i < 64; i++) {
     close_to(l[i], l0[i], "d==0 is exact passthrough (L), no stale-ring echo");
     close_to(r[i], r0[i], "d==0 is exact passthrough (R), no stale-ring echo");
@@ -162,7 +165,6 @@ static void review_ok(int cond, const char *what, double measured, double limit)
   snprintf(b, sizeof b, "%s — measured %.9g, limit %.9g", what, measured, limit);
   check(cond, b);
 }
-static const float REVIEW_RATES[4] = {44100.0f, 48000.0f, 96000.0f, 192000.0f};
 
 /* ---- F5 --------------------------------------------------------------------------------------- */
 
@@ -178,8 +180,8 @@ static const float REVIEW_RATES[4] = {44100.0f, 48000.0f, 96000.0f, 192000.0f};
  * every block after it once the controls are finite again.
  */
 static void delay_nonfinite_control_is_no_control(void) {
-  for (int ri = 0; ri < 4; ri++) {
-    const float sr = REVIEW_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
+    const float sr = OMX_DECLARED_RATES[ri];
     /* which == 2 is the CONTROL: finite controls throughout must read clean. */
     for (int which = 0; which < 3; which++) {
       float *rl = calloc(OMX_FXDELAY_CAP, sizeof(float)), *rr = calloc(OMX_FXDELAY_CAP, sizeof(float));
@@ -208,15 +210,19 @@ static void delay_nonfinite_control_is_no_control(void) {
 }
 
 int main(void) {
+  omx_fx_require_rate_floor();
   delay_nonfinite_control_is_no_control();
   test_division_ms();
-  test_impulse_reappears_at_time();
-  test_feedback_decays_geometrically();
-  test_mix_zero_is_bit_identical_dry();
-  test_feedback_clamp_prevents_runaway();
-  test_pingpong_alternates_legs();
-  test_reenable_clears_stale_tail();
-  test_zero_delay_is_passthrough();
-  printf("mix_delay: %d checks, %d failures\n", g_checks, g_fail);
+  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
+    g_sr = OMX_DECLARED_RATES[ri];
+    test_impulse_reappears_at_time();
+    test_feedback_decays_geometrically();
+    test_mix_zero_is_bit_identical_dry();
+    test_feedback_clamp_prevents_runaway();
+    test_pingpong_alternates_legs();
+    test_reenable_clears_stale_tail();
+    test_zero_delay_is_passthrough();
+  }
+  printf("fx/delay: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_DECLARED_RATE_COUNT);
   return g_fail == 0 ? 0 : 1;
 }

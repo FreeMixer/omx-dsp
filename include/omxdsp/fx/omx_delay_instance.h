@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
- * mix_lv2_delay.h — the native FX delay AS AN LV2 PLUGIN: the shell's core, with no LV2 in it.
+ * omx_delay_instance.h — the native FX delay as a plugin instance: the shell's core, with no format in it.
  *
  * docs/design/notes/2026-09-23-omx-lv2-pack-scope.md §7 lane B, under the HRP shells rule
  * (omx-hrp.lv2/omx-hrp.ttl, citing 2026-07-16-recording-vsc.md §0.5): one C core, N shells.
- * The core here is `mix_delay.h`'s `omx_fx_delay_process` — THE SAME INLINE the console's
+ * The core here is `omx_delay.h`'s `omx_fx_delay_process` — THE SAME INLINE the console's
  * delay stage runs (mix_lane.h step OMX_STAGE_DELAY) — and this file adds no DSP to it. What it
  * adds is the three things a host's port model needs and the kernel's atom does not carry:
  *
@@ -47,8 +47,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "mix_delay.h"
-#include "omx_delay_params.h" /* the declaration's bounds and defaults, generated (omx-plugins-dpf §3c) */
+#include <omxdsp/fx/omx_delay.h>
+#include <omxdsp/params/omx_delay_params.h> /* the declaration's bounds and defaults, generated (omx-plugins-dpf §3c) */
 
 /** Audio legs in and out: TWO, because the kernel is the console's stereo FX delay (ping-pong
  * cross-feeds the legs; a mono shell could not carry that control). */

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * mix_delay.h — native stereo FX delay line (send/return or channel insert), pure-C, RT-safe.
+ * omx_delay.h — native stereo FX delay line (send/return or channel insert), pure-C, RT-safe.
  *
- * Same contract as mix_dsp.h: NO PipeWire, NO allocation, NO libc beyond <math.h>. The ring buffers
+ * Same contract as the primitives: NO PipeWire, NO allocation, NO libc beyond <math.h>. The ring buffers
  * live in `struct omx_fx_delay_state` and are allocated by the CALLER off the RT thread (on insert),
  * never here. Controls (`struct omx_fx_delay`) are word-atomic snapshots the RT thread reads once per
  * block. A delay-TIME change may click (the read pointer jumps) — standard for a delay, and documented
@@ -100,7 +100,7 @@ static inline float omx_fxdelay_tone_pole(float tone, float sr) {
  * A per-leg delay TIME (ms) -> the ring tap (samples) at the live rate, saturated to the ring.
  *
  * ONE derivation, read by both shells that own a `struct omx_fx_delay`: the console's
- * `resolve_fx_delay` (mixer_rt.c) and the LV2 plugin's port resolve (mix_lv2_delay.h) — so a
+ * `resolve_fx_delay` (mixer_rt.c) and the LV2 plugin's port resolve (omx_delay_instance.h) — so a
  * millisecond means the same tap on the desk and in a foreign host, and the LV2 shell carries
  * no second copy of the conversion. The clamp happens in FLOAT before the uint32 cast: a
  * huge/NaN/negative ms (a bad tempo-sync division resolved at a low BPM) would make the
