@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.2.0
+Version: 0.1.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: DSP primitives and effect kernels of OpenMixer, for static linking
@@ -56,5 +56,5 @@ library statically; no shared library exists.
 %{_libdir}/pkgconfig/omxdsp.pc
 
 %changelog
-* Thu Oct 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.0-1
+* Thu Oct 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.0-1
 - First package: the primitives and the FX delay kernel.

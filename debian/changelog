@@ -1,4 +1,4 @@
-omx-dsp (0.2.0) unstable; urgency=medium
+omx-dsp (0.1.0) unstable; urgency=medium
 
   * First package: the primitives and the FX delay kernel.
 

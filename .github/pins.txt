@@ -3,4 +3,4 @@
 # What this repository is checked against, one line per source: name, git URL, commit.
 # openmixer: the commit whose declaration rendered include/omxdsp/omx_contract_limits.h and
 # include/omxdsp/params/ (tools/render-check.sh).
-openmixer https://github.com/FreeMixer/openmixer cb9d533ca5cf3b9b4a11052dcac6a15bbc44c8c7
+openmixer https://github.com/FreeMixer/openmixer 4df849972233f9c8f7b1a95b09d755cc78fd8567
