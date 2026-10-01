@@ -1,3 +1,9 @@
+omx-dsp (0.1.1) unstable; urgency=medium
+
+  * omx_param.h: the parameter clamp, one defined answer for NaN and +-Inf per word.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 01 Oct 2026 17:32:15 +0200
+
 omx-dsp (0.1.0) unstable; urgency=medium
 
   * First package: the primitives and the FX delay kernel.
