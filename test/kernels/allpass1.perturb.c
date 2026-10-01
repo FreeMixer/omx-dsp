@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 static int perturb_allpass1(int failed) {
   omx_contract_reset();
   omx_allpass1_coef(1000.0f, 96000.0f);
