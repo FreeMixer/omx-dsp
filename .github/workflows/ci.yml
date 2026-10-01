@@ -27,6 +27,10 @@ jobs:
         arch: [amd64, arm64]
     container:
       image: ${{ matrix.image }}
+    # debian images run sh by default, which has no pipefail
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Install the build tools
         run: |
