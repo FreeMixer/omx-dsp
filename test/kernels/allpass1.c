@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /* ---- first-order all-pass (dsp-primitives §1 row 4; phaser spec §7 arm A) ------------------- */
 
 /* The impulse response of one section at one coefficient, until its (−a)ⁿ tail is below 1e-13. */
