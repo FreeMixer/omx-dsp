@@ -126,17 +126,6 @@ static inline void omx_delay_lv2_clear(OmxDelayLv2 *s) {
 }
 #undef OMX_CONTRACT_STAGE
 
-/** A unit knob from a port: NaN and out-of-range floor/ceil into [0, hi]. */
-#define OMX_CONTRACT_STAGE "fx-delay/lv2-unit"
-static inline float omx_delay_lv2_unit(float v, float hi) {
-  /* CONTRACT (omx_contract.h). `> hi` / `<= 0` both false is what makes a NaN floor to 0
-   * rather than reach the kernel, whose PREs would name it three calls later. */
-  float u = v > 0.0f ? (v > hi ? hi : v) : 0.0f;
-  OMX_POST(u >= 0.0f && u <= hi, "unit-knob-inside-its-travel");
-  return u;
-}
-#undef OMX_CONTRACT_STAGE
-
 /**
  * Resolve the host's control-port values into the kernel's atom for one cycle.
  *
@@ -160,9 +149,9 @@ static inline void omx_delay_lv2_resolve(OmxDelayLv2 *s, int bypass, float time_
   s->atom.enabled = engaged;
   s->atom.d_l = omx_fxdelay_ms_to_samples(time_l_ms, s->sr);
   s->atom.d_r = omx_fxdelay_ms_to_samples(time_r_ms, s->sr);
-  s->atom.feedback = omx_delay_lv2_unit(feedback, OMX_DELAY_LV2_FEEDBACK_MAX);
-  s->atom.mix = omx_delay_lv2_unit(mix, 1.0f);
-  s->atom.tone = omx_delay_lv2_unit(tone, 1.0f);
+  s->atom.feedback = omx_clampf(feedback, 0.0f, OMX_DELAY_LV2_FEEDBACK_MAX);
+  s->atom.mix = omx_unit(mix);
+  s->atom.tone = omx_unit(tone);
   s->atom.pingpong = pingpong ? 1 : 0;
   OMX_POST(s->atom.feedback >= 0.0f && s->atom.feedback < 1.0f && s->atom.mix >= 0.0f &&
                s->atom.mix <= 1.0f && s->atom.tone >= 0.0f && s->atom.tone <= 1.0f &&
