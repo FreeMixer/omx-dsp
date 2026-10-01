@@ -4,8 +4,8 @@
 #
 # perturb.sh <dir> — the C reads the generated limits header, not a copy of it
 # (docs/design/specs/2026-09-26-dsp-primitives.md §7). A PERTURBED omx_contract_limits.h is
-# rendered from the committed one (one declared rate dropped, the comp's ratio floor moved, the
-# opto release's fastMs moved to 35 ms; then, one at a time, the LR4 section Q and the
+# rendered from the committed one (one declared rate dropped, the comp's ratio floor moved +0.5, the
+# opto release's fastMs moved +5 ms; then, one at a time, the LR4 section Q and the
 # all-pass/crossover tolerances; the ledger cap untouched) inside a
 # copy of the include directory (the headers include each other by quoted name, so the copy is
 # whole), and test/omxdsp_perturb.c is built against that copy: the rate
@@ -30,19 +30,32 @@ sed -i 's|, 96000.0f||; s|^#define OMX_DECLARED_RATE_COUNT \([0-9]*\)u$|#define 
 count="$(grep -oE '^#define OMX_DECLARED_RATE_COUNT \$\(\([0-9]+ - 1\)\)u' "$OUT/omxdsp/omx_contract_limits.h" | grep -oE '[0-9]+' | head -1)"
 [ -n "$count" ] || { echo "perturb.sh: FAIL — the declared rate count line was not found in the header"; exit 1; }
 sed -i "s|^#define OMX_DECLARED_RATE_COUNT .*|#define OMX_DECLARED_RATE_COUNT $((count - 1))u|" "$OUT/omxdsp/omx_contract_limits.h"
-# move one bound: the comp's ratio floor from its declared value to 1.5
-sed -i 's|^#define OMX_COMP_RATIO_MIN .*$|#define OMX_COMP_RATIO_MIN 1.5f|' "$OUT/omxdsp/omx_contract_limits.h"
-grep -q '^#define OMX_COMP_RATIO_MIN 1.5f$' "$OUT/omxdsp/omx_contract_limits.h" || { echo "perturb.sh: FAIL — the comp ratio floor line was not found in the header"; exit 1; }
-grep -q '^#define OMX_COMP_RATIO_MIN 1.5f$' "$REAL" && { echo "perturb.sh: FAIL — the real comp ratio floor is already the perturbed value"; exit 1; }
-# move one profile constant: the opto release's fastMs from its declared value to 35
-sed -i 's|^#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS .*$|#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS 35|' "$OUT/omxdsp/omx_contract_limits.h"
-grep -q '^#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS 35$' "$OUT/omxdsp/omx_contract_limits.h" || { echo "perturb.sh: FAIL — the opto fastMs line was not found in the header"; exit 1; }
-grep -q '^#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS 35$' "$REAL" && { echo "perturb.sh: FAIL — the real opto fastMs is already the perturbed value"; exit 1; }
+# Every moved value is the REAL one plus a step, read off the header — never a typed target, which
+# a header that is itself perturbed (harness/declaration-perturbation-native.sh) could already hold.
+define_of() { sed -n "s/^#define $1 \([-0-9.e]*\)f\{0,1\}\$/\1/p" "$REAL"; }
+real_floor="$(define_of OMX_COMP_RATIO_MIN)"
+real_opto="$(define_of OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS)"
+[ -n "$real_floor" ] || { echo "perturb.sh: FAIL — the comp ratio floor line was not found in the header"; exit 1; }
+[ -n "$real_opto" ] || { echo "perturb.sh: FAIL — the opto fastMs line was not found in the header"; exit 1; }
+moved_floor="$(awk -v r="$real_floor" 'BEGIN { printf "%.6f", r + 0.5 }')"
+between="$(awk -v r="$real_floor" 'BEGIN { printf "%.6f", r + 0.25 }')"
+moved_opto="$(awk -v r="$real_opto" 'BEGIN { printf "%.6f", r + 5 }')"
+# the moved values reach every build of omxdsp_perturb.c, the control's too (the ratio between the
+# two floors is its input; the moved fastMs is what the control must NOT equal)
+PDEFS="-DOMXDSP_COMP_RATIO_BETWEEN=${between}f -DOMXDSP_MOVED_COMP_RATIO_MIN=${moved_floor}f -DOMXDSP_MOVED_OPTO_FAST_MS=${moved_opto}f"
+# move one bound: the comp's ratio floor from its declared value by +0.5
+sed -i "s|^#define OMX_COMP_RATIO_MIN .*\$|#define OMX_COMP_RATIO_MIN ${moved_floor}f|" "$OUT/omxdsp/omx_contract_limits.h"
+grep -q "^#define OMX_COMP_RATIO_MIN ${moved_floor}f\$" "$OUT/omxdsp/omx_contract_limits.h" || { echo "perturb.sh: FAIL — the comp ratio floor was not moved"; exit 1; }
+# move one profile constant: the opto release's fastMs from its declared value by +5 ms
+sed -i "s|^#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS .*\$|#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS ${moved_opto}f|" "$OUT/omxdsp/omx_contract_limits.h"
+grep -q "^#define OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS ${moved_opto}f\$" "$OUT/omxdsp/omx_contract_limits.h" || { echo "perturb.sh: FAIL — the opto fastMs was not moved"; exit 1; }
 if cmp -s "$REAL" "$OUT/omxdsp/omx_contract_limits.h"; then echo "perturb.sh: FAIL — the perturbation changed nothing"; exit 1; fi
 grep -q "96000.0f" "$OUT/omxdsp/omx_contract_limits.h" && { echo "perturb.sh: FAIL — 96000 is still declared in the perturbed header"; exit 1; }
 
-$CC $CFLAGS -I"$OUT" -I"$PKG/build" -DOMX_CONTRACTS -DOMXDSP_PERTURBED=1 -o "$OUT/perturbed" "$HERE/omxdsp_perturb.c" -lm
-$CC $CFLAGS -I"$PKG/include" -I"$PKG/build" -DOMX_CONTRACTS -o "$OUT/control" "$HERE/omxdsp_perturb.c" -lm
+# shellcheck disable=SC2086
+$CC $CFLAGS $PDEFS -I"$OUT" -I"$PKG/build" -DOMX_CONTRACTS -DOMXDSP_PERTURBED=1 -o "$OUT/perturbed" "$HERE/omxdsp_perturb.c" -lm
+# shellcheck disable=SC2086
+$CC $CFLAGS $PDEFS -I"$PKG/include" -I"$PKG/build" -DOMX_CONTRACTS -o "$OUT/control" "$HERE/omxdsp_perturb.c" -lm
 "$OUT/perturbed"
 "$OUT/control"
 
@@ -55,7 +68,8 @@ perturb_one() { # <name> <sed expression> <define>
   cp "$PKG"/include/omxdsp/*.h "$dir/omxdsp/"
   sed -i "$2" "$dir/omxdsp/omx_contract_limits.h"
   if cmp -s "$REAL" "$dir/omxdsp/omx_contract_limits.h"; then echo "perturb.sh: FAIL — the $1 perturbation changed nothing"; exit 1; fi
-  $CC $CFLAGS -I"$dir" -I"$PKG/build" -DOMX_CONTRACTS -D"$3"=1 -o "$dir/perturbed" "$HERE/omxdsp_perturb.c" -lm
+  # shellcheck disable=SC2086
+  $CC $CFLAGS $PDEFS -I"$dir" -I"$PKG/build" -DOMX_CONTRACTS -D"$3"=1 -o "$dir/perturbed" "$HERE/omxdsp_perturb.c" -lm
   "$dir/perturbed"
 }
 perturb_one xover-q 's|^#define OMX_XOVER_LR4_SECTION_Q_DOUBLE .*|#define OMX_XOVER_LR4_SECTION_Q_DOUBLE 0.6|' OMXDSP_PERTURBED_XOVER_Q
