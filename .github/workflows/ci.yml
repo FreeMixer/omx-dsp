@@ -175,11 +175,15 @@ jobs:
         with:
           node-version: 24
 
+      # what the two generators import from dist: harness/contract-limits-gen.mjs reads core,
+      # declarations and plugin-qualify; packages/omx-plugins/tools/params-gen.mjs reads core and
+      # declarations. The ... suffix builds each one's dependencies too.
       - name: Build the declaration
         working-directory: openmixer
         run: |
+          set -euo pipefail
           pnpm install --frozen-lockfile --ignore-scripts
-          pnpm --filter "@freemixer/plugin-qualify..." build
+          pnpm --filter "@freemixer/core..." --filter "@freemixer/declarations..." --filter "@freemixer/plugin-qualify..." build
 
       - name: Render and compare
         run: tools/render-check.sh openmixer
