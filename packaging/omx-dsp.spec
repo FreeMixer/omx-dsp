@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.1
+Version: 0.1.2
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: DSP primitives and effect kernels of OpenMixer, for static linking
@@ -32,8 +32,11 @@ Summary: Headers, static library and pkg-config file of libomxdsp
 Provides: %{name}-static = %{version}-%{release}
 
 %description devel
-The headers under include/omxdsp, libomxdsp.a and omxdsp.pc. Programs link the
-library statically; no shared library exists.
+The headers under include/omxdsp and the static library in three flavours, each
+with its pkg-config file: libomxdsp.a (omxdsp), libomxdsp-contracts.a
+(omxdsp-contracts, contracts compiled in) and libomxdsp-tsan.a (omxdsp-tsan,
+contracts and ThreadSanitizer). Programs link the library statically; no shared
+library exists.
 
 %prep
 %autosetup
@@ -53,9 +56,17 @@ library statically; no shared library exists.
 %doc README.md BUILDING.md
 %{_includedir}/omxdsp/
 %{_libdir}/libomxdsp.a
+%{_libdir}/libomxdsp-contracts.a
+%{_libdir}/libomxdsp-tsan.a
 %{_libdir}/pkgconfig/omxdsp.pc
+%{_libdir}/pkgconfig/omxdsp-contracts.pc
+%{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 02 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.2-1
+- The library in three flavours: libomxdsp-contracts.a and libomxdsp-tsan.a
+  beside libomxdsp.a, each with its pkg-config file.
+
 * Thu Oct 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.1-1
 - omx_param.h: the parameter clamp, one defined answer for NaN and +-Inf per word.
 

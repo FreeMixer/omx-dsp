@@ -19,5 +19,8 @@ Description: DSP primitives and effect kernels of OpenMixer, for static linking
  compile and link the same kernels from it, so a plugin sounds like the
  console.
  .
- This package holds the headers, libomxdsp.a and omxdsp.pc. Programs link
- the library statically; no shared library exists.
+ This package holds the headers and the static library in three flavours,
+ each with its pkg-config file: libomxdsp.a (omxdsp), libomxdsp-contracts.a
+ (omxdsp-contracts, contracts compiled in) and libomxdsp-tsan.a (omxdsp-tsan,
+ contracts and ThreadSanitizer). Programs link the library statically; no
+ shared library exists.
