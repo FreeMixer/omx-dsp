@@ -30,6 +30,7 @@ jobs:
     uses: FreeMixer/.github/.github/workflows/build-rpm.yml@main
     with:
       package-name: omx-dsp
+      binary-names: omx-dsp-devel
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
       needs-mod-host: false
       channel-deps: false
@@ -42,6 +43,7 @@ jobs:
     uses: FreeMixer/.github/.github/workflows/build-deb.yml@main
     with:
       package-name: omx-dsp
+      binary-names: libomxdsp-dev
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
       dependencies: ''
       requires: ''
