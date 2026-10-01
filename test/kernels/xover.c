@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /* ---- Linkwitz-Riley crossover, LR2/LR4 (dsp-primitives §1 row 6) ------------------------------ */
 
 /* The polynomial product `p ⊛ q` of degrees `np − 1` and `nq − 1`. */
