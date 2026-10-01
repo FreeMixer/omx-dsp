@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 static int perturb_program_release(int failed) {
   struct omx_env_program_release_params pr;
   omx_env_program_release_opto(&pr, 48000.0f, 1u);

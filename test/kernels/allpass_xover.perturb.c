@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /* One all-pass block and one LR4 crossover block over the same deterministic signal: returns the
  * violations the two recorded, and writes the measured relative energy error and partition error.
  * Shared by the two special builds below (perturb.sh's `xover-q` and `tolerances`, each defining
