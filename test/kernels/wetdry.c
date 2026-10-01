@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /* ---- convex wet/dry (dsp-primitives §1 rows 22 and 22a) — rate-free: no rate enters either
  * word, so one pass covers every declared rate ------------------------------------------------ */
 
