@@ -3,12 +3,16 @@
 #
 # libomxdsp — the DSP primitives and effect kernels the OpenMixer engine and the omx plugins
 # link statically.
-#   make lib    build/libomxdsp.a (the one compiled unit; every primitive and kernel is header-only)
+#   make lib    the compiled unit (every primitive and kernel is header-only) once per flavour:
+#               build/libomxdsp.a, build/libomxdsp-contracts.a, build/libomxdsp-tsan.a
 #   make test   the library suite alone: contracts ON, every oracle at every declared rate, the
 #               negative arms, the perturbation arm, the N-thread byte-identity, the
 #               writable-data check, the doc check and the effect kernels' oracles and golden
 #               digests — pure C + -lm (+ -pthread), no node
-#   make install   headers, libomxdsp.a and omxdsp.pc under PREFIX/LIBDIR/INCLUDEDIR, into DESTDIR
+#   make install   headers, the three archives and their .pc files under PREFIX/LIBDIR/INCLUDEDIR,
+#               into DESTDIR
+#   make flavours  each archive carries its flavour, and a contracts consumer sees the compiled
+#               unit's contracts only through the contracts archive
 #   make test-fx   the effect kernels' oracles and golden digests alone
 #   make lint   the doc check and the source scan only
 #   make docs   the API reference by doxygen (build-time only)
@@ -17,6 +21,7 @@
 
 CC      ?= cc
 AR      ?= ar
+NM      ?= nm
 CFLAGS  ?= -Wall -Wextra -Werror -O2
 # Every consumer compiles the inline kernels without floating-point contraction (omxdsp.pc carries
 # the same flag), so a kernel's output does not depend on the architecture's FMA or the consumer's
@@ -30,6 +35,25 @@ HEADERS  = $(wildcard include/omxdsp/*.h)
 SRC      = $(wildcard src/*.c)
 OBJ      = $(patsubst src/%.c,$(BUILD)/%.o,$(SRC))
 TESTFLAGS = $(CFLAGS) $(INC) -DOMX_CONTRACTS
+
+# The flavours. The compiled unit is built once per flavour, and a consumer links the archive whose
+# flags match its own build, through the .pc file of the same name: a contracts or TSan build of a
+# consumer then checks the library's own code too, not only the inline headers.
+#   omxdsp            build/libomxdsp.a            contracts compiled out (the release build)
+#   omxdsp-contracts  build/libomxdsp-contracts.a  -DOMX_CONTRACTS: the unit's PRE/POST record into
+#                                                  the consumer's ledger
+#   omxdsp-tsan       build/libomxdsp-tsan.a       -DOMX_CONTRACTS -fsanitize=thread
+# The .pc file's Cflags carry the flavour's defines, so the consumer's inline kernels and the
+# archive agree.
+CONTRACTS_CFLAGS = -DOMX_CONTRACTS
+TSAN_CFLAGS      = -DOMX_CONTRACTS -fsanitize=thread
+TSAN_LIBS        = -fsanitize=thread
+LIB_CONTRACTS    = $(BUILD)/libomxdsp-contracts.a
+LIB_TSAN         = $(BUILD)/libomxdsp-tsan.a
+OBJ_CONTRACTS    = $(patsubst src/%.c,$(BUILD)/contracts/%.o,$(SRC))
+OBJ_TSAN         = $(patsubst src/%.c,$(BUILD)/tsan-lib/%.o,$(SRC))
+LIBS_ALL         = $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
+PC_ALL           = $(BUILD)/omxdsp.pc $(BUILD)/omxdsp-contracts.pc $(BUILD)/omxdsp-tsan.pc
 KERNELS  = $(wildcard test/kernels/*.c)
 FX_HEADERS = $(wildcard include/omxdsp/fx/*.h include/omxdsp/params/*.h)
 FX_TESTS   = $(wildcard test/fx/*.c) $(wildcard test/fx/*.h)
@@ -42,11 +66,11 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx install version golden-write
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx install version golden-write flavours
 
 all: lib
 
-lib: $(LIB)
+lib: $(LIBS_ALL)
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -57,18 +81,32 @@ $(BUILD)/%.o: src/%.c $(HEADERS) | $(BUILD)
 $(LIB): $(OBJ) | $(BUILD)
 	$(AR) rcs $@ $(OBJ)
 
+$(BUILD)/contracts/%.o: src/%.c $(HEADERS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CONTRACTS_CFLAGS) -fPIC $(INC) -c -o $@ $<
+
+$(LIB_CONTRACTS): $(OBJ_CONTRACTS)
+	$(AR) rcs $@ $(OBJ_CONTRACTS)
+
+$(BUILD)/tsan-lib/%.o: src/%.c $(HEADERS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(TSAN_CFLAGS) -fPIC $(INC) -c -o $@ $<
+
+$(LIB_TSAN): $(OBJ_TSAN)
+	$(AR) rcs $@ $(OBJ_TSAN)
+
 # ---- the suite ---------------------------------------------------------------------------------
 # Each primitive's arm lives in its own test/kernels/<name>.c; tools/kernels-gen.sh globs them
 # (sorted by filename, never a hand list) into $(BUILD)/kernels-suite.inc.c, which
 # omxdsp_suite.c #includes — a kernel lane adds ONE file and never touches this Makefile or
 # omxdsp_suite.c's main().
 
-$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(SRC) $(HEADERS) tools/kernels-gen.sh | $(BUILD)
+$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) tools/kernels-gen.sh | $(BUILD)
 	bash tools/kernels-gen.sh $(BUILD)
-	$(CC) $(TESTFLAGS) -I$(BUILD) -o $@ test/omxdsp_suite.c $(SRC) -lm
+	$(CC) $(TESTFLAGS) -I$(BUILD) -o $@ test/omxdsp_suite.c $(LIB_CONTRACTS) -lm
 
-$(BUILD)/omxdsp_threads: test/omxdsp_threads.c $(SRC) $(HEADERS) | $(BUILD)
-	$(CC) $(TESTFLAGS) -pthread -o $@ test/omxdsp_threads.c $(SRC) -lm
+$(BUILD)/omxdsp_threads: test/omxdsp_threads.c $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
+	$(CC) $(TESTFLAGS) -pthread -o $@ test/omxdsp_threads.c $(LIB_CONTRACTS) -lm
 
 # The POST arm of the negative suite runs against a SABOTAGED COPY of one header, placed ahead of
 # the real include directory: the tree is never edited.
@@ -98,14 +136,14 @@ lint: checks
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if
 # 44.1, 48, 96 or 192 kHz is missing; the golden digests hold the kernel's output bit for bit.
 
-$(BUILD)/fx_delay: test/fx/delay.test.c $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(SRC) -lm
+$(BUILD)/fx_delay: test/fx/delay.test.c $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
 
-$(BUILD)/fx_delay_math: test/fx/delay_math.test.c $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(TESTFLAGS) -Itest/fx -o $@ $< $(SRC) -lm
+$(BUILD)/fx_delay_math: test/fx/delay_math.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
+	$(CC) $(TESTFLAGS) -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
 
-$(BUILD)/fx_delay_golden: test/fx/delay_golden.test.c $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(SRC) -lm
+$(BUILD)/fx_delay_golden: test/fx/delay_golden.test.c $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
 
 test-fx: $(BUILD)/fx_delay $(BUILD)/fx_delay_math $(BUILD)/fx_delay_golden
 	./$(BUILD)/fx_delay
@@ -115,7 +153,14 @@ test-fx: $(BUILD)/fx_delay $(BUILD)/fx_delay_math $(BUILD)/fx_delay_golden
 golden-write: $(BUILD)/fx_delay_golden
 	./$(BUILD)/fx_delay_golden --write > test/golden/delay.sha256
 
-test: lib checks suite negative perturb threads test-fx
+# Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
+# violation raised inside the compiled unit only when linked against the contracts archive: linked
+# against the plain one it must fail, or the check is blind.
+flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
+	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
+	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
+
+test: lib checks suite negative perturb threads test-fx flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
@@ -123,23 +168,34 @@ test: lib checks suite negative perturb threads test-fx
 version:
 	@echo $(VERSION)
 
-$(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h | $(BUILD)
-	sed -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
-	    -e 's|@VERSION@|$(VERSION)|' -e 's|@FPFLAGS@|$(FPFLAGS)|' $< > $@
+PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
+	 -e 's|@VERSION@|$(VERSION)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
 
-install: $(LIB) $(BUILD)/omxdsp.pc
+$(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+	sed $(PC_SED) -e 's|@NAME@|omxdsp|' -e 's|@FLAVOUR@|release, contracts compiled out|' \
+	    -e 's|@CFLAGS@||' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
+
+$(BUILD)/omxdsp-contracts.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+	sed $(PC_SED) -e 's|@NAME@|omxdsp-contracts|' -e 's|@FLAVOUR@|contracts compiled in|' \
+	    -e 's|@CFLAGS@| $(CONTRACTS_CFLAGS)|' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
+
+$(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+	sed $(PC_SED) -e 's|@NAME@|omxdsp-tsan|' -e 's|@FLAVOUR@|contracts compiled in, under ThreadSanitizer|' \
+	    -e 's|@CFLAGS@| $(TSAN_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS)|' $< | sed 's/ *$$//' > $@
+
+install: $(LIBS_ALL) $(PC_ALL)
 	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/params $(DESTDIR)$(LIBDIR)/pkgconfig
 	install -m 0644 include/omxdsp/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/
 	install -m 0644 include/omxdsp/fx/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx/
 	install -m 0644 include/omxdsp/params/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/params/
-	install -m 0644 $(LIB) $(DESTDIR)$(LIBDIR)/libomxdsp.a
-	install -m 0644 $(BUILD)/omxdsp.pc $(DESTDIR)$(LIBDIR)/pkgconfig/omxdsp.pc
+	install -m 0644 $(LIBS_ALL) $(DESTDIR)$(LIBDIR)/
+	install -m 0644 $(PC_ALL) $(DESTDIR)$(LIBDIR)/pkgconfig/
 
 # §4.3 (e): NOT RUN (exit 0, never a pass) where the toolchain has no TSan; where it has, the
 # thread arm must be report-free and its shared-state sabotage must race.
-test-tsan: test/omxdsp_threads.c tools/tsan-gate.sh $(SRC) $(HEADERS) | $(BUILD)
+test-tsan: test/omxdsp_threads.c tools/tsan-gate.sh $(LIB_TSAN) $(HEADERS) | $(BUILD)
 	CC="$(CC)" bash tools/tsan-gate.sh $(BUILD)/tsan omxdsp_threads OMXDSP_THREADS_SABOTAGE_SHARED_STATE \
-	  $(TESTFLAGS) -pthread test/omxdsp_threads.c $(SRC) -lm
+	  $(TESTFLAGS) -pthread test/omxdsp_threads.c $(LIB_TSAN) -lm
 
 docs: $(HEADERS) | $(BUILD)
 	doxygen Doxyfile
