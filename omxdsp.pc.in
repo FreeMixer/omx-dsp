@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+prefix=@PREFIX@
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: omxdsp
+Description: DSP primitives and effect kernels of OpenMixer, linked statically
+Version: @VERSION@
+Cflags: -I${includedir} @FPFLAGS@
+Libs: -L${libdir} -lomxdsp -lm
