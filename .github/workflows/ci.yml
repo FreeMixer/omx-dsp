@@ -1,0 +1,183 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+name: ci
+
+# On every push and pull request: the whole suite on Fedora and both Debian releases, on both
+# architectures; the packages built, their file lists checked and a consumer outside the tree built
+# against each; the generated headers rendered again from the pinned OpenMixer commit; and the
+# release workflow as a dry run. Nothing is signed or published here.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: make test (${{ matrix.image }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['fedora:44', 'debian:bookworm', 'debian:trixie']
+        arch: [amd64, arm64]
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Install the build tools
+        run: |
+          if command -v dnf >/dev/null; then
+            dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git
+          else
+            apt-get update -qq
+            apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: The version agrees everywhere it is written
+        run: |
+          set -euo pipefail
+          v=$(make -s version)
+          grep -q "^Version: $v\$" packaging/omx-dsp.spec
+          head -1 debian/changelog | grep -q "^omx-dsp ($v) "
+
+      - name: Every source file carries its SPDX line
+        run: tools/spdx-check.sh
+
+      - name: make test
+        run: make test
+
+  rpm:
+    name: omx-dsp-devel (fc44, ${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+    container:
+      image: fedora:44
+    steps:
+      - name: Install the build tools
+        run: dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip diffutils pkgconf-pkg-config
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: FreeMixer/.github/.github/actions/build-rpm@main
+
+      - name: Check the file list
+        run: |
+          set -euo pipefail
+          rpm=$(ls rpms/omx-dsp-devel-[0-9]*.${{ matrix.arch }}.rpm)
+          rpm -qp --qf '[%{FILEMODES:perms} %{FILENAMES}\n]' "$rpm" | grep -v '^d' | cut -d' ' -f2 \
+            | sed 's,/usr/lib64/,/usr/lib*/,' | grep -v '^/usr/include/omxdsp/' | sort > files.txt
+          printf '%s\n' '/usr/lib*/libomxdsp.a' '/usr/lib*/pkgconfig/omxdsp.pc' \
+            /usr/share/doc/omx-dsp-devel/BUILDING.md /usr/share/doc/omx-dsp-devel/README.md \
+            /usr/share/licenses/omx-dsp-devel/LICENSE | sort > expected.txt
+          diff -u expected.txt files.txt
+          rpm -qlp "$rpm" | grep -q '^/usr/include/omxdsp/fx/omx_delay.h$'
+          ! rpm -qlp "$rpm" | grep -E '\.so(\.|$)'
+
+      - name: A consumer builds against omx-dsp-devel
+        run: |
+          set -euo pipefail
+          dnf install -y --setopt=install_weak_deps=False rpms/omx-dsp-devel-[0-9]*.${{ matrix.arch }}.rpm
+          test "$(pkg-config --modversion omxdsp)" = "$(make -s version)"
+          pkg-config --cflags omxdsp | grep -q -- '-ffp-contract=off'
+          gcc $(pkg-config --cflags omxdsp) -Itest/fx -O2 -o /tmp/golden test/fx/delay_golden.test.c $(pkg-config --libs omxdsp)
+          /tmp/golden test/golden/delay.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omx-dsp-rpms-fc44-${{ matrix.arch }}
+          path: rpms/*.rpm
+          if-no-files-found: error
+          retention-days: 7
+
+  deb:
+    name: libomxdsp-dev (${{ matrix.suite }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [bookworm, trixie]
+        arch: [amd64, arm64]
+    container:
+      image: debian:${{ matrix.suite }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install the build tools
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends ca-certificates git dpkg-dev debhelper build-essential lintian gawk pkgconf
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: FreeMixer/.github/.github/actions/build-deb@main
+
+      - name: A consumer builds against libomxdsp-dev
+        run: |
+          set -euo pipefail
+          apt-get install -y --no-install-recommends ./debs/libomxdsp-dev_*.deb
+          dpkg -L libomxdsp-dev | grep -q '/libomxdsp\.a$'
+          ! dpkg -L libomxdsp-dev | grep -E '\.so(\.|$)'
+          test "$(pkg-config --modversion omxdsp)" = "$(make -s version)"
+          gcc $(pkg-config --cflags omxdsp) -Itest/fx -O2 -o /tmp/golden test/fx/delay_golden.test.c $(pkg-config --libs omxdsp)
+          /tmp/golden test/golden/delay.sha256
+
+  # The generated headers against the OpenMixer commit pinned in .github/pins.txt. OpenMixer is
+  # private: the organisation secret OPENMIXER_READ_TOKEN reads it.
+  render:
+    name: generated headers are the render of the pinned declaration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The pinned OpenMixer commit
+        id: pin
+        run: echo "sha=$(awk '$1 == "openmixer" { print $3 }' .github/pins.txt)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: FreeMixer/openmixer
+          ref: ${{ steps.pin.outputs.sha }}
+          path: openmixer
+          token: ${{ secrets.OPENMIXER_READ_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: openmixer/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Build the declaration
+        working-directory: openmixer
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter "@freemixer/plugin-qualify..." build
+
+      - name: Render and compare
+        run: tools/render-check.sh openmixer
+
+  release-dry-run:
+    name: release workflow, dry run
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    with:
+      publish: false

@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+name: release
+
+# A version tag builds omx-dsp-devel (RPM, x86_64 and aarch64) and libomxdsp-dev (DEB, bookworm and
+# trixie, amd64 and arm64), signs them, publishes them into the rpm/ and deb/ trees of the FreeMixer
+# Pages repository and attaches the RPMs to the GitHub release. Anything else builds unsigned trees and
+# publishes nothing. Everything is in FreeMixer/.github; the secrets are the organisation's.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Sign and publish; only a run on a tag publishes'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  rpm:
+    uses: FreeMixer/.github/.github/workflows/build-rpm.yml@main
+    with:
+      package-name: omx-dsp
+      publish: ${{ github.event_name == 'push' || inputs.publish == true }}
+      needs-mod-host: false
+      channel-deps: false
+    secrets: inherit
+
+  # after the RPMs: both publish into one tree, and a push that loses a race is refused
+  deb:
+    needs: rpm
+    if: ${{ !cancelled() }}
+    uses: FreeMixer/.github/.github/workflows/build-deb.yml@main
+    with:
+      package-name: omx-dsp
+      publish: ${{ github.event_name == 'push' || inputs.publish == true }}
+      dependencies: ''
+      requires: ''
+      channel-deps: false
+    secrets: inherit
