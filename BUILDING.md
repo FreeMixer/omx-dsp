@@ -6,10 +6,11 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 
 | command | does |
 |---|---|
-| `make` | `build/libomxdsp.a` |
+| `make` | `build/libomxdsp.a`, `build/libomxdsp-contracts.a` and `build/libomxdsp-tsan.a` |
 | `make test` | the whole suite: every primitive's and kernel's oracle at every declared rate with contracts on, the negative, perturbation and thread arms, the writable-data and doc checks, and the golden digests |
 | `make test-fx` | the effect kernels' oracles and golden digests alone |
-| `make install PREFIX=/usr LIBDIR=/usr/lib64 DESTDIR=…` | headers, `libomxdsp.a` and `omxdsp.pc` |
+| `make install PREFIX=/usr LIBDIR=/usr/lib64 DESTDIR=…` | headers, the three archives and `omxdsp.pc`, `omxdsp-contracts.pc`, `omxdsp-tsan.pc` |
+| `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
 | `make golden-write` | rewrites `test/golden/delay.sha256`; only in a commit that bumps the minor version |
@@ -17,6 +18,24 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
 `-ffp-contract=off`: the kernels are inline, and without it an architecture with fused
 multiply-add would round differently from one without.
+
+## Flavours
+
+The compiled part of the library (today only the oversampler; everything else is inline in the
+headers) is built once per flavour into `build/`:
+
+- `libomxdsp.a`: `CFLAGS` only, contracts compiled out.
+- `libomxdsp-contracts.a`: objects in `build/contracts/`, with `-DOMX_CONTRACTS`.
+- `libomxdsp-tsan.a`: objects in `build/tsan-lib/`, with `-DOMX_CONTRACTS -fsanitize=thread`.
+
+Each has a pkg-config file of the same name (`omxdsp`, `omxdsp-contracts`, `omxdsp-tsan`) whose
+cflags carry the flavour's flags, so the inline headers and the archive are always built the same
+way. The suite, the thread arm and the contract-checked kernel tests link `libomxdsp-contracts.a`,
+`make test-tsan` links `libomxdsp-tsan.a`, and the release-flag kernel tests link `libomxdsp.a`.
+`make flavours` (`tools/flavour-check.sh`, part of `make test`) checks each archive's symbols and
+builds `test/omxdsp_flavour.c`, a contracts consumer that feeds a NaN to the compiled oversampler:
+against `libomxdsp-contracts.a` it must find the violation in its own ledger, and against
+`libomxdsp.a` it must fail.
 
 ## GCC 12.2 on arm64
 
