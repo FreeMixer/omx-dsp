@@ -24,7 +24,10 @@ static void arm_truepeak(void) {
     omx_truepeak_init(&t);
     omx_truepeak_block(&t, x, N, p);
     double worst = 0.0;
-    for (int i = 512; i < N; i++) worst = fmax(worst, fabs(p[i] - 0.5));
+    for (int i = 512; i < N; i++) {
+      const double e = fabs(p[i] - 0.5);
+      if (!(e <= worst)) worst = e; /* a NaN reading lands in worst and fails the check */
+    }
     ok(worst < 1e-6, "a DC block reads its own level", worst, 1e-6);
     /* the inter-sample peak: a tone at rate/4, phase pi/4, samples at A/sqrt2, true peak A */
     const float a = 0.8f;
@@ -39,7 +42,12 @@ static void arm_truepeak(void) {
       done += n;
     }
     double lo = 1e9, hi = 0.0, sample_peak = 0.0;
-    for (int i = 512; i < N; i++) { lo = fmin(lo, p[i]); hi = fmax(hi, p[i]); sample_peak = fmax(sample_peak, fabsf(x[i])); }
+    for (int i = 512; i < N; i++) {
+      const double v = p[i], s = fabsf(x[i]);
+      if (!(v >= lo)) lo = v;
+      if (!(v <= hi)) hi = v;
+      if (s > sample_peak) sample_peak = s;
+    }
     ok(fabs(hi - a) < a * 0.0023, "the inter-sample peak reads the tone's level within 0.02 dB", hi, a);
     ok(fabs(hi / sample_peak - M_SQRT2) < M_SQRT2 * 0.0023, "the true peak reads the closed-form overshoot, sqrt 2, above the sample peak", hi / sample_peak, M_SQRT2);
     ok(fabs(lo - sample_peak) < sample_peak * 1e-6, "a frame whose interval holds no crest reads the sample peak", lo, sample_peak);
