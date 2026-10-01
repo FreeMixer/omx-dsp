@@ -27,8 +27,8 @@
  * (OMX_DELAY_TIME_MS_MAX, FX_DELAY_TIME_RANGE.max — F7): this ring's ceiling and the TS travel
  * the row offers are the same declared fact, not two numbers a test has to hold equal. */
 #define OMX_FXDELAY_MAX_MS ((int)OMX_DELAY_TIME_MS_MAX)
-/** Highest graph rate the ring is sized for, so MAX_MS is reachable at 44.1/48/96/192 kHz. */
-#define OMX_FXDELAY_MAX_RATE 192000
+/** Highest graph rate the ring is sized for: the declared rate roof (RT_HARD_TARGET_RATE), generated. */
+#define OMX_FXDELAY_MAX_RATE OMX_RT_HARD_TARGET_RATE
 /** Per-leg ring capacity, samples: MAX_MS at MAX_RATE, +1 so the full max delay is usable. */
 #define OMX_FXDELAY_CAP (((OMX_FXDELAY_MAX_RATE / 1000) * OMX_FXDELAY_MAX_MS) + 1)
 
@@ -69,10 +69,11 @@ static inline float omx_bpm_division_ms(float bpm, float division_beats) {
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The rate the `tone` knob is quoted at — the rate this desk runs (R-058). At 96 kHz the
- * exponent below is exactly 1, no `powf` is taken, and the repeats are bit-for-bit what they
- * always were; any other reference would retune the desk on the day the law landed. */
-#define OMX_FXDELAY_TONE_REFERENCE_RATE 96000.0f
+/** The rate the `tone` knob is quoted at — the rate this desk runs (R-058), generated from core's
+ * DSP_KNOB_REFERENCE_RATE. At that rate the exponent below is exactly 1, no `powf` is taken, and
+ * the repeats are bit-for-bit what they always were; any other reference would retune the desk on
+ * the day the law landed. */
+#define OMX_FXDELAY_TONE_REFERENCE_RATE ((float)OMX_DSP_KNOB_REFERENCE_RATE)
 
 /*
  * THE TONE KNOB'S POLE HOLDS ITS CORNER ACROSS RATES (R-058). `tone` is a UNIT-RANGE knob raised

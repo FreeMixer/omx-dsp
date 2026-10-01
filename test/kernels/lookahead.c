@@ -7,7 +7,7 @@ static void arm_lookahead(void) {
   g_arm = "lookahead";
   enum { LEN = 4096, N = 3000, CAP = 1024 };
   static float in[LEN];
-  static float x[N], ring[CAP], val[CAP];
+  static float x[N], ring[CAP], val[CAP], cursor_ring[CAP];
   static uint32_t when[CAP];
   uint32_t seed = 0x9e3779b9u;
   for (uint32_t i = 0; i < LEN; i++) {
@@ -18,10 +18,11 @@ static void arm_lookahead(void) {
   for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
     const float sr = OMX_DECLARED_RATES[ri];
     const uint32_t cap = (uint32_t)(0.0005f * sr) + 1u;
-    float cursor_ring[97] = {0};
+    ok(cap <= CAP, "the cursor ring of 0.5 ms fits the arm's buffer at every declared rate", cap, CAP);
+    if (cap > CAP) continue;
     int exact = 1;
     for (uint32_t d = 0; d < cap; d++) {
-      memset(cursor_ring, 0, sizeof cursor_ring);
+      memset(cursor_ring, 0, cap * sizeof cursor_ring[0]);
       uint32_t pos = 0;
       for (uint32_t n = 0; n < LEN; n++) {
         cursor_ring[pos] = in[n];

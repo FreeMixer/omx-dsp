@@ -28,7 +28,7 @@ static void arm_relocation(void) {
     struct omx_lfo *a = state_block(omx_lfo_state_size(), omx_lfo_state_align());
     struct omx_lfo *b = state_block(omx_lfo_state_size(), omx_lfo_state_align());
     ok(a != 0 && b != 0, "two aligned blocks for the LFO", 0.0, 0.0);
-    a->phase = 0.0f; a->inc = omx_lfo_inc(3.0f, 48000.0f);
+    *a = (struct omx_lfo){0.0f, omx_lfo_inc(3.0f, 48000.0f), 0.0f}; /* carry zero at init: aligned_alloc does not clear */
     for (int i = 0; i < HALF; i++) { out[i] = omx_lfo_at(a, 0.25f); omx_lfo_advance(a); }
     memcpy(b, a, omx_lfo_state_size());
     memset(a, 0xAA, omx_lfo_state_size());
