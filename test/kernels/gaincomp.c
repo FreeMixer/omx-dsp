@@ -20,11 +20,13 @@ static double gaincomp_closed(int mode, double t, double r, double k, double ran
 static void arm_gaincomp(void) {
   g_arm = "gaincomp";
   static const struct omx_gaincomp_params cases[] = {
-      {OMX_DYN_ABOVE, -20.0f, 4.0f, 6.0f, 0.0f, 1.0f},
-      {OMX_DYN_ABOVE, -12.0f, 20.0f, 0.0f, 0.0f, 2.0f},
-      {OMX_DYN_ABOVE, -30.0f, 1.0f, 12.0f, 0.0f, 1.0f},
-      {OMX_DYN_BELOW, -40.0f, 16.0f, 6.0f, -60.0f, 1.0f},
-      {OMX_DYN_BELOW, -50.0f, 100.0f, 0.0f, -90.0f, 1.0f},
+      /* the declared defaults, the travel's corners (hardest ratio at the hardest knee, the
+       * softest ratio), and interior points — every edge read off the declaration */
+      {OMX_DYN_ABOVE, -20.0f, OMX_COMP_RATIO_DEFAULT, OMX_COMP_KNEE_DB_DEFAULT, 0.0f, 1.0f},
+      {OMX_DYN_ABOVE, -12.0f, OMX_COMP_RATIO_MAX, OMX_COMP_KNEE_DB_MIN, 0.0f, 2.0f},
+      {OMX_DYN_ABOVE, -30.0f, OMX_COMP_RATIO_MIN, 12.0f, 0.0f, 1.0f},
+      {OMX_DYN_BELOW, OMX_GATE_THRESHOLD_DB_DEFAULT, OMX_GATE_RATIO_DEFAULT, 6.0f, -60.0f, 1.0f},
+      {OMX_DYN_BELOW, -50.0f, OMX_GATE_RATIO_MAX, OMX_COMP_KNEE_DB_MIN, OMX_GATE_RANGE_DB_MIN, 1.0f},
       {OMX_DYN_BELOW, -35.0f, 2.0f, 10.0f, -20.0f, 1.5f},
   };
   for (size_t c = 0; c < sizeof cases / sizeof cases[0]; c++) {
@@ -49,7 +51,8 @@ static void arm_gaincomp(void) {
       }
     }
   }
-  const struct omx_gaincomp_params unity = {OMX_DYN_ABOVE, 0.0f, 4.0f, 0.0f, 0.0f, 1.0f};
+  const struct omx_gaincomp_params unity = {OMX_DYN_ABOVE, OMX_COMP_THRESHOLD_DB_MAX, OMX_COMP_RATIO_DEFAULT,
+                                           OMX_COMP_KNEE_DB_MIN, 0.0f, 1.0f};
   ok(omx_gaincomp_gain(&unity, 0.5f) == 1.0f, "below the threshold the comp is unity bit for bit", omx_gaincomp_gain(&unity, 0.5f), 1.0);
   expect_clean();
 }

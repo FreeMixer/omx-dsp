@@ -53,7 +53,7 @@ static void arm_biquad(void) {
      * cap, odd and even live counts, one and two legs, and block lengths 1, 7, 64 and 513. */
     static float cf[OMX_EQ_MAX_BANDS][5];
     for (int b = 0; b < OMX_EQ_MAX_BANDS; b++)
-      omx_eq_design_f((enum omx_eq_kind)(b % 6), 40.0 * pow(400.0, b / 23.0), 0.5 + 0.1 * b,
+      omx_eq_design_f((enum omx_eq_kind)(b % 6), 40.0 * pow(400.0, b / (double)(OMX_EQ_MAX_BANDS - 1)), 0.5 + 0.1 * b,
                       (b & 1) ? 6.0 : -9.0, 96000.0, cf[b]);
     static const uint32_t ns[4] = {1u, 7u, 64u, 513u};
     int bad = 0, cases = 0;
@@ -82,9 +82,11 @@ static void arm_biquad(void) {
                 (legs == 2 && (memcmp(r0, r1, n * sizeof(float)) || memcmp(sr0, sr1, sizeof sr0))))
               bad++;
           }
-    ok(bad == 0 && cases == 25 * 4 * 4 * 2,
+    ok(bad == 0 && cases == (OMX_EQ_MAX_BANDS + 1) * 4 * 4 * 2,
        "the fused two-leg cascade is the band-outer omx_biquad loop, bit for bit (output and state)", bad, 0.0);
   }
-  ok(OMX_EQ_MAX_BANDS == 24, "the cascade cap is the declared joint budget", OMX_EQ_MAX_BANDS, 24.0);
+  ok(OMX_OPERATOR_EQ_BANDS_RESERVE + OMX_FBS_DEFAULT_MAX_AUTO_BANDS + OMX_HRP_DEFAULT_MAX_AUTO_BANDS <= OMX_EQ_MAX_BANDS,
+     "the cascade cap holds the declared joint budget (operator reserve + FBS + HRP)",
+     OMX_OPERATOR_EQ_BANDS_RESERVE + OMX_FBS_DEFAULT_MAX_AUTO_BANDS + OMX_HRP_DEFAULT_MAX_AUTO_BANDS, OMX_EQ_MAX_BANDS);
   expect_clean();
 }
