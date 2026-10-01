@@ -28,8 +28,11 @@ static float schmitt_at_threshold(float *q, int *hi, float v, float h) {
 
 static void arm_divider(void) {
   g_arm = "divider";
-  enum { MAXS = 192000 * 3 };
-  static float x[MAXS], y[MAXS];
+  /* three seconds at the top declared rate: the longest arm below runs 2 s + half a period */
+  const uint32_t maxs = (uint32_t)(3.0f * declared_rate_max());
+  float *const x = malloc(maxs * sizeof *x), *const y = malloc(maxs * sizeof *y);
+  ok(x != NULL && y != NULL, "the divider buffers hold three seconds at the top declared rate", maxs, maxs);
+  if (!x || !y) { free(x); free(y); return; }
   static const double tones[] = {41.2, 110.0, 440.0};
   const double a = 0.5;
   double worst_line = 0.0, worst_f = 0.0;
@@ -123,5 +126,6 @@ static void arm_divider(void) {
          20.0 * log10(worst_f + 1e-30));
   ok(omx_divider_state_size() == sizeof(struct omx_divider) && omx_divider_state_align() == _Alignof(struct omx_divider),
      "the state layout is exported", (double)omx_divider_state_size(), sizeof(struct omx_divider));
+  free(x); free(y);
   expect_clean();
 }

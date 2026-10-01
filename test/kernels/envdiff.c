@@ -5,8 +5,44 @@
 
 static double cascade_step(uint32_t n, double q);
 
-/* The transient spec §2 peak contrasts, dB, ΔS then ΔA: the same at every rate (L9). */
-static const double ENVDIFF_PEAK_DB[2] = {19.753, 19.784};
+/* The continuous-time step response of OMX_DYN_ENV_STAGES one-poles in series, each with a time
+ * constant of tau_ms / N (the per-stage pole exp(-N/(tau·sr)) the discrete closed form runs, at an
+ * infinite rate): 1 − e^{−u} Σ_{k<N} u^k/k!, u = N·t/tau. */
+static double cascade_step_ct(double t_ms, double tau_ms) {
+  const double u = (double)OMX_DYN_ENV_STAGES * t_ms / tau_ms;
+  double term = 1.0, sum = 0.0;
+  for (int k = 0; k < OMX_DYN_ENV_STAGES; k++) {
+    if (k > 0) term *= u / (double)k;
+    sum += term;
+  }
+  return 1.0 - exp(-u) * sum;
+}
+
+/* The transient spec §2 table's peak contrast, dB, DERIVED from the declared time defaults: the
+ * 0.1 -> 1.0 step (rise, ΔA: FAST_ATTACK against the attackTime default) or 1.0 -> 0.1 (ΔS:
+ * FAST_RELEASE against the sustainTime default) through the continuous cascade — rate-free, so
+ * each rate's discrete closed form is held to it (L9). A grid, then a golden-section refinement. */
+static double envdiff_peak_ct(int rise) {
+  const double tf = rise ? OMX_TRANSIENT_FAST_ATTACK_MS : OMX_TRANSIENT_FAST_RELEASE_MS;
+  const double ts = rise ? OMX_TRANSIENT_ATTACK_TIME_MS_DEFAULT : OMX_TRANSIENT_SUSTAIN_TIME_MS_DEFAULT;
+  const double a = rise ? 0.1 : 1.0, b = rise ? 1.0 : 0.1;
+#define ENVDIFF_CT_DB(t) (rise ? 20.0 * log10((a + (b - a) * cascade_step_ct((t), tf)) / (a + (b - a) * cascade_step_ct((t), ts))) \
+                               : 20.0 * log10((a + (b - a) * cascade_step_ct((t), ts)) / (a + (b - a) * cascade_step_ct((t), tf))))
+  const int grid = 100000;
+  const double span = 10.0 * ts, dt = span / grid;
+  int best = 1;
+  for (int i = 1; i < grid; i++)
+    if (ENVDIFF_CT_DB(i * dt) > ENVDIFF_CT_DB(best * dt)) best = i;
+  double lo = (best - 1) * dt, hi = (best + 1) * dt;
+  const double g = 0.5 * (sqrt(5.0) - 1.0);
+  for (int it = 0; it < 200; it++) {
+    const double m1 = hi - g * (hi - lo), m2 = lo + g * (hi - lo);
+    if (ENVDIFF_CT_DB(m1) < ENVDIFF_CT_DB(m2)) lo = m1; else hi = m2;
+  }
+  const double peak = ENVDIFF_CT_DB(0.5 * (lo + hi));
+#undef ENVDIFF_CT_DB
+  return peak;
+}
 
 struct envdiff_run { double worst, bound, peak_w, peak_c, q, slope_from, slope_to; uint32_t at_c, from_w, from_c, to_w, to_c; };
 
@@ -49,6 +85,11 @@ static void arm_envdiff(void) {
   g_arm = "envdiff";
   uint32_t tabled = 0u;
   double worst_ratio = 0.0;
+  const double peak_ct[2] = {envdiff_peak_ct(0), envdiff_peak_ct(1)};
+  const uint32_t ref_len = (uint32_t)(1.0f * declared_rate_max());
+  float *const ref_a = malloc(ref_len * sizeof *ref_a), *const ref_s = malloc(ref_len * sizeof *ref_s);
+  ok(ref_a != NULL && ref_s != NULL, "the L3 reference buffers hold one second at the top declared rate", ref_len, ref_len);
+  if (!ref_a || !ref_s) { free(ref_a); free(ref_s); return; }
   for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
     const float sr = OMX_DECLARED_RATES[ri];
     for (int rise = 1; rise >= 0; rise--) {
@@ -59,7 +100,7 @@ static void arm_envdiff(void) {
       const double tol_from = 1.0 + r.bound / r.slope_from, tol_to = 1.0 + r.bound / r.slope_to;
       ok(fabs((double)r.from_w - r.from_c) <= tol_from, "the ≥ REF window opens within 1 + bound/slope samples of the closed form", fabs((double)r.from_w - r.from_c), tol_from);
       ok(fabs((double)r.to_w - r.to_c) <= tol_to, "the ≥ REF window closes within 1 + bound/slope samples of the closed form", fabs((double)r.to_w - r.to_c), tol_to);
-      ok(fabs(r.peak_c - ENVDIFF_PEAK_DB[rise]) <= 0.001, "the closed-form peak is the spec §2 table's, at every rate", r.peak_c, ENVDIFF_PEAK_DB[rise]);
+      ok(fabs(r.peak_c - peak_ct[rise]) <= 0.001, "the closed-form peak is the spec §2 table's, at every rate", r.peak_c, peak_ct[rise]);
       tabled++;
     }
     /* L2 and L3 over gated noise: both contrasts non-negative at every sample; identical at every
@@ -76,7 +117,6 @@ static void arm_envdiff(void) {
     omx_env_stage_poles(&re, 1u, &pr.slow_attack, &pr.slow_release);
     const double bound = 20.0 * log10(1.0 + OMX_DYN_ENV_STAGES * 3.0 * ldexp(1.0, -24) / (1.0 - pr.slow_release)) + 2e-4;
     const uint32_t len = (uint32_t)(1.0f * sr), gate = (uint32_t)(sr / 8.0f);
-    static float ref_a[192000], ref_s[192000];
     uint32_t negative = 0u, pow2_diff = 0u;
     double worst_level = 0.0;
     for (int ki = 0; ki < 7; ki++) {
@@ -111,5 +151,6 @@ static void arm_envdiff(void) {
   }
   ok(tabled == 2u * OMX_DECLARED_RATE_COUNT, "every declared rate was checked against the §2 peaks, both steps", tabled, 2.0 * OMX_DECLARED_RATE_COUNT);
   printf("envdiff: worst step error %.3g of its bound, %u declared rates\n", worst_ratio, OMX_DECLARED_RATE_COUNT);
+  free(ref_a); free(ref_s);
   expect_clean();
 }
