@@ -82,7 +82,8 @@ jobs:
           rpm=$(ls rpms/omx-dsp-devel-[0-9]*.${{ matrix.arch }}.rpm)
           rpm -qp --qf '[%{FILEMODES:perms} %{FILENAMES}\n]' "$rpm" | grep -v '^d' | cut -d' ' -f2 \
             | sed 's,/usr/lib64/,/usr/lib*/,' | grep -v '^/usr/include/omxdsp/' | sort > files.txt
-          printf '%s\n' '/usr/lib*/libomxdsp.a' '/usr/lib*/pkgconfig/omxdsp.pc' \
+          printf '%s\n' '/usr/lib*/libomxdsp.a' '/usr/lib*/libomxdsp-contracts.a' '/usr/lib*/libomxdsp-tsan.a' \
+            '/usr/lib*/pkgconfig/omxdsp.pc' '/usr/lib*/pkgconfig/omxdsp-contracts.pc' '/usr/lib*/pkgconfig/omxdsp-tsan.pc' \
             /usr/share/doc/omx-dsp-devel/BUILDING.md /usr/share/doc/omx-dsp-devel/README.md \
             /usr/share/licenses/omx-dsp-devel/LICENSE | sort > expected.txt
           diff -u expected.txt files.txt
@@ -97,6 +98,8 @@ jobs:
           pkg-config --cflags omxdsp | grep -q -- '-ffp-contract=off'
           gcc $(pkg-config --cflags omxdsp) -Itest/fx -O2 -o /tmp/golden test/fx/delay_golden.test.c $(pkg-config --libs omxdsp)
           /tmp/golden test/golden/delay.sha256
+          gcc $(pkg-config --cflags omxdsp-contracts) -O2 -o /tmp/flavour test/omxdsp_flavour.c $(pkg-config --libs omxdsp-contracts)
+          /tmp/flavour
 
       - uses: actions/upload-artifact@v4
         with:
@@ -135,11 +138,14 @@ jobs:
         run: |
           set -euo pipefail
           apt-get install -y --no-install-recommends ./debs/libomxdsp-dev_*.deb
-          dpkg -L libomxdsp-dev | grep -q '/libomxdsp\.a$'
+          for a in libomxdsp libomxdsp-contracts libomxdsp-tsan; do dpkg -L libomxdsp-dev | grep -q "/$a\.a\$"; done
+          for p in omxdsp omxdsp-contracts omxdsp-tsan; do dpkg -L libomxdsp-dev | grep -q "/pkgconfig/$p\.pc\$"; done
           ! dpkg -L libomxdsp-dev | grep -E '\.so(\.|$)'
           test "$(pkg-config --modversion omxdsp)" = "$(make -s version)"
           gcc $(pkg-config --cflags omxdsp) -Itest/fx -O2 -o /tmp/golden test/fx/delay_golden.test.c $(pkg-config --libs omxdsp)
           /tmp/golden test/golden/delay.sha256
+          gcc $(pkg-config --cflags omxdsp-contracts) -O2 -o /tmp/flavour test/omxdsp_flavour.c $(pkg-config --libs omxdsp-contracts)
+          /tmp/flavour
 
   # The generated headers against the OpenMixer commit pinned in .github/pins.txt. OpenMixer is
   # private: the organisation secret OPENMIXER_READ_TOKEN reads it.
