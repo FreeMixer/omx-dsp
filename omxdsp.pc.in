@@ -4,8 +4,8 @@ prefix=@PREFIX@
 libdir=@LIBDIR@
 includedir=@INCLUDEDIR@
 
-Name: omxdsp
-Description: DSP primitives and effect kernels of OpenMixer, linked statically
+Name: @NAME@
+Description: DSP primitives and effect kernels of OpenMixer, linked statically (@FLAVOUR@)
 Version: @VERSION@
-Cflags: -I${includedir} @FPFLAGS@
-Libs: -L${libdir} -lomxdsp -lm
+Cflags: -I${includedir} @FPFLAGS@@CFLAGS@
+Libs: -L${libdir} -l@NAME@@LIBS@ -lm
