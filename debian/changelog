@@ -1,3 +1,10 @@
+omx-dsp (0.1.2) unstable; urgency=medium
+
+  * The library in three flavours: libomxdsp-contracts.a and libomxdsp-tsan.a
+    beside libomxdsp.a, each with its pkg-config file.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 02 Oct 2026 00:16:11 +0200
+
 omx-dsp (0.1.1) unstable; urgency=medium
 
   * omx_param.h: the parameter clamp, one defined answer for NaN and +-Inf

@@ -44,6 +44,20 @@ cc -shared -o my_plugin.so my_plugin.o $(pkg-config --libs omxdsp)
 #include <omxdsp/fx/omx_delay.h>
 ```
 
+The library comes in three flavours, each with its own archive and pkg-config file. A program
+builds against the one that matches its own build, so that its contract and TSan builds also
+check the library's compiled code:
+
+| pkg-config | archive | for |
+|---|---|---|
+| `omxdsp` | `libomxdsp.a` | release builds; contracts compiled out |
+| `omxdsp-contracts` | `libomxdsp-contracts.a` | test builds with `-DOMX_CONTRACTS` |
+| `omxdsp-tsan` | `libomxdsp-tsan.a` | test builds under ThreadSanitizer, contracts on |
+
+The contracts and TSan flavours put `-DOMX_CONTRACTS` (and `-fsanitize=thread`) in the cflags.
+The program defines the violation ledger in one of its files with `#define OMX_CONTRACT_STORAGE`
+before including the headers.
+
 Building from source and running the tests: [BUILDING.md](BUILDING.md).
 
 ## Licence
