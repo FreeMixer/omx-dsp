@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+# What this repository is checked against, one line per source: name, git URL, commit.
+# openmixer: the commit whose declaration rendered include/omxdsp/omx_contract_limits.h and
+# include/omxdsp/params/ (tools/render-check.sh).
+openmixer https://github.com/FreeMixer/openmixer cb9d533ca5cf3b9b4a11052dcac6a15bbc44c8c7

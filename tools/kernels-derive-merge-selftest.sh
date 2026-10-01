@@ -13,7 +13,7 @@
 set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
-PKG=packages/omx-dsp
+PKG=.
 
 BASE_SHA="$(git rev-parse HEAD)"
 BASE_REF="$(git symbolic-ref -q --short HEAD || echo "$BASE_SHA")"
