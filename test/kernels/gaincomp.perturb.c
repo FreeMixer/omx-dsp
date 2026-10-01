@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 static int perturb_gaincomp(int failed) {
   omx_contract_reset();
   const struct omx_gaincomp_params gc = {OMX_DYN_ABOVE, -20.0f, 1.25f, 0.0f, 0.0f, 1.0f};
