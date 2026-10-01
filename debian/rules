@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+include /usr/share/dpkg/architecture.mk
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	dh_auto_build -- lib
+
+override_dh_auto_install:
+	dh_auto_install -- PREFIX=/usr LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH) INCLUDEDIR=/usr/include
+
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	$(MAKE) test
+endif

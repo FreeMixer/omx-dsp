@@ -1,0 +1,23 @@
+Source: omx-dsp
+Section: libdevel
+Priority: optional
+Maintainer: Pau Aliagas <linuxnow@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/FreeMixer/omx-dsp
+Rules-Requires-Root: no
+
+Package: libomxdsp-dev
+Architecture: any
+Multi-Arch: same
+Depends: ${misc:Depends}
+Description: DSP primitives and effect kernels of OpenMixer, for static linking
+ libomxdsp holds the DSP building blocks of the OpenMixer console (biquads,
+ one-poles, envelopes, gain computers, delay rings, the oversampler) and the
+ effect kernels built from them, as plain C with no allocation, lock or
+ system call on the audio path. The OpenMixer engine and the omx plugins
+ compile and link the same kernels from it, so a plugin sounds like the
+ console.
+ .
+ This package holds the headers, libomxdsp.a and omxdsp.pc. Programs link
+ the library statically; no shared library exists.
