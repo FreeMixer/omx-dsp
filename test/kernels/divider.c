@@ -112,9 +112,10 @@ static void arm_divider(void) {
       double din = 0.0, dout = 0.0, dsch = 0.0, prev_s = 0.0;
       for (uint32_t n = 1; n < total; n++) {
         const double s = schmitt_at_threshold(&q, &hi, x[n], 0.25f);
-        din = fmax(din, fabs((double)x[n] - x[n - 1]));
-        dout = fmax(dout, fabs((double)y[n] - y[n - 1]));
-        dsch = fmax(dsch, fabs(s - prev_s));
+        const double si = fabs((double)x[n] - x[n - 1]), so = fabs((double)y[n] - y[n - 1]), ss = fabs(s - prev_s);
+        if (!(si <= din)) din = si;
+        if (!(so <= dout)) dout = so;
+        if (!(ss <= dsch)) dsch = ss;
         prev_s = s;
       }
       ok(dout <= din, "the divider's largest step is within the input's", dout, din);

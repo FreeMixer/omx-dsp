@@ -112,7 +112,10 @@ static void arm_xover(void) {
     omx_xover_process(hi1, b2, b3, N, &x2, &s2);
     omx_xover_allpass(ref, N, &x1, &r1);
     omx_xover_allpass(ref, N, &x2, &r2);
-    for (int i = 0; i < N; i++) worst_tree_time = fmax(worst_tree_time, fabs((double)b1[i] + b2[i] + b3[i] - ref[i]));
+    for (int i = 0; i < N; i++) {
+      const double e = fabs((double)b1[i] + b2[i] + b3[i] - ref[i]);
+      if (!(e <= worst_tree_time)) worst_tree_time = e;
+    }
   }
   ok(worst_sum < 1e-6, "|LP| + |HP| = 1 at ten frequencies, LR2 and LR4, every rate", worst_sum, 1e-6);
   ok(worst_fc < 1e-6, "each band is -6.02 dB at its corner", worst_fc, 1e-6);

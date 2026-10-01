@@ -18,6 +18,14 @@ Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carrie
 `-ffp-contract=off`: the kernels are inline, and without it an architecture with fused
 multiply-add would round differently from one without.
 
+## GCC 12.2 on arm64
+
+Debian bookworm's GCC 12.2 on arm64 (Raspberry Pi OS, Zynthian) crashes with an internal compiler
+error in `vect_transform_reduction` on a loop that keeps a `double` running maximum or minimum with
+`fmax`/`fmin` over values widened from `float`. Write such a reduction as a comparison instead,
+`if (!(e <= worst)) worst = e;`, which also carries a NaN into the result. CI builds the suite on
+bookworm arm64, so a new one shows up there.
+
 ## Generated headers
 
 `include/omxdsp/omx_contract_limits.h` and `include/omxdsp/params/*.h` are rendered from the

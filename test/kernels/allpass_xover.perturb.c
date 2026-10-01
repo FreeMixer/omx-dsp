@@ -34,8 +34,9 @@ static uint32_t allpass_xover_run(double *energy_err, double *partition_err) {
   omx_xover_allpass(ap, 512u, &c, &as);
   double worst = 0.0, peak = 0.0;
   for (int i = 0; i < 512; i++) {
-    worst = fmax(worst, fabs((double)lo[i] + hi[i] - ap[i]));
-    peak = fmax(peak, fabs(x[i]));
+    const double e = fabs((double)lo[i] + hi[i] - ap[i]), a = fabs(x[i]);
+    if (!(e <= worst)) worst = e;
+    if (!(a <= peak)) peak = a;
   }
   *partition_err = worst / fmax(1.0, peak);
   return recorded;
