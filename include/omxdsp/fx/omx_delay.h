@@ -163,9 +163,9 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   uint32_t dr = omx_fxdelay_clamp(p->d_r, cap);
   /* A non-finite feedback is no feedback at all — the flanger's rule (omx_flanger_clamp_fb): one
    * NaN written into the ring circulates until the insert is toggled
-   * (2026-09-25-native-fx-rt-review.md F5). The ceiling 0.99 < 1: repeats never grow unbounded.
-   * A non-finite mix is dry. */
-  float fb = omx_clamp_or(p->feedback, 0.0f, 0.99f, 0.0f);
+   * (2026-09-25-native-fx-rt-review.md F5). The travel is the declared FX_DELAY_FEEDBACK_RANGE,
+   * whose ceiling stays below 1: repeats never grow unbounded. A non-finite mix is dry. */
+  float fb = omx_clamp_or(p->feedback, OMX_FX_DELAY_FEEDBACK_RANGE_MIN, OMX_FX_DELAY_FEEDBACK_RANGE_MAX, 0.0f);
   float mix = omx_clamp_or(p->mix, 0.0f, 1.0f, 0.0f);
   float dry = 1.0f - mix;
   /* R-058: the tone knob is quoted at 96 kHz and raised to REF/sr HERE, once per block, so the
