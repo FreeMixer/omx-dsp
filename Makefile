@@ -154,18 +154,32 @@ $(BUILD)/fx_geq_math: test/fx/geq_math.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_H
 $(BUILD)/fx_geq_golden: test/fx/geq_golden.test.c $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
 
+$(BUILD)/fx_pitch: test/fx/pitch.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
+	$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
+
+$(BUILD)/fx_pitch_math: test/fx/pitch_math.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
+	$(CC) $(TESTFLAGS) -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
+
+$(BUILD)/fx_pitch_golden: test/fx/pitch_golden.test.c $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
+
 test-fx: $(BUILD)/fx_delay $(BUILD)/fx_delay_math $(BUILD)/fx_delay_golden \
-         $(BUILD)/fx_geq $(BUILD)/fx_geq_math $(BUILD)/fx_geq_golden
+         $(BUILD)/fx_geq $(BUILD)/fx_geq_math $(BUILD)/fx_geq_golden \
+         $(BUILD)/fx_pitch $(BUILD)/fx_pitch_math $(BUILD)/fx_pitch_golden
 	./$(BUILD)/fx_delay
 	./$(BUILD)/fx_delay_math
 	./$(BUILD)/fx_delay_golden test/golden/delay.sha256
 	./$(BUILD)/fx_geq
 	./$(BUILD)/fx_geq_math
 	./$(BUILD)/fx_geq_golden test/golden/geq.sha256
+	./$(BUILD)/fx_pitch
+	./$(BUILD)/fx_pitch_math
+	./$(BUILD)/fx_pitch_golden test/golden/pitch.sha256
 
-golden-write: $(BUILD)/fx_delay_golden $(BUILD)/fx_geq_golden
+golden-write: $(BUILD)/fx_delay_golden $(BUILD)/fx_geq_golden $(BUILD)/fx_pitch_golden
 	./$(BUILD)/fx_delay_golden --write > test/golden/delay.sha256
 	./$(BUILD)/fx_geq_golden --write > test/golden/geq.sha256
+	./$(BUILD)/fx_pitch_golden --write > test/golden/pitch.sha256
 
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked
