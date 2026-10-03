@@ -9,6 +9,7 @@
 #ifndef OMXDSP_TEST_FX_GOLDEN_H
 #define OMXDSP_TEST_FX_GOLDEN_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,7 +37,16 @@ static inline void omx_fx_golden_stimulus(int frame, uint32_t *lcg, float *l, fl
   *r = (frame == 0) ? 0.0f : (frame < OMX_FX_GOLDEN_FRAMES / 2 ? -noise * 0.25f : 0.0f);
 }
 
-static int omx_fx_golden_main(int argc, char **argv, const char *name, void (*render)(float sr, float *out)) {
+/** A render whose output length depends on the rate: it fills `out`, sets `*bytes` to the bytes the
+ * digest covers and returns how many of its own checks failed (counted with the moved digests). */
+typedef int (*omx_fx_golden_render_sized_fn)(float sr, float *out, size_t *bytes);
+
+/** The driver: `--write` prints `<rate> <sha256>` per declared rate, otherwise compares with the
+ * digest file (argv[1], default test/golden/<name>.sha256). `out` is the caller's buffer, large
+ * enough for the longest render. Exit 0 green, 1 a digest moved or is missing or a render check
+ * failed, 2 the measurement could not be taken. */
+static inline int omx_fx_golden_main_sized(int argc, char **argv, const char *name,
+                                           omx_fx_golden_render_sized_fn render, float *out) {
   omx_fx_require_rate_floor();
   char probe[65];
   omx_sha256_hex("abc", 3, probe);
@@ -48,15 +58,14 @@ static int omx_fx_golden_main(int argc, char **argv, const char *name, void (*re
   char fallback[256];
   snprintf(fallback, sizeof fallback, "test/golden/%s.sha256", name);
   const char *path = argc > 1 && !write ? argv[1] : fallback;
-  static float out[2 * OMX_FX_GOLDEN_FRAMES];
   int fail = 0, checked = 0;
   FILE *f = write ? NULL : fopen(path, "r");
   if (!write && !f) { fprintf(stderr, "fx/%s_golden: cannot read %s\n", name, path); return 2; }
   for (int k = 0; k < (int)OMX_DECLARED_RATE_COUNT; k++) {
     char hex[65];
-    memset(out, 0, sizeof out);
-    render(OMX_DECLARED_RATES[k], out);
-    omx_sha256_hex(out, sizeof out, hex);
+    size_t bytes = 0;
+    fail += render(OMX_DECLARED_RATES[k], out, &bytes);
+    omx_sha256_hex(out, bytes, hex);
     if (write) { printf("%.0f %s\n", (double)OMX_DECLARED_RATES[k], hex); continue; }
     double rate = 0.0;
     char want[65] = {0};
@@ -74,6 +83,23 @@ static int omx_fx_golden_main(int argc, char **argv, const char *name, void (*re
   if (f) fclose(f);
   if (!write) printf("fx/%s_golden: %d rates, %d moved\n", name, checked, fail);
   return fail == 0 ? 0 : 1;
+}
+
+/* The fixed-length render omx_fx_golden_main adapts to the sized driver; one program, one kernel. */
+static void (*omx_fx_golden_fixed_render)(float sr, float *out);
+
+static inline int omx_fx_golden_fixed(float sr, float *out, size_t *bytes) {
+  *bytes = 2u * OMX_FX_GOLDEN_FRAMES * sizeof(float);
+  memset(out, 0, *bytes);
+  omx_fx_golden_fixed_render(sr, out);
+  return 0;
+}
+
+/** The driver for a render of 2 * OMX_FX_GOLDEN_FRAMES interleaved floats at every rate. */
+static inline int omx_fx_golden_main(int argc, char **argv, const char *name, void (*render)(float sr, float *out)) {
+  static float out[2 * OMX_FX_GOLDEN_FRAMES];
+  omx_fx_golden_fixed_render = render;
+  return omx_fx_golden_main_sized(argc, argv, name, omx_fx_golden_fixed, out);
 }
 
 #endif
