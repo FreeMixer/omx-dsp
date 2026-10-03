@@ -141,7 +141,7 @@ lint: checks
 #                              kernel names contracts below
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient
+FX_KERNELS = delay geq pitch transient drive
 # Oracles that read the contract ledger themselves build with contracts and threads.
 FX_CONTRACT_ORACLES = geq pitch transient
 # A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
