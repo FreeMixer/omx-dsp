@@ -13,7 +13,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
-| `make golden-write` | rewrites `test/golden/delay.sha256`; only in a commit that bumps the minor version |
+| `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
 `-ffp-contract=off`: the kernels are inline, and without it an architecture with fused

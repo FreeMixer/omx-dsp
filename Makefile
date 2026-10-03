@@ -56,7 +56,7 @@ LIBS_ALL         = $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 PC_ALL           = $(BUILD)/omxdsp.pc $(BUILD)/omxdsp-contracts.pc $(BUILD)/omxdsp-tsan.pc
 KERNELS  = $(wildcard test/kernels/*.c)
 FX_HEADERS = $(wildcard include/omxdsp/fx/*.h include/omxdsp/params/*.h)
-FX_TESTS   = $(wildcard test/fx/*.c) $(wildcard test/fx/*.h)
+FX_TESTS   = $(wildcard test/fx/*.c) $(wildcard test/fx/*.h) $(wildcard test/fx/fixtures/*.h)
 
 PREFIX     ?= /usr/local
 LIBDIR     ?= $(PREFIX)/lib
@@ -142,7 +142,7 @@ lint: checks
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb
 # Oracles that read the contract ledger themselves build with contracts and threads.
 FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser
 # A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
