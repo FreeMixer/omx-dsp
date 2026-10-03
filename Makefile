@@ -129,6 +129,7 @@ perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
 	bash tools/doc-check.sh
+	bash tools/reduction-check.sh
 
 lint: checks
 

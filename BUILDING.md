@@ -42,8 +42,8 @@ against `libomxdsp-contracts.a` it must find the violation in its own ledger, an
 Debian bookworm's GCC 12.2 on arm64 (Raspberry Pi OS, Zynthian) crashes with an internal compiler
 error in `vect_transform_reduction` on a loop that keeps a `double` running maximum or minimum with
 `fmax`/`fmin` over values widened from `float`. Write such a reduction as a comparison instead,
-`if (!(e <= worst)) worst = e;`, which also carries a NaN into the result. CI builds the suite on
-bookworm arm64, so a new one shows up there.
+`if (!(e <= worst)) worst = e;`, which also carries a NaN into the result. `make lint` refuses the
+shape on any host (`tools/reduction-check.sh`), and CI builds the suite on bookworm arm64.
 
 ## Generated headers
 
