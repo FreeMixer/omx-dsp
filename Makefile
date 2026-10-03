@@ -139,11 +139,12 @@ lint: checks
 # One list, one set of rules: a kernel lane adds its name to FX_KERNELS and its three sources,
 #   test/fx/<k>.test.c         the oracle, release flags against the plain archive unless the
 #                              kernel names contracts below
-#   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read
+#   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
+#                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive
+FX_KERNELS = delay geq pitch transient drive chorus
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch transient
+FX_CONTRACT_ORACLES = geq pitch transient chorus
 # A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
 FX_PERTURB = $(wildcard test/fx/*-perturb.sh)
 FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
@@ -157,12 +158,12 @@ $(BUILD)/fx_%_golden: test/fx/%_golden.test.c $(FX_DEPS)
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm,$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm)
 
-FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(BUILD)/fx_$(k)_math $(BUILD)/fx_$(k)_golden)
+FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k)_math.test.c),$(BUILD)/fx_$(k)_math) $(BUILD)/fx_$(k)_golden)
 
 test-fx: $(FX_BINS)
 	@set -e; for k in $(FX_KERNELS); do \
 	  echo "./$(BUILD)/fx_$$k"; ./$(BUILD)/fx_$$k; \
-	  echo "./$(BUILD)/fx_$${k}_math"; ./$(BUILD)/fx_$${k}_math; \
+	  if [ -f test/fx/$${k}_math.test.c ]; then echo "./$(BUILD)/fx_$${k}_math"; ./$(BUILD)/fx_$${k}_math; fi; \
 	  echo "./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256"; ./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256; \
 	done
 	@set -e; for p in $(FX_PERTURB); do \
