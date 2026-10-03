@@ -13,7 +13,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
-| `make golden-write` | rewrites `test/golden/delay.sha256`; only in a commit that bumps the minor version |
+| `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
 `-ffp-contract=off`: the kernels are inline, and without it an architecture with fused
@@ -42,8 +42,18 @@ against `libomxdsp-contracts.a` it must find the violation in its own ledger, an
 Debian bookworm's GCC 12.2 on arm64 (Raspberry Pi OS, Zynthian) crashes with an internal compiler
 error in `vect_transform_reduction` on a loop that keeps a `double` running maximum or minimum with
 `fmax`/`fmin` over values widened from `float`. Write such a reduction as a comparison instead,
-`if (!(e <= worst)) worst = e;`, which also carries a NaN into the result. CI builds the suite on
-bookworm arm64, so a new one shows up there.
+`if (!(e <= worst)) worst = e;`, which also carries a NaN into the result. `make lint` refuses the
+shape on any host (`tools/reduction-check.sh`), and CI builds the suite on bookworm arm64.
+
+## Golden digests and libm
+
+A golden digest covers the kernel's output bit for bit, so it also covers every libm call the
+kernel makes per sample. The limiter's request is one `log10f` and one `powf` per sample above the
+ceiling; glibc 2.43 links `log10f@GLIBC_2.43`, and on bookworm's glibc 2.36 the limiter's 48 kHz
+digest moves (`5fe47250…` against the golden `69a449ce…`) while the other five rates and every other
+kernel hold. The same binary, built by bookworm's GCC 12.2, reads 0 moved on glibc 2.43: the libm
+moved the digest, not the compiler. The limiter (FreeMixer/omx-dsp#13) stays out of the library
+until a ruling settles which libm a digest names, or that a kernel's audio path calls none.
 
 ## Generated headers
 
