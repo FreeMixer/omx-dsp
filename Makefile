@@ -56,7 +56,7 @@ LIBS_ALL         = $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 PC_ALL           = $(BUILD)/omxdsp.pc $(BUILD)/omxdsp-contracts.pc $(BUILD)/omxdsp-tsan.pc
 KERNELS  = $(wildcard test/kernels/*.c)
 FX_HEADERS = $(wildcard include/omxdsp/fx/*.h include/omxdsp/params/*.h)
-FX_TESTS   = $(wildcard test/fx/*.c) $(wildcard test/fx/*.h)
+FX_TESTS   = $(wildcard test/fx/*.c) $(wildcard test/fx/*.h) $(wildcard test/fx/fixtures/*.h)
 
 PREFIX     ?= /usr/local
 LIBDIR     ?= $(PREFIX)/lib
@@ -129,6 +129,7 @@ perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
 	bash tools/doc-check.sh
+	bash tools/reduction-check.sh
 
 lint: checks
 
@@ -136,50 +137,42 @@ lint: checks
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if
 # 44.1, 48, 96 or 192 kHz is missing; the golden digests hold the kernel's output bit for bit.
 
-$(BUILD)/fx_delay: test/fx/delay.test.c $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
+# One list, one set of rules: a kernel lane adds its name to FX_KERNELS and its three sources,
+#   test/fx/<k>.test.c         the oracle, release flags against the plain archive unless the
+#                              kernel names contracts below
+#   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
+#                              a kernel whose oracle reads the ledger itself may have none
+#   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb
+# Oracles that read the contract ledger themselves build with contracts and threads.
+FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser
+# A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
+FX_PERTURB = $(wildcard test/fx/*-perturb.sh)
+FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
 
-$(BUILD)/fx_delay_math: test/fx/delay_math.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(TESTFLAGS) -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
-
-$(BUILD)/fx_delay_golden: test/fx/delay_golden.test.c $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
-
-$(BUILD)/fx_geq: test/fx/geq.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
+$(BUILD)/fx_%_math: test/fx/%_math.test.c $(FX_DEPS)
 	$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
 
-$(BUILD)/fx_geq_math: test/fx/geq_math.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(TESTFLAGS) -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
-
-$(BUILD)/fx_geq_golden: test/fx/geq_golden.test.c $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
+$(BUILD)/fx_%_golden: test/fx/%_golden.test.c $(FX_DEPS)
 	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
 
-$(BUILD)/fx_pitch: test/fx/pitch.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
+$(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
+	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm,$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm)
 
-$(BUILD)/fx_pitch_math: test/fx/pitch_math.test.c $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(TESTFLAGS) -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
+FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k)_math.test.c),$(BUILD)/fx_$(k)_math) $(BUILD)/fx_$(k)_golden)
 
-$(BUILD)/fx_pitch_golden: test/fx/pitch_golden.test.c $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
-	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
+test-fx: $(FX_BINS)
+	@set -e; for k in $(FX_KERNELS); do \
+	  echo "./$(BUILD)/fx_$$k"; ./$(BUILD)/fx_$$k; \
+	  if [ -f test/fx/$${k}_math.test.c ]; then echo "./$(BUILD)/fx_$${k}_math"; ./$(BUILD)/fx_$${k}_math; fi; \
+	  echo "./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256"; ./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256; \
+	done
+	@set -e; for p in $(FX_PERTURB); do \
+	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
+	done
 
-test-fx: $(BUILD)/fx_delay $(BUILD)/fx_delay_math $(BUILD)/fx_delay_golden \
-         $(BUILD)/fx_geq $(BUILD)/fx_geq_math $(BUILD)/fx_geq_golden \
-         $(BUILD)/fx_pitch $(BUILD)/fx_pitch_math $(BUILD)/fx_pitch_golden
-	./$(BUILD)/fx_delay
-	./$(BUILD)/fx_delay_math
-	./$(BUILD)/fx_delay_golden test/golden/delay.sha256
-	./$(BUILD)/fx_geq
-	./$(BUILD)/fx_geq_math
-	./$(BUILD)/fx_geq_golden test/golden/geq.sha256
-	./$(BUILD)/fx_pitch
-	./$(BUILD)/fx_pitch_math
-	./$(BUILD)/fx_pitch_golden test/golden/pitch.sha256
-
-golden-write: $(BUILD)/fx_delay_golden $(BUILD)/fx_geq_golden $(BUILD)/fx_pitch_golden
-	./$(BUILD)/fx_delay_golden --write > test/golden/delay.sha256
-	./$(BUILD)/fx_geq_golden --write > test/golden/geq.sha256
-	./$(BUILD)/fx_pitch_golden --write > test/golden/pitch.sha256
+golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden)
+	@set -e; for k in $(FX_KERNELS); do ./$(BUILD)/fx_$${k}_golden --write > test/golden/$$k.sha256; done
 
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked

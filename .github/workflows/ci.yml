@@ -88,6 +88,7 @@ jobs:
             /usr/share/licenses/omx-dsp-devel/LICENSE | sort > expected.txt
           diff -u expected.txt files.txt
           rpm -qlp "$rpm" | grep -q '^/usr/include/omxdsp/fx/omx_delay.h$'
+          rpm -qlp "$rpm" | grep -q '^/usr/include/omxdsp/fx/omx_reverb.h$'
           ! rpm -qlp "$rpm" | grep -E '\.so(\.|$)'
 
       - name: A consumer builds against omx-dsp-devel
@@ -98,6 +99,8 @@ jobs:
           pkg-config --cflags omxdsp | grep -q -- '-ffp-contract=off'
           gcc $(pkg-config --cflags omxdsp) -Itest/fx -O2 -o /tmp/golden test/fx/delay_golden.test.c $(pkg-config --libs omxdsp)
           /tmp/golden test/golden/delay.sha256
+          gcc $(pkg-config --cflags omxdsp) -Itest/fx -O2 -o /tmp/golden-reverb test/fx/reverb_golden.test.c $(pkg-config --libs omxdsp)
+          /tmp/golden-reverb test/golden/reverb.sha256
           gcc $(pkg-config --cflags omxdsp-contracts) -O2 -o /tmp/flavour test/omxdsp_flavour.c $(pkg-config --libs omxdsp-contracts)
           /tmp/flavour
 
@@ -144,6 +147,8 @@ jobs:
           test "$(pkg-config --modversion omxdsp)" = "$(make -s version)"
           gcc $(pkg-config --cflags omxdsp) -Itest/fx -O2 -o /tmp/golden test/fx/delay_golden.test.c $(pkg-config --libs omxdsp)
           /tmp/golden test/golden/delay.sha256
+          gcc $(pkg-config --cflags omxdsp) -Itest/fx -O2 -o /tmp/golden-reverb test/fx/reverb_golden.test.c $(pkg-config --libs omxdsp)
+          /tmp/golden-reverb test/golden/reverb.sha256
           gcc $(pkg-config --cflags omxdsp-contracts) -O2 -o /tmp/flavour test/omxdsp_flavour.c $(pkg-config --libs omxdsp-contracts)
           /tmp/flavour
 
