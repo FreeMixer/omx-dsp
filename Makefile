@@ -141,9 +141,11 @@ lint: checks
 #                              kernel names contracts below
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch
+FX_KERNELS = delay geq pitch transient
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch
+FX_CONTRACT_ORACLES = geq pitch transient
+# A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
+FX_PERTURB = $(wildcard test/fx/*-perturb.sh)
 FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
 
 $(BUILD)/fx_%_math: test/fx/%_math.test.c $(FX_DEPS)
@@ -162,6 +164,9 @@ test-fx: $(FX_BINS)
 	  echo "./$(BUILD)/fx_$$k"; ./$(BUILD)/fx_$$k; \
 	  echo "./$(BUILD)/fx_$${k}_math"; ./$(BUILD)/fx_$${k}_math; \
 	  echo "./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256"; ./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256; \
+	done
+	@set -e; for p in $(FX_PERTURB); do \
+	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
 	done
 
 golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden)
