@@ -151,6 +151,25 @@ int main(void) {
   omx_divider_step(&dv, 0.1f, 0.25f);
   ok(omx_contract_log.count == 0u, "a legal divider step records no violation");
 
+  /* PRE on both legs: a non-finite leg records its own token, the finite pair records nothing. */
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "legs"
+  float gl[4] = {0.0f, 0.5f, -0.5f, 0.0f}, gr[4] = {0.0f, 0.25f, -0.25f, 0.0f};
+  omx_contract_reset();
+  OMX_PRE_LEGS_FINITE(gl, gr, 4u);
+  ok(omx_contract_log.count == 0u, "two finite legs record no violation");
+  gr[2] = strtof("nan", NULL);
+  OMX_PRE_LEGS_FINITE(gl, gr, 4u);
+  static const char *const legs_r[] = {"finite-in-r"};
+  expect_exactly(1u, "legs", "pre", legs_r);
+  gr[2] = 0.0f;
+  gl[1] = strtof("inf", NULL);
+  OMX_PRE_LEGS_FINITE(gl, gr, 4u);
+  static const char *const legs_l[] = {"finite-in-l"};
+  expect_exactly(1u, "legs", "pre", legs_l);
+  OMX_PRE_LEGS_FINITE(gl, (const float *)0, 4u);
+  expect_exactly(1u, "legs", "pre", legs_l);
+
   printf("omxdsp_negative: %d checks, %d failed; the three contract kinds each recorded their violation\n",
          g_checks, g_failed);
   return g_failed == 0 ? 0 : 1;

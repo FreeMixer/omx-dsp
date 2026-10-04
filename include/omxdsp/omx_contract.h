@@ -123,6 +123,13 @@ static inline void omx_contract_reset(void) {
 /** @brief An invariant of the function's state, true between blocks and inside one. */
 #define OMX_INVARIANT(cond, token) \
   omx_contract_note(!!(cond), OMX_CONTRACT_STAGE, (token), "invariant", 0u)
+/**
+ * @brief A stereo kernel's entry precondition on both legs: `finite-in-l`, then `finite-in-r`
+ *        (omx_block_finite(); a NULL leg promises nothing).
+ */
+#define OMX_PRE_LEGS_FINITE(l, r, n)                              \
+  ((void)OMX_PRE(omx_block_finite((l), (n)), "finite-in-l"),      \
+   (void)OMX_PRE(omx_block_finite((r), (n)), "finite-in-r"))
 /** @brief OMX_PRE naming the frame the law broke at. */
 #define OMX_PRE_AT(cond, token, frame) \
   omx_contract_note(!!(cond), OMX_CONTRACT_STAGE, (token), "pre", (uint32_t)(frame))
@@ -138,6 +145,7 @@ static inline void omx_contract_reset(void) {
 #define OMX_PRE(cond, token) ((void)0)
 #define OMX_POST(cond, token) ((void)0)
 #define OMX_INVARIANT(cond, token) ((void)0)
+#define OMX_PRE_LEGS_FINITE(l, r, n) ((void)0)
 #define OMX_PRE_AT(cond, token, frame) ((void)0)
 #define OMX_POST_AT(cond, token, frame) ((void)0)
 #define OMX_RATE_IS_DECLARED(sr) (1)
