@@ -1,3 +1,15 @@
+omx-dsp (0.1.4) unstable; urgency=medium
+
+  * omx_mixmatrix: the summing matrix multiply, Y = G*X, dense and sparse,
+    ramped where a coefficient moves inside the block.
+  * omx_fader_law: the one fader law — fader dB, pan, send, mute and DCA
+    resolve to a G entry — shared by the engine, the fader plugin and the
+    channel-strip plugin.
+  * tools/bench-mixmatrix.c: ns per strip-output-frame, dense vs sparse, at
+    32/64/97 strips x 1024 frames.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Mon, 05 Oct 2026 00:24:42 +0200
+
 omx-dsp (0.1.3) unstable; urgency=medium
 
   * omx_halfband_decimate: the one run of the half-band dot, sixteen outputs
