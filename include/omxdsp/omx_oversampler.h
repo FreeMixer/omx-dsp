@@ -15,6 +15,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "omx_contract.h"
 
@@ -58,6 +59,75 @@ static inline float omx_halfband_dot(const float *c) {
   }
   OMX_POST(acc - acc == 0.0f, "finite-out");
   return acc;
+}
+#undef OMX_CONTRACT_STAGE
+
+/**
+ * @brief Four floats in one register — GCC/Clang vector extension, element-wise IEEE: a `+` or `*`
+ * on it rounds each lane exactly as the scalar operator would, so a loop that is parallel over
+ * OUTPUTS (never over one output's taps) is bit-identical to its scalar form.
+ */
+typedef float omx_f32x4 __attribute__((vector_size(16)));
+
+/**
+ * @brief An unaligned load of four floats (memcpy: no alignment or aliasing assumption).
+ * @param p the first of four readable floats.
+ * @return the four floats, lane 0 = `p[0]`.
+ * @note RT-safe and reentrant: reads `p` only, no state.
+ */
+static inline omx_f32x4 omx_f32x4_load(const float *p) {
+  omx_f32x4 v;
+  memcpy(&v, p, sizeof v);
+  return v;
+}
+
+/** @brief Outputs one pass of omx_halfband_decimate computes together. */
+#define OMX_HALFBAND_RUN 16u
+
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "halfband/decimate"
+/**
+ * @brief ONE run of the half-band dot: `out[o] = omx_halfband_dot(c + 2o)` for `o` in `[0, n)`.
+ *
+ * dsp-primitives row 18. Every decimating loop calls this rather than looping the dot itself.
+ * It computes OMX_HALFBAND_RUN outputs at a time: the window's odd-offset samples are split once
+ * into a contiguous array, and each tap then adds into sixteen accumulators — each accumulator's
+ * sum is formed in exactly the dot's order (the centre product, then tap 1, 3, …, 47), so the
+ * result is BIT-identical to the loop it replaces (`omx_oversampler.test.c` holds that at every
+ * length and alignment). A tail shorter than a run is the dot itself.
+ *
+ * @param c   the centre of output 0; `c[-47] … c[2(n-1) + 47]` are read.
+ * @param n   outputs to compute.
+ * @param out n outputs; must not overlap the window.
+ * @pre `finite-window`.
+ * @post `finite-out`.
+ * @note RT-safe and reentrant: no allocation, no lock, no state — the caller owns `c` and `out`;
+ *       its scratch is sixteen accumulators and a 63-float split on the caller's stack.
+ */
+static inline void omx_halfband_decimate(const float *c, uint32_t n, float *out) {
+  if (n == 0u) return;
+  OMX_PRE(omx_block_finite(c - (2u * OMX_HALFBAND_ODD_TAPS - 1u), 2u * n + 4u * OMX_HALFBAND_ODD_TAPS - 3u),
+          "finite-window");
+  enum { T = OMX_HALFBAND_ODD_TAPS, B = OMX_HALFBAND_RUN, V = OMX_HALFBAND_RUN / 4u };
+  uint32_t o0 = 0u;
+  for (; o0 + B <= n; o0 += B) {
+    const float *c0 = c + 2u * o0;
+    /* odd[m] = c0[2m - (2T - 1)]: the tap pair of output o at odd offset k = 2i + 1 is
+     * odd[o + T - 1 - i] and odd[o + T + i]. */
+    float odd[B + 2u * T - 1u], even[B];
+    for (uint32_t m = 0; m < B + 2u * T - 1u; m++) odd[m] = c0[2 * (int32_t)m - (int32_t)(2u * T - 1u)];
+    for (uint32_t o = 0; o < B; o++) even[o] = c0[2u * o];
+    omx_f32x4 acc[V];
+    for (uint32_t v = 0; v < V; v++) acc[v] = OMX_HALFBAND_CENTER * omx_f32x4_load(even + 4u * v);
+    for (uint32_t i = 0; i < T; i++) {
+      const float k = OMX_HALFBAND_ODD_COEF[i];
+      for (uint32_t v = 0; v < V; v++)
+        acc[v] += k * (omx_f32x4_load(odd + 4u * v + T - 1u - i) + omx_f32x4_load(odd + 4u * v + T + i));
+    }
+    memcpy(out + o0, acc, sizeof acc);
+  }
+  for (; o0 < n; o0++) out[o0] = omx_halfband_dot(c + 2u * o0);
+  OMX_POST(omx_block_finite(out, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 
