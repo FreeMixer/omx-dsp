@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.3
+Version: 0.1.4
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: DSP primitives and effect kernels of OpenMixer, for static linking
@@ -63,6 +63,14 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Mon Oct 05 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.4-1
+- omx_mixmatrix: the summing matrix multiply, Y = G*X, dense and sparse, ramped where a
+  coefficient moves inside the block.
+- omx_fader_law: the one fader law -- fader dB, pan, send, mute and DCA resolve to a G entry --
+  shared by the engine, the fader plugin and the channel-strip plugin.
+- tools/bench-mixmatrix.c: ns per strip-output-frame, dense vs sparse, at 32/64/97 strips x 1024
+  frames.
+
 * Sun Oct 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.3-1
 - omx_halfband_decimate: the one run of the half-band dot, sixteen outputs at a time,
   bit-identical to the loop it replaces; the oversampler's up pass runs output-parallel too.

@@ -18,7 +18,7 @@
 /** @brief API minor version: additions only. */
 #define OMXDSP_VERSION_MINOR 1
 /** @brief Patch version: no API change. */
-#define OMXDSP_VERSION_PATCH 3
+#define OMXDSP_VERSION_PATCH 4
 
 /**
  * @brief The library version as one word, `major << 16 | minor << 8 | patch`.
@@ -50,11 +50,13 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_divider.h"
 #include "omx_envelope.h"
 #include "omx_eq_design.h"
+#include "omx_fader_law.h"
 #include "omx_fdelay.h"
 #include "omx_gaincomp.h"
 #include "omx_lfo.h"
 #include "omx_lookahead.h"
 #include "omx_matched_pair.h"
+#include "omx_mixmatrix.h"
 #include "omx_onepole.h"
 #include "omx_ramp.h"
 #include "omx_oversampler.h"
