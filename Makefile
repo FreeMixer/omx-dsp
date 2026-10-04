@@ -212,9 +212,11 @@ install: $(LIBS_ALL) $(PC_ALL)
 	install -m 0644 $(LIBS_ALL) $(DESTDIR)$(LIBDIR)/
 	install -m 0644 $(PC_ALL) $(DESTDIR)$(LIBDIR)/pkgconfig/
 
-# §4.3 (e): NOT RUN (exit 0, never a pass) where the toolchain has no TSan; where it has, the
-# thread arm must be report-free and its shared-state sabotage must race.
-test-tsan: test/omxdsp_threads.c tools/tsan-gate.sh $(LIB_TSAN) $(HEADERS) | $(BUILD)
+# §4.3 (e): UNJUDGED (exit 0, never a pass) where the toolchain has no TSan; where it has, the
+# thread arm must be report-free and its shared-state sabotage must race. The gate's own report
+# handling is held by tools/tsan-gate-selftest.sh first.
+test-tsan: test/omxdsp_threads.c tools/tsan-gate.sh tools/tsan-gate-selftest.sh $(LIB_TSAN) $(HEADERS) | $(BUILD)
+	TMPDIR="$(abspath $(BUILD))" bash tools/tsan-gate-selftest.sh
 	CC="$(CC)" bash tools/tsan-gate.sh $(BUILD)/tsan omxdsp_threads OMXDSP_THREADS_SABOTAGE_SHARED_STATE \
 	  $(TESTFLAGS) -pthread test/omxdsp_threads.c $(LIB_TSAN) -lm
 

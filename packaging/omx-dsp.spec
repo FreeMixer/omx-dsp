@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.2
+Version: 0.1.3
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: DSP primitives and effect kernels of OpenMixer, for static linking
@@ -63,6 +63,12 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Sun Oct 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.3-1
+- omx_halfband_decimate: the one run of the half-band dot, sixteen outputs at a time,
+  bit-identical to the loop it replaces; the oversampler's up pass runs output-parallel too.
+- OMX_PRE_LEGS_FINITE: a stereo kernel's finite-in-l/finite-in-r entry pair as one contract word.
+- tools/tsan-gate.sh keeps a red run's whole log and prints every report; no TSan is UNJUDGED.
+
 * Fri Oct 02 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.2-1
 - The library in three flavours: libomxdsp-contracts.a and libomxdsp-tsan.a
   beside libomxdsp.a, each with its pkg-config file.

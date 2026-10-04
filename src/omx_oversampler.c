@@ -25,7 +25,28 @@ static void up2_stage(float *hist, const float *in, uint32_t n, float *out) {
     float win[OMX_OVS_UP_HIST + OVS_CHUNK];
     memcpy(win, hist, OMX_OVS_UP_HIST * sizeof *win);
     memcpy(win + OMX_OVS_UP_HIST, in + done, take * sizeof *win);
-    for (uint32_t i = 0; i < take; i++) {
+    /* PARALLEL OVER OUTPUTS, never over one output's taps (dsp-primitives row 18): sixteen odd
+     * outputs accumulate together, each in the scalar form's own tap order, so the pass is
+     * bit-identical to the one-output-at-a-time loop the tail still runs. The drive's 4x is
+     * two of these and two decimating runs — 73 % of its cost before this (pod, relative). */
+    uint32_t i = 0;
+    for (; i + OMX_HALFBAND_RUN <= take; i += OMX_HALFBAND_RUN) {
+      const float *c = win + OMX_OVS_UP_HIST + i - OMX_OVS_UP_DELAY;
+      omx_f32x4 acc[OMX_HALFBAND_RUN / 4u];
+      for (uint32_t v = 0; v < OMX_HALFBAND_RUN / 4u; v++) acc[v] = (omx_f32x4){0.0f, 0.0f, 0.0f, 0.0f};
+      for (uint32_t j = 0; j < T; j++) {
+        const float k = OMX_HALFBAND_ODD_COEF[j];
+        for (uint32_t v = 0; v < OMX_HALFBAND_RUN / 4u; v++)
+          acc[v] += k * (omx_f32x4_load(c + 4u * v - j) + omx_f32x4_load(c + 4u * v + j + 1u));
+      }
+      float odd[OMX_HALFBAND_RUN];
+      memcpy(odd, acc, sizeof odd);
+      for (uint32_t q = 0; q < OMX_HALFBAND_RUN; q++) {
+        out[2u * (done + i + q)] = 2.0f * OMX_HALFBAND_CENTER * c[q];
+        out[2u * (done + i + q) + 1u] = 2.0f * odd[q];
+      }
+    }
+    for (; i < take; i++) {
       const float *c = win + OMX_OVS_UP_HIST + i - OMX_OVS_UP_DELAY;
       out[2u * (done + i)] = 2.0f * OMX_HALFBAND_CENTER * c[0];
       float acc = 0.0f;
@@ -45,10 +66,7 @@ static void down2_stage(float *hist, const float *in, uint32_t n_out, float *out
     float win[OMX_OVS_DOWN_HIST + 2u * OVS_CHUNK];
     memcpy(win, hist, OMX_OVS_DOWN_HIST * sizeof *win);
     memcpy(win + OMX_OVS_DOWN_HIST, in + 2u * done, 2u * take * sizeof *win);
-    for (uint32_t o = 0; o < take; o++) {
-      const float *c = win + OMX_OVS_DOWN_HIST + 2u * o - OMX_OVS_DOWN_DELAY;
-      out[done + o] = omx_halfband_dot(c);
-    }
+    omx_halfband_decimate(win + OMX_OVS_DOWN_HIST - OMX_OVS_DOWN_DELAY, take, out + done);
     memcpy(hist, win + 2u * take, OMX_OVS_DOWN_HIST * sizeof *hist);
     done += take;
   }
