@@ -44,6 +44,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: The version agrees everywhere it is written
+        id: handback-version
         run: |
           set -euo pipefail
           v=$(make -s version)
@@ -51,9 +52,11 @@ jobs:
           head -1 debian/changelog | grep -q "^omx-dsp ($v) "
 
       - name: Every source file carries its SPDX line
+        id: handback-spdx
         run: tools/spdx-check.sh
 
       - name: make test
+        id: handback-test
         run: make test
 
   rpm:
