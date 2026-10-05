@@ -151,7 +151,7 @@ check-log10f: tools/log10f-check.c $(HEADERS) | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb limiter dynamics_keyed dynamics gate gate_instance dynamics_instance band_dyn
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb limiter dynamics_keyed dynamics gate gate_instance dynamics_instance band_dyn deesser
 # Oracles that read the contract ledger themselves build with contracts and threads.
 FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser limiter dynamics_keyed dynamics gate gate_instance dynamics_instance band_dyn $(addsuffix _instance,$(FX_INSTANCES))
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
