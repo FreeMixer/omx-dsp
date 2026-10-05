@@ -24,7 +24,7 @@
 
 #include <stdint.h>
 
-#include <omxdsp/omx_balance.h>
+#include <omxdsp/omx_balance_law.h>
 #include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_lfo.h>
 
