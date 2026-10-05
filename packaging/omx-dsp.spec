@@ -63,13 +63,20 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
-* Mon Oct 05 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.4-1
+* Tue Oct 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.4-1
 - omx_mixmatrix: the summing matrix multiply, Y = G*X, dense and sparse, ramped where a
   coefficient moves inside the block.
 - omx_fader_law: the one fader law -- fader dB, pan, send, mute and DCA resolve to a G entry --
   shared by the engine, the fader plugin and the channel-strip plugin.
 - tools/bench-mixmatrix.c: ns per strip-output-frame, dense vs sparse, at 32/64/97 strips x 1024
   frames.
+- Effect kernels moved in, each with its oracle at every declared rate: limiter, band dynamics
+  and de-esser over one omx_band_dyn.h, tremolo and rotary.
+- Plugin instance cores: chorus, drive, flanger, reverb, transient, 31-band graphic EQ, the
+  strip's parametric EQ, gate and compressor.
+- Strip DSP moved unchanged from the engine: omx_dyn_env_params, omx_balance_law, omx_dynamics,
+  omx_dynamics_keyed and omx_gate.
+- omx_log10f: omx_lin_to_db no longer calls the libm's log10f.
 
 * Sun Oct 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.3-1
 - omx_halfband_decimate: the one run of the half-band dot, sixteen outputs at a time,
