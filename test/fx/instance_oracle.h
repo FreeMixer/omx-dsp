@@ -54,17 +54,17 @@ static void programme(float *l, float *r, uint32_t n, uint32_t t0) {
   }
 }
 
-static int same_bytes(const float *a, const float *b, uint32_t n) {
+static inline int same_bytes(const float *a, const float *b, uint32_t n) {
   return memcmp(a, b, (size_t)n * sizeof(float)) == 0;
 }
 
-static int all_finite(const float *a, uint32_t n) {
+static inline int all_finite(const float *a, uint32_t n) {
   for (uint32_t i = 0; i < n; i++)
     if (a[i] - a[i] != 0.0f) return 0;
   return 1;
 }
 
-static int all_zero(const float *a, uint32_t n) {
+static inline int all_zero(const float *a, uint32_t n) {
   for (uint32_t i = 0; i < n; i++)
     if (a[i] != 0.0f) return 0;
   return 1;
