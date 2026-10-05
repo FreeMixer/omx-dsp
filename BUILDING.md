@@ -48,12 +48,17 @@ shape on any host (`tools/reduction-check.sh`), and CI builds the suite on bookw
 ## Golden digests and libm
 
 A golden digest covers the kernel's output bit for bit, so it also covers every libm call the
-kernel makes per sample. The limiter's request is one `log10f` and one `powf` per sample above the
-ceiling; glibc 2.43 links `log10f@GLIBC_2.43`, and on bookworm's glibc 2.36 the limiter's 48 kHz
-digest moves (`5fe47250…` against the golden `69a449ce…`) while the other five rates and every other
-kernel hold. The same binary, built by bookworm's GCC 12.2, reads 0 moved on glibc 2.43: the libm
-moved the digest, not the compiler. The limiter (FreeMixer/omx-dsp#13) stays out of the library
-until a ruling settles which libm a digest names, or that a kernel's audio path calls none.
+kernel makes per sample. A libm's `log10f` is not one function: glibc 2.36 (debian:bookworm)
+misrounds about a third of the limiter's request arguments by up to 2 ulp, where glibc 2.41 and
+2.43 round them correctly, and the limiter's 48 kHz digest (the render of FreeMixer/omx-dsp#21) read `5fe47250…` on
+bookworm against `69a449ce…` on 2.41 and 2.43. The compiler played no part: the same binary flips with
+the glibc it runs on. `omx_lin_to_db()` therefore calls `omx_log10f()`, a correctly rounded `log10`
+in IEEE double arithmetic with no libm call (`make check-log10f` compares it with glibc 2.43's
+`log10f` on all 2³¹ non-negative floats: none differ), and every kernel's golden is an exact digest
+on every toolchain. The limiter's other per-sample call, `powf` in `omx_db_to_lin()`, is the same
+implementation in every glibc since 2.28 and returned the same bits for equal arguments on 2.36,
+2.41 and 2.43. A kernel that adds a per-sample libm call adds it to that list, or uses a
+libm-free word.
 
 ## Generated headers
 

@@ -12,6 +12,24 @@ static void arm_units(void) {
     const float back = omx_lin_to_db(omx_db_to_lin(db));
     ok(fabsf(back - db) < 1e-3f, "dB -> lin -> dB round trip", back, db);
   }
+  /* omx_log10f, correctly rounded and libm-free: the limiter golden's first argument glibc 2.36
+   * misrounds (it returns 0x3d959b06), the one hard case, exact powers of ten, the edges (the suite runs
+   * with denormals as zero, so the smallest argument is the smallest normal). */
+  const struct { uint32_t x, y; } l10[] = {
+      {0x3f977255u, 0x3d959b05u}, {0x0efeee7au, 0xc1e99d23u}, {0x3f800000u, 0x00000000u},
+      {0x41200000u, 0x3f800000u}, {0x42c80000u, 0x40000000u}, {0x4e6e6b28u, 0x41100000u},
+      {0x00800000u, 0xc217b818u}, {0x7f7fffffu, 0x421a209bu}};
+  for (unsigned i = 0; i < sizeof l10 / sizeof l10[0]; i++) {
+    float x, y;
+    memcpy(&x, &l10[i].x, sizeof x);
+    y = omx_log10f(x);
+    uint32_t got;
+    memcpy(&got, &y, sizeof got);
+    ok(got == l10[i].y, "omx_log10f is correctly rounded", (double)got, (double)l10[i].y);
+  }
+  ok(omx_log10f(0.0f) == -INFINITY && isnan(omx_log10f(-1.0f)) && omx_log10f(INFINITY) == INFINITY &&
+         isnan(omx_log10f(NAN)),
+     "omx_log10f: 0, negative, +inf, NaN", omx_log10f(0.0f), -INFINITY);
   ok(omx_lin_to_db(0.0f) == -180.0f, "silence is a finite -180 dB", omx_lin_to_db(0.0f), -180.0);
   ok(omx_lin_to_db(1e-12f) == -180.0f, "below the floor reads as the floor", omx_lin_to_db(1e-12f), -180.0);
   /* The double-precision analysis word: floored where the CALLER says, exact against its closed form. */
