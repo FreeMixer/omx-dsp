@@ -76,7 +76,7 @@ static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float l
  * @return The gain, in `[0, makeup_lin]`.
  * @pre `makeup-positive`.
  * @post `no-gain-added`: the gain lies in `[0, makeup_lin]` unless `range_db` is positive.
- * @note RT-safe: `log10f` and `powf` through omx_lin_to_db() and omx_db_to_lin(), both on the
+ * @note RT-safe: omx_log10f() and `powf` through omx_lin_to_db() and omx_db_to_lin(), both on the
  *       RT-safe allowlist. Thread-safe: pure.
  */
 static inline float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float level) {

@@ -68,7 +68,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx install version golden-write flavours bench-mixmatrix
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx install version golden-write flavours bench-mixmatrix check-log10f
 
 all: lib
 
@@ -134,6 +134,12 @@ checks:
 	bash tools/reduction-check.sh
 
 lint: checks
+
+# omx_log10f() against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
+# where the libm's log10f is correctly rounded (glibc 2.43), so not part of make test.
+check-log10f: tools/log10f-check.c $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -pthread -o $(BUILD)/log10f-check tools/log10f-check.c -lm
+	./$(BUILD)/log10f-check
 
 # ---- the effect kernels ------------------------------------------------------------------------
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if

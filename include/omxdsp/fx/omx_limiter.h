@@ -142,7 +142,7 @@ static inline void omx_limiter_init(struct omx_limiter_state *st, float lookahea
  * @return `min(1, c / peak)` to float precision.
  * @pre `ratio-above-one`.
  * @post `at-most-unity`.
- * @note RT-safe: one `log10f`, one `powf`. Thread-safe: pure.
+ * @note RT-safe: one omx_log10f() (no libm call), one `powf`. Thread-safe: pure.
  */
 static inline float omx_limiter_request(const struct omx_gaincomp_params *gc, float peak) {
   OMX_PRE(gc->ratio > OMX_COMP_RATIO_MIN, "ratio-above-one");
