@@ -203,3 +203,4 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       publish: false
+      runner: arc-freemixer
