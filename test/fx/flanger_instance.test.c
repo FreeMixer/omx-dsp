@@ -20,7 +20,7 @@
 
 #include <omxdsp/fx/omx_flanger_instance.h>
 
-#include "instance_oracle.h"
+#include "instance_harness.h"
 
 #define BLK 256u
 #define NBLK 12
