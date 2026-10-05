@@ -21,6 +21,14 @@ on:
       publish:
         type: boolean
         default: false
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: "Runner for the x86 jobs: the pull-request dry run of this private repo passes arc-freemixer"
+      arm:
+        type: boolean
+        default: true
+        description: "Build the arm64/aarch64 packages too; the pull-request dry run passes false (arm builds run at release only)"
 
 permissions:
   contents: write
@@ -33,6 +41,8 @@ jobs:
       binary-names: omx-dsp-devel
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
       needs-mod-host: false
+      runner: ${{ inputs.runner || 'ubuntu-latest' }}
+      arch-matrix: ${{ inputs.arm == false && '["x86_64"]' || '["x86_64", "aarch64"]' }}
       channel-deps: false
     secrets: inherit
 
@@ -46,6 +56,8 @@ jobs:
       binary-names: libomxdsp-dev
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
       dependencies: ''
+      runner: ${{ inputs.runner || 'ubuntu-latest' }}
+      arch-matrix: ${{ inputs.arm == false && '["amd64"]' || '["amd64", "arm64"]' }}
       requires: ''
       channel-deps: false
     secrets: inherit
