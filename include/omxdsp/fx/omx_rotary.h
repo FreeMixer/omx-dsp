@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 
-#include "omx_rotary_balance.h"
+#include <omxdsp/omx_balance_law.h>
 #include "omx_rotor.h"
 #include <omxdsp/omx_biquad.h>
 #include <omxdsp/omx_contract.h>
