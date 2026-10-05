@@ -406,4 +406,19 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
 }
 #undef OMX_CONTRACT_STAGE
 
+/**
+ * @brief The same slot detecting on its OWN signal — the shape every comp slot and every un-keyed
+ *        gate takes. ONE kernel, no named variant: a key is a pointer, and its absence is a fact.
+ * @param l The first leg, processed in place.
+ * @param r The second leg, processed in place, or NULL (mono).
+ * @param n Frames.
+ * @param p The atom.
+ * @param st The slot's state.
+ * @note RT-safe and thread-safe as omx_dynamics_keyed().
+ */
+static inline void omx_dynamics(float *l, float *r, uint32_t n,
+                                const struct omx_dyn *p, struct omx_dyn_state *st) {
+  omx_dynamics_keyed(l, r, NULL, n, p, st);
+}
+
 #endif /* OMX_DYN_H */
