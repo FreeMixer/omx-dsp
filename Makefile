@@ -145,9 +145,9 @@ lint: checks
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb limiter
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser limiter $(addsuffix _instance,$(FX_INSTANCES))
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb
