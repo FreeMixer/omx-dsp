@@ -18,6 +18,8 @@
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
+#   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
+#               1024 frames
 
 CC      ?= cc
 AR      ?= ar
@@ -66,7 +68,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx install version golden-write flavours
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx install version golden-write flavours bench-mixmatrix
 
 all: lib
 
@@ -229,3 +231,7 @@ clean:
 cost-prel: tools/prel-cost.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/prel-cost tools/prel-cost.c -lm
 	./$(BUILD)/prel-cost
+
+bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/bench-mixmatrix tools/bench-mixmatrix.c -lm
+	./$(BUILD)/bench-mixmatrix
