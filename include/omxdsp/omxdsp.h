@@ -43,6 +43,7 @@ static inline uint32_t omxdsp_version(void) {
   static inline size_t omx_##word##_state_align(void) { return OMXDSP_ALIGNOF(type); }
 
 #include "omx_allpass.h"
+#include "omx_balance_law.h"
 #include "omx_biquad.h"
 #include "omx_contract.h"
 #include "omx_contract_limits.h"
