@@ -204,3 +204,4 @@ jobs:
     with:
       publish: false
       runner: arc-freemixer
+      arm: false  # arm64/aarch64 build at release only, on the public repo
