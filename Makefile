@@ -150,7 +150,7 @@ FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb
 FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser $(addsuffix _instance,$(FX_INSTANCES))
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
-FX_INSTANCES = chorus flanger drive
+FX_INSTANCES = chorus flanger drive reverb
 # A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
 FX_PERTURB = $(wildcard test/fx/*-perturb.sh)
 FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
