@@ -93,15 +93,18 @@ static void arm_is_the_kernel(void) {
     omx_chorus_state_init(&ks, kl, kr, cap);
     const struct omx_chorus a =
         console_atom(g_sr, (int)K[k].v, K[k].d, K[k].hz, 0.01f * K[k].pct, K[k].sp);
-    float l[BLK], r[BLK], ol[BLK], or_[BLK];
-    int same = 1;
+    float l[BLK], r[BLK], ol[BLK], or_[BLK], l0[BLK];
+    int same = 1, wet = 0;
     for (int b = 0; b < NBLK; b++) {
       programme(l, r, BLK, (uint32_t)b * BLK);
+      memcpy(l0, l, sizeof l);
       omx_chorus_instance_resolve(&s, 0, K[k].v, K[k].d, K[k].hz, K[k].pct, K[k].sp);
       omx_chorus_instance_run(&s, l, r, ol, or_, BLK);
       omx_chorus_process(l, r, BLK, &a, &ks);
       same &= same_bytes(ol, l, BLK) && same_bytes(or_, r, BLK);
+      wet |= !same_bytes(ol, l0, BLK);
     }
+    ok(wet, "C: the engaged instance is not a wire (the comparison is not of two passthroughs)");
     ok(same, "C: the engaged instance is omx_chorus_process on the console's atom, bit for bit");
     free(rl); free(rr); free(kl); free(kr);
   }
