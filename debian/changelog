@@ -1,7 +1,7 @@
 omx-dsp (0.1.5) unstable; urgency=medium
 
-  * The release builds and publishes the arm64/aarch64 packages again; no library
-    change since 0.1.4.
+  * The release builds and publishes the arm64/aarch64 packages again; no
+    library change since 0.1.4.
 
  -- Pau Aliagas <linuxnow@gmail.com>  Wed, 07 Oct 2026 10:00:00 +0200
 
