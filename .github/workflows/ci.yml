@@ -18,13 +18,13 @@ permissions:
 jobs:
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: arc-freemixer
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         image: ['fedora:44', 'debian:bookworm', 'debian:trixie']
-        arch: [amd64, arm64]
+        arch: [amd64]  # arm64 builds run at release only (release.yml), on the public repo
     container:
       image: ${{ matrix.image }}
     # debian images run sh by default, which has no pipefail
@@ -61,12 +61,12 @@ jobs:
 
   rpm:
     name: omx-dsp-devel (fc44, ${{ matrix.arch }})
-    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: arc-freemixer
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64, aarch64]
+        arch: [x86_64]  # aarch64 builds run at release only (release.yml), on the public repo
     container:
       image: fedora:44
     steps:
@@ -116,13 +116,13 @@ jobs:
 
   deb:
     name: libomxdsp-dev (${{ matrix.suite }}, ${{ matrix.arch }})
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: arc-freemixer
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         suite: [bookworm, trixie]
-        arch: [amd64, arm64]
+        arch: [amd64]  # arm64 builds run at release only (release.yml), on the public repo
     container:
       image: debian:${{ matrix.suite }}
     defaults:
@@ -159,7 +159,7 @@ jobs:
   # private: the organisation secret OPENMIXER_READ_TOKEN reads it.
   render:
     name: generated headers are the render of the pinned declaration
-    runs-on: ubuntu-latest
+    runs-on: arc-freemixer
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -203,3 +203,5 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       publish: false
+      runner: arc-freemixer
+      arm: false  # arm64/aarch64 build at release only, on the public repo
