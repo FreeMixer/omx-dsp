@@ -11,13 +11,15 @@ Package: libomxdsp-dev
 Architecture: any
 Multi-Arch: same
 Depends: ${misc:Depends}
-Description: DSP primitives and effect kernels of OpenMixer, for static linking
- libomxdsp holds the DSP building blocks of the OpenMixer console (biquads,
- one-poles, envelopes, gain computers, delay rings, the oversampler) and the
- effect kernels built from them, as plain C with no allocation, lock or
- system call on the audio path. The OpenMixer engine and the omx plugins
- compile and link the same kernels from it, so a plugin sounds like the
- console.
+Description: audio toolbox of the OpenMixer console, a real-time-safe C library
+ libomxdsp is the sound of the OpenMixer console, as a library: the filters,
+ envelopes, delays, limiters, gates, compressors and other building blocks of
+ a mixer channel, written in plain C that never allocates, locks or calls the
+ system while audio is running. The console and the omx plugins are built from
+ this same code, so an effect sounds the same on the desk and in your DAW,
+ sample for sample. Link it into your own plugin, effect or audio tool and
+ start from parts that are already tested against exact results at every
+ sample rate.
  .
  This package holds the headers and the static library in three flavours,
  each with its pkg-config file: libomxdsp.a (omxdsp), libomxdsp-contracts.a
