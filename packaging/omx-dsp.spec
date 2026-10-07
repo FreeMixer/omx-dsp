@@ -4,7 +4,7 @@ Name: omx-dsp
 Version: 0.1.5
 Release: 1%{?dist}
 License: GPL-3.0-or-later
-Summary: DSP primitives and effect kernels of OpenMixer, for static linking
+Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
 URL: https://github.com/FreeMixer/omx-dsp
 
 Source0: %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
@@ -21,19 +21,22 @@ BuildRequires: diffutils
 %global _lto_cflags %{nil}
 
 %description
-libomxdsp holds the DSP building blocks of the OpenMixer console (biquads,
-one-poles, envelopes, gain computers, delay rings, the oversampler) and the
-effect kernels built from them, as plain C with no allocation, lock or system
-call on the audio path. The OpenMixer engine and the omx plugins compile and
-link the same kernels from it, so a plugin sounds like the console.
+libomxdsp is the sound of the OpenMixer console, as a library: the filters,
+envelopes, delays, limiters, gates, compressors and other building blocks of a
+mixer channel, written in plain C that never allocates, locks or calls the
+system while audio is running. The console and the omx plugins are built from
+this same code, so an effect sounds the same on the desk and in your DAW, sample
+for sample. Link it into your own plugin, effect or audio tool and start from
+parts that are already tested against exact results at every sample rate.
 
 %package devel
-Summary: Headers, static library and pkg-config file of libomxdsp
+Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
 
 %description devel
-The headers under include/omxdsp and the static library in three flavours, each
-with its pkg-config file: libomxdsp.a (omxdsp), libomxdsp-contracts.a
+Everything you need to build against libomxdsp: the headers under
+include/omxdsp and the static library in three flavours, each with its
+pkg-config file: libomxdsp.a (omxdsp), libomxdsp-contracts.a
 (omxdsp-contracts, contracts compiled in) and libomxdsp-tsan.a (omxdsp-tsan,
 contracts and ThreadSanitizer). Programs link the library statically; no shared
 library exists.
@@ -64,35 +67,42 @@ library exists.
 
 %changelog
 * Wed Oct 07 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.5-1
-- The release builds and publishes the arm64/aarch64 packages again; no library change since 0.1.4.
+- The arm64 and aarch64 packages are published again, for Raspberry Pi OS and
+  Fedora on ARM. The library itself is unchanged since 0.1.4.
 
 * Tue Oct 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.4-1
-- omx_mixmatrix: the summing matrix multiply, Y = G*X, dense and sparse, ramped where a
-  coefficient moves inside the block.
-- omx_fader_law: the one fader law -- fader dB, pan, send, mute and DCA resolve to a G entry --
-  shared by the engine, the fader plugin and the channel-strip plugin.
-- tools/bench-mixmatrix.c: ns per strip-output-frame, dense vs sparse, at 32/64/97 strips x 1024
-  frames.
-- Effect kernels moved in, each with its oracle at every declared rate: limiter, band dynamics
-  and de-esser over one omx_band_dyn.h, tremolo and rotary.
-- Plugin instance cores: chorus, drive, flanger, reverb, transient, 31-band graphic EQ, the
-  strip's parametric EQ, gate and compressor.
-- Strip DSP moved unchanged from the engine: omx_dyn_env_params, omx_balance_law, omx_dynamics,
-  omx_dynamics_keyed and omx_gate.
-- omx_log10f: omx_lin_to_db no longer calls the libm's log10f.
+- A summing-matrix multiply that mixes many strips into many outputs at once,
+  in a dense and a sparse form, and ramps a gain smoothly when it changes in
+  the middle of a block.
+- One fader law for the whole project: fader position, pan, sends, mute and
+  DCA groups resolve to a single gain, so the console, the fader plugin and
+  the channel-strip plugin agree.
+- A small benchmark for the matrix multiply, at 32, 64 and 97 strips.
+- More effects arrive from the console, each checked against a closed-form
+  result at every sample rate it supports: limiter, band dynamics, de-esser,
+  tremolo and rotary speaker.
+- The building blocks of the chorus, drive, flanger, reverb, transient shaper,
+  31-band graphic EQ, parametric EQ, gate and compressor are now in the
+  library.
+- The strip's dynamics and balance code moved over unchanged from the engine.
+- The decibel conversion no longer depends on the system's log10f, so it gives
+  the same answer on every machine.
 
 * Sun Oct 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.3-1
-- omx_halfband_decimate: the one run of the half-band dot, sixteen outputs at a time,
-  bit-identical to the loop it replaces; the oversampler's up pass runs output-parallel too.
-- OMX_PRE_LEGS_FINITE: a stereo kernel's finite-in-l/finite-in-r entry pair as one contract word.
-- tools/tsan-gate.sh keeps a red run's whole log and prints every report; no TSan is UNJUDGED.
+- The half-band filter used by the oversampler runs sixteen outputs at a time,
+  with results identical to the loop it replaces.
+- A stereo effect can state in one value that both of its inputs are finite
+  numbers.
+- The thread-sanitizer gate keeps the whole log of a failed run and prints
+  every report.
 
 * Fri Oct 02 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.2-1
-- The library in three flavours: libomxdsp-contracts.a and libomxdsp-tsan.a
-  beside libomxdsp.a, each with its pkg-config file.
+- The library comes in three builds side by side: the normal one, one with its
+  safety checks compiled in, and one for thread-sanitizer runs. Each has its
+  own pkg-config file.
 
 * Thu Oct 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.1-1
-- omx_param.h: the parameter clamp, one defined answer for NaN and +-Inf per word.
+- Parameter clamping gives one defined answer for NaN and for infinity.
 
 * Thu Oct 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.0-1
-- First package: the primitives and the FX delay kernel.
+- First package: the DSP building blocks and the delay effect.

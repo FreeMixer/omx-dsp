@@ -16,6 +16,14 @@ permissions:
   contents: read
 
 jobs:
+  changelog:
+    name: CHANGELOG.md agrees with the spec and debian/changelog
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FreeMixer/.github/.github/actions/changelog@packaging-changelog
+
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: arc-freemixer
