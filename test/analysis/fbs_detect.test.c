@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * fbs_detect.test.c — the FBS detector's closed-form oracles, at every declared rate.
+ * fbs_detect.test.c — the FBS detector's closed-form oracles, at the nine RME rates
+ * (analysis_rates.h).
  *
  * Each case builds its spectra by hand (a tone over a −100 dB floor), so the expected verdict and
  * the confirming frame follow from the gates alone. The frame size is the RTA's for the rate
@@ -15,6 +16,8 @@
 
 /* The compiled unit is included, not linked, so its file-static gates are testable by name. */
 #include "omx_fbs_detect.c"
+
+#include "analysis_rates.h"
 
 static int g_fail = 0;
 static int g_checks = 0;
@@ -383,8 +386,9 @@ int main(void) {
   case_papr_floor();
   case_plateau();
   case_is_growing();
-  for (uint32_t k = 0; k < OMX_DECLARED_RATE_COUNT; k++) {
-    const double rate = (double)OMX_DECLARED_RATES[k];
+  omx_analysis_require_rates();
+  for (uint32_t k = 0; k < OMX_ANALYSIS_RATE_COUNT; k++) {
+    const double rate = OMX_ANALYSIS_RATES[k];
     case_ramp(rate);
     case_held(rate);
     case_decay(rate);
@@ -396,6 +400,6 @@ int main(void) {
     case_dropout(rate);
     case_exhaustion(rate);
   }
-  printf("fbs_detect: %d checks over %d declared rates, %d failed\n", g_checks, OMX_DECLARED_RATE_COUNT, g_fail);
+  printf("fbs_detect: %d checks over %d rates, %d failed\n", g_checks, OMX_ANALYSIS_RATE_COUNT, g_fail);
   return g_fail ? 1 : 0;
 }
