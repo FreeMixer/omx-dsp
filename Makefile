@@ -57,7 +57,7 @@ OBJ_TSAN         = $(patsubst src/%.c,$(BUILD)/tsan-lib/%.o,$(SRC))
 LIBS_ALL         = $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 PC_ALL           = $(BUILD)/omxdsp.pc $(BUILD)/omxdsp-contracts.pc $(BUILD)/omxdsp-tsan.pc
 KERNELS  = $(wildcard test/kernels/*.c)
-FX_HEADERS = $(wildcard include/omxdsp/fx/*.h include/omxdsp/params/*.h)
+FX_HEADERS = $(wildcard include/omxdsp/fx/*.h)
 FX_TESTS   = $(wildcard test/fx/*.c) $(wildcard test/fx/*.h) $(wildcard test/fx/fixtures/*.h)
 
 PREFIX     ?= /usr/local
@@ -218,10 +218,9 @@ $(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD
 	    -e 's|@CFLAGS@| $(TSAN_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS)|' $< | sed 's/ *$$//' > $@
 
 install: $(LIBS_ALL) $(PC_ALL)
-	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/params $(DESTDIR)$(LIBDIR)/pkgconfig
+	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(LIBDIR)/pkgconfig
 	install -m 0644 include/omxdsp/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/
 	install -m 0644 include/omxdsp/fx/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx/
-	install -m 0644 include/omxdsp/params/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/params/
 	install -m 0644 $(LIBS_ALL) $(DESTDIR)$(LIBDIR)/
 	install -m 0644 $(PC_ALL) $(DESTDIR)$(LIBDIR)/pkgconfig/
 

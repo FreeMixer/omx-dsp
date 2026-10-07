@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# Renders the generated headers again from an OpenMixer checkout and compares them byte for byte
-# with the ones committed here. The declaration is OpenMixer's, so only its generators may write
-# these files; a difference means the files were edited by hand or the pin moved without a new
+# Renders the generated header again from an OpenMixer checkout and compares it byte for byte
+# with the one committed here. The declaration is OpenMixer's, so only its generators may write
+# this file; a difference means the files were edited by hand or the pin moved without a new
 # export.
 #
 #   tools/render-check.sh <openmixer checkout>
@@ -27,7 +27,6 @@ if [[ -n "$pin" && "$have" != "$pin" ]]; then
 fi
 
 (cd "$OPENMIXER" && node harness/contract-limits-gen.mjs --emit-stdout) > "$OUT/omx_contract_limits.h"
-(cd "$OPENMIXER" && node packages/omx-plugins/tools/params-gen.mjs --out-dir "$OUT/params" --ttl-out "$OUT/lv2" >/dev/null)
 
 fail=0
 compare() {
@@ -40,7 +39,4 @@ compare() {
   fi
 }
 compare "$OUT/omx_contract_limits.h" "$HERE/include/omxdsp/omx_contract_limits.h"
-for h in "$HERE"/include/omxdsp/params/omx_*_params.h; do
-  compare "$OUT/params/$(basename "$h")" "$h"
-done
 exit "$fail"
