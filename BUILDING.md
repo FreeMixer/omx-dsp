@@ -62,9 +62,8 @@ libm-free word.
 
 ## Generated headers
 
-`include/omxdsp/omx_contract_limits.h` and `include/omxdsp/params/*.h` are rendered from the
-OpenMixer declaration and never edited here. `tools/render-check.sh <openmixer checkout>`
-renders them again from the commit pinned in `.github/pins.txt` and compares byte for byte.
+`include/omxdsp/omx_contract_limits.h` is rendered from the OpenMixer declaration and never
+edited here. `tools/render-check.sh <openmixer checkout>` renders it again from the commit pinned in `.github/pins.txt` and compares byte for byte.
 
 ## Packages
 

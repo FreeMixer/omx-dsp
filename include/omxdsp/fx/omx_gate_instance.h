@@ -3,7 +3,7 @@
  *
  * omx_gate_instance.h — the strip gate as a plugin instance: the shell's core, with no format in it.
  *
- * The shape is omx_delay_instance.h's (one C core, N shells). The core here is `omx_gate.h` — its
+ * The shape is omx-plugins' omx_delay_instance.h's (one C core, N shells). The core here is `omx_gate.h` — its
  * `omx_gate_resolve` (the console's gateStateToNativeDyn as control reads) and its `omx_gate_run`
  * (the host's block through fixed scratch by `omx_dynamics_keyed`, THE SAME kernel the console's
  * gate slot runs) — and this file adds no DSP to it. What it adds is what a host's port model

@@ -101,7 +101,7 @@ static inline float omx_fxdelay_tone_pole(float tone, float sr) {
  * A per-leg delay TIME (ms) -> the ring tap (samples) at the live rate, saturated to the ring.
  *
  * ONE derivation, read by both shells that own a `struct omx_fx_delay`: the console's
- * `resolve_fx_delay` (mixer_rt.c) and the LV2 plugin's port resolve (omx_delay_instance.h) — so a
+ * `resolve_fx_delay` (mixer_rt.c) and the LV2 plugin's port resolve (omx-plugins' omx_delay_instance.h) — so a
  * millisecond means the same tap on the desk and in a foreign host, and the LV2 shell carries
  * no second copy of the conversion. The clamp happens in FLOAT before the uint32 cast: a
  * huge/NaN/negative ms (a bad tempo-sync division resolved at a low BPM) would make the

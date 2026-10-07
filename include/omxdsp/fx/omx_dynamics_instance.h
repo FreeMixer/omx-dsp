@@ -4,7 +4,7 @@
  * omx_dynamics_instance.h — the strip compressor as a plugin instance: the shell's core, with no
  * format in it.
  *
- * The shape is omx_delay_instance.h's (one C core, N shells). The core here is `omx_dyn.h`'s
+ * The shape is omx-plugins' omx_delay_instance.h's (one C core, N shells). The core here is `omx_dyn.h`'s
  * `omx_dynamics` — the self-detecting dynamics slot, THE SAME kernel the console's comp slot runs
  * — and this file adds no DSP to it. What it adds is what a host's port model needs and the
  * kernel's atom does not carry:

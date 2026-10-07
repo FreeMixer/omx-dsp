@@ -4,7 +4,7 @@
  * omx_geq_instance.h — the native 31-band graphic EQ as a plugin instance: the shell's core, with
  * no format in it.
  *
- * The shape is omx_delay_instance.h's, under the same HRP shells rule (one C core, N shells). The
+ * The shape is omx-plugins' omx_delay_instance.h's, under the same HRP shells rule (one C core, N shells). The
  * core here is `omx_geq.h`'s `omx_geq_process` — THE SAME INLINE the console's graphic EQ stage
  * runs — and this file adds no sample arithmetic to it. What it adds is what a host's port model
  * needs and the kernel's atom does not carry:

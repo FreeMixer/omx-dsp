@@ -4,7 +4,7 @@
  * omx_transient_instance.h — the native transient designer as a plugin instance: the shell's core,
  * with no format in it.
  *
- * The shape is omx_delay_instance.h's, under the same HRP shells rule (one C core, N shells). The
+ * The shape is omx-plugins' omx_delay_instance.h's, under the same HRP shells rule (one C core, N shells). The
  * core here is `omx_transient.h`'s `omx_transient_process` — THE SAME INLINE the console's
  * transient stage runs — and this file adds no DSP to it. What it adds is the three things a
  * host's port model needs and the kernel's atom does not carry:
