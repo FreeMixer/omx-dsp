@@ -193,11 +193,13 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden)
 # FBS feedback detection and HRP read a spectrum and answer what rings and what to cut; they run on
 # a control thread, never in the audio callback. Each test/analysis/<t>.test.c is one program at
 # release flags against the plain archive; -Isrc lets a test include the compiled unit it checks.
-ANALYSIS_TESTS = fbs_detect hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct
+# rates runs the HRP chain at the nine RME rates and counts allocations through wrapped allocators.
+ANALYSIS_TESTS = fbs_detect hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct rates
+ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) | $(BUILD)
 
 $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
-	$(CC) $(CFLAGS) $(INC) -Isrc -Itest/analysis -o $@ $< $(LIB) -lm
+	$(CC) $(CFLAGS) $(INC) -Isrc -Itest/analysis $(ANALYSIS_LDFLAGS_$*) -o $@ $< $(LIB) -lm
 
 test-analysis: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
 	@set -e; for t in $(ANALYSIS_TESTS); do echo "./$(BUILD)/analysis_$$t"; ./$(BUILD)/analysis_$$t; done
