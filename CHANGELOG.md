@@ -3,6 +3,16 @@
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
 
+## Unreleased
+
+- Two analysis engines arrive from the console, unchanged: the feedback detector, which finds
+  a ring growing out of a spectrum and says where to notch it, and HRP, which follows the notes
+  an instrument plays, learns how its harmonics normally sit and sizes the cuts for the ones
+  that ring. Both read a spectrum the caller hands them, allocate nothing and run off the audio
+  thread. Include them from `omxdsp/analysis/`.
+- Both are tested at all nine sample rates an RME interface offers, from 32 to 192 kHz, and
+  their output is held bit for bit to what the console computed before they moved.
+
 ## 0.1.5 - 2026-10-07
 
 - The arm64 and aarch64 packages are published again, for Raspberry Pi OS and Fedora on ARM.
