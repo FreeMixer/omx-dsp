@@ -14,6 +14,8 @@
  *   make test-fx                                 compare
  *   build/fx_dynamics_keyed_golden --write       print the lines test/golden/dynamics_keyed.sha256 holds
  */
+#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
+
 #include <stdint.h>
 
 #include <omxdsp/omx_dyn.h>
