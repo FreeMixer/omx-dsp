@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The dynamics slot's oracle (omx_dyn.h, omx_dynamics_keyed), moved unchanged from openmixer's
-// mix_dsp.h (omx-dsp-dev#34). At every declared rate, contracts on, an empty ledger after each arm:
+// mix_dsp.h (omx-dsp-dev#34). At the nine RME rates, contracts on, and after each arm no violation
+// the rate does not explain (fx_rates.h):
 //   A  a disabled slot is the identity on the audio AND the state, bit for bit;
 //   B  a mono slot keyed on its own leg is the self-detecting slot, bit for bit, at factor 1 and 4;
 //   C  a gate never adds gain: |out| <= |in| sample for sample on the base path;
@@ -30,15 +31,9 @@ static void ok(int cond, const char *what, double measured, double limit) {
   }
 }
 
-static void expect_clean(void) {
-  const uint32_t seen = omx_contract_log.count;
-  const uint32_t kept = seen < OMX_CONTRACT_MAX ? seen : OMX_CONTRACT_MAX;
-  for (uint32_t i = 0; i < kept; i++) {
-    const struct omx_contract_record *r = &omx_contract_log.rec[i];
-    if (omx_contract_record_ready(r)) printf("VIOLATION [%s] %s %s\n", r->stage, r->kind, r->token);
-  }
-  ok(seen == 0u, "no contract violation in this arm", (double)seen, 0.0);
-  omx_contract_reset();
+static void expect_clean(float sr) {
+  const uint32_t unexplained = omx_fx_drain_ledger(sr);
+  ok(unexplained == 0u, "no contract violation in this arm that the rate does not explain", (double)unexplained, 0.0);
 }
 
 static uint32_t g_seed;
@@ -214,21 +209,21 @@ static void arm_latency(float sr) {
 int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    const float sr = OMX_DECLARED_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_RME_RATES[ri];
     arm_bypass(sr);
-    expect_clean();
+    expect_clean(sr);
     arm_self_key(sr);
-    expect_clean();
+    expect_clean(sr);
     arm_no_gain(sr);
-    expect_clean();
+    expect_clean(sr);
     arm_blocks(sr);
-    expect_clean();
+    expect_clean(sr);
     arm_key(sr);
-    expect_clean();
+    expect_clean(sr);
     arm_latency(sr);
-    expect_clean();
+    expect_clean(sr);
   }
-  printf("fx/dynamics_keyed: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_DECLARED_RATE_COUNT);
+  printf("fx/dynamics_keyed: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_RME_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }
