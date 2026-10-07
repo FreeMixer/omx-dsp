@@ -3,6 +3,13 @@
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
 
+## 0.1.7 - 2026-10-09
+
+- The FFT the console's analyser runs on is now part of the library: the Hann window, a complex
+  and a real single-precision transform, and a double-precision complex transform with its
+  inverse for room and alignment measurements. The single-precision transforms give exactly the
+  console's previous output; every transform is checked against a long-double reference.
+
 ## 0.1.6 - 2026-10-08
 
 - The delay effect's instance header and the plugin parameter headers are no longer part of

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.6
+Version: 0.1.7
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -66,6 +66,13 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.7-1
+- The FFT the console's analyser runs on is now part of the library: the Hann
+  window, a complex and a real single-precision transform, and a
+  double-precision complex transform with its inverse for room and alignment
+  measurements. The single-precision transforms give exactly the console's
+  previous output; every transform is checked against a long-double reference.
+
 * Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
 - The delay effect's instance header and the plugin parameter headers are no
   longer part of the library. They belong to the plugin, and omx-delay now

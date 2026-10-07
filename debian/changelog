@@ -1,3 +1,14 @@
+omx-dsp (0.1.7) unstable; urgency=medium
+
+  * The FFT the console's analyser runs on is now part of the library: the
+    Hann window, a complex and a real single-precision transform, and a
+    double-precision complex transform with its inverse for room and alignment
+    measurements. The single-precision transforms give exactly the console's
+    previous output; every transform is checked against a long-double
+    reference.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 12:00:00 +0000
+
 omx-dsp (0.1.6) unstable; urgency=medium
 
   * The delay effect's instance header and the plugin parameter headers are no
