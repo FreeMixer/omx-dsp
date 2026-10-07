@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.5
+Version: 0.1.6
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -66,6 +66,11 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Wed Oct 07 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
+- The delay effect's instance header and the plugin parameter headers are no
+  longer part of the library. They belong to the plugin, and omx-delay now
+  carries its own. Nothing else changed.
+
 * Wed Oct 07 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.5-1
 - The arm64 and aarch64 packages are published again, for Raspberry Pi OS and
   Fedora on ARM. The library itself is unchanged since 0.1.4.
