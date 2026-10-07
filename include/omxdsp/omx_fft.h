@@ -8,8 +8,9 @@
  * Pure arithmetic over caller-owned arrays: no allocation, no table, no state, so any thread may
  * call them. They are analysis transforms for an operator-cadence thread, never a process callback.
  *
- * Every twiddle rides a rotate-as-you-go recurrence held in DOUBLE, started from cos/sin of the
- * stage angle. A float recurrence compounds its rounding across the len/2 rotations of a stage and
+ * The f32 transforms' twiddles ride a rotate-as-you-go recurrence held in DOUBLE, started from
+ * cos/sin of the stage angle; the f64 transform takes each twiddle from cos/sin directly. A float
+ * recurrence compounds its rounding across the len/2 rotations of a stage and
  * left an analyser grass floor near −95 dBc at 16384; the double one measures relRMS ≤ 2e-7 against
  * a long-double reference at 1024..65536 (test/kernels/fft.c). The f32 transforms and the window
  * are the OpenMixer engine's own, moved here unchanged in behaviour: their output is bit-exact with
@@ -166,15 +167,20 @@ static inline void omx_fft_real_half(float *work_re, float *work_im, uint32_t n)
 /**
  * @brief In-place iterative radix-2 FFT, complex f64, forward or inverse.
  *
- * The same decimation-in-time butterflies and double twiddle recurrence as {@link omx_fft_radix2},
- * on double samples. Forward is `e^(−2πi·jk/n)`, unscaled; inverse is `e^(+2πi·jk/n)` with every
- * output divided by n, so inverse(forward(x)) returns x.
+ * The decimation-in-time butterflies of {@link omx_fft_radix2} on double samples. Each twiddle is
+ * `cos`/`sin` of its own angle `−2π·j/n`, `j = k·n/len`, not a recurrence: a double recurrence
+ * drifts to relRMS ~3e-12 at 2^19 and breaks the transform's symmetry (an identical pair's
+ * correlation then peaks a hair off lag 0). The stage runs twiddle-outer, so each of the n − 1
+ * twiddles is computed once per call, and nothing is tabled. Forward is `e^(−2πi·jk/n)`,
+ * unscaled; inverse is `e^(+2πi·jk/n)` with every output divided by n, so inverse(forward(x))
+ * returns x.
  * @param re The real parts, `n` long, transformed in place.
  * @param im The imaginary parts, `n` long, transformed in place.
  * @param n The length, a power of two.
  * @param inverse 0 for the forward transform, non-zero for the scaled inverse.
  * @pre `length-power-of-two`.
- * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
+ * @note Allocation-free, O(n log n) butterflies and n − 1 cos/sin pairs. Thread-safe on distinct
+ *       buffers.
  */
 static inline void omx_fft_radix2_d(double *re, double *im, uint32_t n, int inverse) {
   OMX_PRE(omx_fft_length_ok(n) || n == 1u, "length-power-of-two");
@@ -187,22 +193,20 @@ static inline void omx_fft_radix2_d(double *re, double *im, uint32_t n, int inve
       double ti = im[i]; im[i] = im[j]; im[j] = ti;
     }
   }
-  const double sign = inverse ? 1.0 : -1.0;
+  const double sign = inverse ? -1.0 : 1.0;
   for (uint32_t len = 2; len <= n; len <<= 1) {
-    const double ang = sign * 2.0 * M_PI / (double)len;
-    const double wr = cos(ang), wi = sin(ang);
-    for (uint32_t i = 0; i < n; i += len) {
-      double cwr = 1.0, cwi = 0.0;
-      for (uint32_t k = 0; k < len / 2; k++) {
-        uint32_t a = i + k, b = a + len / 2;
-        const double vr = re[b] * cwr - im[b] * cwi;
-        const double vi = re[b] * cwi + im[b] * cwr;
-        const double ur = re[a], ui = im[a];
-        re[a] = ur + vr; im[a] = ui + vi;
-        re[b] = ur - vr; im[b] = ui - vi;
-        const double nwr = cwr * wr - cwi * wi;
-        const double nwi = cwr * wi + cwi * wr;
-        cwr = nwr; cwi = nwi;
+    const uint32_t half = len >> 1, stride = n / len;
+    for (uint32_t k = 0; k < half; k++) {
+      const double ang = (-2.0 * M_PI * (double)(k * stride)) / (double)n;
+      const double cr = cos(ang), ci = sign * sin(ang);
+      for (uint32_t i = 0; i < n; i += len) {
+        const uint32_t a = i + k, b = a + half;
+        const double xr = re[b] * cr - im[b] * ci;
+        const double xi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - xr;
+        im[b] = im[a] - xi;
+        re[a] = re[a] + xr;
+        im[a] = im[a] + xi;
       }
     }
   }

@@ -175,9 +175,8 @@ static void arm_fft(void) {
     ok(floor_dbc < -130.0, "the real transform's worst bin error at 16384, dBc of a full-scale sine", floor_dbc, -130.0);
   }
 
-  /* E: f64 forward and inverse against the reference, 1024..2^19 (the room sweep's sizes). The
-   * twiddle recurrence compounds in double across a stage: measured relRMS 2.2e-12 forward and
-   * 3.2e-12 inverse at 2^19, a 2.3e-15 floor at 1024; the limit is 1e-11. */
+  /* E: f64 forward and inverse against the reference, 1024..2^19 (the room sweep's sizes); each
+   * twiddle is cos/sin of its own angle, so the error stays at the butterflies' rounding. */
   for (uint32_t n = 1024; n <= nmax; n <<= 2) {
     fft_fill(a, n, 0x55u); fft_fill(b, n, 0x66u);
     for (uint32_t i = 0; i < n; i++) { dr[i] = lr[i] = a[i]; di[i] = li[i] = b[i]; }
@@ -185,7 +184,7 @@ static void arm_fft(void) {
     fft_ref(lr, li, n, 0);
     const double ef = fft_rel_d(dr, di, lr, li, n);
     if (ef > worst_d) worst_d = ef;
-    ok(ef < 1e-11, "complex f64 forward relRMS against the long-double reference", ef, 1e-11);
+    ok(ef < 2e-15, "complex f64 forward relRMS against the long-double reference", ef, 2e-15);
     /* the inverse on its own input, then the round trip from x */
     fft_fill(a, n, 0x5au); fft_fill(b, n, 0x6bu);
     for (uint32_t i = 0; i < n; i++) { dr[i] = lr[i] = a[i]; di[i] = li[i] = b[i]; }
@@ -193,13 +192,13 @@ static void arm_fft(void) {
     fft_ref(lr, li, n, 1);
     const double ei = fft_rel_d(dr, di, lr, li, n);
     if (ei > worst_d) worst_d = ei;
-    ok(ei < 1e-11, "complex f64 inverse relRMS against the long-double reference", ei, 1e-11);
+    ok(ei < 2e-15, "complex f64 inverse relRMS against the long-double reference", ei, 2e-15);
     fft_fill(a, n, 0x55u); fft_fill(b, n, 0x66u);
     for (uint32_t i = 0; i < n; i++) { dr[i] = lr[i] = a[i]; di[i] = li[i] = b[i]; }
     omx_fft_radix2_d(dr, di, n, 0);
     omx_fft_radix2_d(dr, di, n, 1);
     const double et = fft_rel_d(dr, di, lr, li, n);
-    ok(et < 1e-11, "complex f64 inverse(forward(x)) returns x", et, 1e-11);
+    ok(et < 2e-15, "complex f64 inverse(forward(x)) returns x", et, 2e-15);
   }
 
   /* F: the lengths the transforms take. */
