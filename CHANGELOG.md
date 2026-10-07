@@ -3,6 +3,15 @@
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
 
+## Unreleased
+
+- The dynamics, balance, rotor and limiter are now tested at all nine rates an RME interface
+  runs at, from 32 to 192 kHz, and their reference outputs are kept for each of those rates.
+- The rotor that drives the rotary speaker has its own test, brought over from the console.
+- A new check builds the console engine's own copies of these four and confirms they give exactly
+  the same output as the library, so the engine can switch to the library without a change in
+  sound. The library's code itself is unchanged.
+
 ## 0.1.5 - 2026-10-07
 
 - The arm64 and aarch64 packages are published again, for Raspberry Pi OS and Fedora on ARM.
