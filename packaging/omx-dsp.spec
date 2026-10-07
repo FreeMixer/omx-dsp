@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.4
+Version: 0.1.5
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: DSP primitives and effect kernels of OpenMixer, for static linking
@@ -63,6 +63,9 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Wed Oct 07 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.5-1
+- The release builds and publishes the arm64/aarch64 packages again; no library change since 0.1.4.
+
 * Tue Oct 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.4-1
 - omx_mixmatrix: the summing matrix multiply, Y = G*X, dense and sparse, ramped where a
   coefficient moves inside the block.

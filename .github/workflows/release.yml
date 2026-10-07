@@ -42,7 +42,7 @@ jobs:
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
       needs-mod-host: false
       runner: ${{ inputs.runner || 'ubuntu-latest' }}
-      arch-matrix: ${{ inputs.arm == false && '["x86_64"]' || '["x86_64", "aarch64"]' }}
+      arch-matrix: ${{ (github.event_name != 'push' && inputs.arm == false) && '["x86_64"]' || '["x86_64", "aarch64"]' }}
       channel-deps: false
     secrets: inherit
 
@@ -57,7 +57,7 @@ jobs:
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
       dependencies: ''
       runner: ${{ inputs.runner || 'ubuntu-latest' }}
-      arch-matrix: ${{ inputs.arm == false && '["amd64"]' || '["amd64", "arm64"]' }}
+      arch-matrix: ${{ (github.event_name != 'push' && inputs.arm == false) && '["amd64"]' || '["amd64", "arm64"]' }}
       requires: ''
       channel-deps: false
     secrets: inherit
