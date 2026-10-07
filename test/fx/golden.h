@@ -5,6 +5,9 @@
  * rate over the kernel's interleaved stereo output for a fixed stimulus and parameter set,
  * compared with test/golden/<kernel>.sha256, or printed as those lines with --write. A patch
  * release may not move one; a release that does is a minor and names the kernel.
+ *
+ * A test that defines OMX_FX_GOLDEN_RME before including this header holds its kernel at the nine
+ * RME rates (OMX_FX_RME_RATES) instead of the declared six.
  */
 #ifndef OMXDSP_TEST_FX_GOLDEN_H
 #define OMXDSP_TEST_FX_GOLDEN_H
@@ -17,6 +20,14 @@
 
 #include "fx_rates.h"
 #include "sha256.h"
+
+#ifdef OMX_FX_GOLDEN_RME
+#define OMX_FX_GOLDEN_RATES OMX_FX_RME_RATES
+#define OMX_FX_GOLDEN_RATE_COUNT OMX_FX_RME_RATE_COUNT
+#else
+#define OMX_FX_GOLDEN_RATES OMX_DECLARED_RATES
+#define OMX_FX_GOLDEN_RATE_COUNT OMX_DECLARED_RATE_COUNT
+#endif
 
 /** Frames each digest covers; `render` writes 2 * OMX_FX_GOLDEN_FRAMES interleaved floats. */
 #define OMX_FX_GOLDEN_FRAMES 16384
@@ -41,7 +52,7 @@ static inline void omx_fx_golden_stimulus(int frame, uint32_t *lcg, float *l, fl
  * digest covers and returns how many of its own checks failed (counted with the moved digests). */
 typedef int (*omx_fx_golden_render_sized_fn)(float sr, float *out, size_t *bytes);
 
-/** The driver: `--write` prints `<rate> <sha256>` per declared rate, otherwise compares with the
+/** The driver: `--write` prints `<rate> <sha256>` per rate it holds, otherwise compares with the
  * digest file (argv[1], default test/golden/<name>.sha256). `out` is the caller's buffer, large
  * enough for the longest render. Exit 0 green, 1 a digest moved or is missing or a render check
  * failed, 2 the measurement could not be taken. */
@@ -61,22 +72,22 @@ static inline int omx_fx_golden_main_sized(int argc, char **argv, const char *na
   int fail = 0, checked = 0;
   FILE *f = write ? NULL : fopen(path, "r");
   if (!write && !f) { fprintf(stderr, "fx/%s_golden: cannot read %s\n", name, path); return 2; }
-  for (int k = 0; k < (int)OMX_DECLARED_RATE_COUNT; k++) {
+  for (int k = 0; k < (int)OMX_FX_GOLDEN_RATE_COUNT; k++) {
     char hex[65];
     size_t bytes = 0;
-    fail += render(OMX_DECLARED_RATES[k], out, &bytes);
+    fail += render(OMX_FX_GOLDEN_RATES[k], out, &bytes);
     omx_sha256_hex(out, bytes, hex);
-    if (write) { printf("%.0f %s\n", (double)OMX_DECLARED_RATES[k], hex); continue; }
+    if (write) { printf("%.0f %s\n", (double)OMX_FX_GOLDEN_RATES[k], hex); continue; }
     double rate = 0.0;
     char want[65] = {0};
     rewind(f);
     int found = 0;
     while (fscanf(f, "%lf %64s", &rate, want) == 2)
-      if (rate == (double)OMX_DECLARED_RATES[k]) { found = 1; break; }
+      if (rate == (double)OMX_FX_GOLDEN_RATES[k]) { found = 1; break; }
     checked++;
-    if (!found) { fprintf(stderr, "FAIL: %.0f Hz has no golden digest\n", (double)OMX_DECLARED_RATES[k]); fail++; }
+    if (!found) { fprintf(stderr, "FAIL: %.0f Hz has no golden digest\n", (double)OMX_FX_GOLDEN_RATES[k]); fail++; }
     else if (strcmp(want, hex) != 0) {
-      fprintf(stderr, "FAIL: %.0f Hz output moved: %s, golden %s\n", (double)OMX_DECLARED_RATES[k], hex, want);
+      fprintf(stderr, "FAIL: %.0f Hz output moved: %s, golden %s\n", (double)OMX_FX_GOLDEN_RATES[k], hex, want);
       fail++;
     }
   }
