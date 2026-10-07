@@ -186,12 +186,18 @@ static void arm_fft(void) {
     const double ef = fft_rel_d(dr, di, lr, li, n);
     if (ef > worst_d) worst_d = ef;
     ok(ef < 1e-11, "complex f64 forward relRMS against the long-double reference", ef, 1e-11);
+    /* the inverse on its own input, then the round trip from x */
+    fft_fill(a, n, 0x5au); fft_fill(b, n, 0x6bu);
+    for (uint32_t i = 0; i < n; i++) { dr[i] = lr[i] = a[i]; di[i] = li[i] = b[i]; }
     omx_fft_radix2_d(dr, di, n, 1);
     fft_ref(lr, li, n, 1);
     const double ei = fft_rel_d(dr, di, lr, li, n);
     if (ei > worst_d) worst_d = ei;
     ok(ei < 1e-11, "complex f64 inverse relRMS against the long-double reference", ei, 1e-11);
-    for (uint32_t i = 0; i < n; i++) { lr[i] = a[i]; li[i] = b[i]; }
+    fft_fill(a, n, 0x55u); fft_fill(b, n, 0x66u);
+    for (uint32_t i = 0; i < n; i++) { dr[i] = lr[i] = a[i]; di[i] = li[i] = b[i]; }
+    omx_fft_radix2_d(dr, di, n, 0);
+    omx_fft_radix2_d(dr, di, n, 1);
     const double et = fft_rel_d(dr, di, lr, li, n);
     ok(et < 1e-11, "complex f64 inverse(forward(x)) returns x", et, 1e-11);
   }

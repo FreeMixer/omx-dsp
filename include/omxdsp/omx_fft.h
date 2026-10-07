@@ -13,7 +13,7 @@
  * left an analyser grass floor near −95 dBc at 16384; the double one measures relRMS ≤ 2e-7 against
  * a long-double reference at 1024..65536 (test/kernels/fft.c). The f32 transforms and the window
  * are the OpenMixer engine's own, moved here unchanged in behaviour: their output is bit-exact with
- * the engine's on the fixed vector set of test/golden/fft.digest.
+ * the engine's on the fixed vector set whose digest test/kernels/fft.c holds.
  */
 #ifndef OMX_FFT_H
 #define OMX_FFT_H
