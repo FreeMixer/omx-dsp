@@ -1,7 +1,19 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 # Changelog
 
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
+
+## Unreleased
+
+- Two analysis engines arrive from the console, unchanged: the feedback detector, which finds
+  a ring growing out of a spectrum and says where to notch it, and HRP, which follows the notes
+  an instrument plays, learns how its harmonics normally sit and sizes the cuts for the ones
+  that ring. Both read a spectrum the caller hands them, allocate nothing and run off the audio
+  thread. Include them from `omxdsp/analysis/`.
+- Both are tested at all nine sample rates an RME interface offers, from 32 to 192 kHz, and
+  their output is held bit for bit to what the console computed before they moved.
 
 ## 0.1.6 - 2026-10-08
 
