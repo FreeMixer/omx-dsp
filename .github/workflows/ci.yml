@@ -203,6 +203,34 @@ jobs:
       - name: Render and compare
         run: tools/render-check.sh openmixer
 
+  # The engine's own copies of the dynamics, balance, rotor and limiter kernels, at the same pinned
+  # OpenMixer commit, render this library's golden digests bit for bit (tools/engine-identity.sh).
+  engine-identity:
+    name: the engine's kernel copies render the same bits
+    runs-on: arc-freemixer
+    timeout-minutes: 20
+    container:
+      image: fedora:44
+    steps:
+      - name: Install the build tools
+        run: dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git
+
+      - uses: actions/checkout@v4
+
+      - name: The pinned OpenMixer commit
+        id: pin
+        run: echo "sha=$(awk '$1 == "openmixer" { print $3 }' .github/pins.txt)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: FreeMixer/openmixer
+          ref: ${{ steps.pin.outputs.sha }}
+          path: openmixer
+          token: ${{ secrets.OPENMIXER_READ_TOKEN }}
+
+      - name: make engine-identity
+        run: make engine-identity OPENMIXER=openmixer
+
   release-dry-run:
     name: release workflow, dry run
     permissions:

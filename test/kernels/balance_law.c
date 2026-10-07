@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
+#include "../fx/fx_rates.h"
+
 /* ---- the balance law (lane/fx-seams, omx-dsp-dev#32): moved unchanged from openmixer's
  * mix_dsp.h. Pins today's outputs bit for bit: a fixed table (centre, the hard legs, the clamp
- * beyond them, interior points), and at every declared rate one second of the tremolo's pan-mode
- * sweep (pan = depth·sin(2π·f·i/sr)) against the closed form, with the law's own claims — the
- * near leg is unity, the far leg is 1 − |pan|, nothing boosts. ------------------------------ */
+ * beyond them, interior points), and at each of the nine RME rates one second of the tremolo's
+ * pan-mode sweep (pan = depth·sin(2π·f·i/sr)) against the closed form, with the law's own
+ * claims — the near leg is unity, the far leg is 1 − |pan|, nothing boosts. The law reads no
+ * rate, so the ledger stays empty at every one of them. -------------------------------------- */
 
 static void arm_balance_law(void) {
   g_arm = "balance_law";
@@ -24,8 +27,8 @@ static void arm_balance_law(void) {
   ok(omx_clamp_pan(-2.0f) == OMX_PAN_PAN_MIN, "the clamp holds the declared minimum", omx_clamp_pan(-2.0f), OMX_PAN_PAN_MIN);
   ok(omx_clamp_pan(0.3f) == 0.3f, "the clamp passes an in-range pan", omx_clamp_pan(0.3f), 0.3);
 
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    const float sr = OMX_DECLARED_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_RME_RATES[ri];
     const uint32_t n = (uint32_t)sr;
     const float depth = 1.25f; /* past full scale: the clamp is on the swept path too */
     uint32_t mismatches = 0;

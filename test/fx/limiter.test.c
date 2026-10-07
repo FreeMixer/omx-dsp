@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-/* The precision limiter's oracle (omx_limiter.h, formerly mix_limiter.test.c) at every declared rate — docs/design/specs/2026-09-27-precision-limiter.md §3. */
+/* The precision limiter's oracle (omx_limiter.h, formerly mix_limiter.test.c) at the nine RME rates — docs/design/specs/2026-09-27-precision-limiter.md §3.
+ * Contracts on; after each rate no violation the rate does not explain (fx_rates.h). */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omx_contract.h>
 
@@ -11,6 +12,8 @@
 #include <time.h>
 
 #include <omxdsp/fx/omx_limiter.h>
+
+#include "fx_rates.h"
 
 #define MAXN 200000u
 #define THREADS 4
@@ -42,12 +45,20 @@ static void arm(struct omx_limiter_state *st, int slot, float sr) {
 
 static const struct omx_limiter DEF = {1, OMX_LIMITER_CEILING_DB_DEFAULT, OMX_LIMITER_RELEASE_MS_DEFAULT};
 
-static void run_blocks(float *l, float *r, uint32_t n, struct omx_limiter_state *st, int uneven) {
+/* The ledger is read after every call on the main thread: the release pole is resolved once per
+ * block, so at a rate outside the declaration each block adds a rate-is-declared precondition, and
+ * a whole run would hold more than the ledger stores. */
+static float g_sr;
+static uint32_t g_unexplained;
+static void settle_ledger(void) { g_unexplained += omx_fx_drain_ledger(g_sr); }
+
+static void run_blocks(float *l, float *r, uint32_t n, struct omx_limiter_state *st, int uneven, int drain) {
   const uint32_t blocks[] = {64u, 37u, 128u, 1u, 256u, 100u};
   for (uint32_t done = 0, bi = 0; done < n; bi++) {
     uint32_t k = uneven ? blocks[bi % 6u] : 128u;
     if (k > n - done) k = n - done;
     omx_limiter_process(l + done, r ? r + done : NULL, k, &DEF, st);
+    if (drain) settle_ledger();
     done += k;
   }
 }
@@ -64,18 +75,20 @@ static void *worker(void *arg) {
   struct job *j = arg;
   struct omx_limiter_state st;
   arm(&st, j->slot, j->sr);
-  run_blocks(j->l[0], j->l[1], j->n, &st, 1);
+  run_blocks(j->l[0], j->l[1], j->n, &st, 1, 0);
   return NULL;
 }
 
 int main(void) {
   const float c = omx_db_to_lin(OMX_LIMITER_CEILING_DB_DEFAULT);
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    const float sr = OMX_DECLARED_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_RME_RATES[ri];
+    g_sr = sr;
+    const uint32_t unexplained_before = g_unexplained;
     const uint32_t n = (uint32_t)(sr * 0.5f) < MAXN ? (uint32_t)(sr * 0.5f) : MAXN;
     check(omx_limiter_cap(sr) <= RING, "the oracle's rings hold the declared look-ahead at this rate", sr,
           omx_limiter_cap(sr));
-    if (omx_limiter_cap(sr) > RING) continue;
+    if (omx_limiter_cap(sr) > RING) { settle_ledger(); continue; }
     struct omx_limiter_state st;
     arm(&st, THREADS, sr);
     const uint32_t T = omx_limiter_latency(&st);
@@ -89,7 +102,7 @@ int main(void) {
     }
     g_x[0][100] = 0.8f;
     memcpy(g_y, g_x, sizeof g_y);
-    run_blocks(g_y[0], g_y[1], n, &st, 1);
+    run_blocks(g_y[0], g_y[1], n, &st, 1, 1);
     int exact = 1;
     for (uint32_t i = 0; i < n; i++) {
       const float wl = i >= T ? g_x[0][i - T] : 0.0f, wr = i >= T ? g_x[1][i - T] : 0.0f;
@@ -108,7 +121,7 @@ int main(void) {
       }
       arm(&st, THREADS, sr);
       memcpy(g_y, g_x, sizeof g_y);
-      run_blocks(g_y[0], g_y[1], n, &st, 1);
+      run_blocks(g_y[0], g_y[1], n, &st, 1, 1);
       float sp = 0.0f;
       for (uint32_t i = 0; i < n; i++) sp = fmaxf(sp, fmaxf(fabsf(g_y[0][i]), fabsf(g_y[1][i])));
       check(sp <= c, "L2 the output's sample peak never passes the ceiling", sr, sp);
@@ -140,8 +153,10 @@ int main(void) {
       const struct omx_limiter fast = {1, OMX_LIMITER_CEILING_DB_DEFAULT, OMX_LIMITER_RELEASE_MS_MIN};
       arm(&st, THREADS, sr);
       memcpy(g_y, g_x, sizeof g_y);
-      for (uint32_t done = 0; done < n; done += 128u)
+      for (uint32_t done = 0; done < n; done += 128u) {
         omx_limiter_process(g_y[0] + done, g_y[1] + done, n - done < 128u ? n - done : 128u, &fast, &st);
+        settle_ledger();
+      }
       uint32_t clamped = 0u;
       for (uint32_t i = 0; i < n; i++) clamped += fabsf(g_y[0][i]) >= c;
       check(clamped == 0u, "L2 no isolated spike reaches the clamp: the hold, not the clamp, limits", sr, clamped);
@@ -155,7 +170,7 @@ int main(void) {
     }
     arm(&st, THREADS, sr);
     memcpy(g_y, g_x, sizeof g_y);
-    run_blocks(g_y[0], g_y[1], n, &st, 1);
+    run_blocks(g_y[0], g_y[1], n, &st, 1, 1);
     float prev = 0.0f;
     int mono = 1;
     for (uint32_t i = burst + T + st.d + 4u; i < n; i++) {
@@ -176,9 +191,9 @@ int main(void) {
     memcpy(g_y, g_x, sizeof g_y);
     memcpy(g_z, g_x, sizeof g_z);
     arm(&st, THREADS, sr);
-    run_blocks(g_y[0], g_y[1], n, &st, 1);
+    run_blocks(g_y[0], g_y[1], n, &st, 1, 1);
     arm(&st, THREADS, sr);
-    run_blocks(g_z[0], g_z[1], n, &st, 0);
+    run_blocks(g_z[0], g_z[1], n, &st, 0, 1);
     check(memcmp(g_y, g_z, sizeof g_y) == 0, "the block size does not touch a bit of the output", sr, 0.0);
     struct omx_limiter_state before = st;
     const struct omx_limiter off = {0, OMX_LIMITER_CEILING_DB_DEFAULT, OMX_LIMITER_RELEASE_MS_DEFAULT};
@@ -199,18 +214,24 @@ int main(void) {
     pthread_t th[THREADS];
     for (int t = 0; t < THREADS; t++) pthread_create(&th[t], NULL, worker, &g_jobs[t]);
     for (int t = 0; t < THREADS; t++) pthread_join(th[t], NULL);
+    /* Each thread replays the first tn frames of the one-thread run above, whose ledger was read
+     * block by block, and the bytes below show it took the same path. At a declared rate its
+     * ledger must still be empty; outside the declaration it holds one rate-is-declared per block,
+     * more than the ledger stores, and is let go. */
+    if (omx_rate_is_declared(sr)) settle_ledger();
+    else omx_contract_reset();
     int same = 1;
     for (int t = 0; t < THREADS; t++)
       same &= memcmp(g_jobs[t].l[0], g_y[0], tn * sizeof(float)) == 0 && memcmp(g_jobs[t].l[1], g_y[1], tn * sizeof(float)) == 0;
     check(same, "N threads on distinct state produce the one-thread bytes", sr, 0.0);
 
-    /* cost: ns per stereo frame at the default travels, limiting noise at +12 dBFS, at the last declared rate */
-    if (ri + 1u == OMX_DECLARED_RATE_COUNT) {
+    /* cost: ns per stereo frame at the default travels, limiting noise at +12 dBFS, at the top rate */
+    if (ri + 1u == OMX_FX_RME_RATE_COUNT) {
       struct timespec a, b;
       arm(&st, THREADS, sr);
       memcpy(g_y, g_x, sizeof g_y);
       clock_gettime(CLOCK_MONOTONIC, &a);
-      run_blocks(g_y[0], g_y[1], n, &st, 0);
+      run_blocks(g_y[0], g_y[1], n, &st, 0, 1);
       clock_gettime(CLOCK_MONOTONIC, &b);
       const double ns = ((double)(b.tv_sec - a.tv_sec) * 1e9 + (double)(b.tv_nsec - a.tv_nsec)) / n;
       printf("  COST limiter stereo @%.0f Hz, 128-frame blocks, contracts %s: %.1f ns/frame\n", sr,
@@ -221,13 +242,11 @@ int main(void) {
 #endif
              ns);
     }
+    settle_ledger();
+    check(g_unexplained == unexplained_before, "no contract violation the rate does not explain", sr,
+          g_unexplained - unexplained_before);
   }
-  printf("mix_limiter: %d checks, %d failed, %u declared rates; %u contracts evaluated, %u violations\n", g_checks,
-         g_fail, OMX_DECLARED_RATE_COUNT, omx_contract_log.checks, omx_contract_log.count);
-  if (omx_contract_log.count != 0u) {
-    for (uint32_t i = 0; i < omx_contract_log.count && i < 8u; i++)
-      printf("  VIOLATION %s %s\n", omx_contract_log.rec[i].stage, omx_contract_log.rec[i].token);
-    return 1;
-  }
-  return g_fail == 0 ? 0 : 1;
+  printf("mix_limiter: %d checks, %d failed, %u rates; %u contracts evaluated, %u violations the rate does not explain\n",
+         g_checks, g_fail, OMX_FX_RME_RATE_COUNT, omx_contract_log.checks, g_unexplained);
+  return g_fail == 0 && g_unexplained == 0u ? 0 : 1;
 }

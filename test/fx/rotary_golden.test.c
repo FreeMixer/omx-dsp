@@ -7,6 +7,8 @@
  * balance toward the drum for the second, so both rotors' sweep and both signs of the balance law
  * are held.
  */
+#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
+
 #include <stdint.h>
 
 #include <omxdsp/fx/omx_rotary.h>
