@@ -193,7 +193,7 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden)
 # FBS feedback detection and HRP read a spectrum and answer what rings and what to cut; they run on
 # a control thread, never in the audio callback. Each test/analysis/<t>.test.c is one program at
 # release flags against the plain archive; -Isrc lets a test include the compiled unit it checks.
-ANALYSIS_TESTS = fbs_detect
+ANALYSIS_TESTS = fbs_detect hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct
 ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) | $(BUILD)
 
 $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
