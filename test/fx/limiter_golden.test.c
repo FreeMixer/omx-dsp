@@ -7,6 +7,8 @@
  *   make test-fx                        compare
  *   build/fx_limiter_golden --write     print the lines test/golden/limiter.sha256 holds
  */
+#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
+
 #include <stdint.h>
 #include <stdlib.h>
 

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * mix_rotary.test.c — the rotary stage's oracle, docs/design/specs/2026-09-26-rotary-speaker.md §5
- * arms A and H, at the four basic rates (44.1 / 48 / 96 / 192 kHz), closed forms in double.
+ * arms A and H, at the nine RME rates (32 to 192 kHz), closed forms in double.
  *
  *   A  frozen rotors: `speed: stop` with both rotors settled at rate 0 at 8 phases each; the
  *      stage is LTI and its impulse response's DTFT on a 200-point grid equals
@@ -11,7 +11,8 @@
  *   H  `on = false` and `mix = 0` memcmp-identical (subnormal input included); one block against
  *      random splits 1 … 4096 memcmp-identical; identical legs give L == R exactly.
  *
- * Pure C, `-lm`, no PipeWire. Built with -DOMX_CONTRACTS; every arm drains the ledger.
+ * Pure C, `-lm`, no PipeWire. Built with -DOMX_CONTRACTS; every arm drains the ledger and leaves no
+ * violation the rate does not explain (fx_rates.h).
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omx_contract.h>
@@ -35,13 +36,8 @@ static void ok(int cond, const char *what, double sr, double measured, double li
   }
 }
 static void drain_violations(const char *where, double sr) {
-  uint32_t seen = omx_contract_log.count;
-  uint32_t kept = seen < OMX_CONTRACT_MAX ? seen : OMX_CONTRACT_MAX;
-  for (uint32_t i = 0; i < kept; i++)
-    printf("VIOLATION [%s] %s %s\n", omx_contract_log.rec[i].stage, omx_contract_log.rec[i].kind,
-           omx_contract_log.rec[i].token);
-  ok(seen == 0u, where, sr, (double)seen, 0.0);
-  omx_contract_log.count = 0u;
+  const uint32_t unexplained = omx_fx_drain_ledger((float)sr);
+  ok(unexplained == 0u, where, sr, (double)unexplained, 0.0);
 }
 
 /* The spec's §3 default speeds, Hz — the row lane declares them as ROTARY_*_RANGE defaults. */
@@ -166,10 +162,10 @@ static void arm_h(double sr) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  omx_contract_log.count = 0u;
-  for (int k = 0; k < 4; k++) {
-    arm_a(OMX_FX_RATE_FLOOR[k]);
-    arm_h(OMX_FX_RATE_FLOOR[k]);
+  omx_contract_reset();
+  for (uint32_t k = 0; k < OMX_FX_RME_RATE_COUNT; k++) {
+    arm_a(OMX_FX_RME_RATES[k]);
+    arm_h(OMX_FX_RME_RATES[k]);
   }
   printf("mix_rotary: %d checks, %d failed\n", g_checks - g_failed, g_failed);
   return g_failed ? 1 : 0;

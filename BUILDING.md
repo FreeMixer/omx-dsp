@@ -14,6 +14,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
+| `make engine-identity OPENMIXER=<checkout>` | renders the golden digests again through the dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and checks that each of its sabotages goes red |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
@@ -60,6 +61,23 @@ on every toolchain. The limiter's other per-sample call, `powf` in `omx_db_to_li
 implementation in every glibc since 2.28 and returned the same bits for equal arguments on 2.36,
 2.41 and 2.43. A kernel that adds a per-sample libm call adds it to that list, or uses a
 libm-free word.
+
+## Rates outside the declaration
+
+The console declares six rates (`OMX_DECLARED_RATES`), and the kernels' contracts refuse any other
+with a `rate-is-declared` precondition. The dynamics, balance, rotor and limiter oracles also run at
+32, 64 and 128 kHz, the other rates of an RME interface (`OMX_FX_RME_RATES` in
+`test/fx/fx_rates.h`), with contracts still on: there the `rate-is-declared` precondition is
+expected, and every other law must hold. Their golden digest files carry all nine rates.
+
+## The engine's copies
+
+OpenMixer's engine still carries its own copies of the dynamics, balance, rotor and limiter kernels
+(`mix_dsp.h`, `mix_rotor.h`, `mix_limiter.h`) until it switches to this library.
+`make engine-identity OPENMIXER=<checkout>` (`tools/engine-identity.sh`) compiles every golden
+program a second time with those copies in place of this library's headers and requires the same
+digests at every rate; its self-test changes one constant in each copy and requires a failure each
+time. CI runs it against the OpenMixer commit pinned in `.github/pins.txt`.
 
 ## Generated headers
 
