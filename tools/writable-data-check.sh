@@ -5,13 +5,13 @@
 # writable-data-check.sh — libomxdsp carries no mutable global or function-static state
 # (docs/design/specs/2026-09-26-dsp-primitives.md §4.3 (a) and (b)).
 #
-#  (a) SYMBOLS. Every public header compiled into its own object (a translation unit that
+#  (a) SYMBOLS. Every public header (the top level and analysis/) compiled into its own object (a translation unit that
 #      includes it and defines one anchor function so the object is not empty), plus the one
 #      compiled unit, at release flags: `nm` must list no symbol of type b B d D c C g G s S.
 #      The same objects under -DOMX_CONTRACTS, with the storage macro set on the contract
 #      header's own unit, must list exactly one such symbol: omx_contract_log.
 #  (b) SOURCE. No file-scope or function-scope `static` object that is not `const`, and no
-#      `_Thread_local`, under include/ and src/. A `static` FUNCTION carries `(`; a
+#      `_Thread_local`, in those headers and src/. A `static` FUNCTION carries `(`; a
 #      `static const` table is allowed. Positive control: a planted `static float g_last;`
 #      in a scratch copy must be caught.
 #
@@ -73,10 +73,10 @@ cd "$PKG"
 fail=0
 
 # ---- (a) symbols -----------------------------------------------------------------------------
-for h in include/omxdsp/*.h; do
+for h in include/omxdsp/*.h include/omxdsp/analysis/*.h; do
   base="$(basename "$h" .h)"
   tu="$OUT/$base.c"
-  printf '#include <omxdsp/%s.h>\nvoid omxdsp_wd_anchor_%s(void) {}\n' "$base" "$base" > "$tu"
+  printf '#include <%s>\nvoid omxdsp_wd_anchor_%s(void) {}\n' "${h#include/}" "$base" > "$tu"
   $CC $CFLAGS -Iinclude -c -o "$OUT/$base.rel.o" "$tu"
   w="$(writable "$OUT/$base.rel.o")"
   if [ -n "$w" ]; then echo "writable-data-check: FAIL $h (release) defines writable data: $w"; fail=1; fi
@@ -103,7 +103,7 @@ $CC $CFLAGS -c -o "$OUT/probe.o" "$OUT/probe.c"
 if [ -z "$(writable "$OUT/probe.o")" ]; then echo "writable-data-check: FAIL the symbol probe cannot see a planted static"; fail=1; fi
 
 # ---- (b) source ------------------------------------------------------------------------------
-hits="$(scan include/omxdsp/*.h src/*.c)"
+hits="$(scan include/omxdsp/*.h include/omxdsp/analysis/*.h src/*.c)"
 if [ -n "$hits" ]; then echo "writable-data-check: FAIL mutable static or thread-local state in the library:"; echo "$hits"; fail=1; fi
 printf 'static float g_last;\n' > "$OUT/probe_src.h"
 if [ -z "$(scan "$OUT/probe_src.h")" ]; then echo "writable-data-check: FAIL the source scan cannot see a planted static"; fail=1; fi

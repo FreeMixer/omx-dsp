@@ -14,6 +14,7 @@
 #   make flavours  each archive carries its flavour, and a contracts consumer sees the compiled
 #               unit's contracts only through the contracts archive
 #   make test-fx   the effect kernels' oracles and golden digests alone
+#   make test-analysis  the analysis engines' oracles (FBS feedback detection, HRP) alone
 #   make lint   the doc check and the source scan only
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
@@ -34,6 +35,7 @@ INC      = -Iinclude
 BUILD    = build
 LIB      = $(BUILD)/libomxdsp.a
 HEADERS  = $(wildcard include/omxdsp/*.h)
+ANALYSIS_HEADERS = $(wildcard include/omxdsp/analysis/*.h)
 SRC      = $(wildcard src/*.c)
 OBJ      = $(patsubst src/%.c,$(BUILD)/%.o,$(SRC))
 TESTFLAGS = $(CFLAGS) $(INC) -DOMX_CONTRACTS
@@ -68,7 +70,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx install version golden-write flavours bench-mixmatrix check-log10f
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f
 
 all: lib
 
@@ -77,20 +79,20 @@ lib: $(LIBS_ALL)
 $(BUILD):
 	mkdir -p $(BUILD)
 
-$(BUILD)/%.o: src/%.c $(HEADERS) | $(BUILD)
+$(BUILD)/%.o: src/%.c $(HEADERS) $(ANALYSIS_HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) -fPIC $(INC) -c -o $@ $<
 
 $(LIB): $(OBJ) | $(BUILD)
 	$(AR) rcs $@ $(OBJ)
 
-$(BUILD)/contracts/%.o: src/%.c $(HEADERS)
+$(BUILD)/contracts/%.o: src/%.c $(HEADERS) $(ANALYSIS_HEADERS)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CONTRACTS_CFLAGS) -fPIC $(INC) -c -o $@ $<
 
 $(LIB_CONTRACTS): $(OBJ_CONTRACTS)
 	$(AR) rcs $@ $(OBJ_CONTRACTS)
 
-$(BUILD)/tsan-lib/%.o: src/%.c $(HEADERS)
+$(BUILD)/tsan-lib/%.o: src/%.c $(HEADERS) $(ANALYSIS_HEADERS)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(TSAN_CFLAGS) -fPIC $(INC) -c -o $@ $<
 
@@ -187,6 +189,24 @@ test-fx: $(FX_BINS)
 golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden)
 	@set -e; for k in $(FX_KERNELS); do ./$(BUILD)/fx_$${k}_golden --write > test/golden/$$k.sha256; done
 
+# ---- the analysis engines ---------------------------------------------------------------------
+# FBS feedback detection and HRP read a spectrum and answer what rings and what to cut; they run on
+# a control thread, never in the audio callback. Each test/analysis/<t>.test.c is one program at
+# release flags against the plain archive; -Isrc lets a test include the compiled unit it checks.
+# rates runs the HRP chain at the nine RME rates and counts allocations through wrapped allocators;
+# golden compares every answer of both engines with test/golden/analysis.sha256, which the engine's
+# own copy of this code wrote before it moved here; its log10f is the correctly rounded omx_log10f.
+ANALYSIS_TESTS = fbs_detect hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct rates golden
+ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
+ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
+ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) test/fx/sha256.h | $(BUILD)
+
+$(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
+	$(CC) $(CFLAGS) $(INC) -Isrc -Itest/analysis -Itest/fx $(ANALYSIS_LDFLAGS_$*) -o $@ $< $(LIB) -lm
+
+test-analysis: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
+	@set -e; for t in $(ANALYSIS_TESTS); do echo "./$(BUILD)/analysis_$$t"; ./$(BUILD)/analysis_$$t; done
+
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked
 # against the plain one it must fail, or the check is blind.
@@ -194,7 +214,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative perturb threads test-fx flavours
+test: lib checks suite negative perturb threads test-fx test-analysis flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
@@ -218,9 +238,10 @@ $(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD
 	    -e 's|@CFLAGS@| $(TSAN_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS)|' $< | sed 's/ *$$//' > $@
 
 install: $(LIBS_ALL) $(PC_ALL)
-	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(LIBDIR)/pkgconfig
+	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis $(DESTDIR)$(LIBDIR)/pkgconfig
 	install -m 0644 include/omxdsp/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/
 	install -m 0644 include/omxdsp/fx/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx/
+	install -m 0644 include/omxdsp/analysis/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis/
 	install -m 0644 $(LIBS_ALL) $(DESTDIR)$(LIBDIR)/
 	install -m 0644 $(PC_ALL) $(DESTDIR)$(LIBDIR)/pkgconfig/
 
