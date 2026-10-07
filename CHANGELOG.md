@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 # Changelog
 
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
