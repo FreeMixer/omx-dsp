@@ -66,7 +66,7 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
-* Wed Oct 07 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
+* Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
 - The delay effect's instance header and the plugin parameter headers are no
   longer part of the library. They belong to the plugin, and omx-delay now
   carries its own. Nothing else changed.

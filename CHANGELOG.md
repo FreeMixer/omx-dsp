@@ -3,7 +3,7 @@
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
 
-## 0.1.6 - 2026-10-07
+## 0.1.6 - 2026-10-08
 
 - The delay effect's instance header and the plugin parameter headers are no longer part of
   the library. They belong to the plugin, and omx-delay now carries its own. Nothing else
