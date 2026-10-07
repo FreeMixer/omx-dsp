@@ -72,6 +72,15 @@ library exists.
   double-precision complex transform with its inverse for room and alignment
   measurements. The single-precision transforms give exactly the console's
   previous output; every transform is checked against a long-double reference.
+- Two analysis engines arrive from the console, unchanged: the feedback
+  detector, which finds a ring growing out of a spectrum and says where to
+  notch it, and HRP, which follows the notes an instrument plays, learns how
+  its harmonics normally sit and sizes the cuts for the ones that ring. Both
+  read a spectrum the caller hands them, allocate nothing and run off the
+  audio thread. Include them from `omxdsp/analysis/`.
+- Both are tested at all nine sample rates an RME interface offers, from 32 to
+  192 kHz, and their output is held bit for bit to what the console computed
+  before they moved.
 
 * Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
 - The delay effect's instance header and the plugin parameter headers are no

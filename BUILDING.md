@@ -9,6 +9,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make` | `build/libomxdsp.a`, `build/libomxdsp-contracts.a` and `build/libomxdsp-tsan.a` |
 | `make test` | the whole suite: every primitive's and kernel's oracle at every declared rate with contracts on, the negative, perturbation and thread arms, the writable-data and doc checks, and the golden digests |
 | `make test-fx` | the effect kernels' oracles and golden digests alone |
+| `make test-analysis` | the feedback detector's and HRP's oracles at the nine RME rates (32 to 192 kHz), their no-allocation arm and golden digests alone |
 | `make install PREFIX=/usr LIBDIR=/usr/lib64 DESTDIR=…` | headers, the three archives and `omxdsp.pc`, `omxdsp-contracts.pc`, `omxdsp-tsan.pc` |
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
