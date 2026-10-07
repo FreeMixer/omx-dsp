@@ -191,9 +191,8 @@ jobs:
         with:
           node-version: 24
 
-      # what the two generators import from dist: harness/contract-limits-gen.mjs reads core,
-      # declarations and plugin-qualify; packages/omx-plugins/tools/params-gen.mjs reads core and
-      # declarations. The ... suffix builds each one's dependencies too.
+      # what the generator imports from dist: harness/contract-limits-gen.mjs reads core,
+      # declarations and plugin-qualify. The ... suffix builds each one's dependencies too.
       - name: Build the declaration
         working-directory: openmixer
         run: |

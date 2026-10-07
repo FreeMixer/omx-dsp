@@ -6,11 +6,11 @@
  * in it.
  *
  * Moved unchanged from openmixer packages/pipewire-native/src/eq_lv2.h (integration/waves-2026-10
- * eb13725ea), the strip EQ anchor of the instance headers (omx_delay_instance.h's shape): the
+ * eb13725ea), the strip EQ anchor of the instance headers (omx-plugins' omx_delay_instance.h's shape): the
  * includes now name the library's own headers (`omx_biquad_cascade` is omx_biquad.h's, the travels
  * omx_contract_limits.h's), and the control-word processing eq_lv2.c's run() did is here as
  * {@link omx_eq_lv2_set_controls}, so a shell carries ports across its host boundary and nothing
- * more. The `omx_eq_lv2_*` names are kept, as omx_delay_instance.h keeps `omx_delay_lv2_*`.
+ * more. The `omx_eq_lv2_*` names are kept, as omx-plugins' omx_delay_instance.h keeps `omx_delay_lv2_*`.
  *
  * Ruling (ops briefs/2026-09-23-lane-omx-lv2-pack-scoping.md, "EQ RULED"): LV2 has no variable
  * port count, so the EQ ships as THREE bundles — omx-eq8, omx-eq16, omx-eq32 — from this one

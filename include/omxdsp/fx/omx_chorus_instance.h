@@ -2,7 +2,7 @@
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
  * omx_chorus_instance.h — the native chorus as a plugin instance: the shell's core, with no
- * format in it. The same shape as omx_delay_instance.h (one C core, N shells): the core is
+ * format in it. The same shape as omx-plugins' omx_delay_instance.h (one C core, N shells): the core is
  * `omx_chorus.h`'s `omx_chorus_process`, THE SAME INLINE the console's chorus stage runs, and
  * this file adds no DSP to it. It adds what a host's port model needs and the atom does not carry:
  *
