@@ -35,7 +35,7 @@ permissions:
 
 jobs:
   rpm:
-    uses: FreeMixer/.github/.github/workflows/build-rpm.yml@main
+    uses: FreeMixer/.github/.github/workflows/build-rpm.yml@v1
     with:
       package-name: omx-dsp
       binary-names: omx-dsp-devel
@@ -50,7 +50,7 @@ jobs:
   deb:
     needs: rpm
     if: ${{ !cancelled() }}
-    uses: FreeMixer/.github/.github/workflows/build-deb.yml@main
+    uses: FreeMixer/.github/.github/workflows/build-deb.yml@v1
     with:
       package-name: omx-dsp
       binary-names: libomxdsp-dev
