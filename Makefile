@@ -139,6 +139,7 @@ checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
+	bash tools/log10f-guard.sh include src
 
 lint: checks
 
