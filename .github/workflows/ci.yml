@@ -68,6 +68,19 @@ jobs:
         id: handback-test
         run: make test
 
+  docs:
+    name: make docs (the public headers are fully documented)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doxygen
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends doxygen
+
+      - name: make docs
+        run: make docs
+
   rpm:
     name: omx-dsp-devel (fc44, ${{ matrix.arch }})
     runs-on: ubuntu-latest
