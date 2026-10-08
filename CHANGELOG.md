@@ -5,6 +5,15 @@
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
 
+## 0.1.8 - 2026-10-09
+
+- Converting a level to decibels calls the system's log10f again, about five times faster than
+  the correctly rounded version it replaced. That version, omx_log10f, is no longer part of the
+  library: it lives in the tests, which use it so every reference output stays exact on any
+  system.
+- On glibc older than 2.41 (Debian bookworm) the result can differ from the correctly rounded
+  one by up to 2 ulp of a dB value. glibc 2.41 rounds log10f correctly.
+
 ## 0.1.7 - 2026-10-09
 
 - The FFT the console's analyser runs on is now part of the library: the Hann window, a complex

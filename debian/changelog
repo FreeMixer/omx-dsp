@@ -1,3 +1,15 @@
+omx-dsp (0.1.8) unstable; urgency=medium
+
+  * Converting a level to decibels calls the system's log10f again, about five
+    times faster than the correctly rounded version it replaced. That version,
+    omx_log10f, is no longer part of the library: it lives in the tests, which
+    use it so every reference output stays exact on any system.
+  * On glibc older than 2.41 (Debian bookworm) the result can differ from the
+    correctly rounded one by up to 2 ulp of a dB value. glibc 2.41 rounds
+    log10f correctly.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 12:01:00 +0000
+
 omx-dsp (0.1.7) unstable; urgency=medium
 
   * The FFT the console's analyser runs on is now part of the library: the
@@ -87,7 +99,7 @@ omx-dsp (0.1.1) unstable; urgency=medium
 
   * Parameter clamping gives one defined answer for NaN and for infinity.
 
- -- Pau Aliagas <linuxnow@gmail.com>  Thu, 01 Oct 2026 12:00:00 +0000
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 01 Oct 2026 12:01:00 +0000
 
 omx-dsp (0.1.0) unstable; urgency=medium
 

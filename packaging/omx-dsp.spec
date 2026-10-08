@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.7
+Version: 0.1.8
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -66,6 +66,15 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.8-1
+- Converting a level to decibels calls the system's log10f again, about five
+  times faster than the correctly rounded version it replaced. That version,
+  omx_log10f, is no longer part of the library: it lives in the tests, which
+  use it so every reference output stays exact on any system.
+- On glibc older than 2.41 (Debian bookworm) the result can differ from the
+  correctly rounded one by up to 2 ulp of a dB value. glibc 2.41 rounds log10f
+  correctly.
+
 * Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.7-1
 - The FFT the console's analyser runs on is now part of the library: the Hann
   window, a complex and a real single-precision transform, and a
