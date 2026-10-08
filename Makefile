@@ -21,6 +21,8 @@
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
 #               1024 frames
+#   make contract-agree CONTRACT=<checkout>  every limit the library reads agrees with the omx-contract
+#               release pinned in .github/pins.txt (tools/contract-agree.sh), then its own sabotages
 #   make engine-identity OPENMIXER=<checkout>  the golden digests rendered again through the
 #               dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and
 #               the check's own sabotages (tools/engine-identity.sh)
@@ -75,7 +77,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity contract-agree
 
 all: lib
 
@@ -195,6 +197,13 @@ test-fx: $(FX_BINS)
 	@set -e; for p in $(FX_PERTURB); do \
 	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
 	done
+
+# The limits this library reads against FreeMixer/omx-contract, a checkout of the pinned release.
+# Needs no build, so it is a CI job of its own and not part of make test.
+contract-agree:
+	@test -n "$(CONTRACT)" || { echo "make contract-agree CONTRACT=<omx-contract checkout>"; exit 2; }
+	bash tools/contract-agree.sh "$(CONTRACT)"
+	bash tools/contract-agree.sh --self-test "$(CONTRACT)"
 
 # The engine's copies of the dynamics, balance, rotor and limiter kernels against this library's
 # golden digests: needs an OpenMixer checkout, so it is a CI job of its own and not part of make test.

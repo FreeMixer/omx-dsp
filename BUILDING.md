@@ -14,6 +14,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
+| `make contract-agree CONTRACT=<omx-contract checkout>` | compares every limit the sources read with the omx-contract release pinned in `.github/pins.txt`, and checks that each of its sabotages goes red; CI runs it |
 | `make engine-identity OPENMIXER=<checkout>` | renders the golden digests again through the dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and checks that each of its sabotages goes red |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
@@ -99,8 +100,18 @@ time. CI runs it against the OpenMixer commit pinned in `.github/pins.txt`.
 
 ## Generated headers
 
-`include/omxdsp/omx_contract_limits.h` is rendered from the OpenMixer declaration and never
-edited here. `tools/render-check.sh <openmixer checkout>` renders it again from the commit pinned in `.github/pins.txt` and compares byte for byte.
+`include/omxdsp/omx_contract_limits.h` is rendered from OpenMixer's declaration and never edited
+here. Two checks hold it:
+
+- CI, public sources only: `tools/contract-agree.sh <omx-contract checkout>` takes every `OMX_*`
+  name the sources read that this header defines, and requires it to have the same value in the
+  omx-contract release pinned in `.github/pins.txt`, or to be listed in `tools/contract-gap.txt`
+  (the limits omx-contract does not carry yet: the feedback detector's and HRP's constants, the
+  bus input cap and the operator EQ band reserve). The gap list only shrinks; when it is empty the committed header goes and the
+  build reads omx-contract's render (issues #1 and #9).
+- At the desk, because the declaration is in a private repository: `tools/render-check.sh
+  <openmixer checkout>` renders the header again from the commit pinned in `.github/pins.txt` and
+  compares byte for byte. Run it whenever the header or the openmixer pin changes.
 
 ## Packages
 
