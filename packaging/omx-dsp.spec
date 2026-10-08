@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.6
+Version: 0.1.7
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -66,6 +66,30 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.7-1
+- The FFT the console's analyser runs on is now part of the library: the Hann
+  window, a complex and a real single-precision transform, and a
+  double-precision complex transform with its inverse for room and alignment
+  measurements. The single-precision transforms give exactly the console's
+  previous output; every transform is checked against a long-double reference.
+- The dynamics, balance, rotor and limiter are now tested at all nine rates an
+  RME interface runs at, from 32 to 192 kHz, and their reference outputs are
+  kept for each of those rates.
+- The rotor that drives the rotary speaker has its own test, brought over from
+  the console.
+- A new check builds the console engine's own copies of these four and
+  confirms they give exactly the same output as the library, so the engine can
+  switch to the library without a change in sound. Their code is unchanged.
+- Two analysis engines arrive from the console, unchanged: the feedback
+  detector, which finds a ring growing out of a spectrum and says where to
+  notch it, and HRP, which follows the notes an instrument plays, learns how
+  its harmonics normally sit and sizes the cuts for the ones that ring. Both
+  read a spectrum the caller hands them, allocate nothing and run off the
+  audio thread. Include them from `omxdsp/analysis/`.
+- Both are tested at all nine sample rates an RME interface offers, from 32 to
+  192 kHz, and their output is held bit for bit to what the console computed
+  before they moved.
+
 * Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
 - The delay effect's instance header and the plugin parameter headers are no
   longer part of the library. They belong to the plugin, and omx-delay now
