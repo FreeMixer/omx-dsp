@@ -21,7 +21,7 @@
 #include <string.h>
 
 #include <omxdsp/omx_contract.h>
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 #include <omxdsp/omx_denormal.h>
 #include <omxdsp/omx_envelope.h>
 #include <omxdsp/omx_gaincomp.h>

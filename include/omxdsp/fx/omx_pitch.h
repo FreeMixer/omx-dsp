@@ -31,7 +31,7 @@
 #include <omxdsp/omx_param.h>
 
 /** The Lagrange order the shifter's lines are armed at (spec §1). */
-#define OMX_PITCH_ORDER 3
+#define OMX_PITCH_ORDER OMX_FDELAY_MOD_READ_ORDER
 
 /**
  * @brief The resolved control atom, built once per block from the row's controls: every time in

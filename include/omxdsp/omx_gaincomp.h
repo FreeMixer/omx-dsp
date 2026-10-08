@@ -13,7 +13,7 @@
 #define OMX_GAINCOMP_H
 
 #include "omx_contract.h"
-#include "omx_contract_limits.h"
+#include <omxcontract/omx_contract_limits.h>
 #include "omx_units.h"
 
 /** @brief Gain-computer mode: act on the signal ABOVE the threshold (comp / limiter). */

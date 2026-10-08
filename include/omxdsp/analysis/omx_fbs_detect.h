@@ -18,7 +18,7 @@
 #ifndef OMX_FBS_DETECT_H
 #define OMX_FBS_DETECT_H
 
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 #include <stdint.h>
 
 /* Every constant this engine reads is declared once in `@freemixer/core`'s `feedback.ts` and reaches

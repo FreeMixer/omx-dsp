@@ -50,7 +50,7 @@
 
 #include <stdint.h>
 
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 #include <omxdsp/omx_fdelay.h>
 #include <omxdsp/omx_lfo.h>
 #include <omxdsp/omx_param.h>
@@ -58,22 +58,17 @@
 #include <omxdsp/omx_contract.h>
 
 /** The Lagrange order this stage constructs — the fdelay ruling's §3 row. */
-#define OMX_FLANGER_ORDER 3
+#define OMX_FLANGER_ORDER OMX_FDELAY_MOD_READ_ORDER
 
-/** The DECLARED base delay, ms — the shortest delay the sweep reaches (spec §3b). Half a
- *  millisecond is 48 samples at 96 kHz, well clear of the kernel's one-sample reach, and it is
- *  what puts the comb's first notch at 1 kHz when the sweep is at its short end. */
-#define OMX_FLANGER_BASE_MS 0.5f
+/* The base delay (OMX_FLANGER_BASE_MS) is declared in omx-contract: the shortest delay the sweep reaches (spec §3b). */
 /** The deepest sweep the row may ask for, ms (spec §3b's `depth` ceiling). */
-#define OMX_FLANGER_MAX_DEPTH_MS 5.0f
+#define OMX_FLANGER_MAX_DEPTH_MS ((float)OMX_FLANGER_DEPTH_RANGE_MAX)
 /** The feedback clamp. Strictly below one, so the loop decays; 0.95 is +26.0 dB of resonance at
  *  mix 1, which is as far as a flanger is musically asked to go. */
-#define OMX_FLANGER_FB_MAX 0.95f
+#define OMX_FLANGER_FB_MAX OMX_FLANGER_FEEDBACK_RANGE_MAX
 /** Highest graph rate the ring is sized for. */
 #define OMX_FLANGER_MAX_RATE OMX_RT_HARD_TARGET_RATE
-/** The longest delay the stage can be asked for, rounded UP to whole ms — base + depth, as an
- *  INTEGER so the ring's size below is an integer constant expression. */
-#define OMX_FLANGER_MAX_MS 6
+/* The longest delay, whole ms (OMX_FLANGER_MAX_MS), is declared in omx-contract, an integer constant expression for the ring size below. */
 /** Per-leg ring capacity, samples: the longest delay at the highest rate plus the kernel's reach. */
 #define OMX_FLANGER_CAP ((uint32_t)(((OMX_FLANGER_MAX_RATE / 1000) * OMX_FLANGER_MAX_MS) + 4))
 

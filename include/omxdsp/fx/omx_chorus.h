@@ -48,36 +48,30 @@
 
 #include <stdint.h>
 
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 #include <omxdsp/omx_fdelay.h>
 #include <omxdsp/omx_lfo.h>
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_contract.h>
 
 /** The Lagrange order this stage constructs — the fdelay ruling's §3 row for chorus/flanger. */
-#define OMX_CHORUS_ORDER 3
+#define OMX_CHORUS_ORDER OMX_FDELAY_MOD_READ_ORDER
 
 /** The most voices one strip may run. Four is the M32 chorus's widest ensemble and the point
  *  where more taps stop being heard as more voices; the array is fixed because the RT path
  *  allocates nothing. */
-#define OMX_CHORUS_MAX_VOICES 4
+#define OMX_CHORUS_MAX_VOICES OMX_CHORUS_VOICES_RANGE_MAX
 
-/** The DECLARED base delay, ms — the shortest delay any voice reads (spec §3a). It is not an
- *  operator control: it is what makes a chorus a chorus rather than a flanger, and the two stages
- *  are told apart by their delay region as much as by their controls. */
-#define OMX_CHORUS_BASE_MS 10.0f
+/* The base delay (OMX_CHORUS_BASE_MS) is declared in omx-contract: the shortest delay any voice reads (spec §3a). */
 /** The deepest sweep the row may ask for, ms (spec §3a's `depth` ceiling). */
-#define OMX_CHORUS_MAX_DEPTH_MS 12.0f
+#define OMX_CHORUS_MAX_DEPTH_MS ((float)OMX_CHORUS_DEPTH_RANGE_MAX)
 /** The widest right-leg offset, turns: half a turn is the Dimension's opposed sweep (spec §3a),
  *  and past it the offset only repeats the other side of the circle. The row's travel ceiling,
  *  generated from CHORUS_SPREAD_RANGE (dsp-primitives §7, the scalar door). */
 #define OMX_CHORUS_SPREAD_MAX OMX_CHORUS_SPREAD_RANGE_MAX
 /** Highest graph rate the ring is sized for, so base+depth is reachable at every declared rate. */
 #define OMX_CHORUS_MAX_RATE OMX_RT_HARD_TARGET_RATE
-/** The longest delay the stage can be asked for, in whole ms — base + depth, as an INTEGER so the
- *  ring's size below is an integer constant expression (a float in an array bound is a variably
- *  modified type, which is not a thing a file-scope buffer may be). */
-#define OMX_CHORUS_MAX_MS 22
+/* The longest delay, whole ms (OMX_CHORUS_MAX_MS: base + depth ceiling rounded up), is declared in omx-contract, an integer constant expression for the ring size below. */
 /** Per-leg ring capacity, samples: the longest delay at the highest rate, plus the kernel's reach
  *  (`omx_fdelay_cap_for`'s +2 and lookbehind, taken at the maximum order). */
 #define OMX_CHORUS_CAP ((uint32_t)(((OMX_CHORUS_MAX_RATE / 1000) * OMX_CHORUS_MAX_MS) + 4))

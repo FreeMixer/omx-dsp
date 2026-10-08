@@ -36,7 +36,7 @@
 #define OMX_HRP_ATTRIBUTE_H
 
 #include <math.h>
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 #include <stdint.h>
 #include <string.h>
 
