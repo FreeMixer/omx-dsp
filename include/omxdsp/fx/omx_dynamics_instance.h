@@ -41,7 +41,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 #include <omxdsp/omx_dyn.h>
 #include <omxdsp/omx_onepole.h>
 #include <omxdsp/omx_param.h>

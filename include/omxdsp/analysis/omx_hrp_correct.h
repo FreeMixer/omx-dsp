@@ -102,7 +102,7 @@
 /* OMX_HRP_DEFAULT_MAX_AUTO_BANDS: read from omx_contract_limits.h (the declaration's own door). */
 
 /** The corrector's default strength, 0..1. Twin of `makeHrpChannelState().amount`. */
-#define OMX_HRP_DEFAULT_AMOUNT 0.5f
+#define OMX_HRP_DEFAULT_AMOUNT OMX_HRP_AMOUNT_RANGE_DEFAULT
 
 /* ---- §16: the instrument family, as a broad prior ------------------------------------- */
 

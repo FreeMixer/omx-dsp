@@ -25,7 +25,7 @@
 #endif
 
 #include <stdint.h>
-#include "omx_contract_limits.h"
+#include <omxcontract/omx_contract_limits.h>
 
 #ifdef OMX_CONTRACTS
 

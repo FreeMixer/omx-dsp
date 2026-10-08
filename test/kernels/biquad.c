@@ -85,8 +85,7 @@ static void arm_biquad(void) {
     ok(bad == 0 && cases == (OMX_EQ_MAX_BANDS + 1) * 4 * 4 * 2,
        "the fused two-leg cascade is the band-outer omx_biquad loop, bit for bit (output and state)", bad, 0.0);
   }
-  ok(OMX_OPERATOR_EQ_BANDS_RESERVE + OMX_FBS_DEFAULT_MAX_AUTO_BANDS + OMX_HRP_DEFAULT_MAX_AUTO_BANDS <= OMX_EQ_MAX_BANDS,
-     "the cascade cap holds the declared joint budget (operator reserve + FBS + HRP)",
-     OMX_OPERATOR_EQ_BANDS_RESERVE + OMX_FBS_DEFAULT_MAX_AUTO_BANDS + OMX_HRP_DEFAULT_MAX_AUTO_BANDS, OMX_EQ_MAX_BANDS);
+  /* The joint EQ band budget (operator reserve + FBS + HRP auto bands <= OMX_EQ_MAX_BANDS) is
+   * omx-contract's own validation rule, not restated here. */
   expect_clean();
 }
