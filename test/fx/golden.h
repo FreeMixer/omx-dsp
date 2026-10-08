@@ -29,6 +29,20 @@
 #define OMX_FX_GOLDEN_RATE_COUNT OMX_DECLARED_RATE_COUNT
 #endif
 
+
+/* A golden build replaces log10f with the correctly rounded omx_log10f (test/support/log10f_subst.h,
+ * `-include`d by the Makefile): a build without it would record or compare digests that move with
+ * the glibc. */
+#ifndef OMXDSP_LOG10F_SUBSTITUTED
+#error "a golden TU must be compiled with -include test/support/log10f_subst.h"
+#endif
+
+/** 1 when `log10f` in this translation unit is omx_log10f, the function the digests were recorded with. */
+static inline int omx_fx_golden_log10f_is_substituted(void) {
+  float (*f)(float) = log10f;
+  return f == omx_log10f;
+}
+
 /** Frames each digest covers; `render` writes 2 * OMX_FX_GOLDEN_FRAMES interleaved floats. */
 #define OMX_FX_GOLDEN_FRAMES 16384
 
@@ -59,6 +73,10 @@ typedef int (*omx_fx_golden_render_sized_fn)(float sr, float *out, size_t *bytes
 static inline int omx_fx_golden_main_sized(int argc, char **argv, const char *name,
                                            omx_fx_golden_render_sized_fn render, float *out) {
   omx_fx_require_rate_floor();
+  if (!omx_fx_golden_log10f_is_substituted()) {
+    fprintf(stderr, "fx/%s_golden: log10f is the libm's, not omx_log10f: the digests would move with the glibc\n", name);
+    return 2;
+  }
   char probe[65];
   omx_sha256_hex("abc", 3, probe);
   if (strcmp(probe, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad") != 0) {

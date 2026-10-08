@@ -26,52 +26,15 @@ static inline float omx_db_to_lin(float db) {
 }
 
 /**
- * @brief `log10(x)` correctly rounded, in IEEE double arithmetic only: the same bits on every libm.
- *
- * A libm's `log10f` is not one function: glibc 2.36's misrounds about a third of the limiter
- * golden's arguments by up to 2 ulp, glibc 2.41's and 2.43's round them all correctly (FreeMixer/omx-dsp#21).
- * Here the float splits into `2^e · m` with `m` in [√½, √2); `ln m = 2·atanh(t)`, `t = (m−1)/(m+1)`,
- * `|t| ≤ 0.1716`, summed to `t²⁵/25`; `log10 x = e·log10 2 + ln m · (1/ln 10)` with `log10 2` split so
- * `e·hi` is exact; one rounding to float at the end. Checked against glibc 2.43's correctly rounded
- * `log10f` on all 2³¹ non-negative floats (`make check-log10f`): one argument, `0x0efeee7a`, lies
- * 7.8e-10 ulp from a float midpoint, past what double arithmetic resolves, and is answered from its
- * exact value. Needs `FLT_EVAL_METHOD == 0` and no contraction (the build's `-ffp-contract=off`).
- * @param x Any float.
- * @return `log10(x)`: −inf at ±0, NaN below 0 or at NaN, +inf at +inf.
- * @note RT-safe: one divide, no call. Thread-safe: pure.
- */
-static inline float omx_log10f(float x) {
-  uint32_t u;
-  memcpy(&u, &x, sizeof u);
-  if (u == 0x0efeee7au) return -0x1.d33a46p+4f; /* the hard case: exact −29.20172595977783351650… */
-  if (!(x > 0.0f) || x == INFINITY) return x == 0.0f ? -INFINITY : x < 0.0f ? NAN : x + x;
-  const double xd = (double)x;
-  uint64_t b;
-  memcpy(&b, &xd, sizeof b);
-  int e = (int)(b >> 52) - 1023;
-  b = (b & 0x000fffffffffffffull) | 0x3ff0000000000000ull;
-  double m;
-  memcpy(&m, &b, sizeof m);
-  if (m > 0x1.6a09e667f3bcdp+0) {
-    m *= 0.5;
-    e++;
-  }
-  const double f = m - 1.0, t = f / (2.0 + f), z = t * t;
-  double q = 1.0 / 25.0;
-  for (int k = 11; k >= 0; k--) q = q * z + 1.0 / (double)(2 * k + 1);
-  const double ln_m = 2.0 * t * q;
-  return (float)((double)e * 0x1.3441350000000p-2 + ((double)e * 0x1.3ef3fde623e25p-31 + ln_m * 0x1.bcb7b1526e50ep-2));
-}
-
-/**
  * @brief Linear amplitude to decibels, floored so silence stays finite.
  * @param lin Amplitude, linear; values below 1e-9 read as 1e-9.
  * @return `20·log10(max(lin, 1e-9))`: silence is −180 dB, never −inf or NaN.
- * @note RT-safe: one omx_log10f(), no libm call, so the bits do not depend on the libm. Thread-safe: pure.
+ * @note RT-safe: one `log10f`, on the RT-safe allowlist (a pure function of its argument: no allocation,
+ *       lock or errno write on a finite positive input). Thread-safe: pure.
  */
 static inline float omx_lin_to_db(float lin) {
   const float floor_lin = 1e-9f;
-  return 20.0f * omx_log10f(lin < floor_lin ? floor_lin : lin);
+  return 20.0f * log10f(lin < floor_lin ? floor_lin : lin);
 }
 
 /**
