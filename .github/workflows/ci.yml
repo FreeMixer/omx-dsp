@@ -4,8 +4,9 @@ name: ci
 
 # On every push and pull request: the whole suite on Fedora and both Debian releases, on both
 # architectures; the packages built, their file lists checked and a consumer outside the tree built
-# against each; the generated headers rendered again from the pinned OpenMixer commit; and the
-# release workflow as a dry run. Nothing is signed or published here.
+# against each; the committed limits compared with the pinned omx-contract release; and the
+# release workflow as a dry run. Nothing is signed or published here. Every job reads this
+# repository and other public ones, and runs on GitHub's runners.
 
 on:
   pull_request:
@@ -26,13 +27,13 @@ jobs:
 
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
-    runs-on: arc-freemixer
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         image: ['fedora:44', 'debian:bookworm', 'debian:trixie']
-        arch: [amd64]  # arm64 builds run at release only (release.yml), on the public repo
+        arch: [amd64]  # arm64 builds run at release only (release.yml)
     container:
       image: ${{ matrix.image }}
     # debian images run sh by default, which has no pipefail
@@ -69,12 +70,12 @@ jobs:
 
   rpm:
     name: omx-dsp-devel (fc44, ${{ matrix.arch }})
-    runs-on: arc-freemixer
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64]  # aarch64 builds run at release only (release.yml), on the public repo
+        arch: [x86_64]  # aarch64 builds run at release only (release.yml)
     container:
       image: fedora:44
     steps:
@@ -124,13 +125,13 @@ jobs:
 
   deb:
     name: libomxdsp-dev (${{ matrix.suite }}, ${{ matrix.arch }})
-    runs-on: arc-freemixer
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         suite: [bookworm, trixie]
-        arch: [amd64]  # arm64 builds run at release only (release.yml), on the public repo
+        arch: [amd64]  # arm64 builds run at release only (release.yml)
     container:
       image: debian:${{ matrix.suite }}
     defaults:
@@ -163,73 +164,31 @@ jobs:
           gcc $(pkg-config --cflags omxdsp-contracts) -O2 -o /tmp/flavour test/omxdsp_flavour.c $(pkg-config --libs omxdsp-contracts)
           /tmp/flavour
 
-  # The generated headers against the OpenMixer commit pinned in .github/pins.txt. OpenMixer is
-  # private: the organisation secret OPENMIXER_READ_TOKEN reads it.
-  render:
-    name: generated headers are the render of the pinned declaration
-    runs-on: arc-freemixer
-    timeout-minutes: 20
+  # Every limit the library reads agrees with the omx-contract release pinned in .github/pins.txt
+  # (tools/contract-agree.sh). Public sources only: the render of the committed header from
+  # OpenMixer's own declaration is a desk-side check (BUILDING.md, "Generated headers").
+  contract-agree:
+    name: the limits agree with the pinned omx-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      - name: The pinned OpenMixer commit
+      - name: The pinned omx-contract commit
         id: pin
-        run: echo "sha=$(awk '$1 == "openmixer" { print $3 }' .github/pins.txt)" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(awk '$1 == "omx-contract" { print $3 }' .github/pins.txt)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         with:
-          repository: FreeMixer/openmixer
+          repository: FreeMixer/omx-contract
           ref: ${{ steps.pin.outputs.sha }}
-          path: openmixer
-          token: ${{ secrets.OPENMIXER_READ_TOKEN }}
+          path: omx-contract
 
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: openmixer/package.json
+      - name: Compare
+        run: tools/contract-agree.sh omx-contract
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      # what the generator imports from dist: harness/contract-limits-gen.mjs reads core,
-      # declarations and plugin-qualify. The ... suffix builds each one's dependencies too.
-      - name: Build the declaration
-        working-directory: openmixer
-        run: |
-          set -euo pipefail
-          pnpm install --frozen-lockfile --ignore-scripts
-          pnpm --filter "@freemixer/core..." --filter "@freemixer/declarations..." --filter "@freemixer/plugin-qualify..." build
-
-      - name: Render and compare
-        run: tools/render-check.sh openmixer
-
-  # The engine's own copies of the dynamics, balance, rotor and limiter kernels, at the same pinned
-  # OpenMixer commit, render this library's golden digests bit for bit (tools/engine-identity.sh).
-  engine-identity:
-    name: the engine's kernel copies render the same bits
-    runs-on: arc-freemixer
-    timeout-minutes: 20
-    container:
-      image: fedora:44
-    steps:
-      - name: Install the build tools
-        run: dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git
-
-      - uses: actions/checkout@v4
-
-      - name: The pinned OpenMixer commit
-        id: pin
-        run: echo "sha=$(awk '$1 == "openmixer" { print $3 }' .github/pins.txt)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/checkout@v4
-        with:
-          repository: FreeMixer/openmixer
-          ref: ${{ steps.pin.outputs.sha }}
-          path: openmixer
-          token: ${{ secrets.OPENMIXER_READ_TOKEN }}
-
-      - name: make engine-identity
-        run: make engine-identity OPENMIXER=openmixer
+      - name: Each sabotage goes red
+        run: tools/contract-agree.sh --self-test omx-contract
 
   release-dry-run:
     name: release workflow, dry run
@@ -238,5 +197,4 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       publish: false
-      runner: arc-freemixer
-      arm: false  # arm64/aarch64 build at release only, on the public repo
+      arm: false  # arm64/aarch64 build at release only
