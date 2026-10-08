@@ -206,7 +206,8 @@ contract-agree:
 	bash tools/contract-agree.sh --self-test "$(CONTRACT)"
 
 # The engine's copies of the dynamics, balance, rotor and limiter kernels against this library's
-# golden digests: needs an OpenMixer checkout, so it is a CI job of its own and not part of make test.
+# golden digests: needs a checkout of the private OpenMixer repository, so it is a desk check, not part of
+# make test and not run in CI (BUILDING.md, "The engine's copies").
 engine-identity: $(LIB)
 	@test -n "$(OPENMIXER)" || { echo "make engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
