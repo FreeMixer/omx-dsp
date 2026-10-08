@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 # omx-dsp
 
-The DSP library of [OpenMixer](https://github.com/FreeMixer/openmixer): the building blocks of
+The DSP library of [OpenMixer](https://www.openmixer.org): the building blocks of
 the console (biquads, one-poles, envelopes, gain computers, delay rings, the oversampler) and the
 effect kernels built from them. The OpenMixer engine and the omx plugins compile the same kernels
 from this library, so an effect sounds the same on the console and in any other host.
