@@ -61,3 +61,24 @@ jobs:
       requires: ''
       channel-deps: false
     secrets: inherit
+
+  # the generated C API reference, fetched by the website from the release assets
+  api-docs:
+    if: ${{ github.event_name == 'push' }}
+    needs: [rpm, deb]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doxygen
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends doxygen
+
+      - name: Build the HTML and attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          make docs
+          tar -czf "omx-dsp-api-docs-$(make -s version).tar.gz" -C build/docs html
+          gh release upload "$GITHUB_REF_NAME" omx-dsp-api-docs-*.tar.gz --clobber
