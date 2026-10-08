@@ -64,6 +64,8 @@ PC_ALL           = $(BUILD)/omxdsp.pc $(BUILD)/omxdsp-contracts.pc $(BUILD)/omxd
 KERNELS  = $(wildcard test/kernels/*.c)
 FX_HEADERS = $(wildcard include/omxdsp/fx/*.h)
 FX_TESTS   = $(wildcard test/fx/*.c) $(wildcard test/fx/*.h) $(wildcard test/fx/fixtures/*.h)
+SUPPORT_HEADERS = $(wildcard test/support/*.h)
+GOLDEN_SUBST    = -include test/support/log10f_subst.h
 
 PREFIX     ?= /usr/local
 LIBDIR     ?= $(PREFIX)/lib
@@ -137,12 +139,13 @@ checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
+	bash tools/log10f-guard.sh include src
 
 lint: checks
 
-# omx_log10f() against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
+# omx_log10f() (test/support) against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
 # where the libm's log10f is correctly rounded (glibc 2.43), so not part of make test.
-check-log10f: tools/log10f-check.c $(HEADERS) | $(BUILD)
+check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -pthread -o $(BUILD)/log10f-check tools/log10f-check.c -lm
 	./$(BUILD)/log10f-check
 
@@ -171,8 +174,10 @@ FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD
 $(BUILD)/fx_%_math: test/fx/%_math.test.c $(FX_DEPS)
 	$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm
 
-$(BUILD)/fx_%_golden: test/fx/%_golden.test.c $(FX_DEPS)
-	$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm
+# A golden TU is compiled with log10f replaced by the correctly rounded omx_log10f (test/support),
+# so its digest is exact on every glibc; production calls the libm's log10f.
+$(BUILD)/fx_%_golden: test/fx/%_golden.test.c $(FX_DEPS) $(SUPPORT_HEADERS)
+	$(CC) $(CFLAGS) $(INC) -Itest/fx $(GOLDEN_SUBST) -o $@ $< $(LIB) -lm
 
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm,$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm)
@@ -207,11 +212,11 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden)
 # release flags against the plain archive; -Isrc lets a test include the compiled unit it checks.
 # rates runs the HRP chain at the nine RME rates and counts allocations through wrapped allocators;
 # golden compares every answer of both engines with test/golden/analysis.sha256, which the engine's
-# own copy of this code wrote before it moved here; its log10f is the correctly rounded omx_log10f.
+# own copy of this code wrote before it moved here; its log10f is the correctly rounded omx_log10f of test/support, wrapped in at link time.
 ANALYSIS_TESTS = fbs_detect hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct rates golden
 ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
-ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) test/fx/sha256.h | $(BUILD)
+ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) test/fx/sha256.h $(SUPPORT_HEADERS) | $(BUILD)
 
 $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
 	$(CC) $(CFLAGS) $(INC) -Isrc -Itest/analysis -Itest/fx $(ANALYSIS_LDFLAGS_$*) -o $@ $< $(LIB) -lm

@@ -3,6 +3,8 @@
 
 /* ---- units ---------------------------------------------------------------------------------- */
 
+#include "../support/log10f_cr.h"
+
 static void arm_units(void) {
   g_arm = "units";
   ok(omx_db_to_lin(0.0f) == 1.0f, "0 dB is unity", omx_db_to_lin(0.0f), 1.0);
@@ -12,7 +14,7 @@ static void arm_units(void) {
     const float back = omx_lin_to_db(omx_db_to_lin(db));
     ok(fabsf(back - db) < 1e-3f, "dB -> lin -> dB round trip", back, db);
   }
-  /* omx_log10f, correctly rounded and libm-free: the limiter golden's first argument glibc 2.36
+  /* omx_log10f (test/support), correctly rounded and libm-free: the limiter golden's first argument glibc 2.36
    * misrounds (it returns 0x3d959b06), the one hard case, exact powers of ten, the edges (the suite runs
    * with denormals as zero, so the smallest argument is the smallest normal). */
   const struct { uint32_t x, y; } l10[] = {
