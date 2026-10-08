@@ -51,16 +51,32 @@ shape on any host (`tools/reduction-check.sh`), and CI builds the suite on bookw
 
 A golden digest covers the kernel's output bit for bit, so it also covers every libm call the
 kernel makes per sample. A libm's `log10f` is not one function: glibc 2.36 (debian:bookworm)
-misrounds about a third of the limiter's request arguments by up to 2 ulp, where glibc 2.41 and
-2.43 round them correctly, and the limiter's 48 kHz digest (the render of FreeMixer/omx-dsp#21) read `5fe47250…` on
-bookworm against `69a449ce…` on 2.41 and 2.43. The compiler played no part: the same binary flips with
-the glibc it runs on. `omx_lin_to_db()` therefore calls `omx_log10f()`, a correctly rounded `log10`
-in IEEE double arithmetic with no libm call (`make check-log10f` compares it with glibc 2.43's
-`log10f` on all 2³¹ non-negative floats: none differ), and every kernel's golden is an exact digest
-on every toolchain. The limiter's other per-sample call, `powf` in `omx_db_to_lin()`, is the same
-implementation in every glibc since 2.28 and returned the same bits for equal arguments on 2.36,
-2.41 and 2.43. A kernel that adds a per-sample libm call adds it to that list, or uses a
-libm-free word.
+misrounds 1.39% of the non-negative floats, 62 225 of them by 2 ulp, where glibc 2.41 (debian:trixie)
+and 2.43 (Fedora 44) round every one correctly, since 2.41 took `log10f` from CORE-MATH. The limiter's
+48 kHz digest (the render of FreeMixer/omx-dsp#21) read `5fe47250…` on bookworm against `69a449ce…`
+on 2.41 and 2.43. The compiler played no part: the same binary flips with the glibc it runs on.
+
+Production calls the libm: `omx_lin_to_db()` is `20·log10f(max(lin, 1e-9))`, about 2 ns per call
+against 10 ns for a libm-free `log10f` on glibc 2.43. The goldens do not: `omx_log10f()` lives in
+`test/support/log10f_cr.h`, a correctly rounded `log10` in IEEE double arithmetic (it needs
+`FLT_EVAL_METHOD == 0` and `-ffp-contract=off`, which the Makefile's `FPFLAGS` carry), and every
+golden TU is compiled with `-include test/support/log10f_subst.h`, which defines `log10f` as
+`omx_log10f`. The kernels are static inline, so the substitution reaches them, and every kernel's
+golden is an exact digest on every toolchain. Two guards hold it: `golden.h` refuses to compile a
+golden without the substitution and the golden driver exits 2 when `log10f` there is not
+`omx_log10f`, and `tools/log10f-guard.sh` (part of `make lint`) fails when `omx_log10f` appears
+under `include/` or `src/`. `make check-log10f` compares `omx_log10f` with the host libm's `log10f`
+on all 2³¹ non-negative floats; against glibc 2.43 none differ. `test/kernels/units.c` tests it
+against fixed bit patterns, including `0x0efeee7a`, 7.8e-10 ulp from a float midpoint, which is
+answered from its exact value.
+
+On glibc older than 2.41 a production build may therefore differ from the golden by up to 2 ulp of
+a dB value in the units that call `log10f`. That is accepted.
+
+The limiter's other per-sample call, `powf` in `omx_db_to_lin()`, is the same implementation in
+every glibc since 2.28 and returned the same bits for equal arguments on 2.36, 2.41 and 2.43. A
+kernel that adds a per-sample libm call adds it to the RT-safe allowlist named in its `@note`, and
+checks that the goldens agree across glibc versions, or uses a libm-free word.
 
 ## Rates outside the declaration
 
