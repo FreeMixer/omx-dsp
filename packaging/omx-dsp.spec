@@ -66,7 +66,7 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
-* Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.8-1
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.8-1
 - Converting a level to decibels calls the system's log10f again, about five
   times faster than the correctly rounded version it replaced. That version,
   omx_log10f, is no longer part of the library: it lives in the tests, which
@@ -75,7 +75,7 @@ library exists.
   correctly rounded one by up to 2 ulp of a dB value. glibc 2.41 rounds log10f
   correctly.
 
-* Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.7-1
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.7-1
 - The FFT the console's analyser runs on is now part of the library: the Hann
   window, a complex and a real single-precision transform, and a
   double-precision complex transform with its inverse for room and alignment
@@ -99,7 +99,7 @@ library exists.
   192 kHz, and their output is held bit for bit to what the console computed
   before they moved.
 
-* Wed Oct 07 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
+* Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
 - The delay effect's instance header and the plugin parameter headers are no
   longer part of the library. They belong to the plugin, and omx-delay now
   carries its own. Nothing else changed.

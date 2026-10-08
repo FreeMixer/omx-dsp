@@ -5,7 +5,7 @@
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
 
-## 0.1.8 - 2026-10-08
+## 0.1.8 - 2026-10-09
 
 - Converting a level to decibels calls the system's log10f again, about five times faster than
   the correctly rounded version it replaced. That version, omx_log10f, is no longer part of the
@@ -14,7 +14,7 @@ GitHub release notes are generated from this file.
 - On glibc older than 2.41 (Debian bookworm) the result can differ from the correctly rounded
   one by up to 2 ulp of a dB value. glibc 2.41 rounds log10f correctly.
 
-## 0.1.7 - 2026-10-08
+## 0.1.7 - 2026-10-09
 
 - The FFT the console's analyser runs on is now part of the library: the Hann window, a complex
   and a real single-precision transform, and a double-precision complex transform with its
@@ -34,7 +34,7 @@ GitHub release notes are generated from this file.
 - Both are tested at all nine sample rates an RME interface offers, from 32 to 192 kHz, and
   their output is held bit for bit to what the console computed before they moved.
 
-## 0.1.6 - 2026-10-07
+## 0.1.6 - 2026-10-08
 
 - The delay effect's instance header and the plugin parameter headers are no longer part of
   the library. They belong to the plugin, and omx-delay now carries its own. Nothing else
