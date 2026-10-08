@@ -5,14 +5,18 @@
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
 
-## Unreleased
+## 0.1.7 - 2026-10-09
 
+- The FFT the console's analyser runs on is now part of the library: the Hann window, a complex
+  and a real single-precision transform, and a double-precision complex transform with its
+  inverse for room and alignment measurements. The single-precision transforms give exactly the
+  console's previous output; every transform is checked against a long-double reference.
 - The dynamics, balance, rotor and limiter are now tested at all nine rates an RME interface
   runs at, from 32 to 192 kHz, and their reference outputs are kept for each of those rates.
 - The rotor that drives the rotary speaker has its own test, brought over from the console.
 - A new check builds the console engine's own copies of these four and confirms they give exactly
   the same output as the library, so the engine can switch to the library without a change in
-  sound. The library's code itself is unchanged.
+  sound. Their code is unchanged.
 - Two analysis engines arrive from the console, unchanged: the feedback detector, which finds
   a ring growing out of a spectrum and says where to notch it, and HRP, which follows the notes
   an instrument plays, learns how its harmonics normally sit and sizes the cuts for the ones

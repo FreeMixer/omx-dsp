@@ -18,6 +18,9 @@
 #   omxdsp/fx/omx_rotor.h     -> mix_rotor.h   the rotor word
 #   omxdsp/fx/omx_limiter.h   -> mix_limiter.h the precision limiter
 #
+# omxdsp/omx_fft.h is emptied while the engine still defines omx_fft_radix2 in mix_dsp.h, so the
+# umbrella header does not define the window and the FFTs a second time.
+#
 # (the umbrella omxdsp.h leaves the balance law out of the copy: mix_dsp.h includes primitives that
 # include the umbrella, and the engine's header would be read half-way through one of them). Every
 # program whose include trace reaches one of those engine headers is run against the committed
@@ -49,6 +52,10 @@ run_check() { # $1 = engine src dir, $2 = scratch dir
   printf '#include "mix_rotor.h"\n' > "$shim/omxdsp/fx/omx_rotor.h"
   printf '#include "mix_limiter.h"\n' > "$shim/omxdsp/fx/omx_limiter.h"
   sed -i '/#include "omx_balance_law.h"/d' "$shim/omxdsp/omxdsp.h"
+  # an engine that still defines its own window and FFTs in mix_dsp.h: the umbrella must not too
+  if grep -q '^static inline void omx_fft_radix2(' "$src/mix_dsp.h"; then
+    printf '/* the window and the FFTs come from the engine'"'"'s mix_dsp.h */\n' > "$shim/omxdsp/omx_fft.h"
+  fi
   make -s -C "$PKG" build/libomxdsp.a >/dev/null
   local fail=0 programs=0
   reached=""
