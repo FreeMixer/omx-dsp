@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <omxdsp/omx_units.h>
+#include "../test/support/log10f_cr.h"
 
 #define SLICES 32u
 

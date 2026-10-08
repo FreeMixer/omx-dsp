@@ -14,9 +14,9 @@
  * generator and every tone is placed at a bin computed by one division.
  *
  * HRP turns levels into dB with the libm's log10f, which is not one function: glibc 2.36's misrounds
- * some arguments by up to 2 ulp where 2.41 and later round them all correctly (omx_units.h). This
- * program is linked with -Wl,--wrap=log10f and answers every such call with omx_log10f, the
- * correctly rounded log10f, so the digests are the same on every libm; it prints how many calls the
+ * some arguments by up to 2 ulp where 2.41 and later round them all correctly (BUILDING.md). This
+ * program is linked with -Wl,--wrap=log10f and answers every such call with omx_log10f
+ * (test/support), the correctly rounded log10f, so the digests are the same on every libm; it prints how many calls the
  * system's log10f would have answered differently. Where that count is zero (glibc 2.41 and later,
  * where the digests were written) the substitution changes nothing.
  *
@@ -42,6 +42,7 @@
 #include <omxdsp/analysis/omx_hrp_track.h>
 #include <omxdsp/omx_units.h>
 
+#include "../support/log10f_cr.h"
 #include "analysis_rates.h"
 #include "sha256.h"
 
