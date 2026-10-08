@@ -5,7 +5,7 @@
 What changed in each release of omx-dsp, in plain words. The RPM and Debian changelogs and the
 GitHub release notes are generated from this file.
 
-## 0.2.0 - 2026-10-09
+## 0.2.0 - 2026-10-08
 
 - omx-dsp now builds against omx-contract 1.3.0 and no longer carries its own copy of the
   console's limits. Every limit, travel, default, list and choice the kernels read comes from the
@@ -27,7 +27,7 @@ GitHub release notes are generated from this file.
   with the header they compared. `tools/contract-include.sh` finds the contract (an installed
   package, else the pinned release), and a build that cannot find exactly the pinned version stops.
 
-## 0.1.8 - 2026-10-09
+## 0.1.8 - 2026-10-08
 
 - Converting a level to decibels calls the system's log10f again, about five times faster than
   the correctly rounded version it replaced. That version, omx_log10f, is no longer part of the
@@ -36,7 +36,7 @@ GitHub release notes are generated from this file.
 - On glibc older than 2.41 (Debian bookworm) the result can differ from the correctly rounded
   one by up to 2 ulp of a dB value. glibc 2.41 rounds log10f correctly.
 
-## 0.1.7 - 2026-10-09
+## 0.1.7 - 2026-10-08
 
 - The FFT the console's analyser runs on is now part of the library: the Hann window, a complex
   and a real single-precision transform, and a double-precision complex transform with its
