@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.4
+Version: 0.1.5
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: DSP primitives and effect kernels of OpenMixer, for static linking
@@ -63,6 +63,13 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.5-1
+- omx_lin_to_db calls the libm's log10f again, about 5x faster; omx_log10f, the correctly
+  rounded version, moves to the test tree and the golden builds substitute it, so the golden
+  digests are unchanged and exact on every glibc.
+- On glibc older than 2.41 (Debian bookworm) omx_lin_to_db may differ from a correctly rounded
+  log10f by up to 2 ulp of a dB value; glibc 2.41 rounds log10f correctly.
+
 * Tue Oct 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.4-1
 - omx_mixmatrix: the summing matrix multiply, Y = G*X, dense and sparse, ramped where a
   coefficient moves inside the block.

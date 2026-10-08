@@ -1,3 +1,15 @@
+omx-dsp (0.1.5) unstable; urgency=medium
+
+  * omx_lin_to_db calls the libm's log10f again, about 5x faster; omx_log10f,
+    the correctly rounded version, moves to the test tree and the golden
+    builds substitute it, so the golden digests are unchanged and exact on
+    every glibc.
+  * On glibc older than 2.41 (Debian bookworm) omx_lin_to_db may differ from
+    a correctly rounded log10f by up to 2 ulp of a dB value; glibc 2.41
+    rounds log10f correctly.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 08 Oct 2026 10:02:33 +0200
+
 omx-dsp (0.1.4) unstable; urgency=medium
 
   * omx_mixmatrix: the summing matrix multiply, Y = G*X, dense and sparse,
