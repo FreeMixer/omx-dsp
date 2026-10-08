@@ -44,7 +44,7 @@
 #include <string.h>
 
 #include "omx_contract.h"
-#include "omx_contract_limits.h"
+#include <omxcontract/omx_contract_limits.h>
 #include "omx_dyn.h"
 #include "omx_param.h"
 

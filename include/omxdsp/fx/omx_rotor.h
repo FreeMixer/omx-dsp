@@ -21,7 +21,7 @@
 #include <omxdsp/omx_onepole.h>
 
 /** @brief The Lagrange order a rotor reads at: the modulated-read order of the fdelay ruling. */
-#define OMX_ROTOR_ORDER 3
+#define OMX_ROTOR_ORDER OMX_FDELAY_MOD_READ_ORDER
 /** @brief Where the amplitude read sits in the turn relative to the Doppler read, turns. */
 #define OMX_ROTOR_AM_OFFSET 0.25f
 

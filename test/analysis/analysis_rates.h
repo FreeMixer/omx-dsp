@@ -12,12 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 
-#define OMX_ANALYSIS_RATE_COUNT 9
+#define OMX_ANALYSIS_RATE_COUNT ((int)OMX_RME_RATES_COUNT)
 
-static const double OMX_ANALYSIS_RATES[OMX_ANALYSIS_RATE_COUNT] = {
-    32000.0, 44100.0, 48000.0, 64000.0, 88200.0, 96000.0, 128000.0, 176400.0, 192000.0};
+static const double OMX_ANALYSIS_RATES[OMX_ANALYSIS_RATE_COUNT] = OMX_RME_RATES_INIT;
 
 static inline void omx_analysis_require_rates(void) {
   for (uint32_t k = 0; k < OMX_DECLARED_RATE_COUNT; k++) {

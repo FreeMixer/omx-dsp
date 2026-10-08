@@ -1,3 +1,36 @@
+omx-dsp (0.2.0) unstable; urgency=medium
+
+  * omx-dsp now builds against omx-contract 1.3.0 and no longer carries its
+    own copy of the console's limits. Every limit, travel, default, list and
+    choice the kernels read comes from the contract's header
+    (`omxcontract/omx_contract_limits.h`, pinned in `.github/pins.txt`); the
+    library installs and requires `omx-contract-devel` (or
+    `libomx-contract-dev`) at exactly that version, and `omxdsp.pc` requires
+    it.
+  * Breaking, while the library is 0.x: `omxdsp/omx_contract_limits.h` is
+    gone. A program that read names from it now includes
+    `<omxcontract/omx_contract_limits.h>`, and the console-only names the old
+    header carried for the engine (about 460) are not in the contract and are
+    not here.
+  * The kernels' own copies of contract values are gone: the chorus, flanger,
+    phaser and reverb ceilings and base delays, the three fractional-delay
+    read orders, the ring corrector's default amount, the 31 graphic EQ
+    centres, the EQ band types, slopes and pass-filter defaults, and the
+    oracle rate lists. Their names stay as definitions of the contract's. No
+    sound changes: every golden digest is the one it was.
+  * An unconnected EQ band port now reads the contract's one default rule for
+    the bank (the band's centre and type for its place among the bands)
+    instead of a 1 kHz bell.
+  * The joint EQ band budget is checked by omx-contract itself, so the test
+    that restated it is gone.
+  * `tools/contract-agree.sh`, its gap list and the render check against the
+    console are gone with the header they compared.
+    `tools/contract-include.sh` finds the contract (an installed package, else
+    the pinned release), and a build that cannot find exactly the pinned
+    version stops.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 12:02:00 +0000
+
 omx-dsp (0.1.8) unstable; urgency=medium
 
   * Converting a level to decibels calls the system's log10f again, about five

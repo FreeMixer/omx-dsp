@@ -21,8 +21,6 @@
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
 #               1024 frames
-#   make contract-agree CONTRACT=<checkout>  every limit the library reads agrees with the omx-contract
-#               release pinned in .github/pins.txt (tools/contract-agree.sh), then its own sabotages
 #   make engine-identity OPENMIXER=<checkout>  the golden digests rendered again through the
 #               dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and
 #               the check's own sabotages (tools/engine-identity.sh)
@@ -36,7 +34,18 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
 override CFLAGS += $(FPFLAGS)
-INC      = -Iinclude
+# The limits come from FreeMixer/omx-contract, the version .github/pins.txt names, resolved by
+# tools/contract-include.sh (installed omx-contract-devel, else the release tarball); this tree
+# commits no copy of them. Every sub-script that compiles gets the directory as CONTRACT_INC.
+ifeq ($(filter version clean docs,$(MAKECMDGOALS)),)
+CONTRACT_INC := $(shell sh tools/contract-include.sh)
+ifeq ($(CONTRACT_INC),)
+$(error tools/contract-include.sh found no omx-contract: see its message above)
+endif
+export CONTRACT_INC
+endif
+INC      = -Iinclude -isystem $(CONTRACT_INC)
+CONTRACT_VERSION := $(shell awk '$$1 == "omx-contract" { print $$3 }' .github/pins.txt)
 BUILD    = build
 LIB      = $(BUILD)/libomxdsp.a
 HEADERS  = $(wildcard include/omxdsp/*.h)
@@ -77,7 +86,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity contract-agree
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity
 
 all: lib
 
@@ -142,6 +151,8 @@ checks:
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
+	bash tools/contract-single-source.sh
+	bash tools/contract-single-source.sh --self-test
 
 lint: checks
 
@@ -198,13 +209,6 @@ test-fx: $(FX_BINS)
 	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
 	done
 
-# The limits this library reads against FreeMixer/omx-contract, a checkout of the pinned release.
-# Needs no build, so it is a CI job of its own and not part of make test.
-contract-agree:
-	@test -n "$(CONTRACT)" || { echo "make contract-agree CONTRACT=<omx-contract checkout>"; exit 2; }
-	bash tools/contract-agree.sh "$(CONTRACT)"
-	bash tools/contract-agree.sh --self-test "$(CONTRACT)"
-
 # The engine's copies of the dynamics, balance, rotor and limiter kernels against this library's
 # golden digests: needs a checkout of the private OpenMixer repository, so it is a desk check, not part of
 # make test and not run in CI (BUILDING.md, "The engine's copies").
@@ -250,7 +254,7 @@ version:
 	@echo $(VERSION)
 
 PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
-	 -e 's|@VERSION@|$(VERSION)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
+	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTVERSION@|$(CONTRACT_VERSION)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
 
 $(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp|' -e 's|@FLAVOUR@|release, contracts compiled out|' \

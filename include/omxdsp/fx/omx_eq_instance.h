@@ -63,7 +63,7 @@
 #include <string.h>
 
 #include <omxdsp/omx_biquad.h>
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_param.h>
 
@@ -73,20 +73,20 @@
 
 /** The band type enum, in `EQ_BAND_TYPES` order: the integer a host sees on the type port. */
 enum omx_eq_lv2_type {
-  OMX_EQ_LV2_BELL = 0,
-  OMX_EQ_LV2_LOWSHELF = 1,
-  OMX_EQ_LV2_HIGHSHELF = 2,
-  OMX_EQ_LV2_NOTCH = 3,
-  OMX_EQ_LV2_ALLPASS1 = 4,
-  OMX_EQ_LV2_ALLPASS2 = 5,
+  OMX_EQ_LV2_BELL = OMX_EQ_BAND_TYPES_BELL,
+  OMX_EQ_LV2_LOWSHELF = OMX_EQ_BAND_TYPES_LOW_SHELF,
+  OMX_EQ_LV2_HIGHSHELF = OMX_EQ_BAND_TYPES_HIGH_SHELF,
+  OMX_EQ_LV2_NOTCH = OMX_EQ_BAND_TYPES_NOTCH,
+  OMX_EQ_LV2_ALLPASS1 = OMX_EQ_BAND_TYPES_ALLPASS1,
+  OMX_EQ_LV2_ALLPASS2 = OMX_EQ_BAND_TYPES_ALLPASS2,
 };
-#define OMX_EQ_LV2_TYPE_COUNT 6
+#define OMX_EQ_LV2_TYPE_COUNT ((int)OMX_EQ_BAND_TYPES_COUNT)
 
 /** The pass-filter slopes, dB/oct, in core's `FILTER_SLOPES` order: the two members a slope port
  * offers. 24 selects the two-section Butterworth. */
 enum omx_eq_lv2_slope {
-  OMX_EQ_LV2_SLOPE_12 = 12,
-  OMX_EQ_LV2_SLOPE_24 = 24,
+  OMX_EQ_LV2_SLOPE_12 = OMX_FILTER_SLOPES_12,
+  OMX_EQ_LV2_SLOPE_24 = OMX_FILTER_SLOPES_24,
 };
 
 /* The declared travels are `@freemixer/declarations`' EQ_FREQ_RANGE, EQ_GAIN_RANGE, EQ_Q_RANGE,
@@ -333,13 +333,22 @@ static inline void omx_eq_lv2_run(struct omx_eq_lv2 *e, const float *in, float *
 
 /* ---- the control words: eq_lv2.c's run(), without the LV2 face -------------------------------- */
 
-/** The defaults a word reads when its port is not connected (eq_lv2.c's `ctl(…, dflt)` arguments):
- * the HPF at 80 Hz, the LPF at 18 kHz, a band a 1 kHz bell at 0 dB, Q 1, all off. */
-#define OMX_EQ_LV2_HPF_FREQ_DEFAULT 80.0f
-#define OMX_EQ_LV2_LPF_FREQ_DEFAULT 18000.0f
-#define OMX_EQ_LV2_BAND_FREQ_DEFAULT 1000.0f
-#define OMX_EQ_LV2_BAND_GAIN_DEFAULT 0.0f
-#define OMX_EQ_LV2_BAND_Q_DEFAULT 1.0f
+/** The defaults a word reads when its port is not connected (eq_lv2.c's `ctl(…, dflt)` arguments),
+ * all declared in omx-contract: the pass filters' corners, a band's gain and Q, all off. A band's
+ * type and centre are the contract's one default rule for a bank of OMX_EQ_LV2_BANDS bands
+ * (omx_eq_default_type, omx_eq_default_centres). */
+#define OMX_EQ_LV2_HPF_FREQ_DEFAULT ((float)OMX_EQ_PASS_FILTER_DEFAULTS_HPF_FREQ_HZ)
+#define OMX_EQ_LV2_LPF_FREQ_DEFAULT ((float)OMX_EQ_PASS_FILTER_DEFAULTS_LPF_FREQ_HZ)
+#define OMX_EQ_LV2_BAND_GAIN_DEFAULT ((float)OMX_EQ_BAND_DEFAULTS_GAIN_DB)
+#define OMX_EQ_LV2_BAND_Q_DEFAULT ((float)OMX_EQ_BAND_DEFAULTS_Q)
+
+/** Band `i`'s default centre in a bank of OMX_EQ_LV2_BANDS bands, Hz: the contract's rule. Run only
+ * for an unconnected frequency port, so a plugin host (every port connected) never pays for it. */
+static inline float omx_eq_lv2_band_freq_default(uint32_t i) {
+  float centres[OMX_EQ_LV2_BANDS];
+  return omx_eq_default_centres((unsigned)OMX_EQ_LV2_BANDS, centres) == (unsigned)OMX_EQ_LV2_BANDS
+             ? centres[i] : (float)OMX_EQ_FREQ_RANGE_MIN;
+}
 
 /** The words of one cycle, in the port layout's order (eq_lv2.c): the whole-EQ switch, the HPF
  * triple, the LPF triple, then N band quintets in `EqBand` order. A NULL word is an unconnected
@@ -383,8 +392,9 @@ static inline void omx_eq_lv2_set_controls(struct omx_eq_lv2 *e, const struct om
   for (uint32_t i = 0; i < (uint32_t)OMX_EQ_LV2_BANDS; i++) {
     const float *const *b = c->band[i];
     omx_eq_lv2_set_band(e, i,
-                        omx_eq_lv2_word_int(b[0], OMX_EQ_LV2_BELL, OMX_EQ_LV2_TYPE_COUNT - 1, OMX_EQ_LV2_BELL),
-                        omx_eq_lv2_word(b[1], OMX_EQ_LV2_BAND_FREQ_DEFAULT),
+                        omx_eq_lv2_word_int(b[0], OMX_EQ_LV2_BELL, OMX_EQ_LV2_TYPE_COUNT - 1,
+                                            omx_eq_default_type(i, (unsigned)OMX_EQ_LV2_BANDS)),
+                        omx_eq_lv2_word(b[1], b[1] ? 0.0f : omx_eq_lv2_band_freq_default(i)),
                         omx_eq_lv2_word(b[2], OMX_EQ_LV2_BAND_GAIN_DEFAULT),
                         omx_eq_lv2_word(b[3], OMX_EQ_LV2_BAND_Q_DEFAULT), omx_eq_lv2_word_on(b[4], 0));
   }

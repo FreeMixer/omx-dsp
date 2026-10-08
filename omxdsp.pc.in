@@ -7,5 +7,6 @@ includedir=@INCLUDEDIR@
 Name: @NAME@
 Description: DSP primitives and effect kernels of OpenMixer, linked statically (@FLAVOUR@)
 Version: @VERSION@
+Requires: omx-contract = @CONTRACTVERSION@
 Cflags: -I${includedir} @FPFLAGS@@CFLAGS@
 Libs: -L${libdir} -l@NAME@@LIBS@ -lm
