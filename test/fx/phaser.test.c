@@ -523,7 +523,7 @@ int main(int argc, char **argv) {
     const struct omx_phaser p = atom(6, 1000.0, 6.0, 0.5, 0.0, 0.5, 48000.0);
     float lo, hi;
     omx_phaser_sweep_hz(&p, &lo, &hi);
-    ok(lo == 1000.0f && hi == OMX_PHASER_F_TOP_HZ, "sweepHz reports the F_TOP clamp, never silently", hi, OMX_PHASER_F_TOP_HZ);
+    ok(lo == 1000.0f && hi == OMX_PHASER_F_TOP_HZ, "sweepHz reports the F_TOP clamp, never silently", hi, (double)OMX_PHASER_F_TOP_HZ);
     const struct omx_phaser d = atom(6, 200.0, 4.0, 0.5, 0.4, 0.5, 48000.0);
     ok(fabs(20.0 * log10(omx_phaser_level_bound(&d)) - 2.50) < 0.01, "the level bound is +2.50 dB at the defaults",
        20.0 * log10(omx_phaser_level_bound(&d)), 2.50);

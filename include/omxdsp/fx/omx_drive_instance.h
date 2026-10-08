@@ -72,7 +72,7 @@
 #include <omxdsp/fx/omx_drive.h>
 #include <omxdsp/fx/omx_drive_design.h>
 #include <omxdsp/omx_port_int.h>
-#include <omxdsp/omx_contract_limits.h> /* CORE_LIMITS.drive, generated: every travel below */
+#include <omxcontract/omx_contract_limits.h> /* CORE_LIMITS.drive, generated: every travel below */
 #include <omxdsp/omx_param.h>
 
 /** The row's `hfRolloff` enum as the port carries it: 0 = off, else the corner in Hz. */

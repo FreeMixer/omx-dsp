@@ -16,7 +16,7 @@
 #include <string.h>
 
 #include "omx_contract.h"
-#include "omx_contract_limits.h"
+#include <omxcontract/omx_contract_limits.h>
 
 /**
  * @brief The most sections one cascade carries: the joint budget of the strip EQ (9), the

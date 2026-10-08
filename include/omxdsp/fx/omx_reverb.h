@@ -46,8 +46,8 @@ enum omx_reverb_algo {
  * pool budgets a ring for at OMX_REVERB_MAX_RATE; the window is a DECLARED field and never
  * derived from `size`'s RT60, because an RT60 of seconds cannot be buffered and a window silently
  * clamped to fit is the silent-clamp defect. */
-#define OMX_REVERB_REVERSE_MIN_MS 50
-#define OMX_REVERB_REVERSE_MAX_MS 500
+#define OMX_REVERB_REVERSE_MIN_MS OMX_REVERB_REVERSE_RANGE_MIN
+#define OMX_REVERB_REVERSE_MAX_MS OMX_REVERB_REVERSE_RANGE_MAX
 
 /* --- fixed tunings (samples @ 44.1 kHz, scaled to the live rate at layout) --------------------- */
 /* Freeverb comb tunings (the canonical set) + the stereo spread offset for the R channel. Shared
@@ -101,10 +101,9 @@ enum omx_reverb_algo {
  * gentler edge, and 1.5 ms is far inside a snare transient, so the Phil-Collins arm keeps its
  * bite. It is not a control: the control set is the spec's, and this is the shape of an edge
  * inside it. */
-#define OMX_REVERB_GATE_ATTACK_MS 1.5f
 
 /* Pre-delay ring: up to 100 ms @ the declared rate roof (RT_HARD_TARGET_RATE, generated). */
-#define OMX_REVERB_PREDELAY_MAX_MS 100
+#define OMX_REVERB_PREDELAY_MAX_MS OMX_REVERB_PREDELAY_RANGE_MAX
 #define OMX_REVERB_MAX_RATE OMX_RT_HARD_TARGET_RATE
 #define OMX_REVERB_PREDELAY_CAP (((OMX_REVERB_MAX_RATE / 1000) * OMX_REVERB_PREDELAY_MAX_MS) + 1)
 

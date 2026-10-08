@@ -9,14 +9,14 @@
 #include <string.h>
 
 #include <omxdsp/omx_contract.h>
-#include <omxdsp/omx_contract_limits.h>
+#include <omxcontract/omx_contract_limits.h>
 
 /** The rates every kernel oracle runs at, whatever the declaration says: a declared list missing
  * one of them stops the suite (exit 2) instead of testing less. */
-static const float OMX_FX_RATE_FLOOR[4] = {44100.0f, 48000.0f, 96000.0f, 192000.0f};
+static const float OMX_FX_RATE_FLOOR[OMX_ORACLE_FLOOR_RATES_COUNT] = OMX_ORACLE_FLOOR_RATES_INIT;
 
 static inline void omx_fx_require_rate_floor(void) {
-  for (int f = 0; f < 4; f++) {
+  for (unsigned f = 0; f < OMX_ORACLE_FLOOR_RATES_COUNT; f++) {
     int found = 0;
     for (int k = 0; k < (int)OMX_DECLARED_RATE_COUNT; k++)
       if (OMX_DECLARED_RATES[k] == OMX_FX_RATE_FLOOR[f]) found = 1;
@@ -31,9 +31,8 @@ static inline void omx_fx_require_rate_floor(void) {
 /** The nine rates an RME interface clocks at, 32 to 192 kHz. The console declares six of them
  * (OMX_DECLARED_RATES); an oracle that runs here also covers 32, 64 and 128 kHz, where a kernel
  * still has to meet its closed form even though the console never asks for them. */
-#define OMX_FX_RME_RATE_COUNT 9u
-static const float OMX_FX_RME_RATES[OMX_FX_RME_RATE_COUNT] = {
-    32000.0f, 44100.0f, 48000.0f, 64000.0f, 88200.0f, 96000.0f, 128000.0f, 176400.0f, 192000.0f};
+#define OMX_FX_RME_RATE_COUNT OMX_RME_RATES_COUNT
+static const float OMX_FX_RME_RATES[OMX_FX_RME_RATE_COUNT] = OMX_RME_RATES_INIT;
 
 #ifdef OMX_CONTRACTS
 /**
