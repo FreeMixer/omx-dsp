@@ -30,6 +30,7 @@
 # this tree's include/ (ENGINE_IDENTITY_INCLUDE=<dir> takes them from another omx-dsp include
 # directory instead, such as the one the engine is pinned to).
 set -euo pipefail
+: "${CONTRACT_INC:=$(sh "$(dirname "$0")/contract-include.sh")}"   # make exports it; run alone, it is resolved here
 cd "$(dirname "$0")/.."
 PKG="$PWD"
 CC="${CC:-cc}"
@@ -63,7 +64,7 @@ run_check() { # $1 = engine src dir, $2 = scratch dir
   for t in "$PKG"/test/fx/*_golden.test.c; do
     k="$(basename "$t" _golden.test.c)"
     # shellcheck disable=SC2086
-    if ! $CC $CFLAGS -ffp-contract=off -include "$PKG/test/support/log10f_subst.h" -H -I"$shim" -I"$src" -I"$PKG/test/fx" -o "$out/$k" "$t" \
+    if ! $CC $CFLAGS -ffp-contract=off -include "$PKG/test/support/log10f_subst.h" -H -I"$shim" -isystem "$CONTRACT_INC" -I"$src" -I"$PKG/test/fx" -o "$out/$k" "$t" \
         "$PKG/build/libomxdsp.a" -lm 2>"$out/$k.trace"; then
       echo "engine-identity: FAIL — $k does not compile against the engine's copies:"
       grep -E 'error' "$out/$k.trace" | head -5

@@ -9,8 +9,6 @@
 #   - a function (`static inline` definition or a non-static declaration) named omx_*/omxdsp_*,
 #   - a `struct omx_*`/`enum omx_*` definition or a `typedef struct { … } Omx*;`,
 #   - a `#define OMX…` macro (its FIRST definition in the file; the release twin needs none),
-# `omx_contract_limits.h` is GENERATED data (harness/contract-limits-gen.mjs documents it) and is
-# not walked.
 # must be immediately preceded (blank lines allowed) by a `/** … */` block that carries @brief;
 # a function's block carries one @param per parameter, @return unless it returns void, @pre when
 # its body evaluates OMX_PRE, @post for OMX_POST, @invariant for OMX_INVARIANT, and @note.
@@ -120,6 +118,5 @@ fi
 if [ $# -gt 0 ]; then check "$@"; else
   bash "$0" --self-test
   set -- "$PKG"/include/omxdsp/*.h
-  files=(); for f in "$@"; do [ "$(basename "$f")" = omx_contract_limits.h ] || files+=("$f"); done
-  check "${files[@]}" && echo "doc-check: every public symbol in include/omxdsp carries its doc comment"
+  check "$@" && echo "doc-check: every public symbol in include/omxdsp carries its doc comment"
 fi
