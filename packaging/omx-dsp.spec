@@ -130,7 +130,7 @@ library exists.
   192 kHz, and their output is held bit for bit to what the console computed
   before they moved.
 
-* Thu Oct 08 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
+* Wed Oct 07 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.6-1
 - The delay effect's instance header and the plugin parameter headers are no
   longer part of the library. They belong to the plugin, and omx-delay now
   carries its own. Nothing else changed.
