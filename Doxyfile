@@ -7,7 +7,6 @@ OUTPUT_DIRECTORY       = build/docs
 INPUT                  = include/omxdsp
 FILE_PATTERNS          = *.h
 RECURSIVE              = NO
-EXCLUDE                = include/omxdsp/omx_contract_limits.h
 OPTIMIZE_OUTPUT_FOR_C  = YES
 EXTRACT_ALL            = NO
 EXTRACT_STATIC         = YES

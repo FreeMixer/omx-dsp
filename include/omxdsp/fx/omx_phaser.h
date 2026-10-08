@@ -28,11 +28,10 @@
 #include <omxdsp/omx_wetdry.h>
 
 /** @brief The most sections one leg runs (spec §3 `stages` travel, {2, 4, …, 12}). */
-#define OMX_PHASER_MAX_STAGES 12
-/** @brief The highest centre frequency the sweep reaches, Hz, at every rate (spec §2 `F_TOP`). */
-#define OMX_PHASER_F_TOP_HZ 16000.0f
+#define OMX_PHASER_MAX_STAGES OMX_PHASER_STAGES_RANGE_MAX
+/* The highest centre frequency the sweep reaches, Hz (OMX_PHASER_F_TOP_HZ), is declared in omx-contract (spec §2 `F_TOP`). */
 /** @brief The feedback clamp, the kernel's enforcement half of the row's ±0.9 travel (spec §3). */
-#define OMX_PHASER_FB_MAX 0.9f
+#define OMX_PHASER_FB_MAX OMX_PHASER_FEEDBACK_RANGE_MAX
 /** @brief Control points per second: the coefficient is recomputed every `sr/6000` samples (§4). */
 #define OMX_PHASER_CONTROL_HZ 6000.0f
 
