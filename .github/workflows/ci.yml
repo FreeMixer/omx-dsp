@@ -4,7 +4,7 @@ name: ci
 
 # On every push and pull request: the whole suite on Fedora and both Debian releases, on both
 # architectures; the packages built, their file lists checked and a consumer outside the tree built
-# against each; the committed limits compared with the pinned omx-contract release; and the
+# against each; the limits read from the pinned omx-contract release; and the
 # release workflow as a dry run. Nothing is signed or published here. Every job reads this
 # repository and other public ones, and runs on GitHub's runners.
 
@@ -44,10 +44,10 @@ jobs:
       - name: Install the build tools
         run: |
           if command -v dnf >/dev/null; then
-            dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git
+            dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git curl tar gzip
           else
             apt-get update -qq
-            apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates
+            apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl
           fi
 
       - uses: actions/checkout@v4
@@ -80,7 +80,9 @@ jobs:
       image: fedora:44
     steps:
       - name: Install the build tools
-        run: dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip diffutils pkgconf-pkg-config
+        run: |
+          dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip diffutils pkgconf-pkg-config
+          dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo
 
       - uses: actions/checkout@v4
         with:
@@ -141,11 +143,21 @@ jobs:
       - name: Install the build tools
         run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends ca-certificates git dpkg-dev debhelper build-essential lintian gawk pkgconf
+          apt-get install -y --no-install-recommends ca-certificates curl git dpkg-dev debhelper build-essential lintian gawk pkgconf
 
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Take omx-contract from the FreeMixer channel
+        env:
+          URL: https://freemixer.github.io/deb
+          SUITE: ${{ matrix.suite }}
+        run: |
+          install -d /etc/apt/keyrings
+          curl -fsSL -o /etc/apt/keyrings/freemixer.asc "$URL/freemixer.asc"
+          echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] $URL/debian/$SUITE ./" > /etc/apt/sources.list.d/freemixer.list
+          apt-get update -qq
 
       - uses: FreeMixer/.github/.github/actions/build-deb@main
 
@@ -163,32 +175,6 @@ jobs:
           /tmp/golden-reverb test/golden/reverb.sha256
           gcc $(pkg-config --cflags omxdsp-contracts) -O2 -o /tmp/flavour test/omxdsp_flavour.c $(pkg-config --libs omxdsp-contracts)
           /tmp/flavour
-
-  # Every limit the library reads agrees with the omx-contract release pinned in .github/pins.txt
-  # (tools/contract-agree.sh). Public sources only: the render of the committed header from
-  # OpenMixer's own declaration is a desk-side check (BUILDING.md, "Generated headers").
-  contract-agree:
-    name: the limits agree with the pinned omx-contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: The pinned omx-contract commit
-        id: pin
-        run: echo "sha=$(awk '$1 == "omx-contract" { print $3 }' .github/pins.txt)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/checkout@v4
-        with:
-          repository: FreeMixer/omx-contract
-          ref: ${{ steps.pin.outputs.sha }}
-          path: omx-contract
-
-      - name: Compare
-        run: tools/contract-agree.sh omx-contract
-
-      - name: Each sabotage goes red
-        run: tools/contract-agree.sh --self-test omx-contract
 
   release-dry-run:
     name: release workflow, dry run

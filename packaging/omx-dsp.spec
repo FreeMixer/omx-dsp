@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.1.8
+Version: 0.2.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -14,6 +14,8 @@ BuildRequires: make
 BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
+BuildRequires: pkgconfig
+BuildRequires: omx-contract-devel = 1.3.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -32,6 +34,7 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
+Requires: omx-contract-devel = 1.3.0
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -66,6 +69,27 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.0-1
+- omx-dsp now builds against omx-contract 1.3.0 and no longer carries its own copy of the
+  console's limits. Every limit, travel, default, list and choice the kernels read comes from the
+  contract's header (`omxcontract/omx_contract_limits.h`, pinned in `.github/pins.txt`); the
+  library installs and requires `omx-contract-devel` (or `libomx-contract-dev`) at exactly that
+  version, and `omxdsp.pc` requires it.
+- Breaking, while the library is 0.x: `omxdsp/omx_contract_limits.h` is gone. A program that read
+  names from it now includes `<omxcontract/omx_contract_limits.h>`, and the console-only names
+  the old header carried for the engine (about 460) are not in the contract and are not here.
+- The kernels' own copies of contract values are gone: the chorus, flanger, phaser and reverb
+  ceilings and base delays, the three fractional-delay read orders, the ring corrector's default
+  amount, the 31 graphic EQ centres, the EQ band types, slopes and pass-filter defaults, and the
+  oracle rate lists. Their names stay as definitions of the contract's. No sound changes: every
+  golden digest is the one it was.
+- An unconnected EQ band port now reads the contract's one default rule for the bank (the band's
+  centre and type for its place among the bands) instead of a 1 kHz bell.
+- The joint EQ band budget is checked by omx-contract itself, so the test that restated it is gone.
+- `tools/contract-agree.sh`, its gap list and the render check against the console are gone
+  with the header they compared. `tools/contract-include.sh` finds the contract (an installed
+  package, else the pinned release), and a build that cannot find exactly the pinned version stops.
+
 * Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.8-1
 - Converting a level to decibels calls the system's log10f again, about five
   times faster than the correctly rounded version it replaced. That version,
