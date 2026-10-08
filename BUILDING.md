@@ -60,7 +60,7 @@ Production calls the libm: `omx_lin_to_db()` is `20·log10f(max(lin, 1e-9))`, ab
 against 10 ns for a libm-free `log10f` on glibc 2.43. The goldens do not: `omx_log10f()` lives in
 `test/support/log10f_cr.h`, a correctly rounded `log10` in IEEE double arithmetic (it needs
 `FLT_EVAL_METHOD == 0` and `-ffp-contract=off`, which the Makefile's `FPFLAGS` carry), and every
-golden TU is compiled with `-include test/support/log10f_subst.h`, which defines `log10f` as
+effect-kernel golden TU is compiled with `-include test/support/log10f_subst.h`, which defines `log10f` as
 `omx_log10f`. The kernels are static inline, so the substitution reaches them, and every kernel's
 golden is an exact digest on every toolchain. Two guards hold it: `golden.h` refuses to compile a
 golden without the substitution and the golden driver exits 2 when `log10f` there is not
@@ -68,7 +68,9 @@ golden without the substitution and the golden driver exits 2 when `log10f` ther
 under `include/` or `src/`. `make check-log10f` compares `omx_log10f` with the host libm's `log10f`
 on all 2³¹ non-negative floats; against glibc 2.43 none differ. `test/kernels/units.c` tests it
 against fixed bit patterns, including `0x0efeee7a`, 7.8e-10 ulp from a float midpoint, which is
-answered from its exact value.
+answered from its exact value. The analysis golden (`test/analysis/golden.test.c`), whose HRP
+code calls `log10f` through the compiled headers, links with `-Wl,--wrap=log10f` and answers each
+call with `omx_log10f`; it exits 2 if the wrap was never reached.
 
 On glibc older than 2.41 a production build may therefore differ from the golden by up to 2 ulp of
 a dB value in the units that call `log10f`. That is accepted.
