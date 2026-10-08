@@ -8,7 +8,7 @@ omx-dsp (0.1.8) unstable; urgency=medium
     correctly rounded one by up to 2 ulp of a dB value. glibc 2.41 rounds
     log10f correctly.
 
- -- Pau Aliagas <linuxnow@gmail.com>  Thu, 08 Oct 2026 14:00:00 +0000
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 08 Oct 2026 12:00:00 +0000
 
 omx-dsp (0.1.7) unstable; urgency=medium
 
