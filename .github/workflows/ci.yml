@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: FreeMixer/.github/.github/actions/changelog@main
+      - uses: FreeMixer/.github/.github/actions/changelog@v1
 
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
@@ -101,7 +101,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: FreeMixer/.github/.github/actions/build-rpm@main
+      - uses: FreeMixer/.github/.github/actions/build-rpm@v1
 
       - name: Check the file list
         run: |
@@ -172,7 +172,7 @@ jobs:
           echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] $URL/debian/$SUITE ./" > /etc/apt/sources.list.d/freemixer.list
           apt-get update -qq
 
-      - uses: FreeMixer/.github/.github/actions/build-deb@main
+      - uses: FreeMixer/.github/.github/actions/build-deb@v1
 
       - name: A consumer builds against libomxdsp-dev
         run: |
