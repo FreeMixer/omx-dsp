@@ -24,7 +24,7 @@ on:
       runner:
         type: string
         default: 'ubuntu-latest'
-        description: "Runner for the x86 jobs: the pull-request dry run of this private repo passes arc-freemixer"
+        description: "Runner for the x86 jobs"
       arm:
         type: boolean
         default: true
