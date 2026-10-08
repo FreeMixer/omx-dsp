@@ -13,8 +13,8 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make install PREFIX=/usr LIBDIR=/usr/lib64 DESTDIR=…` | headers, the three archives and `omxdsp.pc`, `omxdsp-contracts.pc`, `omxdsp-tsan.pc` |
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
+| `make lint` | the doc check, the source scan, the log10f guard and tools/contract-single-source.sh (no name omx-contract defines is defined again here; it checks its own sabotage) |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
-| `make contract-agree CONTRACT=<omx-contract checkout>` | compares every limit the sources read with the omx-contract release pinned in `.github/pins.txt`, and checks that each of its sabotages goes red; CI runs it |
 | `make engine-identity OPENMIXER=<checkout>` | renders the golden digests again through the dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and checks that each of its sabotages goes red; a desk check, not run in CI |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
@@ -102,20 +102,22 @@ commit pinned in `.github/pins.txt` whenever a kernel's golden digest or one of 
 copies changes. It ends when the engine builds from this library's headers instead of its copies:
 there is then nothing left to compare.
 
-## Generated headers
+## The limits come from omx-contract
 
-`include/omxdsp/omx_contract_limits.h` is rendered from OpenMixer's declaration and never edited
-here. Two checks hold it:
+omx-dsp commits no limits header. Every limit, travel, default, list and choice the kernels read
+is declared in FreeMixer/omx-contract and read through `<omxcontract/omx_contract_limits.h>`. The
+version is `omx-contract` in `.github/pins.txt`, one line, a release number.
+`tools/contract-include.sh` finds that exact version, and the build stops when it cannot:
 
-- CI, public sources only: `tools/contract-agree.sh <omx-contract checkout>` takes every `OMX_*`
-  name the sources read that this header defines, and requires it to have the same value in the
-  omx-contract release pinned in `.github/pins.txt`, or to be listed in `tools/contract-gap.txt`
-  (the limits omx-contract does not carry yet: the feedback detector's and HRP's constants, the
-  bus input cap and the operator EQ band reserve). The gap list only shrinks; when it is empty the committed header goes and the
-  build reads omx-contract's render (issues #1 and #9).
-- At the desk, because the declaration is in a private repository: `tools/render-check.sh
-  <openmixer checkout>` renders the header again from the commit pinned in `.github/pins.txt` and
-  compares byte for byte. Run it whenever the header or the openmixer pin changes.
+1. the installed `omx-contract-devel` / `libomx-contract-dev`, if `pkg-config --exact-version`
+   accepts the pin;
+2. otherwise the release's tarball, fetched once into `build/omx-contract/<version>/` (needs `curl`).
+
+`OMX_CONTRACT_INC=<dir>` names another include directory (one that holds `omxcontract/`) and skips the
+version check. The perturbation arms use it, and so can you: render a contract with one value moved
+into a scratch directory, `make test`, and the kernel test that reads that value must go red.
+Moving the pin is one commit of its own. A name the kernels need that the contract lacks is added to
+the contract and released there first; it is never typed here.
 
 ## Packages
 

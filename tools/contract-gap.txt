@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-# The limits this library reads that FreeMixer/omx-contract does not carry yet, one per line
-# (tools/contract-agree.sh). The list only shrinks: a name omx-contract starts to carry, or that
-# nothing reads, is a failure until the line is deleted.

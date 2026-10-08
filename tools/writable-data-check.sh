@@ -26,6 +26,7 @@
 # Usage: writable-data-check.sh <scratch-dir>   (CC and CFLAGS from the environment)
 #        writable-data-check.sh --rt <scratch-dir> <unit.c> [cc flags…]
 set -euo pipefail
+: "${CONTRACT_INC:=$(sh "$(dirname "$0")/contract-include.sh")}"   # make exports it; run alone, it is resolved here
 shopt -s nullglob
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PKG="$(cd "$HERE/.." && pwd)"
@@ -77,11 +78,11 @@ for h in include/omxdsp/*.h include/omxdsp/analysis/*.h; do
   base="$(basename "$h" .h)"
   tu="$OUT/$base.c"
   printf '#include <%s>\nvoid omxdsp_wd_anchor_%s(void) {}\n' "${h#include/}" "$base" > "$tu"
-  $CC $CFLAGS -Iinclude -c -o "$OUT/$base.rel.o" "$tu"
+  $CC $CFLAGS -Iinclude -isystem "$CONTRACT_INC" -c -o "$OUT/$base.rel.o" "$tu"
   w="$(writable "$OUT/$base.rel.o")"
   if [ -n "$w" ]; then echo "writable-data-check: FAIL $h (release) defines writable data: $w"; fail=1; fi
   storage=""; [ "$base" = omx_contract ] && storage=-DOMX_CONTRACT_STORAGE
-  $CC $CFLAGS -Iinclude -DOMX_CONTRACTS $storage -c -o "$OUT/$base.con.o" "$tu"
+  $CC $CFLAGS -Iinclude -isystem "$CONTRACT_INC" -DOMX_CONTRACTS $storage -c -o "$OUT/$base.con.o" "$tu"
   w="$(writable "$OUT/$base.con.o" | grep -v '^omx_contract_log$' || true)"
   if [ -n "$w" ]; then echo "writable-data-check: FAIL $h (contracts) defines writable data beyond the ledger: $w"; fail=1; fi
   if [ "$base" = omx_contract ] && [ "$(writable "$OUT/$base.con.o")" != omx_contract_log ]; then
@@ -90,10 +91,10 @@ for h in include/omxdsp/*.h include/omxdsp/analysis/*.h; do
 done
 for c in src/*.c; do
   base="$(basename "$c" .c)"
-  $CC $CFLAGS -Iinclude -c -o "$OUT/$base.src.rel.o" "$c"
+  $CC $CFLAGS -Iinclude -isystem "$CONTRACT_INC" -c -o "$OUT/$base.src.rel.o" "$c"
   w="$(writable "$OUT/$base.src.rel.o")"
   if [ -n "$w" ]; then echo "writable-data-check: FAIL $c (release) defines writable data: $w"; fail=1; fi
-  $CC $CFLAGS -Iinclude -DOMX_CONTRACTS -c -o "$OUT/$base.src.con.o" "$c"
+  $CC $CFLAGS -Iinclude -isystem "$CONTRACT_INC" -DOMX_CONTRACTS -c -o "$OUT/$base.src.con.o" "$c"
   w="$(writable "$OUT/$base.src.con.o")"
   if [ -n "$w" ]; then echo "writable-data-check: FAIL $c (contracts) defines writable data: $w"; fail=1; fi
 done
