@@ -63,7 +63,7 @@ run_check() { # $1 = engine src dir, $2 = scratch dir
   for t in "$PKG"/test/fx/*_golden.test.c; do
     k="$(basename "$t" _golden.test.c)"
     # shellcheck disable=SC2086
-    if ! $CC $CFLAGS -ffp-contract=off -H -I"$shim" -I"$src" -I"$PKG/test/fx" -o "$out/$k" "$t" \
+    if ! $CC $CFLAGS -ffp-contract=off -include "$PKG/test/support/log10f_subst.h" -H -I"$shim" -I"$src" -I"$PKG/test/fx" -o "$out/$k" "$t" \
         "$PKG/build/libomxdsp.a" -lm 2>"$out/$k.trace"; then
       echo "engine-identity: FAIL — $k does not compile against the engine's copies:"
       grep -E 'error' "$out/$k.trace" | head -5
