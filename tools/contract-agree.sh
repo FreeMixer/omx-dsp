@@ -84,7 +84,7 @@ if [ "${1:-}" = --self-test ]; then
   THEIRS="$CONTRACT/include/omxcontract/omx_contract_limits.h"
   scratch="$(mktemp -d)"; trap 'rm -rf "$scratch"' EXIT
   names_read > "$scratch/read"
-  grep -vE '^(#|$)' "$GAP" > "$scratch/gap"
+  { grep -vE '^(#|$)' "$GAP" || true; } > "$scratch/gap"   # grep -v exits 1 on an empty list: the goal
   check "$OURS" "$THEIRS" "$scratch/gap" "$scratch/read" >/dev/null 2>&1 || { echo "self-test: the unsabotaged check is not green" >&2; exit 1; }
   fail=0
   sabotage() { # $1 name, then the check is run on whatever the caller prepared in $scratch
@@ -100,7 +100,9 @@ if [ "${1:-}" = --self-test ]; then
   # ... or in the contract
   reset; sed -i 's/^#define OMX_PAN_PAN_MIN .*/#define OMX_PAN_PAN_MIN -0.5f/' "$scratch/theirs"; sabotage "a shared value moved in omx-contract"
   # a gap entry vanishes
-  reset; sed -i '1d' "$scratch/gap2"; sabotage "a gap entry deleted"
+  if [ -s "$scratch/gap" ]; then   # an empty gap list has no entry to delete
+    reset; sed -i '1d' "$scratch/gap2"; sabotage "a gap entry deleted"
+  fi
   # a gap entry the contract carries
   reset; echo OMX_PAN_PAN_MIN >> "$scratch/gap2"; sabotage "a carried limit listed as a gap"
   # a gap entry nothing reads
@@ -123,5 +125,5 @@ if [ -n "$pin" ] && [ "$have" != "$pin" ]; then
 fi
 scratch="$(mktemp -d)"; trap 'rm -rf "$scratch"' EXIT
 names_read > "$scratch/read"
-grep -vE '^(#|$)' "$GAP" > "$scratch/gap"
+{ grep -vE '^(#|$)' "$GAP" || true; } > "$scratch/gap"   # grep -v exits 1 on an empty list: the goal
 check "$OURS" "$THEIRS" "$scratch/gap" "$scratch/read"
