@@ -56,7 +56,7 @@ GitHub release notes are generated from this file.
 - Both are tested at all nine sample rates an RME interface offers, from 32 to 192 kHz, and
   their output is held bit for bit to what the console computed before they moved.
 
-## 0.1.6 - 2026-10-08
+## 0.1.6 - 2026-10-07
 
 - The delay effect's instance header and the plugin parameter headers are no longer part of
   the library. They belong to the plugin, and omx-delay now carries its own. Nothing else
