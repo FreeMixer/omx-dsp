@@ -58,13 +58,13 @@
 
 /** @brief One resolved dynamics atom: a per-block snapshot of the operator's controls. */
 struct omx_dyn {
-  int enabled;         /* 0 → the atom is a no-op (the whole slot bypassed) */
-  struct omx_gaincomp_params gc; /* the gain computer's mode, threshold, ratio, knee, range, make-up */
-  int detect;          /* OMX_DETECT_PEAK | OMX_DETECT_RMS */
-  float attack_coeff;  /* one-pole coeff when the detector RISES (0 = instant, →1 = slow) */
-  float release_coeff; /* one-pole coeff when the detector FALLS */
-  int ovs_mode;        /* OMX_DYN_OVS_AUTO | _OFF | _X4 — the operator's choice, not a factor */
-  /* The attack in MILLISECONDS, the operator's own number. `attack_coeff` is the derivation of
+  int enabled;         /**< 0 → the atom is a no-op (the whole slot bypassed) */
+  struct omx_gaincomp_params gc; /**< the gain computer's mode, threshold, ratio, knee, range, make-up */
+  int detect;          /**< OMX_DETECT_PEAK | OMX_DETECT_RMS */
+  float attack_coeff;  /**< one-pole coeff when the detector RISES (0 = instant, →1 = slow) */
+  float release_coeff; /**< one-pole coeff when the detector FALLS */
+  int ovs_mode;        /**< OMX_DYN_OVS_AUTO | _OFF | _X4 — the operator's choice, not a factor */
+  /** The attack in MILLISECONDS, the operator's own number. `attack_coeff` is the derivation of
    * it (and of the rate); this is the value `auto` compares against a millisecond threshold,
    * which a coefficient cannot answer without knowing the rate it was made at. */
   float attack_ms;
@@ -126,17 +126,17 @@ static inline uint32_t omx_dyn_oversample_factor(const struct omx_dyn *p) {
  * is exactly the seam the crossfade exists to avoid having to hide.
  */
 struct omx_dyn_state {
-  struct omx_env env;              /* the detector cascade — level, so rate-independent */
-  struct omx_oversampler ovs_a;    /* up for the key (or leg L), and down for the GAIN */
-  struct omx_oversampler ovs_b;    /* up for leg R — unused on a mono or keyed slot */
-  float delay_l[OMX_OVS_LATENCY_4X + 1u];
-  float delay_r[OMX_OVS_LATENCY_4X + 1u];
-  uint32_t delay_pos;
-  uint32_t factor;                 /* the factor that ran LAST buffer, for the switch */
-  uint32_t xfade_left;             /* samples of handover still owed */
-  uint32_t xfade_tap;              /* the outgoing path's read tap */
-  float xfade_gain;                /* the outgoing path's last gain, HELD across the handover */
-  float last_gain;                 /* what to hold if the factor changes next buffer */
+  struct omx_env env;              /**< the detector cascade — level, so rate-independent */
+  struct omx_oversampler ovs_a;    /**< up for the key (or leg L), and down for the GAIN */
+  struct omx_oversampler ovs_b;    /**< up for leg R — unused on a mono or keyed slot */
+  float delay_l[OMX_OVS_LATENCY_4X + 1u]; /**< the left leg's delay line, always fed */
+  float delay_r[OMX_OVS_LATENCY_4X + 1u]; /**< the right leg's delay line, always fed */
+  uint32_t delay_pos;              /**< the write index of both delay lines */
+  uint32_t factor;                 /**< the factor that ran LAST buffer, for the switch */
+  uint32_t xfade_left;             /**< samples of handover still owed */
+  uint32_t xfade_tap;              /**< the outgoing path's read tap */
+  float xfade_gain;                /**< the outgoing path's last gain, HELD across the handover */
+  float last_gain;                 /**< what to hold if the factor changes next buffer */
 };
 
 /**
