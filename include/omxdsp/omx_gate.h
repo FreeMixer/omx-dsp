@@ -53,14 +53,22 @@
 
 /** @brief The gate's controls: each points at its value, NULL for unconnected (the default). */
 struct omx_gate_controls {
-  const float *enabled, *key_external, *threshold, *ratio, *range, *attack, *release;
+  const float *enabled;      /**< 0 bypasses the gate */
+  const float *key_external; /**< non-zero keys the detector from the external input */
+  const float *threshold;    /**< the level below which the gate closes */
+  const float *ratio;        /**< the expansion ratio below the threshold */
+  const float *range;        /**< the deepest attenuation the gate applies */
+  const float *attack;       /**< the attack time */
+  const float *release;      /**< the release time */
 };
 
 /** @brief One gate instance: its rate, the dynamics slot's state and the block scratch. */
 struct omx_gate {
-  float rate;
-  struct omx_dyn_state st;
-  float sl[OMX_GATE_CHUNK], sr[OMX_GATE_CHUNK], sk[OMX_GATE_CHUNK];
+  float rate;                 /**< the sample rate the gate is armed at */
+  struct omx_dyn_state st;    /**< the dynamics slot's state */
+  float sl[OMX_GATE_CHUNK];   /**< the left scratch */
+  float sr[OMX_GATE_CHUNK];   /**< the right scratch */
+  float sk[OMX_GATE_CHUNK];   /**< the key scratch */
 };
 
 /**
