@@ -15,7 +15,7 @@ HIDE_UNDOC_MEMBERS     = NO
 WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
 WARN_NO_PARAMDOC       = YES
-WARN_AS_ERROR          = YES
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
 QUIET                  = YES
 GENERATE_HTML          = YES
 GENERATE_MAN           = YES
@@ -25,7 +25,7 @@ SOURCE_BROWSER         = NO
 ALPHABETICAL_INDEX     = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = YES
-PREDEFINED             = OMX_CONTRACTS __x86_64__
+PREDEFINED             = OMX_CONTRACTS __x86_64__ "__attribute__(x)=" "OMXDSP_STATIC_ASSERT(c,m)="
 ALIASES               += "pre=\par Precondition:^^" \
                          "post=\par Postcondition:^^" \
                          "invariant=\par Invariant:^^"
