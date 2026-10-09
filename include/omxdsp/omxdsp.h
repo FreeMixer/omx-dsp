@@ -16,9 +16,9 @@
 /** @brief API major version: a symbol's meaning changes only with a bump here. */
 #define OMXDSP_VERSION_MAJOR 0
 /** @brief API minor version: additions only. */
-#define OMXDSP_VERSION_MINOR 4
+#define OMXDSP_VERSION_MINOR 5
 /** @brief Patch version: no API change. */
-#define OMXDSP_VERSION_PATCH 1
+#define OMXDSP_VERSION_PATCH 0
 
 /**
  * @brief The library version as one word, `major << 16 | minor << 8 | patch`.
