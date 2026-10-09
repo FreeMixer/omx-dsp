@@ -199,6 +199,7 @@ FX_NO_ALLOC_LDFLAGS = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 FX_LDFLAGS_pitch_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_limiter_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_chorus_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_flanger_instance = $(FX_NO_ALLOC_LDFLAGS)
 
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm $(FX_LDFLAGS_$*),$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm $(FX_LDFLAGS_$*))
