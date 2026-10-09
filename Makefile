@@ -198,6 +198,8 @@ $(BUILD)/fx_%_golden: test/fx/%_golden.test.c $(FX_DEPS) $(SUPPORT_HEADERS)
 FX_NO_ALLOC_LDFLAGS = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 FX_LDFLAGS_pitch_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_limiter_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_geq_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_drive_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_chorus_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_flanger_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_reverb_instance = $(FX_NO_ALLOC_LDFLAGS)

@@ -8,13 +8,44 @@
 //      the output is bit-identical to the kernel's at the clamped gains, and the ledger is clean;
 //   C  flat, bypassed and not-ready are the identity byte for byte;
 //   D  re-engaging clears the histories: the first block after the edge equals a fresh instance's;
-//   E  a band's gain at its centre, within 0.1 dB, and the published latency is zero.
+//   E  a band's gain at its centre, within 0.1 dB, and the published latency is zero;
+//   H  init, resolve (re-engage included) and run allocate nothing: malloc, calloc, realloc and free
+//      are wrapped at link time and counted across the instance's whole life.
 #define OMX_CONTRACT_STORAGE 1
+#include <stdlib.h>
+
 #include <omxdsp/fx/omx_geq_instance.h>
 
 #include "instance_oracle.h"
 
 #define N 32768u
+
+/* ---- the allocation counter (linked with --wrap=malloc,calloc,realloc,free) ---------------- */
+
+void *__real_malloc(size_t n);
+void *__real_calloc(size_t n, size_t sz);
+void *__real_realloc(void *p, size_t n);
+void __real_free(void *p);
+
+static int g_counting = 0;
+static long g_allocs = 0;
+
+void *__wrap_malloc(size_t n) {
+  if (g_counting) g_allocs++;
+  return __real_malloc(n);
+}
+void *__wrap_calloc(size_t n, size_t sz) {
+  if (g_counting) g_allocs++;
+  return __real_calloc(n, sz);
+}
+void *__wrap_realloc(void *p, size_t n) {
+  if (g_counting) g_allocs++;
+  return __real_realloc(p, n);
+}
+void __wrap_free(void *p) {
+  if (g_counting) g_allocs++;
+  __real_free(p);
+}
 
 static float in_l[N], in_r[N], out_l[N], out_r[N], ref_l[N], ref_r[N];
 
@@ -71,8 +102,8 @@ static void arm_clamps(void) {
   float w[OMX_GEQ_BANDS], c[OMX_GEQ_BANDS];
   for (int k = 0; k < OMX_GEQ_BANDS; k++) {
     switch (k % 5) {
-      case 0: w[k] = 40.0f; c[k] = OMX_EQ_GAIN_RANGE_MAX; break;
-      case 1: w[k] = -1e30f; c[k] = OMX_EQ_GAIN_RANGE_MIN; break;
+      case 0: w[k] = 40.0f; c[k] = OMX_GEQ_BAND_RANGE_MAX; break;
+      case 1: w[k] = -1e30f; c[k] = OMX_GEQ_BAND_RANGE_MIN; break;
       case 2: w[k] = NAN; c[k] = 0.0f; break;
       case 3: w[k] = (k & 1) ? INFINITY : -INFINITY; c[k] = 0.0f; break;
       default: w[k] = 3.5f; c[k] = 3.5f; break;
@@ -149,6 +180,35 @@ static void arm_gain(void) {
   expect_clean();
 }
 
+static void arm_no_alloc(void) {
+  g_arm = "H no allocation";
+  /* The counter is live: an allocation inside the window is counted. Called through volatile
+   * pointers, so the compiler cannot fold the pair away. */
+  void *(*volatile alloc)(size_t) = malloc;
+  void (*volatile release)(void *) = free;
+  g_allocs = 0;
+  g_counting = 1;
+  release(alloc(16));
+  g_counting = 0;
+  ok(g_allocs == 2, "the allocation counter counts (a malloc and a free inside the window)", (double)g_allocs, 2);
+  float g[OMX_GEQ_BANDS];
+  for (int k = 0; k < OMX_GEQ_BANDS; k++) g[k] = (k & 1) ? 6.0f : -3.0f;
+  static OmxGeqInstance s;
+  g_allocs = 0;
+  g_counting = 1;
+  omx_geq_instance_init(&s, g_sr);
+  omx_geq_instance_resolve(&s, 0, g);
+  omx_geq_instance_run(&s, in_l, in_r, out_l, out_r, 512u);
+  omx_geq_instance_resolve(&s, 1, g);
+  omx_geq_instance_run(&s, in_l, in_r, out_l, out_r, 512u);
+  g[3] = 12.0f;
+  omx_geq_instance_resolve(&s, 0, g);
+  omx_geq_instance_run(&s, in_l, in_r, out_l, out_r, 512u);
+  g_counting = 0;
+  ok(g_allocs == 0, "init, resolve, a re-engage and run allocate nothing", (double)g_allocs, 0);
+  expect_clean();
+}
+
 int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
@@ -160,6 +220,8 @@ int main(void) {
     arm_identity_paths();
     arm_edge();
     arm_gain();
+    stimulus(in_l, in_r, N, 0x1234567u, 0u);
+    arm_no_alloc();
   }
   return instance_oracle_end("geq_instance");
 }
