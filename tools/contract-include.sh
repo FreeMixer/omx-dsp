@@ -13,16 +13,22 @@
 #   3. the release tarball of that version (its include/ is the render `omx-contract render --check`
 #      holds equal to the data), fetched once into build/omx-contract/<version>/.
 #
+# With --data it prints instead the directory holding that version's kernel files
+# (data/kernels/<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh
+# reads. The installed packages ship the renders only, so this always takes the release tarball (3).
+#
 # Prints one line on stdout and nothing else; the reason for a refusal goes to stderr, exit 1.
 set -eu
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-if [ -n "${OMX_CONTRACT_INC:-}" ]; then
+data=0
+[ "${1:-}" = --data ] && data=1
+if [ "$data" = 0 ] && [ -n "${OMX_CONTRACT_INC:-}" ]; then
   [ -f "$OMX_CONTRACT_INC/omxcontract/omx_contract_limits.h" ] || { echo "contract-include: OMX_CONTRACT_INC=$OMX_CONTRACT_INC has no omxcontract/omx_contract_limits.h" >&2; exit 1; }
   printf '%s\n' "$OMX_CONTRACT_INC"; exit 0
 fi
 v="$(awk '$1 == "omx-contract" { print $3 }' "$HERE/.github/pins.txt")"
 [ -n "$v" ] || { echo "contract-include: .github/pins.txt has no omx-contract line" >&2; exit 1; }
-if command -v pkg-config >/dev/null 2>&1 && pkg-config --exact-version="$v" omx-contract 2>/dev/null; then
+if [ "$data" = 0 ] && command -v pkg-config >/dev/null 2>&1 && pkg-config --exact-version="$v" omx-contract 2>/dev/null; then
   inc="$(pkg-config --variable=includedir omx-contract)"
   [ -f "$inc/omxcontract/omx_contract_limits.h" ] || { echo "contract-include: omx-contract $v is installed but $inc/omxcontract/omx_contract_limits.h is missing" >&2; exit 1; }
   printf '%s\n' "$inc"; exit 0
@@ -37,4 +43,8 @@ if [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
 fi
 got="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$dir/package/package.json")"
 [ "$got" = "$v" ] || { echo "contract-include: the release unpacked at $dir is $got, the pin is $v" >&2; exit 1; }
+if [ "$data" = 1 ]; then
+  [ -d "$dir/package/data/kernels" ] || { echo "contract-include: the omx-contract $v release has no data/kernels/" >&2; exit 1; }
+  printf '%s\n' "$dir/package/data/kernels"; exit 0
+fi
 printf '%s\n' "$dir/package/include"
