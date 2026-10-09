@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.4.1
+Version: 0.5.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,17 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.5.0-1
+- Built against omx-contract 2.2.0, and requires any 2.x from 2.2.0 on, not
+  one exact release: a contract minor keeps every existing define unchanged
+- The drive face takes the auto-gain, stereo-link and HF roll-off controls
+- A delay instance face that owns its 2 s rings and takes the ping-pong switch
+- A stereo EQ instance face taking the EQ's contract controls in order, one
+  build per band count (8, 16 or 32 bands)
+- The dynamics face is now the comp face (omx_comp_instance.h), taking the
+  comp's mix, its kind (comp or limiter, RMS or peak detector) and its
+  detector oversampling
+- The gate face takes the hold and the hysteresis the kernel now runs
 * Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.4.1-1
 - Built against omx-contract 2.1.0
 

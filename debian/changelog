@@ -1,3 +1,15 @@
+omx-dsp (0.5.0) unstable; urgency=medium
+
+  * Built against omx-contract 2.2.0, and requires any 2.x from 2.2.0 on.
+  * The drive face takes the auto-gain, stereo-link and HF roll-off controls.
+  * A delay instance face that owns its rings and takes the ping-pong switch.
+  * A stereo EQ instance face taking the EQ's contract controls in order.
+  * The dynamics face is now the comp face, taking the comp's mix, its kind
+    and its detector oversampling.
+  * The gate face takes the hold and the hysteresis the kernel now runs.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 18:21:43 +0200
+
 omx-dsp (0.4.1) unstable; urgency=medium
 
   * Built against omx-contract 2.1.0.
