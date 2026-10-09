@@ -24,6 +24,8 @@
 # conforms fails, so the list only shrinks.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
+# gate: the contract's kneeStartDb and kneeEndDb have no field in the gate's kernel yet
+# (omx_gate_resolve runs a hard knee); every other gate control is taken.
 PENDING="gate"
 
 # controls <kernel.json>: "name kind count" per control, in the declared order; `count` is the
@@ -110,7 +112,7 @@ check() {
       fi
       continue
     fi
-    if [[ " $PENDING " == *" $k "* ]]; then echo "face-conformance: $k pending (arguments predate the rule)"; continue; fi
+    if [[ " $PENDING " == *" $k "* ]]; then echo "face-conformance: $k pending (arguments predate the rule; see PENDING)"; continue; fi
     echo "face-conformance: omx_${k}_instance_resolve does not take $k's contract controls:" >&2
     diff <(printf '%s\n' "$want") <(printf '%s\n' "$got") | sed -n 's/^</  contract:/p; s/^>/  face:    /p' >&2 || true
     bad=1
