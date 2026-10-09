@@ -51,7 +51,7 @@ typedef struct {
   struct omx_transient atom;
   struct omx_transient_state state;
   /** The clamped controls the atom was last resolved from; `resolved` 0 until the first. */
-  float attack_db, sustain_db, attack_ms, sustain_ms, output_db;
+  float attack_db, sustain_db, attack_time_ms, sustain_time_ms, output_db;
   int resolved;
   /** The previous cycle's engaged flag, so a bypass->engaged edge can clear the state. */
   int was_engaged;
@@ -93,7 +93,7 @@ static inline void omx_transient_instance_clear(OmxTransientInstance *s) {
  */
 #define OMX_CONTRACT_STAGE "transient/instance-resolve"
 static inline void omx_transient_instance_resolve(OmxTransientInstance *s, int bypass, float attack_db,
-                                                  float sustain_db, float attack_ms, float sustain_ms,
+                                                  float sustain_db, float attack_time_ms, float sustain_time_ms,
                                                   float output_db) {
   if (!s || !s->ready) return;
   /* CONTRACT (omx_contract.h). The atom this leaves behind was resolved from controls inside the
@@ -107,16 +107,16 @@ static inline void omx_transient_instance_resolve(OmxTransientInstance *s, int b
                             OMX_TRANSIENT_SUSTAIN_DB_DEFAULT);
   output_db = omx_clamp_or(output_db, OMX_TRANSIENT_OUTPUT_DB_MIN, OMX_TRANSIENT_OUTPUT_DB_MAX,
                            OMX_TRANSIENT_OUTPUT_DB_DEFAULT);
-  attack_ms = omx_clampf(attack_ms, OMX_TRANSIENT_ATTACK_TIME_MS_MIN, OMX_TRANSIENT_ATTACK_TIME_MS_MAX);
-  sustain_ms = omx_clampf(sustain_ms, OMX_TRANSIENT_SUSTAIN_TIME_MS_MIN, OMX_TRANSIENT_SUSTAIN_TIME_MS_MAX);
+  attack_time_ms = omx_clampf(attack_time_ms, OMX_TRANSIENT_ATTACK_TIME_MS_MIN, OMX_TRANSIENT_ATTACK_TIME_MS_MAX);
+  sustain_time_ms = omx_clampf(sustain_time_ms, OMX_TRANSIENT_SUSTAIN_TIME_MS_MIN, OMX_TRANSIENT_SUSTAIN_TIME_MS_MAX);
   const int moved = !s->resolved || s->attack_db != attack_db || s->sustain_db != sustain_db ||
-                    s->attack_ms != attack_ms || s->sustain_ms != sustain_ms || s->output_db != output_db;
+                    s->attack_time_ms != attack_time_ms || s->sustain_time_ms != sustain_time_ms || s->output_db != output_db;
   if (moved) {
-    omx_transient_resolve(&s->atom, 0, attack_db, sustain_db, attack_ms, sustain_ms, output_db, s->sr);
+    omx_transient_resolve(&s->atom, 0, attack_db, sustain_db, attack_time_ms, sustain_time_ms, output_db, s->sr);
     s->attack_db = attack_db;
     s->sustain_db = sustain_db;
-    s->attack_ms = attack_ms;
-    s->sustain_ms = sustain_ms;
+    s->attack_time_ms = attack_time_ms;
+    s->sustain_time_ms = sustain_time_ms;
     s->output_db = output_db;
     s->resolved = 1;
   }
