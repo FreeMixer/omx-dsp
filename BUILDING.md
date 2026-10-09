@@ -17,6 +17,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
 | `make engine-identity OPENMIXER=<checkout>` | renders the golden digests again through the dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and checks that each of its sabotages goes red; a desk check, not run in CI |
 | `make cost-kernel [PART=…]` | one effect kernel's ns/sample alone (gate, flanger, drive, ovs, shape, deesser, delay; all by default) at every declared rate, at its defaults and with every optional path engaged, with a digest of its output |
+| `make cost-kernel-ab BASE=<ref> [PART=…] [ROUNDS=5]` | the same bench built against `<ref>`'s headers and the tree's, run interleaved on one core: the ratio base/tree per cell, and a refusal when the two render different bits |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
