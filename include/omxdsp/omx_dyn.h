@@ -68,7 +68,42 @@ struct omx_dyn {
    * it (and of the rate); this is the value `auto` compares against a millisecond threshold,
    * which a coefficient cannot answer without knowing the rate it was made at. */
   float attack_ms;
+  /** HOLD (BELOW mode only): frames at the graph's own rate the gate stays open after its level
+   * falls below the close point, with the detector frozen, before the release runs. 0 is no hold.
+   * The derivation from milliseconds is {@link omx_dyn_hold_frames}. */
+  uint32_t hold_frames;
+  /** HYSTERESIS (BELOW mode only), dB, not negative: the gate opens when its level reaches
+   * `gc.thresh_db` and closes only when it falls below `gc.thresh_db - hyst_db`. 0 is none. */
+  float hyst_db;
+  /** The DRY share of the output, in [0, 1]: `1 - mixPct / 100`, from {@link omx_dyn_dry_share}.
+   * 0 (mix 100 %) is the fully processed output; 1 is the input, delay-compensated. */
+  float dry;
 };
+
+/**
+ * @brief The hold control's frames at `rate`: `hold_ms` milliseconds, rounded to the nearest frame.
+ * @param hold_ms The hold, ms; a value that is not positive (or NaN) is no hold.
+ * @param rate The graph's rate, Hz.
+ * @return The frames, at most 2^24 (far above any declared hold at any declared rate).
+ * @note RT-safe: arithmetic. Thread-safe: pure.
+ */
+static inline uint32_t omx_dyn_hold_frames(float hold_ms, float rate) {
+  const float f = hold_ms * rate * 0.001f;
+  if (!(f > 0.0f)) return 0u;
+  return f > 16777216.0f ? 16777216u : (uint32_t)(f + 0.5f);
+}
+
+/**
+ * @brief The dry share a mix control resolves to: `1 - mix_pct / 100`, inside [0, 1].
+ * @param mix_pct The mix, percent: 100 is fully processed, 0 the dry input; NaN reads as 100.
+ * @return The dry share; exactly 0 at 100 %, so the default output is the processed one bit for bit.
+ * @note RT-safe: arithmetic. Thread-safe: pure.
+ */
+static inline float omx_dyn_dry_share(float mix_pct) {
+  if (!(mix_pct < 100.0f)) return 0.0f;
+  if (!(mix_pct > 0.0f)) return 1.0f;
+  return 1.0f - mix_pct * 0.01f;
+}
 
 /**
  * @brief The detector parameters of a dynamics atom: its attack and release poles and its domain.
@@ -137,6 +172,9 @@ struct omx_dyn_state {
   uint32_t xfade_tap;              /**< the outgoing path's read tap */
   float xfade_gain;                /**< the outgoing path's last gain, HELD across the handover */
   float last_gain;                 /**< what to hold if the factor changes next buffer */
+  uint32_t hold_left;              /**< hold frames still owed, at the running factor's rate */
+  int gate_open;                   /**< 1 while the gate is open (hold/hysteresis state) */
+  float hyst_credit_db;            /**< dB the open curve still lends a closed gate, decaying */
 };
 
 /**
@@ -169,6 +207,92 @@ static inline void omx_dyn_state_init(struct omx_dyn_state *st, uint32_t factor)
   omx_oversampler_init(&st->ovs_b, factor);
   st->factor = factor;
   st->last_gain = 1.0f;
+}
+
+/**
+ * @brief 1 when the atom engages the gate's open/closed state (hold or hysteresis, BELOW mode).
+ *
+ * At hold 0 and hysteresis 0 it answers 0 and the kernel takes the loops it always took, so a
+ * gate at the neutral values is the gate that shipped, bit for bit.
+ * @param p The atom.
+ * @return 1 or 0.
+ * @note RT-safe. Thread-safe: pure.
+ */
+static inline int omx_dyn_gate_state_engaged(const struct omx_dyn *p) {
+  return p->gc.mode == OMX_DYN_BELOW && (p->hold_frames > 0u || p->hyst_db > 0.0f);
+}
+
+/**
+ * @brief The gate's detector and gain computer with hold and hysteresis: `buf` holds rectified
+ *        detector input on entry and the linear gain on return.
+ *
+ * THE STATE. The gate OPENS when the detector level reaches `thresh_db` and CLOSES when it falls
+ * below `thresh_db - hyst_db`. While open, the gain computer runs at the close point, so an open
+ * gate passes everything above it at unity. HOLD: when the level first falls below the close
+ * point the gate stays open `hold` more frames with the detector cascade FROZEN (a falling step is
+ * undone; a rising one is kept and re-arms the hold), so the release starts when the hold ends,
+ * from where the level was — the gate's gain never steps at the end of a hold.
+ *
+ * THE CLOSE IS NOT A STEP. At the close point the open curve gives 0 dB and the closed curve
+ * `(ratio - 1) * -hyst_db`; switching curves there would drop the gain by that much in one frame.
+ * The difference is lent to the closed gate as a dB credit that decays with the RELEASE time
+ * (`credit_pole`, the release pole at the running rate), so the close is shaped by the release
+ * like every other fall. The credit never lifts the gain above 0 dB.
+ * @param st The slot's state (cascade, hold counter, open flag, credit).
+ * @param p The atom; BELOW mode.
+ * @param ep The detector parameters.
+ * @param ac The cascade's per-stage attack pole.
+ * @param rc The cascade's per-stage release pole.
+ * @param buf Rectified detector input in, linear gain out, `count` samples.
+ * @param count Samples.
+ * @param hold Hold frames at the running rate.
+ * @param credit_pole The release pole at the running rate, for the hysteresis credit.
+ * @note RT-safe: per sample one cascade step, two gain-curve evaluations, one powf; no allocation.
+ */
+static inline void omx_dyn_gate_chain(struct omx_dyn_state *st, const struct omx_dyn *p,
+                                      const struct omx_env_params *ep, float ac, float rc, float *buf,
+                                      uint32_t count, uint32_t hold, float credit_pole) {
+  struct omx_gaincomp_params open_gc = p->gc;
+  open_gc.thresh_db = p->gc.thresh_db - p->hyst_db;
+  /* The open and close decisions read the level in dB, the domain the gain computer reads, so a
+   * gate is open exactly where its curve says 0 dB. */
+  for (uint32_t k = 0; k < count; k++) {
+    const struct omx_env before = st->env;
+    float vdb = omx_lin_to_db(omx_env_step(&st->env, ep, buf[k], ac, rc));
+    if (st->gate_open) {
+      if (vdb >= open_gc.thresh_db) st->hold_left = hold;
+      else if (st->hold_left > 0u) {
+        st->hold_left--;
+        st->env = before;
+        vdb = omx_lin_to_db(omx_env_level(&before, ep));
+      } else st->gate_open = 0;
+    } else if (vdb >= p->gc.thresh_db) {
+      st->gate_open = 1;
+      st->hold_left = hold;
+    }
+    const float closed_db = omx_gaincomp_db(&p->gc, vdb);
+    if (st->gate_open) st->hyst_credit_db = omx_gaincomp_db(&open_gc, vdb) - closed_db;
+    else st->hyst_credit_db = omx_flush(st->hyst_credit_db * credit_pole);
+    float g_db = closed_db + st->hyst_credit_db;
+    g_db = g_db > 0.0f ? 0.0f : g_db;
+    buf[k] = omx_db_to_lin(g_db) * p->gc.makeup_lin;
+  }
+}
+
+/**
+ * @brief The dry/wet mix folded into the gain: `dry + (1 - dry) * g`.
+ *
+ * The gain multiplies the delay-compensated input, so blending the GAIN is blending the dry input
+ * with the fully processed (made-up) output with no second delay line: on the 4x path the dry
+ * share rides the same compensation the wet one does. `dry == 0` is never called.
+ * @param gain The chunk's gains, blended in place.
+ * @param m Samples.
+ * @param dry The dry share, (0, 1].
+ * @note RT-safe: one multiply-add per sample. Thread-safe on distinct buffers.
+ */
+static inline void omx_dyn_mix_gain(float *gain, uint32_t m, float dry) {
+  const float wet = 1.0f - dry;
+  for (uint32_t i = 0; i < m; i++) gain[i] = dry + wet * gain[i];
 }
 
 #undef OMX_CONTRACT_STAGE
@@ -225,7 +349,7 @@ static inline void omx_dyn_state_init(struct omx_dyn_state *st, uint32_t factor)
  * @param st The slot's state.
  * @pre `finite-in-l`, `finite-in-r`, `finite-in-key`: every input block is finite; and once the
  *      slot is enabled, `ratio-at-least-one`, `knee-not-negative`, `range-is-an-attenuation`,
- *      `makeup-positive`.
+ *      `makeup-positive`, `hysteresis-not-negative`, `dry-share-in-unit`.
  * @post `finite-out-l`, `finite-out-r`; `gain-finite-nonneg` and `no-gain-added`: the last gain
  *       applied is finite, non-negative and at most the make-up.
  * @invariant `envelope-finite`: the detector cascade stays finite.
@@ -254,6 +378,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   OMX_PRE(p->gc.knee_db >= 0.0f, "knee-not-negative");
   OMX_PRE(p->gc.mode != OMX_DYN_BELOW || p->gc.range_db <= 0.0f, "range-is-an-attenuation");
   OMX_PRE(p->gc.makeup_lin > 0.0f, "makeup-positive");
+  OMX_PRE(p->hyst_db >= 0.0f, "hysteresis-not-negative");
+  OMX_PRE(p->dry >= 0.0f && p->dry <= 1.0f, "dry-share-in-unit");
 
   /* THE SWITCH. `auto` is derived every buffer, so an operator dragging the attack across
    * OMX_DYN_OVS_AUTO_MS lands here. The incoming path's rate changers are re-armed (their
@@ -271,6 +397,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
       st->xfade_tap = omx_oversampler_latency_for(st->factor);
       st->xfade_gain = st->last_gain;
       st->xfade_left = OMX_DYN_XFADE;
+      /* A hold still owed is time, not frames: re-count it at the incoming rate. */
+      st->hold_left = (uint32_t)(((uint64_t)st->hold_left * want) / st->factor);
     }
     omx_oversampler_init(&st->ovs_a, want);
     omx_oversampler_init(&st->ovs_b, want);
@@ -283,6 +411,13 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   const struct omx_env_params ep = omx_dyn_env_params(p);
   float ac, rc;
   omx_env_stage_poles(&ep, st->factor, &ac, &rc);
+  /* Hold and hysteresis, when either is set on a gate: the state machine replaces the cascade and
+   * gain loops below. Neither set (the neutral values), the loops that shipped run untouched. */
+  const int gate_state = omx_dyn_gate_state_engaged(p);
+  const uint32_t hold = p->hold_frames * st->factor;
+  const float credit_pole = (gate_state && p->hyst_db > 0.0f && st->factor != 1u)
+                                ? powf(p->release_coeff, 1.0f / (float)st->factor)
+                                : p->release_coeff;
 
   uint32_t done = 0u;
   while (done < n) {
@@ -306,8 +441,13 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
           const float al = fabsf(kl[i]), ar = fabsf(kr[i]);
           lev[i] = al > ar ? al : ar;
         }
-      for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
-      for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
+      if (gate_state) {
+        memcpy(gain, lev, m * sizeof(float));
+        omx_dyn_gate_chain(st, p, &ep, ac, rc, gain, m, hold, credit_pole);
+      } else {
+        for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
+        for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
+      }
     } else {
       /* THE 4× CONTROL PATH. The audio is NOT resampled — only the signal the detector looks
        * at goes up, and only the GAIN comes back down. A stereo slot sends BOTH legs up and
@@ -332,8 +472,11 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
           const float aa = fabsf(ua[k]), bb = fabsf(vb[k]);
           g4[k] = aa > bb ? aa : bb;
         }
-      for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
-      for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
+      if (gate_state) omx_dyn_gate_chain(st, p, &ep, ac, rc, g4, mf, hold, credit_pole);
+      else {
+        for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
+        for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
+      }
       omx_oversampler_down(&st->ovs_a, g4, m, gain);
       /* D-1, 2026-09-17 (docs/design/notes/2026-09-17-dynamics-math-review.md, measured by
        * mix_dyn_math.test.c at all four rates): a half-band RINGS on a step, and the step a hard
@@ -355,6 +498,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         else if (gain[i] > p->gc.makeup_lin) gain[i] = p->gc.makeup_lin;
       }
     }
+    /* MIX after make-up, on either path: 100 % (dry 0) never enters here. */
+    if (p->dry > 0.0f) omx_dyn_mix_gain(gain, m, p->dry);
 
     if (tap == 0u && st->xfade_left == 0u) {
       /* Factor 1, no handover owed: every read is the sample just written, so the ring only has
@@ -401,7 +546,9 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   OMX_POST(st->last_gain >= 0.0f && st->last_gain - st->last_gain == 0.0f, "gain-finite-nonneg");
   /* The gain that actually reached the audio is inside the gain computer's own range — the law
    * D-1's clamp restores on the 4x path and that the base path has always kept. */
-  OMX_POST(st->last_gain <= p->gc.makeup_lin || p->gc.range_db > 0.0f, "no-gain-added");
+  OMX_POST(st->last_gain <= p->gc.makeup_lin || p->gc.range_db > 0.0f ||
+               (p->dry > 0.0f && st->last_gain <= 1.0f),
+           "no-gain-added");
   OMX_INVARIANT(omx_block_finite(st->env.stage, (uint32_t)OMX_DYN_ENV_STAGES), "envelope-finite");
 }
 #undef OMX_CONTRACT_STAGE

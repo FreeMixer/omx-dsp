@@ -19,8 +19,9 @@
  *
  * What the console's gate has that this gate does NOT, and why:
  *  - the KEY FILTER (HP/LP edges): an external host filters its own sidechain send.
- *  - HOLD / HYSTERESIS: the native slot's resolved parameters carry neither, so exposing them here
- *    would promise behaviour the kernel does not have.
+ *  - HOLD / HYSTERESIS: the kernel runs both (`omx_dyn.hold_frames`, `hyst_db`), but this face
+ *    resolves them to their neutral 0 until the contract settles the gate's control list
+ *    (omx-contract#21); its output is today's gate until then.
  *
  * ## Aliasing
  *
