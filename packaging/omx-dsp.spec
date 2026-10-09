@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.5.1
+Version: 0.5.2
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,14 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.5.2-1
+- A trim face, fx/omx_trim_instance.h: the console's input trim, a
+  de-zippered gain; its resolve takes the trim kernel's trimDb, clamped
+  into TRIM_RANGE
+- With the EQ face's pass filters it is the channel strip plugin's input
+  stage, bit for bit at every declared rate
+- Built against omx-contract 2.3.0; any 2.x from 2.3.0 on
+
 * Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.5.1-1
 - The gate runs the contract's knee range (kneeStartDb, kneeEndDb): a rounded
   corner from the start to the end point around the threshold; a start equal
