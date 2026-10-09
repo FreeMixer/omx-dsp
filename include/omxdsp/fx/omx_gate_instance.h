@@ -81,7 +81,8 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
  * @brief Resolve the host's control-port values into the gate's atom for one cycle.
  * @param s The instance; a refused one is left untouched.
  * @param bypass Non-zero disables the slot (the identity).
- * @param key_external Non-zero listens to the key handed to {@link omx_gate_instance_run}, zero is SELF.
+ * @param key_source The contract's keySource, as its index: 1 (sidechain) listens to the key handed to
+ *        {@link omx_gate_instance_run}, 0 (self) to the gate's own input; any non-zero is sidechain.
  * @param threshold_db The open point, dB.
  * @param ratio The expansion ratio.
  * @param range_db The attenuation floor, dB.
@@ -90,12 +91,12 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
  * @post `atom-meets-the-kernel-preconditions`: every field inside the declared OMX_GATE_* travel.
  * @note RT-safe: two expf per call. Thread-safe on distinct instances.
  */
-static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int key_external,
+static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int key_source,
                                              float threshold_db, float ratio, float range_db,
                                              float attack_ms, float release_ms) {
   if (!s || !s->ready) return;
   const float enabled = bypass ? 0.0f : 1.0f;
-  s->key_external = key_external ? 1.0f : 0.0f;
+  s->key_external = key_source ? 1.0f : 0.0f;
   const struct omx_gate_controls c = {&enabled,    &s->key_external, &threshold_db, &ratio,
                                       &range_db,   &attack_ms,       &release_ms};
   omx_gate_resolve(&s->gate, &c, &s->atom);
