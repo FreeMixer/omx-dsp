@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.3.0
+Version: 0.4.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -69,6 +69,10 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.4.0-1
+- pitch and limiter instance faces own their rings: init takes (instance, rate)
+  and allocates nothing (breaking while 0.x: the caller-ring init is gone)
+
 * Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.3.0-1
 - Instance faces for tremolo, phaser, pitch, rotary and limiter (omx-contract 2.0.0)
 - transient face: attack_time_ms, sustain_time_ms
