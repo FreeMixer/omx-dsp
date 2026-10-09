@@ -24,9 +24,7 @@
 # conforms fails, so the list only shrinks.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-# gate: the contract's kneeStartDb and kneeEndDb have no field in the gate's kernel yet
-# (omx_gate_resolve runs a hard knee); every other gate control is taken.
-PENDING="gate"
+PENDING=""
 
 # controls <kernel.json>: "name kind count" per control, in the declared order; `count` is the
 # control's count (a control taken once per band) or "-". A control that carries `of` is another
