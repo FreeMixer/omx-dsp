@@ -23,8 +23,9 @@
  *      input and output buffers (and may connect them to the same memory). run() copies in to out
  *      when they differ and runs the kernel on out. Without a key nothing else can alias.
  *
- * WHAT THE DESK'S COMP HAS THAT THIS ONE DOES NOT: the `mix` control (OMX_COMP_MIX_PCT_*). The
- * kernel's atom carries no dry/wet, and a blend here would be DSP the console's slot does not run.
+ * WHAT THE DESK'S COMP HAS THAT THIS ONE DOES NOT YET: the `mix` control (OMX_COMP_MIX_PCT_*).
+ * The kernel runs it (`omx_dyn.dry`, from omx_dyn_dry_share), but this face resolves it to 100 %
+ * until the contract settles the comp's control list (omx-contract#21).
  *
  * STATE ACROSS BYPASS: the kernel's disabled path leaves the slot's state as it was, and the
  * shell adds no re-arm the console's slot does not have. {@link omx_dynamics_instance_init} (a

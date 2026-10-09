@@ -75,6 +75,9 @@ struct omx_dyn {
   /** HYSTERESIS (BELOW mode only), dB, not negative: the gate opens when its level reaches
    * `gc.thresh_db` and closes only when it falls below `gc.thresh_db - hyst_db`. 0 is none. */
   float hyst_db;
+  /** The DRY share of the output, in [0, 1]: `1 - mixPct / 100`, from {@link omx_dyn_dry_share}.
+   * 0 (mix 100 %) is the fully processed output; 1 is the input, delay-compensated. */
+  float dry;
 };
 
 /**
@@ -88,6 +91,18 @@ static inline uint32_t omx_dyn_hold_frames(float hold_ms, float rate) {
   const float f = hold_ms * rate * 0.001f;
   if (!(f > 0.0f)) return 0u;
   return f > 16777216.0f ? 16777216u : (uint32_t)(f + 0.5f);
+}
+
+/**
+ * @brief The dry share a mix control resolves to: `1 - mix_pct / 100`, inside [0, 1].
+ * @param mix_pct The mix, percent: 100 is fully processed, 0 the dry input; NaN reads as 100.
+ * @return The dry share; exactly 0 at 100 %, so the default output is the processed one bit for bit.
+ * @note RT-safe: arithmetic. Thread-safe: pure.
+ */
+static inline float omx_dyn_dry_share(float mix_pct) {
+  if (!(mix_pct < 100.0f)) return 0.0f;
+  if (!(mix_pct > 0.0f)) return 1.0f;
+  return 1.0f - mix_pct * 0.01f;
 }
 
 /**
@@ -264,6 +279,22 @@ static inline void omx_dyn_gate_chain(struct omx_dyn_state *st, const struct omx
   }
 }
 
+/**
+ * @brief The dry/wet mix folded into the gain: `dry + (1 - dry) * g`.
+ *
+ * The gain multiplies the delay-compensated input, so blending the GAIN is blending the dry input
+ * with the fully processed (made-up) output with no second delay line: on the 4x path the dry
+ * share rides the same compensation the wet one does. `dry == 0` is never called.
+ * @param gain The chunk's gains, blended in place.
+ * @param m Samples.
+ * @param dry The dry share, (0, 1].
+ * @note RT-safe: one multiply-add per sample. Thread-safe on distinct buffers.
+ */
+static inline void omx_dyn_mix_gain(float *gain, uint32_t m, float dry) {
+  const float wet = 1.0f - dry;
+  for (uint32_t i = 0; i < m; i++) gain[i] = dry + wet * gain[i];
+}
+
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "dynamics"
 /*
@@ -318,7 +349,7 @@ static inline void omx_dyn_gate_chain(struct omx_dyn_state *st, const struct omx
  * @param st The slot's state.
  * @pre `finite-in-l`, `finite-in-r`, `finite-in-key`: every input block is finite; and once the
  *      slot is enabled, `ratio-at-least-one`, `knee-not-negative`, `range-is-an-attenuation`,
- *      `makeup-positive`, `hysteresis-not-negative`.
+ *      `makeup-positive`, `hysteresis-not-negative`, `dry-share-in-unit`.
  * @post `finite-out-l`, `finite-out-r`; `gain-finite-nonneg` and `no-gain-added`: the last gain
  *       applied is finite, non-negative and at most the make-up.
  * @invariant `envelope-finite`: the detector cascade stays finite.
@@ -348,6 +379,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   OMX_PRE(p->gc.mode != OMX_DYN_BELOW || p->gc.range_db <= 0.0f, "range-is-an-attenuation");
   OMX_PRE(p->gc.makeup_lin > 0.0f, "makeup-positive");
   OMX_PRE(p->hyst_db >= 0.0f, "hysteresis-not-negative");
+  OMX_PRE(p->dry >= 0.0f && p->dry <= 1.0f, "dry-share-in-unit");
 
   /* THE SWITCH. `auto` is derived every buffer, so an operator dragging the attack across
    * OMX_DYN_OVS_AUTO_MS lands here. The incoming path's rate changers are re-armed (their
@@ -466,6 +498,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         else if (gain[i] > p->gc.makeup_lin) gain[i] = p->gc.makeup_lin;
       }
     }
+    /* MIX after make-up, on either path: 100 % (dry 0) never enters here. */
+    if (p->dry > 0.0f) omx_dyn_mix_gain(gain, m, p->dry);
 
     if (tap == 0u && st->xfade_left == 0u) {
       /* Factor 1, no handover owed: every read is the sample just written, so the ring only has
@@ -512,7 +546,9 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   OMX_POST(st->last_gain >= 0.0f && st->last_gain - st->last_gain == 0.0f, "gain-finite-nonneg");
   /* The gain that actually reached the audio is inside the gain computer's own range — the law
    * D-1's clamp restores on the 4x path and that the base path has always kept. */
-  OMX_POST(st->last_gain <= p->gc.makeup_lin || p->gc.range_db > 0.0f, "no-gain-added");
+  OMX_POST(st->last_gain <= p->gc.makeup_lin || p->gc.range_db > 0.0f ||
+               (p->dry > 0.0f && st->last_gain <= 1.0f),
+           "no-gain-added");
   OMX_INVARIANT(omx_block_finite(st->env.stage, (uint32_t)OMX_DYN_ENV_STAGES), "envelope-finite");
 }
 #undef OMX_CONTRACT_STAGE
