@@ -176,12 +176,12 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance dynamics_instance band_dyn deesser dyn_controls
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance comp_instance band_dyn deesser dyn_controls
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance dynamics_instance band_dyn dyn_controls $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance comp_instance band_dyn dyn_controls $(addsuffix _instance,$(FX_INSTANCES))
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
-FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser
+FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
 # A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
 FX_PERTURB = $(wildcard test/fx/*-perturb.sh)
 FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
@@ -204,6 +204,9 @@ FX_LDFLAGS_chorus_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_flanger_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_reverb_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_deesser_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_delay_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_eq_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_comp_instance = $(FX_NO_ALLOC_LDFLAGS)
 
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm $(FX_LDFLAGS_$*),$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm $(FX_LDFLAGS_$*))
