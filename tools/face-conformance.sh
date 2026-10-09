@@ -24,7 +24,7 @@
 # conforms fails, so the list only shrinks.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-PENDING="comp gate"
+PENDING="gate"
 
 # controls <kernel.json>: "name kind count" per control, in the declared order; `count` is the
 # control's count (a control taken once per band) or "-". A control that carries `of` is another
