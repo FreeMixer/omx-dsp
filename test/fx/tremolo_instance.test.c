@@ -46,12 +46,13 @@ static void arm_refused(void) {
   ok(omx_tremolo_instance_init(&s, NAN) == 0, "A: NaN rate refused");
   ok(omx_tremolo_instance_init(&s, INFINITY) == 0, "A: infinite rate refused");
   ok(omx_tremolo_instance_init(&s, -g_sr) == 0, "A: negative rate refused");
-  omx_tremolo_instance_resolve(&s, 0, OMX_TREMOLO_MODE_PAN, 5.0f, 100.0f, 100.0f);
+  omx_tremolo_instance_resolve(&s, 0, 5.0f, 100.0f, 100.0f, OMX_TREMOLO_MODE_PAN);
   float l[BLK], r[BLK], ol[BLK], or_[BLK];
   programme(l, r, BLK, 0);
   omx_tremolo_instance_run(&s, l, r, ol, or_, BLK);
   ok(same_bytes(l, ol, BLK) && same_bytes(r, or_, BLK), "A: a refused instance is the identity");
   ok(omx_tremolo_instance_init(&s, g_sr) == 1, "A: the declared rate is accepted");
+  ok(omx_tremolo_instance_latency(&s) == 0u, "A: the published latency is zero frames");
   drain_violations("A: no contract broken");
 }
 
@@ -63,7 +64,7 @@ static void arm_bypass(void) {
   for (int b = 0; b < NBLK; b++) {
     programme(l, r, BLK, (uint32_t)b * BLK);
     memcpy(l0, l, sizeof l); memcpy(r0, r, sizeof r);
-    omx_tremolo_instance_resolve(&s, 1, OMX_TREMOLO_MODE_TREMOLO, 6.0f, 80.0f, 100.0f);
+    omx_tremolo_instance_resolve(&s, 1, 6.0f, 80.0f, 100.0f, OMX_TREMOLO_MODE_TREMOLO);
     omx_tremolo_instance_run(&s, l, r, ol, or_, BLK);
     same &= same_bytes(ol, l0, BLK) && same_bytes(or_, r0, BLK);
     omx_tremolo_instance_run(&s, l, r, l, r, BLK);
@@ -90,7 +91,7 @@ static void arm_is_the_kernel(void) {
     for (int b = 0; b < NBLK; b++) {
       programme(l, r, BLK, (uint32_t)b * BLK);
       memcpy(l0, l, sizeof l); memcpy(r0, r, sizeof r);
-      omx_tremolo_instance_resolve(&s, 0, K[k].mode, K[k].hz, K[k].depth, K[k].mix);
+      omx_tremolo_instance_resolve(&s, 0, K[k].hz, K[k].depth, K[k].mix, K[k].mode);
       omx_tremolo_instance_run(&s, l, r, ol, or_, BLK);
       omx_tremolo_process(l, r, BLK, &a, &ks);
       same &= same_bytes(ol, l, BLK) && same_bytes(or_, r, BLK);
@@ -114,7 +115,7 @@ static void arm_clamps(void) {
     for (int knob = 0; knob < 3; knob++) {
       float in[3] = {6.0f, 80.0f, 100.0f};
       in[knob] = x;
-      omx_tremolo_instance_resolve(&s, 0, OMX_TREMOLO_MODE_TREMOLO, in[0], in[1], in[2]);
+      omx_tremolo_instance_resolve(&s, 0, in[0], in[1], in[2], OMX_TREMOLO_MODE_TREMOLO);
       const struct omx_tremolo *o = &s.atom;
       char what[128];
       snprintf(what, sizeof what, "D: knob %d at %g lands inside its travel", knob, (double)x);
@@ -128,9 +129,9 @@ static void arm_clamps(void) {
                                                  : (float)OMX_TREMOLO_RATE_RANGE_MIN, g_sr);
         break;
       case 1:
-        inside &= o->depth == (nan ? 0.01f * OMX_TREMOLO_INSTANCE_DEPTH_PCT_DEFAULT : hi ? 1.0f : 0.0f);
+        inside &= o->depth == (nan ? 0.01f * OMX_TREMOLO_INSTANCE_DEPTH_DEFAULT : hi ? 1.0f : 0.0f);
         break;
-      case 2: inside &= o->mix == (nan ? 0.01f * OMX_TREMOLO_INSTANCE_MIX_PCT_DEFAULT : hi ? 1.0f : 0.0f); break;
+      case 2: inside &= o->mix == (nan ? 0.01f * OMX_TREMOLO_INSTANCE_MIX_DEFAULT : hi ? 1.0f : 0.0f); break;
       }
       ok(inside, what);
       programme(l, r, BLK, (uint32_t)(h * 3 + knob) * BLK);
@@ -143,10 +144,10 @@ static void arm_clamps(void) {
   }
   static const int MODES[] = {-1, 2, 7, 0x7fffffff};
   for (int m = 0; m < 4; m++) {
-    omx_tremolo_instance_resolve(&s, 0, MODES[m], 6.0f, 80.0f, 100.0f);
+    omx_tremolo_instance_resolve(&s, 0, 6.0f, 80.0f, 100.0f, MODES[m]);
     ok(s.atom.mode == OMX_TREMOLO_MODE_TREMOLO, "D: a mode outside the member set reads as the tremolo");
   }
-  omx_tremolo_instance_resolve(&s, 0, OMX_TREMOLO_MODE_PAN, 6.0f, 80.0f, 100.0f);
+  omx_tremolo_instance_resolve(&s, 0, 6.0f, 80.0f, 100.0f, OMX_TREMOLO_MODE_PAN);
   ok(s.atom.mode == OMX_TREMOLO_MODE_PAN, "D: the pan member is kept");
   drain_violations("D: no contract broken");
 }
@@ -158,16 +159,16 @@ static void arm_reengage_restarts(void) {
   float l[BLK], r[BLK], fl[BLK], fr[BLK];
   for (int b = 0; b < 5; b++) { /* advance the oscillator off phase zero */
     programme(l, r, BLK, (uint32_t)b * BLK);
-    omx_tremolo_instance_resolve(&s, 0, OMX_TREMOLO_MODE_PAN, 3.3f, 90.0f, 100.0f);
+    omx_tremolo_instance_resolve(&s, 0, 3.3f, 90.0f, 100.0f, OMX_TREMOLO_MODE_PAN);
     omx_tremolo_instance_run(&s, l, r, l, r, BLK);
   }
-  omx_tremolo_instance_resolve(&s, 1, OMX_TREMOLO_MODE_PAN, 3.3f, 90.0f, 100.0f);
+  omx_tremolo_instance_resolve(&s, 1, 3.3f, 90.0f, 100.0f, OMX_TREMOLO_MODE_PAN);
   int same = 1;
   for (int b = 0; b < NBLK; b++) {
     programme(l, r, BLK, (uint32_t)(b + 40) * BLK);
     memcpy(fl, l, sizeof l); memcpy(fr, r, sizeof r);
-    omx_tremolo_instance_resolve(&s, 0, OMX_TREMOLO_MODE_PAN, 3.3f, 90.0f, 100.0f);
-    omx_tremolo_instance_resolve(&fresh, 0, OMX_TREMOLO_MODE_PAN, 3.3f, 90.0f, 100.0f);
+    omx_tremolo_instance_resolve(&s, 0, 3.3f, 90.0f, 100.0f, OMX_TREMOLO_MODE_PAN);
+    omx_tremolo_instance_resolve(&fresh, 0, 3.3f, 90.0f, 100.0f, OMX_TREMOLO_MODE_PAN);
     omx_tremolo_instance_run(&s, l, r, l, r, BLK);
     omx_tremolo_instance_run(&fresh, fl, fr, fl, fr, BLK);
     same &= same_bytes(l, fl, BLK) && same_bytes(r, fr, BLK);
@@ -186,10 +187,10 @@ static void arm_alias_and_independence(void) {
   int alias = 1, indep = 1;
   for (int k = 0; k < NBLK; k++) {
     programme(l, r, BLK, (uint32_t)k * BLK);
-    omx_tremolo_instance_resolve(&a, 0, OMX_TREMOLO_MODE_TREMOLO, 5.0f, 70.0f, 90.0f);
-    omx_tremolo_instance_resolve(&b, 0, OMX_TREMOLO_MODE_TREMOLO, 5.0f, 70.0f, 90.0f);
-    omx_tremolo_instance_resolve(&alone, 0, OMX_TREMOLO_MODE_TREMOLO, 5.0f, 70.0f, 90.0f);
-    omx_tremolo_instance_resolve(&c, 0, OMX_TREMOLO_MODE_PAN, 13.0f, 100.0f, 100.0f);
+    omx_tremolo_instance_resolve(&a, 0, 5.0f, 70.0f, 90.0f, OMX_TREMOLO_MODE_TREMOLO);
+    omx_tremolo_instance_resolve(&b, 0, 5.0f, 70.0f, 90.0f, OMX_TREMOLO_MODE_TREMOLO);
+    omx_tremolo_instance_resolve(&alone, 0, 5.0f, 70.0f, 90.0f, OMX_TREMOLO_MODE_TREMOLO);
+    omx_tremolo_instance_resolve(&c, 0, 13.0f, 100.0f, 100.0f, OMX_TREMOLO_MODE_PAN);
     omx_tremolo_instance_run(&a, l, r, al, ar, BLK);
     programme(cl, cr, BLK, (uint32_t)(k + 77) * BLK);
     omx_tremolo_instance_run(&c, cl, cr, cl, cr, BLK); /* a different one between */
