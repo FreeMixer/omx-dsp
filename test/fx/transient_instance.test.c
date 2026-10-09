@@ -86,7 +86,7 @@ static void arm_clamps(void) {
   ok(same(), "non-finite words read the declared default / floor / end", 0, 0);
   omx_transient_instance_resolve(&s, 0, nan, -inf, -inf, nan, nan);
   ok(s.atom.attack_db == 0.0f && s.atom.sustain_db == 0.0f && s.atom.output_db == 0.0f &&
-         s.attack_ms == OMX_TRANSIENT_ATTACK_TIME_MS_MIN && s.sustain_ms == OMX_TRANSIENT_SUSTAIN_TIME_MS_MIN,
+         s.attack_time_ms == OMX_TRANSIENT_ATTACK_TIME_MS_MIN && s.sustain_time_ms == OMX_TRANSIENT_SUSTAIN_TIME_MS_MIN,
      "the atom holds the clamped controls", s.atom.sustain_db, 0);
   expect_clean();
 }
