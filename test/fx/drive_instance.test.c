@@ -10,8 +10,8 @@
  *      console's resolve_fx_drive builds from the same controls and the same designed bank, for
  *      every curve and every band;
  *   D  every travel, at every hostile host value, lands inside its declared travel (a non-finite
- *      word at the declared default); a choice outside its ids reads as the first; the output is
- *      finite;
+ *      word at the declared default); a curve or band outside its ids reads as the first, a switch
+ *      or roll-off corner outside its ids as the declared default; the output is finite;
  *   F  in == out (an aliased port) is the out-of-place answer;
  *   G  an instance run between two others leaves them each the instance alone (no shared state);
  *   H  init, resolve (re-engage included) and run allocate nothing: malloc, calloc, realloc and
@@ -59,23 +59,25 @@ void __wrap_free(void *p) {
 /* The contract's controls, in their declared order. */
 typedef struct {
   float amount, character, band_freq, mix, trim;
-  int curve, band;
+  int curve, band, auto_gain, stereo_link, hf_rolloff;
 } Knobs;
 
 static const Knobs DEFAULTS = {OMX_DRIVE_INSTANCE_AMOUNT_DEFAULT, OMX_DRIVE_INSTANCE_CHARACTER_DEFAULT,
                                OMX_DRIVE_INSTANCE_BAND_FREQ_DEFAULT, OMX_DRIVE_INSTANCE_MIX_DEFAULT,
                                OMX_DRIVE_INSTANCE_TRIM_DEFAULT, OMX_DRIVE_INSTANCE_CURVE_DEFAULT,
-                               OMX_DRIVE_INSTANCE_BAND_DEFAULT};
+                               OMX_DRIVE_INSTANCE_BAND_DEFAULT, OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT,
+                               OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT, OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT};
 
 static void resolve(OmxDriveInstance *s, int bypass, const Knobs *k) {
-  omx_drive_instance_resolve(s, bypass, k->amount, k->character, k->band_freq, k->mix, k->trim, k->curve, k->band);
+  omx_drive_instance_resolve(s, bypass, k->amount, k->character, k->band_freq, k->mix, k->trim, k->curve, k->band,
+                             k->auto_gain, k->stereo_link, k->hf_rolloff);
 }
 
 /* Heap-held: the state's inline oversampler histories make an instance large. */
 static OmxDriveInstance *inst(void) { return calloc(1, sizeof(OmxDriveInstance)); }
 
 /* The console's resolve_fx_drive, from the same units and the same designed bank, at the face's
- * come-up values for what the contract does not declare, for arm C. */
+ * factor, for arm C. */
 static struct omx_drive console_atom(uint32_t rate, const Knobs *k) {
   struct omx_drive o;
   memset(&o, 0, sizeof(o));
@@ -86,11 +88,11 @@ static struct omx_drive console_atom(uint32_t rate, const Knobs *k) {
   o.even_w = 0.5f * (k->character + 1.0f);
   o.mix = 0.01f * k->mix;
   o.trim_lin = omx_db_to_lin(k->trim);
-  o.auto_gain = 1;
-  o.stereo_link = 1;
-  o.hf_on = 0;
+  o.auto_gain = k->auto_gain;
+  o.stereo_link = k->stereo_link;
+  o.hf_on = k->hf_rolloff > 0;
   o.os_factor = OMX_DRIVE_INSTANCE_FACTOR;
-  omx_drive_design_bank(&o, k->band_freq, 20000.0f, rate);
+  omx_drive_design_bank(&o, k->band_freq, k->hf_rolloff > 0 ? (float)k->hf_rolloff : 20000.0f, rate);
   omx_drive_time_constants(&o, (float)rate);
   return o;
 }
@@ -114,7 +116,8 @@ static void arm_init(void) {
      "A: the latency is the kernel's");
   ok(s->atom.mix == 0.01f * OMX_DRIVE_INSTANCE_MIX_DEFAULT &&
          s->atom.drive_lin == omx_db_to_lin(OMX_DRIVE_INSTANCE_AMOUNT_DEFAULT) &&
-         s->atom.curve == OMX_DRIVE_SOFT && s->atom.band == OMX_DRIVE_BAND_FULL,
+         s->atom.curve == OMX_DRIVE_SOFT && s->atom.band == OMX_DRIVE_BAND_FULL && s->atom.auto_gain == 1 &&
+         s->atom.stereo_link == 1 && s->atom.hf_on == 0,
      "A: the contract's defaults are what init resolved");
   free(s);
   drain_violations("A: no contract broken");
@@ -144,12 +147,12 @@ static void arm_bypass(void) {
 
 static void arm_is_the_kernel(void) {
   static const Knobs K[] = {
-      {0.0f, 0.0f, 2000.0f, 100.0f, 0.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_FULL},
-      {30.0f, 0.6f, 900.0f, 70.0f, -6.0f, OMX_DRIVE_EXCITER, OMX_DRIVE_BAND_TILT},
-      {12.0f, -1.0f, 5000.0f, 100.0f, 0.0f, OMX_DRIVE_TAPE, OMX_DRIVE_BAND_LOW},
-      {20.0f, 1.0f, 300.0f, 45.0f, 6.0f, OMX_DRIVE_TUBE, OMX_DRIVE_BAND_HIGH},
-      {36.0f, -0.4f, 20.0f, 100.0f, -24.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_TILT},
-      {6.0f, 0.2f, 20000.0f, 10.0f, 12.0f, OMX_DRIVE_TAPE, OMX_DRIVE_BAND_FULL}};
+      {0.0f, 0.0f, 2000.0f, 100.0f, 0.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_FULL, 1, 1, 0},
+      {30.0f, 0.6f, 900.0f, 70.0f, -6.0f, OMX_DRIVE_EXCITER, OMX_DRIVE_BAND_TILT, 0, 1, 12000},
+      {12.0f, -1.0f, 5000.0f, 100.0f, 0.0f, OMX_DRIVE_TAPE, OMX_DRIVE_BAND_LOW, 1, 0, 16000},
+      {20.0f, 1.0f, 300.0f, 45.0f, 6.0f, OMX_DRIVE_TUBE, OMX_DRIVE_BAND_HIGH, 0, 0, 0},
+      {36.0f, -0.4f, 20.0f, 100.0f, -24.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_TILT, 1, 1, 16000},
+      {6.0f, 0.2f, 20000.0f, 10.0f, 12.0f, OMX_DRIVE_TAPE, OMX_DRIVE_BAND_FULL, 0, 1, 12000}};
   for (int k = 0; k < (int)(sizeof K / sizeof K[0]); k++) {
     OmxDriveInstance *s = inst();
     omx_drive_instance_init(s, g_sr);
@@ -202,9 +205,10 @@ static void arm_clamps(void) {
       memcpy(want, in, sizeof want);
       in[knob] = x;
       want[knob] = land(x, LO[knob], HI[knob], DEF[knob]);
-      omx_drive_instance_resolve(s, 0, in[0], in[1], in[2], in[3], in[4], OMX_DRIVE_TUBE, OMX_DRIVE_BAND_TILT);
+      omx_drive_instance_resolve(s, 0, in[0], in[1], in[2], in[3], in[4], OMX_DRIVE_TUBE, OMX_DRIVE_BAND_TILT, 1, 1,
+                                 12000);
       omx_drive_instance_resolve(e, 0, want[0], want[1], want[2], want[3], want[4], OMX_DRIVE_TUBE,
-                                 OMX_DRIVE_BAND_TILT);
+                                 OMX_DRIVE_BAND_TILT, 1, 1, 12000);
       char what[128];
       snprintf(what, sizeof what, "D: control %d at %g lands at %g", knob, (double)x, (double)want[knob]);
       ok(memcmp(&s->atom, &e->atom, sizeof s->atom) == 0, what);
@@ -214,14 +218,17 @@ static void arm_clamps(void) {
       free(s); free(e);
     }
   }
-  static const int BAD[] = {-1, 4, 7, 0x7fffffff};
-  for (int m = 0; m < 4; m++) {
+  static const int BAD[] = {-1, 4, 7, 11999, 0x7fffffff};
+  for (int m = 0; m < 5; m++) {
     OmxDriveInstance *s = inst(), *e = inst();
     omx_drive_instance_init(s, g_sr);
     omx_drive_instance_init(e, g_sr);
-    omx_drive_instance_resolve(s, 0, 18.0f, 0.3f, 700.0f, 80.0f, -3.0f, BAD[m], BAD[m]);
-    omx_drive_instance_resolve(e, 0, 18.0f, 0.3f, 700.0f, 80.0f, -3.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_FULL);
-    ok(memcmp(&s->atom, &e->atom, sizeof s->atom) == 0, "D: a curve or band outside its ids reads as the first");
+    omx_drive_instance_resolve(s, 0, 18.0f, 0.3f, 700.0f, 80.0f, -3.0f, BAD[m], BAD[m], BAD[m], BAD[m], BAD[m]);
+    omx_drive_instance_resolve(e, 0, 18.0f, 0.3f, 700.0f, 80.0f, -3.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_FULL,
+                               OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT, OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT,
+                               OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT);
+    ok(memcmp(&s->atom, &e->atom, sizeof s->atom) == 0,
+       "D: a choice outside its ids reads as the first (curve, band) or the declared default (the rest)");
     free(s); free(e);
   }
   drain_violations("D: no contract broken");
@@ -233,8 +240,8 @@ static void arm_alias_and_independence(void) {
   omx_drive_instance_init(b, g_sr);
   omx_drive_instance_init(c, g_sr);
   omx_drive_instance_init(alone, g_sr);
-  const Knobs p = {18.0f, 0.3f, 700.0f, 80.0f, 0.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_HIGH};
-  const Knobs q = {33.0f, 0.0f, 2000.0f, 100.0f, -6.0f, OMX_DRIVE_TUBE, OMX_DRIVE_BAND_FULL};
+  const Knobs p = {18.0f, 0.3f, 700.0f, 80.0f, 0.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_HIGH, 1, 1, 12000};
+  const Knobs q = {33.0f, 0.0f, 2000.0f, 100.0f, -6.0f, OMX_DRIVE_TUBE, OMX_DRIVE_BAND_FULL, 0, 0, 0};
   float l[BLK], r[BLK], al[BLK], ar[BLK], bl[BLK], br[BLK], cl[BLK], cr[BLK], xl[BLK], xr[BLK];
   int alias = 1, indep = 1;
   for (int k = 0; k < NBLK; k++) {
@@ -270,6 +277,7 @@ static void arm_no_allocation(void) {
     k.amount = b < 6 ? 24.0f : 6.0f;
     k.band_freq = b < 3 ? 400.0f : 3000.0f;
     k.band = b & 3;
+    k.hf_rolloff = (b % 3) * 6000 + (b % 3 ? 6000 : 0);
     resolve(&s, b == 5, &k);
     omx_drive_instance_run(&s, l, r, l, r, BLK);
   }

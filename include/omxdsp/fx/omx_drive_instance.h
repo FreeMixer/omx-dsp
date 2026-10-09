@@ -17,17 +17,16 @@
  * is every instance face's: {@link omx_drive_instance_init} binds an instance to a declared rate,
  * {@link omx_drive_instance_resolve} takes the drive kernel's contract controls in their declared
  * order and user units (`amount` dB, `character`, `band_freq` Hz, `mix` %, `trim` dB, then the
- * `curve` and `band` choice indices), {@link omx_drive_instance_run} runs the kernel and
+ * `curve` and `band` choice indices, the `auto_gain` and `stereo_link` switches and the
+ * `hf_rolloff` corner in Hz), {@link omx_drive_instance_run} runs the kernel and
  * {@link omx_drive_instance_latency} publishes its latency. A plugin binding generated from the
  * contract calls them with no hand-written map.
  *
  * ## What the face holds that the contract does not declare
  *
- * The row's `autoGain`, `stereoLink`, `hfRolloff` and the oversampling factor are no contract
- * controls of the drive kernel. The face holds them at the stage's come-up values (drive-stage
- * spec §4h): auto-gain on, the legs linked, no roll-off, and the oversampler's largest factor,
- * {@link OMX_DRIVE_INSTANCE_FACTOR}. The factor is a constant, not a control (omx-contract 2.1.0):
- * the state is built for it once, at init.
+ * The oversampling factor is no contract control of the drive kernel (omx-contract 2.1.0): the face
+ * runs the oversampler's largest, {@link OMX_DRIVE_INSTANCE_FACTOR}, and builds the state for it
+ * once, at init. Every other word of the row is a control (omx-contract 2.2.0).
  *
  * ## ZERO DUPLICATED DSP
  *
@@ -92,6 +91,9 @@
 #define OMX_DRIVE_INSTANCE_TRIM_DEFAULT ((float)OMX_DRIVE_TRIM_RANGE_DEFAULT)
 #define OMX_DRIVE_INSTANCE_CURVE_DEFAULT OMX_DRIVE_SOFT
 #define OMX_DRIVE_INSTANCE_BAND_DEFAULT OMX_DRIVE_BAND_FULL
+#define OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT ((int)OMX_DRIVE_AUTO_GAINS_DEFAULT)
+#define OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT ((int)OMX_DRIVE_STEREO_LINKS_DEFAULT)
+#define OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT ((int)OMX_DRIVE_HF_ROLLOFFS_DEFAULT)
 
 /** One instance: the atom, the kernel's state (inline: the oversampler histories and the
  * compensation line), and what the coefficient bank was last designed for. Nothing is caller-owned. */
@@ -101,6 +103,7 @@ typedef struct {
   struct omx_drive_state state;
   /* What the coefficient bank was last designed for, so resolve() redesigns only on a change. */
   float designed_band_hz;
+  float designed_hf_hz;
   int ready;
 } OmxDriveInstance;
 
@@ -110,15 +113,20 @@ typedef struct {
  * units: `amount` (dB), `character` (-1..+1), `band_freq` (Hz), `mix` (percent) and `trim` (dB)
  * are clamped into their declared travels, a non-finite word reading as the declared default;
  * `curve` and `band` are the DRIVE_CURVES and DRIVE_BANDS indices (`enum omx_drive_curve`,
- * `enum omx_drive_band`), any other value reading as the first. The clamps are the row's, applied
+ * `enum omx_drive_band`), any other value reading as the first; `auto_gain` and `stereo_link` are
+ * the DRIVE_AUTO_GAINS and DRIVE_STEREO_LINKS indices (0 off, 1 on), any other value reading as the
+ * declared default; `hf_rolloff` is a DRIVE_HF_ROLLOFFS id, the corner in Hz (0 none, 12000,
+ * 16000), any other value reading as the declared default: a corner the low-pass design cannot
+ * take is never designed. The clamps are the row's, applied
  * for the same reason the console's controller applies them: the kernel's contract requires mix in
  * [0,1], and a host is free to write anything to a port.
  *
- * Coefficients are redesigned only when `band_freq` moved. Allocation-free.
+ * Coefficients are redesigned only when `band_freq` or the roll-off corner moved. Allocation-free.
  */
 #define OMX_CONTRACT_STAGE "drive-instance/resolve"
 static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, float amount, float character,
-                                              float band_freq, float mix, float trim, int curve, int band) {
+                                              float band_freq, float mix, float trim, int curve, int band,
+                                              int auto_gain, int stereo_link, int hf_rolloff) {
   if (!s || !s->ready) return;
   /* CONTRACT (omx_contract.h). Whatever a host wrote to the ports, the atom leaves here inside
    * omx_drive_process's own PRE: mix in [0,1], the factor the state is built for, the bias weight
@@ -137,11 +145,20 @@ static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, f
                                 OMX_DRIVE_INSTANCE_MIX_DEFAULT);
   o->trim_lin = omx_db_to_lin(omx_clamp_or(trim, (float)OMX_DRIVE_TRIM_RANGE_MIN, (float)OMX_DRIVE_TRIM_RANGE_MAX,
                                            OMX_DRIVE_INSTANCE_TRIM_DEFAULT));
+  o->auto_gain = auto_gain == 0 || auto_gain == 1 ? auto_gain : OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT;
+  o->stereo_link = stereo_link == 0 || stereo_link == 1 ? stereo_link : OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT;
+  const int hf = hf_rolloff == OMX_DRIVE_HF_ROLLOFFS_0 || hf_rolloff == OMX_DRIVE_HF_ROLLOFFS_12000 ||
+                         hf_rolloff == OMX_DRIVE_HF_ROLLOFFS_16000
+                     ? hf_rolloff
+                     : OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT;
+  o->hf_on = hf > 0 ? 1 : 0;
+  const float hf_hz = hf > 0 ? (float)hf : OMX_DRIVE_INSTANCE_HF_OFF_DESIGN_HZ;
   const float band_hz = omx_clamp_or(band_freq, (float)OMX_DRIVE_BAND_FREQ_RANGE_MIN,
                                      (float)OMX_DRIVE_BAND_FREQ_RANGE_MAX, OMX_DRIVE_INSTANCE_BAND_FREQ_DEFAULT);
-  if (band_hz != s->designed_band_hz) {
-    omx_drive_design_bank(o, band_hz, OMX_DRIVE_INSTANCE_HF_OFF_DESIGN_HZ, s->rate);
+  if (band_hz != s->designed_band_hz || hf_hz != s->designed_hf_hz) {
+    omx_drive_design_bank(o, band_hz, hf_hz, s->rate);
     s->designed_band_hz = band_hz;
+    s->designed_hf_hz = hf_hz;
   }
   OMX_POST(o->mix >= 0.0f && o->mix <= 1.0f, "mix-in-unit-range");
   OMX_POST(o->even_w >= 0.0f && o->even_w <= 1.0f, "bias-weight-in-unit-range");
@@ -163,17 +180,16 @@ static inline int omx_drive_instance_init(OmxDriveInstance *s, float sr) {
   if (!omx_rate_is_declared(sr)) return 0;
   s->rate = (uint32_t)sr;
   omx_drive_time_constants(&s->atom, sr);
-  s->atom.auto_gain = 1;
-  s->atom.stereo_link = 1;
-  s->atom.hf_on = 0;
   s->atom.os_factor = omx_drive_factor_of(OMX_DRIVE_INSTANCE_FACTOR);
   omx_drive_state_init(&s->state, s->atom.os_factor);
   s->designed_band_hz = -1.0f; /* forces the first design */
+  s->designed_hf_hz = -1.0f;
   s->ready = 1;
   omx_drive_instance_resolve(s, 0, OMX_DRIVE_INSTANCE_AMOUNT_DEFAULT, OMX_DRIVE_INSTANCE_CHARACTER_DEFAULT,
                              OMX_DRIVE_INSTANCE_BAND_FREQ_DEFAULT, OMX_DRIVE_INSTANCE_MIX_DEFAULT,
                              OMX_DRIVE_INSTANCE_TRIM_DEFAULT, OMX_DRIVE_INSTANCE_CURVE_DEFAULT,
-                             OMX_DRIVE_INSTANCE_BAND_DEFAULT);
+                             OMX_DRIVE_INSTANCE_BAND_DEFAULT, OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT,
+                             OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT, OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT);
   return 1;
 }
 
