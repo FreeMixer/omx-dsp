@@ -92,16 +92,18 @@ static inline float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float
 /**
  * @brief The BELOW static gain, dB, with the knee's centre moved `shift_db` off the threshold.
  *
- * The gate's knee is a RANGE, not only a width: it spans `[thresh + shift - knee/2, thresh + shift
- * + knee/2]`, with `|shift| <= knee/2` so the threshold stays inside it. Below the range the gain is
- * the expander's line `(ratio - 1) * (level - thresh)`, above it 0 dB, and across it the quadratic
- * Bezier whose control point is the corner of those two lines, `(thresh, 0 dB)`. It meets each line
- * at the range's edge with the line's own slope, so the curve is C1 at both edges. Centred
- * (`shift_db == 0`) that Bezier IS omx_gaincomp_db's quadratic knee, and this function returns
- * omx_gaincomp_db itself, bit for bit. Closed form, with `x` the level from the threshold and `xl`,
- * `xh` the edges: the Bezier at parameter `u` is `x = (1-u)^2 xl + u^2 xh`, `g = (1-u)^2 (ratio-1)
- * xl`, so its midpoint (`u = 1/2`) is `x = (xl + xh) / 4`, `g = (ratio - 1) xl / 4`. The result is
- * floored at `range_db` like every BELOW gain.
+ * The gate's knee is a RANGE, not only a width: from `thresh + shift - knee/2` to
+ * `thresh + shift + knee/2`, with `|shift| <= knee/2` so the threshold stays inside it. Below the
+ * range the gain is the expander's line `(ratio - 1) * (level - thresh)`, above it 0 dB, and
+ * across it the quadratic Bezier whose control point is the corner of those two lines,
+ * `(thresh, 0 dB)`. It meets each line at the range's edge with the line's own slope, so the curve
+ * is C1 at both edges. Centred (`shift_db == 0`) that Bezier IS omx_gaincomp_db's quadratic knee,
+ * and this function returns omx_gaincomp_db itself, bit for bit.
+ *
+ * Closed form, with `x` the level from the threshold and `xl`, `xh` the edges: the Bezier at
+ * parameter `u` is `x = (1-u)^2 xl + u^2 xh` and `g = (1-u)^2 (ratio-1) xl`, so its midpoint
+ * (`u = 1/2`) is `x = (xl + xh) / 4` and `g = (ratio - 1) xl / 4`. The result is floored at
+ * `range_db` like every BELOW gain.
  * @param p The parameters; BELOW mode.
  * @param shift_db The knee centre's offset from the threshold, dB; 0 is the centred knee.
  * @param level_db The detector level, dB; finite.
