@@ -18,7 +18,7 @@
 /** @brief API minor version: additions only. */
 #define OMXDSP_VERSION_MINOR 4
 /** @brief Patch version: no API change. */
-#define OMXDSP_VERSION_PATCH 0
+#define OMXDSP_VERSION_PATCH 1
 
 /**
  * @brief The library version as one word, `major << 16 | minor << 8 | patch`.
