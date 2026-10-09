@@ -13,15 +13,31 @@
  *
  * Every sample of gain is computed by `omx_dynamics_keyed` (omx_dyn.h) — the SAME kernel the
  * console's gate slot runs, with the SAME resolved parameters the console pushes: ACT-BELOW mode,
- * peak detector, hard knee, unity make-up, detector oversampling on `auto`. A second
- * transcription of the gain computer is how two gates would quietly stop being the same gate, so
- * there is none.
+ * peak detector, unity make-up, detector oversampling on `auto`. A second transcription of the
+ * gain computer is how two gates would quietly stop being the same gate, so there is none.
  *
  * What the console's gate has that this gate does NOT, and why:
  *  - the KEY FILTER (HP/LP edges): an external host filters its own sidechain send.
- *  - HOLD / HYSTERESIS: the kernel runs both (`omx_dyn.hold_frames`, `hyst_db`), but this face
- *    resolves them to their neutral 0 until the contract settles the gate's control list
- *    (omx-contract#21); its output is today's gate until then.
+ *
+ * `omx_gate_resolve` leaves HOLD, HYSTERESIS and the KNEE at their neutral values (0, 0, a hard
+ * knee); the kernel runs all three (`omx_dyn.hold_frames`, `hyst_db`, and `gc.knee_db` with
+ * `knee_shift_db` set by {@link omx_gate_knee}), and fx/omx_gate_instance.h is the face that sets
+ * them from the contract's controls (omx-contract#21).
+ *
+ * ## The knee range
+ *
+ * The contract's gate declares `kneeStartDb` and `kneeEndDb` beside `thresholdDb`: the desk draws
+ * the gate's transfer curve with the gain fully closed at one edge, fully open at the other and a
+ * ramp between, and the threshold is a handle of its own. In the kernel the threshold stays the
+ * corner of the expander's two lines (`(ratio - 1) * (level - threshold)` below, 0 dB above) and
+ * the knee range is the stretch of input level over which that corner is rounded: a quadratic
+ * Bezier from the lower edge to the upper one whose control point is the corner, C1 with both
+ * lines (omx_gaincomp_db_shifted). The edges are read low to high whatever their order. A
+ * threshold inside the range keeps the range where the operator put it; one outside it moves the
+ * range, whole, until the threshold sits on its nearer edge, which rounds that side not at all. A
+ * zero-width range (start == end, wherever it sits) is the hard knee, the gate that shipped, bit
+ * for bit. A range centred on the threshold (the desk's default, -43..-37 around -40) is
+ * omx_gaincomp_db's own centred knee of that width.
  *
  * ## Aliasing
  *
@@ -100,8 +116,8 @@ static inline float omx_gate_clampf(const float *port, float lo, float hi, float
 
 /**
  * @brief The console's gateStateToNativeDyn, restated as control reads — the ONE resolution a gate
- *        slot gets. The `threshold` control is the declared gate threshold travel: an external
- *        host's gate has one open point, not the desk's knee pair.
+ *        slot gets. The `threshold` control is the declared gate threshold travel; the knee is
+ *        hard here, and {@link omx_gate_knee} sets the contract's knee range on the result.
  * @param g The instance (its rate).
  * @param c The controls.
  * @param p The atom, written whole.
@@ -124,6 +140,32 @@ static inline void omx_gate_resolve(const struct omx_gate *g, const struct omx_g
   p->attack_coeff = omx_pole_from_time_ms(a_ms, g->rate);
   p->release_coeff = omx_pole_from_time_ms(r_ms, g->rate);
 }
+
+#define OMX_CONTRACT_STAGE "keyed-gate/knee"
+/**
+ * @brief The knee range into a resolved atom: `gc.knee_db` the range's width and `knee_shift_db`
+ *        its centre's offset from `gc.thresh_db`, moved whole so the threshold stays inside it.
+ *        `knee_start_db == knee_end_db` is the hard knee (width 0, offset 0) wherever they sit.
+ * @param p The atom, resolved by omx_gate_resolve (its threshold read here).
+ * @param knee_start_db One edge of the range, dB, finite.
+ * @param knee_end_db The other edge, dB, finite.
+ * @post `knee-not-negative`, `shift-inside-the-knee`.
+ * @note RT-safe. Thread-safe: pure in its arguments.
+ */
+static inline void omx_gate_knee(struct omx_dyn *p, float knee_start_db, float knee_end_db) {
+  const float lo = knee_start_db < knee_end_db ? knee_start_db : knee_end_db;
+  const float hi = knee_start_db < knee_end_db ? knee_end_db : knee_start_db;
+  const float width = hi - lo;
+  const float half = 0.5f * width;
+  float shift = width > 0.0f ? (lo + half) - p->gc.thresh_db : 0.0f;
+  shift = shift < -half ? -half : shift > half ? half : shift;
+  p->gc.knee_db = width;
+  p->knee_shift_db = shift;
+  OMX_POST(p->gc.knee_db >= 0.0f, "knee-not-negative");
+  OMX_POST(p->knee_shift_db >= -0.5f * p->gc.knee_db && p->knee_shift_db <= 0.5f * p->gc.knee_db,
+           "shift-inside-the-knee");
+}
+#undef OMX_CONTRACT_STAGE
 
 /* The latency the kernel's compensation delay adds IS the engaged factor's — derived by the
  * kernel's own omx_dyn_oversample_factor, never restated. A disabled slot is factor 1. */

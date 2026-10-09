@@ -17,13 +17,11 @@
  *      contract order (omx-contract 2.2.0), and hands them to `omx_gate_resolve` — the one
  *      resolution, never a second one — so every value lands inside the declared OMX_GATE_*
  *      travel (NaN floored) whatever the host's port held, and `bypass` is the slot's `enabled`
- *      control inverted. The hold and the hysteresis, which `omx_gate_resolve` leaves neutral,
- *      reach the kernel's own fields (`omx_dyn.hold_frames` by omx_dyn_hold_frames at the
- *      instance rate, `hyst_db`), each clamped into its travel, a non-finite word at its default.
- *
- * WHAT THE CONTRACT DECLARES THAT THIS FACE DOES NOT TAKE YET: kneeStartDb and kneeEndDb. The
- * gate's kernel has no field for them (omx_gate_resolve runs a hard knee), so face-conformance
- * lists gate PENDING until the kernel does.
+ *      control inverted. The knee range, the hold and the hysteresis, which `omx_gate_resolve`
+ *      leaves neutral, reach the kernel's own fields (`gc.knee_db` and `knee_shift_db` by
+ *      omx_gate_knee, `omx_dyn.hold_frames` by omx_dyn_hold_frames at the instance rate,
+ *      `hyst_db`), each clamped into its travel, a non-finite word at its default. A knee start
+ *      equal to its end is the hard knee, the gate before the knee range, bit for bit.
  *   3. IN -> OUT. `omx_gate_run` already copies every block (inputs AND key) through its scratch,
  *      so any aliasing a host does (an output on its input, the key on an output) is safe.
  *
@@ -60,8 +58,9 @@ typedef struct {
 
 /**
  * @brief Bind an instance to its rate (instantiate/activate): the slot's state cleared, base path,
- *        the atom resolved at the declared defaults, the key listened to as before (a run() handed
- *        no key is the self-detecting gate).
+ *        the atom resolved at the declared defaults (the knee range, hold and hysteresis
+ *        included), the key listened to as before (a run() handed no key is the self-detecting
+ *        gate).
  * @param s The instance.
  * @param sr The host's sample rate, Hz.
  * @return 1 when usable, 0 when not (NULL instance, rate not positive or NaN); a refused instance
@@ -69,9 +68,9 @@ typedef struct {
  * @note No allocation; clears the whole instance. Thread-safe on distinct instances.
  */
 static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int key_source,
-                                             float threshold_db, float range_db, float attack_ms,
-                                             float hold_ms, float release_ms, float hysteresis_db,
-                                             float ratio);
+                                             float threshold_db, float range_db, float knee_start_db,
+                                             float knee_end_db, float attack_ms, float hold_ms,
+                                             float release_ms, float hysteresis_db, float ratio);
 
 static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
   if (!s) return 0;
@@ -81,6 +80,7 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
   omx_gate_init(&s->gate, sr);
   s->ready = 1;
   omx_gate_instance_resolve(s, 0, 1, OMX_GATE_THRESHOLD_DB_DEFAULT, OMX_GATE_RANGE_DB_DEFAULT,
+                            OMX_GATE_KNEE_START_DB_DEFAULT, OMX_GATE_KNEE_END_DB_DEFAULT,
                             OMX_GATE_ATTACK_MS_DEFAULT, OMX_GATE_HOLD_MS_DEFAULT, OMX_GATE_RELEASE_MS_DEFAULT,
                             OMX_GATE_HYSTERESIS_DB_DEFAULT, OMX_GATE_RATIO_DEFAULT);
   return 1;
@@ -99,6 +99,9 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
  *        {@link omx_gate_instance_run}, 0 (self) to the gate's own input; any non-zero is sidechain.
  * @param threshold_db The open point, dB.
  * @param range_db The attenuation floor, dB.
+ * @param knee_start_db One edge of the knee range, dB: where the curve leaves the expander's line.
+ * @param knee_end_db The other edge, dB: where the curve reaches unity. Equal to `knee_start_db`
+ *        is the hard knee; the range is rounded around the threshold as omx_gate_knee states.
  * @param attack_ms The attack, ms.
  * @param hold_ms The hold, ms: the gate stays open this long after the level falls below the close
  *        point; 0 is no hold.
@@ -109,15 +112,20 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
  * @note RT-safe: two expf per call. Thread-safe on distinct instances.
  */
 static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int key_source,
-                                             float threshold_db, float range_db, float attack_ms,
-                                             float hold_ms, float release_ms, float hysteresis_db,
-                                             float ratio) {
+                                             float threshold_db, float range_db, float knee_start_db,
+                                             float knee_end_db, float attack_ms, float hold_ms,
+                                             float release_ms, float hysteresis_db, float ratio) {
   if (!s || !s->ready) return;
   const float enabled = bypass ? 0.0f : 1.0f;
   s->key_external = key_source ? 1.0f : 0.0f;
   const struct omx_gate_controls c = {&enabled,    &s->key_external, &threshold_db, &ratio,
                                       &range_db,   &attack_ms,       &release_ms};
   omx_gate_resolve(&s->gate, &c, &s->atom);
+  omx_gate_knee(&s->atom,
+                omx_clamp_or(knee_start_db, OMX_GATE_KNEE_START_DB_MIN, OMX_GATE_KNEE_START_DB_MAX,
+                             OMX_GATE_KNEE_START_DB_DEFAULT),
+                omx_clamp_or(knee_end_db, OMX_GATE_KNEE_END_DB_MIN, OMX_GATE_KNEE_END_DB_MAX,
+                             OMX_GATE_KNEE_END_DB_DEFAULT));
   s->atom.hold_frames = omx_dyn_hold_frames(
       omx_clamp_or(hold_ms, OMX_GATE_HOLD_MS_MIN, OMX_GATE_HOLD_MS_MAX, OMX_GATE_HOLD_MS_DEFAULT), s->sr);
   s->atom.hyst_db = omx_clamp_or(hysteresis_db, OMX_GATE_HYSTERESIS_DB_MIN, OMX_GATE_HYSTERESIS_DB_MAX,
@@ -131,7 +139,9 @@ static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int
                p->gc.thresh_db <= OMX_GATE_THRESHOLD_DB_MAX && p->attack_ms >= OMX_GATE_ATTACK_MS_MIN &&
                p->attack_ms <= OMX_GATE_ATTACK_MS_MAX && p->attack_coeff >= 0.0f &&
                p->attack_coeff < 1.0f && p->release_coeff >= 0.0f && p->release_coeff < 1.0f &&
-               p->hyst_db >= OMX_GATE_HYSTERESIS_DB_MIN && p->hyst_db <= OMX_GATE_HYSTERESIS_DB_MAX,
+               p->hyst_db >= OMX_GATE_HYSTERESIS_DB_MIN && p->hyst_db <= OMX_GATE_HYSTERESIS_DB_MAX &&
+               p->gc.knee_db >= 0.0f && p->knee_shift_db >= -0.5f * p->gc.knee_db &&
+               p->knee_shift_db <= 0.5f * p->gc.knee_db,
            "atom-meets-the-kernel-preconditions");
 }
 #undef OMX_CONTRACT_STAGE
