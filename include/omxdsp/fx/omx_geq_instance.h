@@ -16,10 +16,10 @@
  *      at the ISO 266 nominal third-octave centres ({@link OMX_GEQ_INSTANCE_CENTRES_HZ}, core's
  *      `ISO_THIRD_OCTAVE_CENTRES_HZ` verbatim) and the declared band Q (OMX_GEQ_BAND_Q_DOUBLE). A
  *      section is redesigned only when ITS gain moved; a static instance designs nothing.
- *   2. CLAMP. Every band gain is clamped into the declared EQ gain travel (OMX_EQ_GAIN_RANGE_MIN..
- *      MAX — the graphic EQ declares no travel of its own; its `geq31` preset is EQ bells) and a
- *      non-finite word reads as 0 dB, flat (omx_clamp_or: a NaN gain carries no position). A band
- *      at exactly 0 dB is skipped by the kernel, so a flat instance is memcmp-identical to bypass.
+ *   2. CLAMP. Every band gain is clamped into the geq kernel's declared `band` travel
+ *      (OMX_GEQ_BAND_RANGE_MIN..MAX, omx_contract_limits.h) and a non-finite word reads as the
+ *      declared default, 0 dB, flat (omx_clamp_or: a NaN gain carries no position). A band at
+ *      exactly 0 dB is skipped by the kernel, so a flat instance is memcmp-identical to bypass.
  *   3. IN -> OUT. The kernel works IN PLACE on the two legs; a host connects separate input and
  *      output buffers (and may connect them to the same memory). run() copies in to out when they
  *      differ and runs the kernel on out. Identity when bypassed.
@@ -95,15 +95,17 @@ static inline void omx_geq_instance_clear(OmxGeqInstance *s) {
 #undef OMX_CONTRACT_STAGE
 
 /**
- * Resolve the host's 31 band gains into the kernel's atom for one cycle.
+ * Resolve the host's band gains into the kernel's atom for one cycle.
  *
- * `bypass` non-zero -> the atom is disabled and the kernel passes through. Each gain is clamped
- * (see the header note); a section is redesigned only when its clamped gain moved, and the atom is
+ * `bypass` non-zero -> the atom is disabled and the kernel passes through. The argument is the geq
+ * kernel's one contract control, `band` (dB), which the kernel takes once per section: an array of
+ * OMX_GEQ_BANDS gains, the contract's own count, in ISO centre order. Each gain is clamped (see
+ * the header note); a section is redesigned only when its clamped gain moved, and the atom is
  * rebuilt only when one did.
  */
 #define OMX_CONTRACT_STAGE "geq/instance-resolve"
-static inline void omx_geq_instance_resolve(OmxGeqInstance *s, int bypass, const float gain_db[OMX_GEQ_BANDS]) {
-  if (!s || !s->ready || !gain_db) return;
+static inline void omx_geq_instance_resolve(OmxGeqInstance *s, int bypass, const float band[OMX_GEQ_BANDS]) {
+  if (!s || !s->ready || !band) return;
   /* CONTRACT (omx_contract.h). Every section the atom carries was designed from a gain inside the
    * declared travel, at its ISO centre and the declared Q, whatever the host's ports held. */
   const int engaged = bypass ? 0 : 1;
@@ -111,7 +113,8 @@ static inline void omx_geq_instance_resolve(OmxGeqInstance *s, int bypass, const
   s->was_engaged = engaged;
   int moved = !s->designed;
   for (int k = 0; k < OMX_GEQ_BANDS; k++) {
-    const float g = omx_clamp_or(gain_db[k], OMX_EQ_GAIN_RANGE_MIN, OMX_EQ_GAIN_RANGE_MAX, 0.0f);
+    const float g = omx_clamp_or(band[k], (float)OMX_GEQ_BAND_RANGE_MIN, (float)OMX_GEQ_BAND_RANGE_MAX,
+                                 (float)OMX_GEQ_BAND_RANGE_DEFAULT);
     if (s->designed && g == s->gain_db[k]) continue;
     s->gain_db[k] = g;
     omx_eq_design(OMX_EQ_PEAKING, omx_geq_instance_centres_hz[k], OMX_GEQ_BAND_Q_DOUBLE, g, s->sr, s->coeffs[k]);
@@ -123,7 +126,7 @@ static inline void omx_geq_instance_resolve(OmxGeqInstance *s, int bypass, const
 #ifdef OMX_CONTRACTS
   int inside = 1;
   for (int k = 0; k < OMX_GEQ_BANDS; k++)
-    inside &= s->gain_db[k] >= OMX_EQ_GAIN_RANGE_MIN && s->gain_db[k] <= OMX_EQ_GAIN_RANGE_MAX &&
+    inside &= s->gain_db[k] >= OMX_GEQ_BAND_RANGE_MIN && s->gain_db[k] <= OMX_GEQ_BAND_RANGE_MAX &&
               omx_biquad_stable(s->atom.c[k]);
   OMX_POST(inside, "sections-inside-the-declared-travel-and-stable");
 #endif
