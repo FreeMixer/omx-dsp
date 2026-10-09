@@ -19,6 +19,9 @@
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
+#   make cost-kernel [PART=gate|flanger|drive|ovs|shape|deesser|delay]  one effect kernel's
+#               ns/sample alone (every part by default) at every declared rate, at its defaults and
+#               with every optional path engaged, with a digest of its output
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
 #               1024 frames
 #   make engine-identity OPENMIXER=<checkout>  the golden digests rendered again through the
@@ -86,7 +89,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel cost-kernel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity
 
 all: lib
 
@@ -293,6 +296,11 @@ clean:
 cost-prel: tools/prel-cost.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/prel-cost tools/prel-cost.c -lm
 	./$(BUILD)/prel-cost
+
+PART   ?= all
+cost-kernel: tools/kernel-cost.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/kernel-cost tools/kernel-cost.c $(LIB) -lm
+	./$(BUILD)/kernel-cost $(PART)
 
 bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/bench-mixmatrix tools/bench-mixmatrix.c -lm
