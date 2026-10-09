@@ -56,6 +56,21 @@
 
 /* The derivation that reads it, `omx_dyn_oversample_factor`, sits with the struct below. */
 
+/*
+ * DETECTOR TOPOLOGY — the comp row's `detectorTopology`, resolved into the RT atom
+ * (openmixer docs/design/specs/2026-09-26-ssl-bus-compressor.md §3a). The member index follows the
+ * declaration's order, `feedforward` first, so a zeroed atom is the compressor every slot runs.
+ */
+/** @brief `feedforward`: the detector hears the slot's input (or its key). */
+#define OMX_DYN_TOPOLOGY_FEEDFORWARD 0
+/** @brief `feedback`: the detector hears the slot's own pre-make-up output, one sample late,
+ * through ONE envelope stage (§1). A keyed slot detects its key and stays feed-forward. */
+#define OMX_DYN_TOPOLOGY_FEEDBACK 1
+
+/** @brief The feedback loop's own delay, samples: `y[n]` depends on the gain at `n`, so the
+ * detector can only have heard `y[n − 1]`. Not a latency: the audio is never delayed by it. */
+#define OMX_DYN_FB_LOOP_DELAY_SAMPLES 1u
+
 /** @brief One resolved dynamics atom: a per-block snapshot of the operator's controls. */
 struct omx_dyn {
   int enabled;         /**< 0 → the atom is a no-op (the whole slot bypassed) */
@@ -68,6 +83,9 @@ struct omx_dyn {
    * it (and of the rate); this is the value `auto` compares against a millisecond threshold,
    * which a coefficient cannot answer without knowing the rate it was made at. */
   float attack_ms;
+  /** OMX_DYN_TOPOLOGY_FEEDFORWARD (0, a zeroed atom) or OMX_DYN_TOPOLOGY_FEEDBACK — where the
+   *  detector listens. */
+  int topology;
 };
 
 /**
@@ -88,7 +106,8 @@ static inline struct omx_env_params omx_dyn_env_params(const struct omx_dyn *p) 
  * THE ENGAGED STATE IS DERIVED, NEVER STORED. One function, so the RT loop, the readback the
  * UI renders and anything that reports the stage's latency cannot answer differently — the
  * defect this codebase keeps re-buying is two readers of one fact. A disabled slot is never
- * oversampled: it is a no-op, and a no-op has no detector.
+ * oversampled: it is a no-op, and a no-op has no detector. A feedback slot is never oversampled
+ * either: the 4x path's delay inside a loop is loop delay (ssl-bus-compressor §4 L5).
  * @param p The atom.
  * @return 4 while the 4x control path is engaged, else 1.
  * @post `bypass-identity`: the factor is 1 or 4, the two the compensation ring can carry.
@@ -96,7 +115,7 @@ static inline struct omx_env_params omx_dyn_env_params(const struct omx_dyn *p) 
  */
 static inline uint32_t omx_dyn_oversample_factor(const struct omx_dyn *p) {
   uint32_t f;
-  if (!p->enabled || p->ovs_mode == OMX_DYN_OVS_OFF) f = 1u;
+  if (!p->enabled || p->ovs_mode == OMX_DYN_OVS_OFF || p->topology == OMX_DYN_TOPOLOGY_FEEDBACK) f = 1u;
   else if (p->ovs_mode == OMX_DYN_OVS_X4) f = 4u;
   else f = (p->attack_ms > 0.0f && p->attack_ms < OMX_DYN_OVS_AUTO_MS) ? 4u : 1u;
   /* The compensation delay ring is sized by OMX_OVS_LATENCY_4X, so a factor this derivation can
@@ -137,7 +156,38 @@ struct omx_dyn_state {
   uint32_t xfade_tap;              /**< the outgoing path's read tap */
   float xfade_gain;                /**< the outgoing path's last gain, HELD across the handover */
   float last_gain;                 /**< what to hold if the factor changes next buffer */
+  float fb_env;                    /**< the feedback loop's ONE envelope stage, detector domain */
+  float fb_yl;                     /**< the loop's last pre-make-up output, leg L: y[n-1] */
+  float fb_yr;                     /**< the loop's last pre-make-up output, leg R: y[n-1] */
+  int fb_ran;                      /**< the last block ran the feedback loop */
 };
+_Static_assert(OMX_DYN_FB_LOOP_DELAY_SAMPLES == 1u, "fb_yl/fb_yr hold exactly one output sample per leg");
+
+#define OMX_CONTRACT_STAGE "dynamics/fb-attack-pole"
+/**
+ * @brief The feedback loop's attack pole: the operator's, floored at `(R − 1)/R`.
+ *
+ * The one-stage loop's small-signal pole is `ρ = p − (1 − p)(R − 1)` (ssl-bus-compressor §4 L3);
+ * it is non-negative — no sign-alternating chatter, no divergence — iff `p ≥ (R − 1)/R` (§4 L4).
+ * The floor is derived from the ratio here and the attack pole was made at the live rate, so the
+ * floor follows the rate every block. openmixer core's `effectiveAttackMsOf` is the same law in
+ * milliseconds.
+ * @param attack_pole The operator's attack pole at the live rate, in [0, 1).
+ * @param ratio The ratio, at least `OMX_COMP_RATIO_MIN`.
+ * @return The pole the loop runs, in [0, 1).
+ * @pre `ratio-at-least-one`, `pole-in-declared-range`.
+ * @post `loop-pole-not-negative`: `p − (1 − p)(R − 1) ≥ 0` up to float rounding.
+ * @note RT-safe: a divide and a select. Thread-safe: pure.
+ */
+static inline float omx_dyn_fb_attack_pole(float attack_pole, float ratio) {
+  OMX_PRE(ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
+  OMX_PRE(attack_pole >= 0.0f && attack_pole < 1.0f, "pole-in-declared-range");
+  const float floor_pole = (ratio - 1.0f) / ratio;
+  const float pole = attack_pole > floor_pole ? attack_pole : floor_pole;
+  OMX_POST(pole - (1.0f - pole) * (ratio - 1.0f) >= -1e-5f, "loop-pole-not-negative");
+  return pole;
+}
+#undef OMX_CONTRACT_STAGE
 
 /**
  * @brief Samples of handover when the engaged factor changes.
@@ -284,12 +334,40 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   float ac, rc;
   omx_env_stage_poles(&ep, st->factor, &ac, &rc);
 
+  /* A keyed slot detects its key, which a loop cannot hear through: feedback is the
+   * self-detecting slot's. Entering the loop seeds its one stage from the cascade's level (same
+   * domain), so a topology switch does not start the detector from silence; leaving it seeds the
+   * cascade from the loop's stage for the same reason. */
+  const int fb = p->topology == OMX_DYN_TOPOLOGY_FEEDBACK && key == NULL;
+  const float fb_pa = fb ? omx_dyn_fb_attack_pole(p->attack_coeff, p->gc.ratio) : 0.0f;
+  const float fb_pr = p->release_coeff;
+  if (fb && !st->fb_ran) st->fb_env = st->env.stage[OMX_DYN_ENV_STAGES - 1];
+  if (!fb && st->fb_ran)
+    for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) st->env.stage[s] = st->fb_env;
+  st->fb_ran = fb;
+
   uint32_t done = 0u;
   while (done < n) {
     const uint32_t m = (n - done > OMX_DYN_OVS_CHUNK) ? OMX_DYN_OVS_CHUNK : (n - done);
     float gain[OMX_DYN_OVS_CHUNK];
 
-    if (st->factor == 1u) {
+    if (fb) {
+      /* THE FEEDBACK LOOP (ssl-bus-compressor §1): the detector hears the slot's own pre-make-up
+       * output OMX_DYN_FB_LOOP_DELAY_SAMPLES late, through ONE stage whose attack pole is floored
+       * so the loop cannot ring (§4 L4). Serial by construction — each gain needs the output the
+       * previous one made. Factor 1 always: omx_dyn_oversample_factor() never answers 4 here. */
+      const float *xl = l + done;
+      const float *xr = r ? r + done : l + done;
+      for (uint32_t i = 0; i < m; i++) {
+        const float hl = st->fb_yl, hr = st->fb_yr;
+        const float d = rms ? fmaxf(hl * hl, hr * hr) : fmaxf(fabsf(hl), fabsf(hr));
+        const float e = omx_onepole_flush(&st->fb_env, d, d > st->fb_env ? fb_pa : fb_pr);
+        const float g = omx_db_to_lin(omx_gaincomp_db_fb(&p->gc, omx_lin_to_db(rms ? sqrtf(e) : e)));
+        st->fb_yl = omx_flush(xl[i] * g);
+        st->fb_yr = omx_flush(xr[i] * g);
+        gain[i] = g * p->gc.makeup_lin;
+      }
+    } else if (st->factor == 1u) {
       /* THE BASE PATH: the detector reads the legs (or the key) sample for sample at the graph's
        * own rate. The cascade is bit-identical to the one that shipped; rectify, cascade and gain
        * are three loops so only the cascade is serial. */

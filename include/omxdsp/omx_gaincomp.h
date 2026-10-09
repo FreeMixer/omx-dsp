@@ -87,4 +87,31 @@ static inline float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "gaincomp/db-fb"
+/**
+ * @brief The feedback detector's OUTPUT-domain characteristic, dB (at most 0, before make-up).
+ *
+ * Above the threshold the slope is `−(R − 1)` against the level the detector HEARD, which is the
+ * compressor's own output; closing the loop `y = x + g(y)` gives `y − T = (x − T)/R`, the
+ * feed-forward curve at the same ratio (openmixer docs/design/specs/2026-09-26-ssl-bus-compressor.md
+ * §4 L2). The knee is the library's C¹ parabola, `−(R − 1)(x + W/2)²/(2W)` across `±W/2`: it is
+ * omx_gaincomp_db()'s BELOW branch read at the mirrored level `−x` against the mirrored threshold
+ * `−T`, with no floor — the same word, never a second knee.
+ * @param p The slot's gain-computer parameters (`thresh_db`, `ratio`, `knee_db` are read).
+ * @param level_db The detector level, dB; finite.
+ * @return The gain, dB.
+ * @pre `ratio-at-least-one` (`OMX_COMP_RATIO_MIN`), `finite-in`.
+ * @post `no-gain-added`: at most 0 dB.
+ * @note RT-safe: one omx_gaincomp_db(). Thread-safe: pure.
+ */
+static inline float omx_gaincomp_db_fb(const struct omx_gaincomp_params *p, float level_db) {
+  OMX_PRE(p->ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
+  OMX_PRE(level_db - level_db == 0.0f, "finite-in");
+  const struct omx_gaincomp_params mirror = {OMX_DYN_BELOW, -p->thresh_db, p->ratio, p->knee_db, -INFINITY, 1.0f};
+  const float g = omx_gaincomp_db(&mirror, -level_db);
+  OMX_POST(g <= 0.0f, "no-gain-added");
+  return g;
+}
+#undef OMX_CONTRACT_STAGE
+
 #endif /* OMX_GAINCOMP_H */
