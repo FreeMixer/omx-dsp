@@ -6,24 +6,27 @@
  * `omx_reverb.h`'s `omx_reverb_process`, THE SAME INLINE the console's reverb stage runs, and
  * this file adds no DSP to it. It adds what a host's port model needs and the atom does not carry:
  *
- *   1. POOL. `struct omx_reverb_state` binds a caller-owned pool; the shell's caller hands it in
- *      through {@link omx_reverb_instance_init}, which lays the five configurations out at the
- *      instance rate and REFUSES a rate the console does not declare or a pool the layout does
- *      not fit ({@link OMX_REVERB_POOL_FLOATS} fits every declared rate).
- *   2. RESOLVE. {@link omx_reverb_instance_resolve} carries the thirteen ports, in the row's own
- *      units (resolve_fx_reverb, mixer_rt.c, loads them unconverted), into the atom with every
- *      one clamped through omx_param into its declared travel (REVERB_*_RANGE,
- *      omx_contract_limits.h) and a non-finite word reading as the declared default — a foreign
- *      host's port is not the console's codec. The algorithm is an integer port (omx_port_int).
+ *   1. POOL. `struct omx_reverb_state` binds a pool; the instance OWNS it, inline
+ *      ({@link OMX_REVERB_POOL_FLOATS}, which fits every declared rate), and
+ *      {@link omx_reverb_instance_init} lays the five configurations out over it at the instance
+ *      rate, REFUSING a rate the console does not declare. Nothing is allocated, at init or after.
+ *   2. RESOLVE. {@link omx_reverb_instance_resolve} takes the kernel's thirteen contract controls
+ *      in their declared order and the row's own units (resolve_fx_reverb, mixer_rt.c, loads them
+ *      unconverted) into the atom, every travel clamped through omx_param into its declared range
+ *      (REVERB_*_RANGE, omx_contract_limits.h) and a non-finite word reading as the declared
+ *      default — a foreign host's port is not the console's codec. The algorithm is the
+ *      REVERB_ALGORITHMS index; any other value reads as ROOM.
  *   3. IN -> OUT. The kernel works IN PLACE; run() copies in to out where they differ (they may
  *      alias) and runs the kernel on out. Identity when bypassed or not ready.
  *
  * Re-engaging from bypass LAYS THE POOL OUT AGAIN, which hands every line back silent
  * (omx_pool_take's own clear), so a re-enabled reverb does not replay a tail buffered before the
- * bypass: a bounded pass over the caller's fixed pool, no allocation. LATENCY IS ZERO: the dry
+ * bypass: a bounded pass over the instance's own pool, no allocation. LATENCY IS ZERO: the dry
  * path is frame-aligned with the input; the pre-delay is the effect, not a latency.
  *
- * No mutable globals: every word of state is in the caller's {@link OmxReverbInstance}.
+ * No mutable globals: every word of state is in the caller's {@link OmxReverbInstance}. The state
+ * points into the instance's own pool, so an instance is initialised where it lives and is never
+ * copied after init.
  */
 #ifndef OMX_REVERB_INSTANCE_H
 #define OMX_REVERB_INSTANCE_H
@@ -33,80 +36,62 @@
 
 #include <omxdsp/fx/omx_reverb.h>
 #include <omxdsp/omx_param.h>
-#include <omxdsp/omx_port_int.h>
 
 #define OMX_REVERB_INSTANCE_CHANNELS 2
 #define OMX_REVERB_INSTANCE_LATENCY_FRAMES 0.0f
 
-/** The thirteen control ports, in the row's units, in port order. */
-struct omx_reverb_instance_ports {
-  float algorithm;         /* enum omx_reverb_algo, OMX_REVERB_ROOM..OMX_REVERB_GATED */
-  float size;              /* 0..1 */
-  float damping;           /* 0..1 */
-  float predelay_ms;       /* 0..100 */
-  float width;             /* 0..1 */
-  float mix;               /* 0..1 */
-  float lowcut;            /* Hz, 0 = none */
-  float highcut;           /* Hz */
-  float reverse_ms;        /* 50..500 */
-  float hold_ms;           /* 10..2000 */
-  float release_ms;        /* 1..500 */
-  float gate_threshold_db; /* -80..0 */
-  float plate_mod_depth;   /* % of Dattorro's excursion, 0..400 */
-};
+/** Port defaults: the declaration's (REVERB_*_RANGE.default); the algorithm comes up as ROOM. */
+#define OMX_REVERB_INSTANCE_PLATE_MOD_DEPTH_DEFAULT ((float)OMX_REVERB_PLATE_MOD_DEPTH_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_MIX_DEFAULT ((float)OMX_REVERB_MIX_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_SIZE_DEFAULT ((float)OMX_REVERB_SIZE_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_DAMPING_DEFAULT ((float)OMX_REVERB_DAMPING_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_WIDTH_DEFAULT ((float)OMX_REVERB_WIDTH_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_PREDELAY_DEFAULT ((float)OMX_REVERB_PREDELAY_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_LOWCUT_DEFAULT ((float)OMX_REVERB_LOWCUT_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_HIGHCUT_DEFAULT ((float)OMX_REVERB_HIGHCUT_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_REVERSE_DEFAULT ((float)OMX_REVERB_REVERSE_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_HOLD_DEFAULT ((float)OMX_REVERB_HOLD_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_RELEASE_DEFAULT ((float)OMX_REVERB_RELEASE_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_GATE_THRESHOLD_DEFAULT ((float)OMX_REVERB_GATE_THRESHOLD_RANGE_DEFAULT)
+#define OMX_REVERB_INSTANCE_ALGORITHM_DEFAULT OMX_REVERB_ROOM
 
-/** The declaration's defaults (REVERB_*_RANGE.default); the algorithm comes up as ROOM. */
-#define OMX_REVERB_INSTANCE_PORT_DEFAULTS                                                         \
-  { (float)OMX_REVERB_ROOM, (float)OMX_REVERB_SIZE_RANGE_DEFAULT,                                 \
-    (float)OMX_REVERB_DAMPING_RANGE_DEFAULT, (float)OMX_REVERB_PREDELAY_RANGE_DEFAULT,            \
-    (float)OMX_REVERB_WIDTH_RANGE_DEFAULT, (float)OMX_REVERB_MIX_RANGE_DEFAULT,                   \
-    (float)OMX_REVERB_LOWCUT_RANGE_DEFAULT, (float)OMX_REVERB_HIGHCUT_RANGE_DEFAULT,              \
-    (float)OMX_REVERB_REVERSE_RANGE_DEFAULT, (float)OMX_REVERB_HOLD_RANGE_DEFAULT,                \
-    (float)OMX_REVERB_RELEASE_RANGE_DEFAULT, (float)OMX_REVERB_GATE_THRESHOLD_RANGE_DEFAULT,      \
-    (float)OMX_REVERB_PLATE_MOD_DEPTH_RANGE_DEFAULT }
-
-/** One instance. The pool is NOT owned here; {@link omx_reverb_instance_init} is given it. */
+/** One instance. It owns its pool; the kernel's lines are laid out over it at init. */
 typedef struct {
   float sr;
   struct omx_reverb atom;
   struct omx_reverb_state state;
-  float *pool;
-  uint32_t pool_len;
+  float pool[OMX_REVERB_POOL_FLOATS];
   /** The previous cycle's engaged flag, so a bypass->engaged edge can clear the lines. */
   int was_engaged;
   int ready;
 } OmxReverbInstance;
 
 /**
- * Bind an instance to its rate and the caller's pool of `pool_len` floats, and lay it out.
- * Returns 1 when usable, 0 when not (a refused init leaves `ready` clear and run() is the
- * identity): the rate must be a declared one and the layout must fit the pool.
+ * Bind an instance to its rate and lay its own pool out. Returns 1 when usable, 0 when not (a
+ * refused init leaves `ready` clear and run() is the identity): the rate must be a declared one.
+ * Allocates nothing.
  */
-static inline int omx_reverb_instance_init(OmxReverbInstance *s, float sr, float *pool,
-                                           uint32_t pool_len) {
+static inline int omx_reverb_instance_init(OmxReverbInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr) || !pool || pool_len == 0u) return 0;
-  omx_reverb_state_layout(&s->state, pool, pool_len, sr);
+  if (!omx_rate_is_declared(sr)) return 0;
+  omx_reverb_state_layout(&s->state, s->pool, OMX_REVERB_POOL_FLOATS, sr);
   if (s->state._exhausted || s->state._pool == NULL) return 0;
   s->sr = sr;
-  s->pool = pool;
-  s->pool_len = pool_len;
-  const struct omx_reverb_instance_ports d = OMX_REVERB_INSTANCE_PORT_DEFAULTS;
-  s->atom.width = d.width; /* an atom inside the kernel's PREs before the first resolve */
-  s->atom.size = d.size;
-  s->atom.damping = d.damping;
-  s->atom.mix = d.mix;
+  s->atom.width = OMX_REVERB_INSTANCE_WIDTH_DEFAULT; /* an atom inside the kernel's PREs before the first resolve */
+  s->atom.size = OMX_REVERB_INSTANCE_SIZE_DEFAULT;
+  s->atom.damping = OMX_REVERB_INSTANCE_DAMPING_DEFAULT;
+  s->atom.mix = OMX_REVERB_INSTANCE_MIX_DEFAULT;
   s->ready = 1;
   return 1;
 }
 
 /** Lay the pool out again — every line handed back silent, every cursor and filter at rest:
- * the re-enable recipe. Bounded work over the caller's fixed pool, no allocation. */
+ * the re-enable recipe. Bounded work over the instance's own pool, no allocation. */
 #define OMX_CONTRACT_STAGE "reverb/instance-clear"
 static inline void omx_reverb_instance_clear(OmxReverbInstance *s) {
   if (!s || !s->ready) return;
-  omx_reverb_state_layout(&s->state, s->pool, s->pool_len, s->sr);
+  omx_reverb_state_layout(&s->state, s->pool, OMX_REVERB_POOL_FLOATS, s->sr);
   OMX_POST(!s->state._exhausted && s->state.sr == s->sr && s->state.pre_pos == 0u &&
                s->state.gate_env == 0.0f && s->pool[0] == 0.0f,
            "cleared-pool-is-silent");
@@ -115,46 +100,56 @@ static inline void omx_reverb_instance_clear(OmxReverbInstance *s) {
 
 /**
  * Resolve the host's control-port values into the kernel's atom for one cycle. `bypass` non-zero
- * disables the atom. Every port is clamped into its declared travel; a non-finite word reads as
- * the declared default.
+ * disables the atom. The arguments are the kernel's contract controls, in their declared order and
+ * the row's units: `plate_mod_depth` (% of Dattorro's excursion), `mix`, `size`, `damping` and
+ * `width` (0..1), `predelay` (ms), `lowcut` and `highcut` (Hz, a zero lowcut is none), `reverse`,
+ * `hold` and `release` (ms), `gate_threshold` (dBFS), each clamped into its declared travel, a
+ * non-finite word reading as the declared default; `algorithm` is the REVERB_ALGORITHMS index, an
+ * `enum omx_reverb_algo` member (any other value reads as ROOM).
  */
 #define OMX_CONTRACT_STAGE "reverb/instance-resolve"
-static inline void omx_reverb_instance_resolve(OmxReverbInstance *s, int bypass,
-                                               const struct omx_reverb_instance_ports *p) {
-  if (!s || !s->ready || !p) return;
+static inline void omx_reverb_instance_resolve(OmxReverbInstance *s, int bypass, float plate_mod_depth,
+                                               float mix, float size, float damping, float width,
+                                               float predelay, float lowcut, float highcut, float reverse,
+                                               float hold, float release, float gate_threshold,
+                                               int algorithm) {
+  if (!s || !s->ready) return;
   /* CONTRACT (omx_contract.h). The atom this leaves behind satisfies every PRE
    * omx_reverb_process states, whatever the host's ports held. */
   const int engaged = bypass ? 0 : 1;
   if (engaged && !s->was_engaged) omx_reverb_instance_clear(s);
   s->was_engaged = engaged;
-  const struct omx_reverb_instance_ports d = OMX_REVERB_INSTANCE_PORT_DEFAULTS;
   struct omx_reverb *o = &s->atom;
   o->enabled = engaged;
-  o->algorithm = omx_port_int(p->algorithm, OMX_REVERB_ROOM, OMX_REVERB_GATED, OMX_REVERB_ROOM);
-  o->size = omx_clamp_or(p->size, (float)OMX_REVERB_SIZE_RANGE_MIN, (float)OMX_REVERB_SIZE_RANGE_MAX,
-                         d.size);
-  o->damping = omx_clamp_or(p->damping, (float)OMX_REVERB_DAMPING_RANGE_MIN,
-                            (float)OMX_REVERB_DAMPING_RANGE_MAX, d.damping);
-  o->predelay_ms = omx_clamp_or(p->predelay_ms, (float)OMX_REVERB_PREDELAY_RANGE_MIN,
-                                (float)OMX_REVERB_PREDELAY_RANGE_MAX, d.predelay_ms);
-  o->width = omx_clamp_or(p->width, (float)OMX_REVERB_WIDTH_RANGE_MIN,
-                          (float)OMX_REVERB_WIDTH_RANGE_MAX, d.width);
-  o->mix = omx_clamp_or(p->mix, (float)OMX_REVERB_MIX_RANGE_MIN, (float)OMX_REVERB_MIX_RANGE_MAX,
-                        d.mix);
-  o->lowcut = omx_clamp_or(p->lowcut, (float)OMX_REVERB_LOWCUT_RANGE_MIN,
-                           (float)OMX_REVERB_LOWCUT_RANGE_MAX, d.lowcut);
-  o->highcut = omx_clamp_or(p->highcut, (float)OMX_REVERB_HIGHCUT_RANGE_MIN,
-                            (float)OMX_REVERB_HIGHCUT_RANGE_MAX, d.highcut);
-  o->reverse_ms = omx_clamp_or(p->reverse_ms, (float)OMX_REVERB_REVERSE_RANGE_MIN,
-                               (float)OMX_REVERB_REVERSE_RANGE_MAX, d.reverse_ms);
-  o->hold_ms = omx_clamp_or(p->hold_ms, (float)OMX_REVERB_HOLD_RANGE_MIN,
-                            (float)OMX_REVERB_HOLD_RANGE_MAX, d.hold_ms);
-  o->release_ms = omx_clamp_or(p->release_ms, (float)OMX_REVERB_RELEASE_RANGE_MIN,
-                               (float)OMX_REVERB_RELEASE_RANGE_MAX, d.release_ms);
-  o->gate_threshold_db = omx_clamp_or(p->gate_threshold_db, (float)OMX_REVERB_GATE_THRESHOLD_RANGE_MIN,
-                                      (float)OMX_REVERB_GATE_THRESHOLD_RANGE_MAX, d.gate_threshold_db);
-  o->plate_mod_depth = omx_clamp_or(p->plate_mod_depth, (float)OMX_REVERB_PLATE_MOD_DEPTH_RANGE_MIN,
-                                    (float)OMX_REVERB_PLATE_MOD_DEPTH_RANGE_MAX, d.plate_mod_depth);
+  o->algorithm = (algorithm < OMX_REVERB_ROOM || algorithm > OMX_REVERB_GATED)
+                     ? OMX_REVERB_INSTANCE_ALGORITHM_DEFAULT
+                     : algorithm;
+  o->size = omx_clamp_or(size, (float)OMX_REVERB_SIZE_RANGE_MIN, (float)OMX_REVERB_SIZE_RANGE_MAX,
+                         OMX_REVERB_INSTANCE_SIZE_DEFAULT);
+  o->damping = omx_clamp_or(damping, (float)OMX_REVERB_DAMPING_RANGE_MIN,
+                            (float)OMX_REVERB_DAMPING_RANGE_MAX, OMX_REVERB_INSTANCE_DAMPING_DEFAULT);
+  o->predelay_ms = omx_clamp_or(predelay, (float)OMX_REVERB_PREDELAY_RANGE_MIN,
+                                (float)OMX_REVERB_PREDELAY_RANGE_MAX, OMX_REVERB_INSTANCE_PREDELAY_DEFAULT);
+  o->width = omx_clamp_or(width, (float)OMX_REVERB_WIDTH_RANGE_MIN, (float)OMX_REVERB_WIDTH_RANGE_MAX,
+                          OMX_REVERB_INSTANCE_WIDTH_DEFAULT);
+  o->mix = omx_clamp_or(mix, (float)OMX_REVERB_MIX_RANGE_MIN, (float)OMX_REVERB_MIX_RANGE_MAX,
+                        OMX_REVERB_INSTANCE_MIX_DEFAULT);
+  o->lowcut = omx_clamp_or(lowcut, (float)OMX_REVERB_LOWCUT_RANGE_MIN, (float)OMX_REVERB_LOWCUT_RANGE_MAX,
+                           OMX_REVERB_INSTANCE_LOWCUT_DEFAULT);
+  o->highcut = omx_clamp_or(highcut, (float)OMX_REVERB_HIGHCUT_RANGE_MIN,
+                            (float)OMX_REVERB_HIGHCUT_RANGE_MAX, OMX_REVERB_INSTANCE_HIGHCUT_DEFAULT);
+  o->reverse_ms = omx_clamp_or(reverse, (float)OMX_REVERB_REVERSE_RANGE_MIN,
+                               (float)OMX_REVERB_REVERSE_RANGE_MAX, OMX_REVERB_INSTANCE_REVERSE_DEFAULT);
+  o->hold_ms = omx_clamp_or(hold, (float)OMX_REVERB_HOLD_RANGE_MIN, (float)OMX_REVERB_HOLD_RANGE_MAX,
+                            OMX_REVERB_INSTANCE_HOLD_DEFAULT);
+  o->release_ms = omx_clamp_or(release, (float)OMX_REVERB_RELEASE_RANGE_MIN,
+                               (float)OMX_REVERB_RELEASE_RANGE_MAX, OMX_REVERB_INSTANCE_RELEASE_DEFAULT);
+  o->gate_threshold_db = omx_clamp_or(gate_threshold, (float)OMX_REVERB_GATE_THRESHOLD_RANGE_MIN,
+                                      (float)OMX_REVERB_GATE_THRESHOLD_RANGE_MAX,
+                                      OMX_REVERB_INSTANCE_GATE_THRESHOLD_DEFAULT);
+  o->plate_mod_depth = omx_clamp_or(plate_mod_depth, (float)OMX_REVERB_PLATE_MOD_DEPTH_RANGE_MIN,
+                                    (float)OMX_REVERB_PLATE_MOD_DEPTH_RANGE_MAX,
+                                    OMX_REVERB_INSTANCE_PLATE_MOD_DEPTH_DEFAULT);
   OMX_POST(o->algorithm >= OMX_REVERB_ROOM && o->algorithm <= OMX_REVERB_GATED &&
                o->size >= 0.0f && o->size <= 1.0f && o->damping >= 0.0f && o->damping <= 1.0f &&
                o->width >= 0.0f && o->width <= 1.0f && o->mix >= 0.0f && o->mix <= 1.0f &&

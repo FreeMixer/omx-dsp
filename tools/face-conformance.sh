@@ -20,7 +20,7 @@
 # conforms fails, so the list only shrinks.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-PENDING="drive dynamics eq gate geq reverb"
+PENDING="drive dynamics eq gate geq"
 
 # controls <kernel.json>: "name kind" per control, in the declared order.
 controls() {
