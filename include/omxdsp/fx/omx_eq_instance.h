@@ -67,9 +67,23 @@
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_param.h>
 
-#ifndef OMX_EQ_LV2_BANDS
-#define OMX_EQ_LV2_BANDS 8
+/* The band count, a compile-time constant: OMX_EQ_INSTANCE_BANDS, one of the contract's
+ * EQ_BAND_COUNTS variants (eq8, eq16, eq32), the eq8 one unless the build names another
+ * (`-DOMX_EQ_INSTANCE_BANDS=OMX_EQ_BAND_COUNTS_EQ16_MAX`). OMX_EQ_LV2_BANDS, the mono core's name
+ * for the same number, follows it; a build that names only OMX_EQ_LV2_BANDS sets both. */
+#if !defined(OMX_EQ_INSTANCE_BANDS) && !defined(OMX_EQ_LV2_BANDS)
+#define OMX_EQ_INSTANCE_BANDS OMX_EQ_BAND_COUNTS_EQ8_MAX
 #endif
+#ifndef OMX_EQ_LV2_BANDS
+#define OMX_EQ_LV2_BANDS OMX_EQ_INSTANCE_BANDS
+#endif
+#ifndef OMX_EQ_INSTANCE_BANDS
+#define OMX_EQ_INSTANCE_BANDS OMX_EQ_LV2_BANDS
+#endif
+_Static_assert(OMX_EQ_INSTANCE_BANDS == OMX_EQ_LV2_BANDS, "one band count for the face and its mono core");
+_Static_assert(OMX_EQ_INSTANCE_BANDS == OMX_EQ_BAND_COUNTS_EQ8_MAX || OMX_EQ_INSTANCE_BANDS == OMX_EQ_BAND_COUNTS_EQ16_MAX ||
+                   OMX_EQ_INSTANCE_BANDS == OMX_EQ_BAND_COUNTS_EQ32_MAX,
+               "the band count is one of the contract's EQ_BAND_COUNTS variants");
 
 /** The band type enum, in `EQ_BAND_TYPES` order: the integer a host sees on the type port. */
 enum omx_eq_lv2_type {
@@ -398,6 +412,119 @@ static inline void omx_eq_lv2_set_controls(struct omx_eq_lv2 *e, const struct om
                         omx_eq_lv2_word(b[2], OMX_EQ_LV2_BAND_GAIN_DEFAULT),
                         omx_eq_lv2_word(b[3], OMX_EQ_LV2_BAND_Q_DEFAULT), omx_eq_lv2_word_on(b[4], 0));
   }
+}
+
+/* ---- the instance face: init, resolve, run, latency -------------------------------------------- */
+
+/*
+ * The EQ as every instance face is shaped (spec 2026-10-09-plugin-from-contract §2): a STEREO
+ * instance of two of the mono cores above, fed the same controls, so a plugin binding generated
+ * from the contract calls it with no hand-written map. {@link omx_eq_instance_resolve} takes the eq
+ * kernel's contract controls in their declared order and user units: the HPF's switch, corner (Hz)
+ * and slope (a FILTER_SLOPES id, 12 or 24 dB/oct), the LPF's three, then, once per band
+ * (OMX_EQ_INSTANCE_BANDS of each), the type (an EQ_BAND_TYPES index), the centre (Hz), the gain
+ * (dB), the Q and the band's switch. The contract's notchQ is q's travel while the band is a notch
+ * (omx_eq_lv2_clamp_q), no argument of its own. The whole-EQ `on` is the face's `bypass`.
+ *
+ * Every travel is clamped into its declared range, a non-finite word reading as the declared
+ * default (the pass filters' corners EQ_PASS_FILTER_DEFAULTS, a band's gain and Q
+ * EQ_BAND_DEFAULTS, its centre the contract's default rule for the band count); a switch, slope or
+ * type outside its ids reads as its declared default (off, 12 dB/oct, bell). The setters redesign a
+ * section only when it moved. Bypass empties the bank (a wire); the section histories are kept
+ * across it, as the mono core keeps them. LATENCY IS ZERO.
+ */
+
+#define OMX_EQ_INSTANCE_CHANNELS 2
+#define OMX_EQ_INSTANCE_LATENCY_FRAMES 0.0f
+
+/** One instance: a mono core per leg, the same controls on both. */
+typedef struct {
+  float sr;
+  struct omx_eq_lv2 leg[2];
+  int ready;
+} OmxEqInstance;
+
+/** Bind an instance to its rate: both legs fresh, every band and filter off, the EQ engaged, a
+ * wire. Returns 1 when usable, 0 when not: a rate the console does not declare is refused and run()
+ * is the identity. Allocates nothing. */
+static inline int omx_eq_instance_init(OmxEqInstance *s, float sr) {
+  if (!s) return 0;
+  memset(s, 0, sizeof(*s));
+  if (!omx_rate_is_declared(sr)) return 0;
+  s->sr = sr;
+  omx_eq_lv2_init(&s->leg[0], (double)sr);
+  omx_eq_lv2_init(&s->leg[1], (double)sr);
+  s->ready = 1;
+  return 1;
+}
+
+/** A switch: 0 or 1, any other value the declared default. */
+static inline int omx_eq_instance_switch(int v, int dflt) { return v == 0 || v == 1 ? v : dflt; }
+
+/** A slope: a FILTER_SLOPES id, any other value the declared default; 1 when it is 24 dB/oct. */
+static inline int omx_eq_instance_slope_24(int v) {
+  return (v == OMX_FILTER_SLOPES_12 || v == OMX_FILTER_SLOPES_24 ? v : (int)OMX_FILTER_SLOPES_DEFAULT) ==
+         OMX_FILTER_SLOPES_24;
+}
+
+/**
+ * Resolve the host's control values into both legs for one cycle. `bypass` non-zero empties the
+ * bank. The arguments are the eq kernel's contract controls, in their declared order and units
+ * (see the note above).
+ */
+#define OMX_CONTRACT_STAGE "eq-instance/resolve"
+static inline void omx_eq_instance_resolve(OmxEqInstance *s, int bypass, int hpf_on, float hpf_freq, int hpf_slope,
+                                           int lpf_on, float lpf_freq, int lpf_slope,
+                                           const int band_type[OMX_EQ_INSTANCE_BANDS],
+                                           const float freq[OMX_EQ_INSTANCE_BANDS],
+                                           const float gain[OMX_EQ_INSTANCE_BANDS],
+                                           const float q[OMX_EQ_INSTANCE_BANDS],
+                                           const int band_on[OMX_EQ_INSTANCE_BANDS]) {
+  if (!s || !s->ready || !band_type || !freq || !gain || !q || !band_on) return;
+  const int hon = omx_eq_instance_switch(hpf_on, (int)OMX_EQ_HPF_ONS_DEFAULT);
+  const float hf = omx_clamp_or(hpf_freq, (float)OMX_HPF_FREQ_RANGE_MIN, (float)OMX_HPF_FREQ_RANGE_MAX,
+                                OMX_EQ_LV2_HPF_FREQ_DEFAULT);
+  const int lon = omx_eq_instance_switch(lpf_on, (int)OMX_EQ_LPF_ONS_DEFAULT);
+  const float lf = omx_clamp_or(lpf_freq, (float)OMX_LPF_FREQ_RANGE_MIN, (float)OMX_LPF_FREQ_RANGE_MAX,
+                                OMX_EQ_LV2_LPF_FREQ_DEFAULT);
+  for (int l = 0; l < 2; l++) {
+    struct omx_eq_lv2 *e = &s->leg[l];
+    omx_eq_lv2_set_on(e, bypass ? 0 : 1);
+    omx_eq_lv2_set_hpf(e, hon, hf, omx_eq_instance_slope_24(hpf_slope));
+    omx_eq_lv2_set_lpf(e, lon, lf, omx_eq_instance_slope_24(lpf_slope));
+  }
+  for (uint32_t i = 0; i < (uint32_t)OMX_EQ_INSTANCE_BANDS; i++) {
+    const int type = band_type[i] >= 0 && band_type[i] < OMX_EQ_LV2_TYPE_COUNT ? band_type[i] : (int)OMX_EQ_BAND_TYPES_DEFAULT;
+    const float f = freq[i] - freq[i] == 0.0f ? freq[i] : omx_eq_lv2_band_freq_default(i);
+    const float g = omx_clamp_or(gain[i], (float)OMX_EQ_GAIN_RANGE_MIN, (float)OMX_EQ_GAIN_RANGE_MAX,
+                                 OMX_EQ_LV2_BAND_GAIN_DEFAULT);
+    const float bq = q[i] - q[i] == 0.0f ? q[i] : OMX_EQ_LV2_BAND_Q_DEFAULT;
+    const int on = omx_eq_instance_switch(band_on[i], 0);
+    omx_eq_lv2_set_band(&s->leg[0], i, type, f, g, bq, on);
+    omx_eq_lv2_set_band(&s->leg[1], i, type, f, g, bq, on);
+  }
+  OMX_POST(s->leg[0].on == (bypass ? 0 : 1) && s->leg[0].dirty == s->leg[1].dirty, "both-legs-resolved-alike");
+}
+#undef OMX_CONTRACT_STAGE
+
+/** One block, stereo: each leg through its core. `in_*` and `out_*` may alias. Not ready is the
+ * identity. */
+static inline void omx_eq_instance_run(OmxEqInstance *s, const float *in_l, const float *in_r, float *out_l,
+                                       float *out_r, uint32_t n) {
+  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
+  if (!s || !s->ready) {
+    if (out_l != in_l) memmove(out_l, in_l, (size_t)n * sizeof(float));
+    if (out_r != in_r) memmove(out_r, in_r, (size_t)n * sizeof(float));
+    return;
+  }
+  omx_eq_lv2_run(&s->leg[0], in_l, out_l, n);
+  omx_eq_lv2_run(&s->leg[1], in_r, out_r, n);
+}
+
+/** The frames of latency the instance introduces: none (a biquad cascade has no delay line). */
+static inline uint32_t omx_eq_instance_latency(const OmxEqInstance *s) {
+  (void)s;
+  return 0u;
 }
 
 #endif /* OMX_EQ_LV2_H */

@@ -11,12 +11,47 @@
 //      clamped before the design: the output equals the reference at the clamped values, and the
 //      ledger is clean;
 //   C  EQ off, every band off, and an on band at 0 dB (parked) are the identity byte for byte;
-//   D  a bell's gain at its centre within 0.05 dB, a 24 dB/oct HPF's stop band, latency zero.
+//   D  a bell's gain at its centre within 0.05 dB, a 24 dB/oct HPF's stop band, latency zero;
+//   E  the stereo instance face (omx_eq_instance_resolve, the contract's controls in order) IS the
+//      bank on both legs: each leg bit-identical to the chunk-free reference, bypass a wire;
+//   F  a switch, slope or type outside its ids reads as its declared default, a non-finite word as
+//      the declared default: the face equals one resolved at those defaults;
+//   H  init, resolve and run allocate nothing: malloc, calloc, realloc and free are wrapped at
+//      link time and counted across the instance's whole life.
 #define OMX_CONTRACT_STORAGE 1
 #define OMX_EQ_LV2_BANDS 32
 #include <omxdsp/fx/omx_eq_instance.h>
 
 #include "instance_oracle.h"
+
+#include <stdlib.h>
+
+/* ---- the allocation counter (linked with --wrap=malloc,calloc,realloc,free) ---------------- */
+
+void *__real_malloc(size_t n);
+void *__real_calloc(size_t n, size_t sz);
+void *__real_realloc(void *p, size_t n);
+void __real_free(void *p);
+
+static int g_counting = 0;
+static long g_allocs = 0;
+
+void *__wrap_malloc(size_t n) {
+  if (g_counting) g_allocs++;
+  return __real_malloc(n);
+}
+void *__wrap_calloc(size_t n, size_t sz) {
+  if (g_counting) g_allocs++;
+  return __real_calloc(n, sz);
+}
+void *__wrap_realloc(void *p, size_t n) {
+  if (g_counting) g_allocs++;
+  return __real_realloc(p, n);
+}
+void __wrap_free(void *p) {
+  if (g_counting) g_allocs++;
+  __real_free(p);
+}
 
 #define N 16384u
 #define NB OMX_EQ_LV2_BANDS
@@ -195,6 +230,125 @@ static void arm_response(void) {
   expect_clean();
 }
 
+/* ---- the instance face --------------------------------------------------------------------- */
+
+/* The face's controls from the words full_bank() wrote, in the contract's order. */
+static int f_type[NB], f_on[NB];
+static float f_freq[NB], f_gain[NB], f_q[NB];
+static float out_r[N];
+
+static void face_args(void) {
+  for (int i = 0; i < NB; i++)
+    f_type[i] = (int)w_band[i][0], f_freq[i] = w_band[i][1], f_gain[i] = w_band[i][2], f_q[i] = w_band[i][3],
+    f_on[i] = (int)w_band[i][4];
+}
+
+static void face_resolve(OmxEqInstance *s, int bypass) {
+  omx_eq_instance_resolve(s, bypass, (int)w_hpf[0], w_hpf[1], (int)w_hpf[2], (int)w_lpf[0], w_lpf[1], (int)w_lpf[2],
+                          f_type, f_freq, f_gain, f_q, f_on);
+}
+
+static void face_blocks(OmxEqInstance *s, const float *il, const float *ir) {
+  static const uint32_t sizes[] = {1u, 64u, 127u, 256u, 33u};
+  uint32_t o = 0, k = 0;
+  while (o < N) {
+    uint32_t b = sizes[k++ % 5u];
+    if (b > N - o) b = N - o;
+    omx_eq_instance_run(s, il + o, ir + o, out + o, out_r + o, b);
+    o += b;
+  }
+}
+
+static void arm_face(void) {
+  g_arm = "E instance face";
+  struct sec b[NB + 4];
+  const uint32_t nb = full_bank(b);
+  face_args();
+  static OmxEqInstance s;
+  ok(omx_eq_instance_init(&s, g_sr) == 1, "init at a declared rate", 0, 1);
+  face_resolve(&s, 0);
+  face_blocks(&s, in_l, in_r);
+  reference(b, nb);
+  ok(memcmp(out, ref, sizeof out) == 0, "the left leg equals the reference bank", 0, 0);
+  /* the right leg: the same bank over the right input */
+  float keep[N];
+  memcpy(keep, in_l, sizeof keep);
+  memcpy(in_l, in_r, sizeof in_l);
+  reference(b, nb);
+  memcpy(in_l, keep, sizeof in_l);
+  ok(memcmp(out_r, ref, sizeof out_r) == 0, "the right leg equals the reference bank", 0, 0);
+  ok(memcmp(out, in_l, sizeof out) != 0, "the bank shapes the signal", 0, 0);
+  static OmxEqInstance by;
+  omx_eq_instance_init(&by, g_sr);
+  face_resolve(&by, 1);
+  face_blocks(&by, in_l, in_r);
+  ok(memcmp(out, in_l, sizeof out) == 0 && memcmp(out_r, in_r, sizeof out_r) == 0, "bypassed is a wire", 0, 0);
+  static OmxEqInstance bad;
+  ok(omx_eq_instance_init(&bad, g_sr + 1.0f) == 0, "an undeclared rate is refused", 0, 0);
+  face_blocks(&bad, in_l, in_r);
+  ok(memcmp(out, in_l, sizeof out) == 0 && memcmp(out_r, in_r, sizeof out_r) == 0, "a refused instance is a wire", 0, 0);
+  ok(omx_eq_instance_latency(&s) == 0u && OMX_EQ_INSTANCE_LATENCY_FRAMES == 0.0f, "latency zero", 0, 0);
+  expect_clean();
+}
+
+static void arm_face_defaults(void) {
+  g_arm = "F face defaults";
+  struct sec b[NB + 4];
+  full_bank(b);
+  face_args();
+  static OmxEqInstance s, e;
+  omx_eq_instance_init(&s, g_sr);
+  omx_eq_instance_init(&e, g_sr);
+  int bt[NB], bo[NB], wt[NB], wo[NB];
+  float bf[NB], bg[NB], bq[NB], wf[NB], wg[NB], wq[NB];
+  float centres[NB];
+  omx_eq_default_centres((unsigned)NB, centres);
+  for (int i = 0; i < NB; i++) {
+    bt[i] = i % 3 ? f_type[i] : 99, wt[i] = i % 3 ? f_type[i] : (int)OMX_EQ_BAND_TYPES_DEFAULT;
+    bo[i] = i % 4 ? f_on[i] : -3, wo[i] = i % 4 ? f_on[i] : 0;
+    bf[i] = i % 5 ? f_freq[i] : NAN, wf[i] = i % 5 ? f_freq[i] : centres[i];
+    bg[i] = i % 6 ? f_gain[i] : INFINITY, wg[i] = i % 6 ? f_gain[i] : (float)OMX_EQ_BAND_DEFAULTS_GAIN_DB;
+    bq[i] = i % 7 ? f_q[i] : NAN, wq[i] = i % 7 ? f_q[i] : (float)OMX_EQ_BAND_DEFAULTS_Q;
+  }
+  omx_eq_instance_resolve(&s, 0, 7, NAN, 18, 2, INFINITY, -1, bt, bf, bg, bq, bo);
+  omx_eq_instance_resolve(&e, 0, (int)OMX_EQ_HPF_ONS_DEFAULT, (float)OMX_EQ_PASS_FILTER_DEFAULTS_HPF_FREQ_HZ,
+                          (int)OMX_FILTER_SLOPES_DEFAULT, (int)OMX_EQ_LPF_ONS_DEFAULT,
+                          (float)OMX_EQ_PASS_FILTER_DEFAULTS_LPF_FREQ_HZ, (int)OMX_FILTER_SLOPES_DEFAULT, wt, wf, wg, wq, wo);
+  face_blocks(&s, in_l, in_r);
+  memcpy(ref, out, sizeof ref);
+  face_blocks(&e, in_l, in_r);
+  ok(memcmp(out, ref, sizeof out) == 0, "words outside their ids or non-finite read as the declared defaults", 0, 0);
+  expect_clean();
+}
+
+static void arm_face_no_alloc(void) {
+  g_arm = "H no allocation";
+  struct sec b[NB + 4];
+  full_bank(b);
+  face_args();
+  static OmxEqInstance s;
+  g_allocs = 0;
+  g_counting = 1;
+  const int ready = omx_eq_instance_init(&s, g_sr);
+  face_resolve(&s, 0);
+  omx_eq_instance_run(&s, in_l, in_r, out, out_r, 512u);
+  face_resolve(&s, 1);
+  omx_eq_instance_run(&s, in_l, in_r, out, out_r, 512u);
+  f_gain[2] = 6.0f;
+  face_resolve(&s, 0);
+  omx_eq_instance_run(&s, in_l, in_r, out, out_r, 512u);
+  g_counting = 0;
+  ok(ready && g_allocs == 0, "init, resolve, a re-engage and run allocate nothing", (double)g_allocs, 0);
+  void *(*volatile alloc)(size_t) = malloc;
+  void (*volatile release)(void *) = free;
+  g_allocs = 0;
+  g_counting = 1;
+  release(alloc(16));
+  g_counting = 0;
+  ok(g_allocs == 2, "the allocation counter counts (a malloc and a free inside the window)", (double)g_allocs, 2);
+  expect_clean();
+}
+
 int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
@@ -207,6 +361,10 @@ int main(void) {
     arm_identity_paths();
     stimulus(in_l, in_r, N, 0x1234567u, 0u);
     arm_response();
+    stimulus(in_l, in_r, N, 0x1234567u, 0u);
+    arm_face();
+    arm_face_defaults();
+    arm_face_no_alloc();
   }
   return instance_oracle_end("eq_instance");
 }
