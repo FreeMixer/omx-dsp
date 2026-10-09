@@ -1,3 +1,13 @@
+omx-dsp (0.5.1) unstable; urgency=medium
+
+  * The gate runs the contract's knee range (kneeStartDb, kneeEndDb): a
+    rounded corner from the start to the end point around the threshold. A
+    start equal to its end is the hard knee, the 0.5.0 gate bit for bit.
+  * The gate face's resolve takes the knee start and end after the range, in
+    the contract's order; a caller passes the two edges.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 19:59:43 +0200
+
 omx-dsp (0.5.0) unstable; urgency=medium
 
   * Built against omx-contract 2.2.0, and requires any 2.x from 2.2.0 on.
