@@ -78,6 +78,11 @@ struct omx_dyn {
   /** The DRY share of the output, in [0, 1]: `1 - mixPct / 100`, from {@link omx_dyn_dry_share}.
    * 0 (mix 100 %) is the fully processed output; 1 is the input, delay-compensated. */
   float dry;
+  /** The KNEE RANGE (BELOW mode only), dB: the knee's centre sits this far from `gc.thresh_db`,
+   * inside `[-gc.knee_db / 2, gc.knee_db / 2]`, so the knee spans an operator's start and end
+   * points rather than a width centred on the threshold. 0 is the centred knee, and the gain
+   * computer is then omx_gaincomp_gain bit for bit (omx_gaincomp_db_shifted). */
+  float knee_shift_db;
 };
 
 /**
@@ -270,8 +275,8 @@ static inline void omx_dyn_gate_chain(struct omx_dyn_state *st, const struct omx
       st->gate_open = 1;
       st->hold_left = hold;
     }
-    const float closed_db = omx_gaincomp_db(&p->gc, vdb);
-    if (st->gate_open) st->hyst_credit_db = omx_gaincomp_db(&open_gc, vdb) - closed_db;
+    const float closed_db = omx_gaincomp_db_shifted(&p->gc, p->knee_shift_db, vdb);
+    if (st->gate_open) st->hyst_credit_db = omx_gaincomp_db_shifted(&open_gc, p->knee_shift_db, vdb) - closed_db;
     else st->hyst_credit_db = omx_flush(st->hyst_credit_db * credit_pole);
     float g_db = closed_db + st->hyst_credit_db;
     g_db = g_db > 0.0f ? 0.0f : g_db;
@@ -349,7 +354,7 @@ static inline void omx_dyn_mix_gain(float *gain, uint32_t m, float dry) {
  * @param st The slot's state.
  * @pre `finite-in-l`, `finite-in-r`, `finite-in-key`: every input block is finite; and once the
  *      slot is enabled, `ratio-at-least-one`, `knee-not-negative`, `range-is-an-attenuation`,
- *      `makeup-positive`, `hysteresis-not-negative`, `dry-share-in-unit`.
+ *      `makeup-positive`, `hysteresis-not-negative`, `dry-share-in-unit`, `knee-shift-inside-the-knee`.
  * @post `finite-out-l`, `finite-out-r`; `gain-finite-nonneg` and `no-gain-added`: the last gain
  *       applied is finite, non-negative and at most the make-up.
  * @invariant `envelope-finite`: the detector cascade stays finite.
@@ -380,6 +385,9 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   OMX_PRE(p->gc.makeup_lin > 0.0f, "makeup-positive");
   OMX_PRE(p->hyst_db >= 0.0f, "hysteresis-not-negative");
   OMX_PRE(p->dry >= 0.0f && p->dry <= 1.0f, "dry-share-in-unit");
+  OMX_PRE(p->knee_shift_db == 0.0f || (p->gc.mode == OMX_DYN_BELOW && p->knee_shift_db >= -0.5f * p->gc.knee_db &&
+                                       p->knee_shift_db <= 0.5f * p->gc.knee_db),
+          "knee-shift-inside-the-knee");
 
   /* THE SWITCH. `auto` is derived every buffer, so an operator dragging the attack across
    * OMX_DYN_OVS_AUTO_MS lands here. The incoming path's rate changers are re-armed (their
@@ -446,7 +454,10 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         omx_dyn_gate_chain(st, p, &ep, ac, rc, gain, m, hold, credit_pole);
       } else {
         for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
-        for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
+        if (p->knee_shift_db == 0.0f)
+          for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
+        else
+          for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, lev[i]);
       }
     } else {
       /* THE 4× CONTROL PATH. The audio is NOT resampled — only the signal the detector looks
@@ -475,7 +486,10 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
       if (gate_state) omx_dyn_gate_chain(st, p, &ep, ac, rc, g4, mf, hold, credit_pole);
       else {
         for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
-        for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
+        if (p->knee_shift_db == 0.0f)
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
+        else
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, g4[k]);
       }
       omx_oversampler_down(&st->ovs_a, g4, m, gain);
       /* D-1, 2026-09-17 (docs/design/notes/2026-09-17-dynamics-math-review.md, measured by

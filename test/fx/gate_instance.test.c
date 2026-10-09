@@ -5,7 +5,7 @@
 // (omx-dsp-dev#34). At every declared rate, contracts on, an empty ledger after each arm:
 //   A  ready: a NULL instance, a zero, negative or NaN rate is refused; a refused instance is the
 //      identity (separate and aliased buffers) and reports no latency; a ready one starts at the
-//      declared defaults, hold and hysteresis included;
+//      declared defaults, the knee range, hold and hysteresis included;
 //   B  resolve: by value is omx_gate_resolve over controls pointing at the same values, field for
 //      field, in travel, out of travel and NaN; bypass is `enabled` off;
 //   C  latency: omx_gate_latency of the resolved atom — 4x at a 0.1 ms attack, none at 5 ms, none
@@ -14,6 +14,8 @@
 //      omx_gate_resolve + omx_gate_run over the whole block, bit for bit — keyed, the key with
 //      SELF chosen, no key, bypassed; bypassed is the identity;
 //   E  aliasing: outputs on the inputs is the unaliased run, bit for bit;
+//   (every resolve below passes a zero-width knee range, KNEE_HARD twice: the hard knee this
+//    oracle was written against; test/fx/gate_knee.test.c holds the knee range itself)
 //   F  hold and hysteresis: the face's hold and hysteresis reach the kernel's own fields
 //      (omx_dyn_hold_frames at the rate, hyst_db), clamped into their travels with a non-finite
 //      word at the declared default, and the run is omx_gate_run on that atom, bit for bit;
@@ -86,6 +88,7 @@ static float rnd(void) {
 }
 
 #define N 3000u /* not a multiple of OMX_GATE_CHUNK */
+#define KNEE_HARD -40.0f /* a knee start equal to its end: the hard knee */
 
 static OmxGateInstance g_inst;
 static struct omx_gate g_ref;
@@ -95,7 +98,7 @@ static int same_atom(const struct omx_dyn *a, const struct omx_dyn *b) {
          a->gc.ratio == b->gc.ratio && a->gc.knee_db == b->gc.knee_db && a->gc.range_db == b->gc.range_db &&
          a->gc.makeup_lin == b->gc.makeup_lin && a->detect == b->detect && a->attack_coeff == b->attack_coeff &&
          a->release_coeff == b->release_coeff && a->ovs_mode == b->ovs_mode && a->attack_ms == b->attack_ms &&
-         a->hold_frames == b->hold_frames && a->hyst_db == b->hyst_db;
+         a->hold_frames == b->hold_frames && a->hyst_db == b->hyst_db && a->knee_shift_db == b->knee_shift_db;
 }
 
 static void fill(float *l, float *r, float *k) {
@@ -117,7 +120,7 @@ static void arm_ready(float sr) {
     const float rate = b < 2 ? bad[b] : nanf("");
     ok(omx_gate_instance_init(&g_inst, rate) == 0 && !g_inst.ready, "a rate that is not positive is refused", rate, 0);
     ok(omx_gate_instance_latency(&g_inst) == 0.0f, "a refused instance reports no latency", omx_gate_instance_latency(&g_inst), 0);
-    omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, 0.1f, 0.0f, 50.0f, 0.0f, 16.0f);
+    omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 0.0f, 50.0f, 0.0f, 16.0f);
     fill(l, r, k);
     omx_gate_instance_run(&g_inst, k, l, r, ol, or_, N);
     memcpy(cl, l, sizeof l);
@@ -136,6 +139,7 @@ static void arm_ready(float sr) {
   omx_gate_resolve(&g_ref, &c, &p);
   p.hold_frames = omx_dyn_hold_frames(OMX_GATE_HOLD_MS_DEFAULT, sr);
   p.hyst_db = OMX_GATE_HYSTERESIS_DB_DEFAULT;
+  omx_gate_knee(&p, OMX_GATE_KNEE_START_DB_DEFAULT, OMX_GATE_KNEE_END_DB_DEFAULT);
   ok(same_atom(&g_inst.atom, &p), "a ready instance starts at the declared defaults", 0, 0);
 }
 
@@ -155,7 +159,7 @@ static void arm_resolve(float sr) {
         float t, ra, rg, a, rl;
         if (i < 4) { t = v[i][0]; ra = v[i][1]; rg = v[i][2]; a = v[i][3]; rl = v[i][4]; }
         else t = ra = rg = a = rl = nanf("");
-        omx_gate_instance_resolve(&g_inst, bypass, ke, t, rg, a, 0.0f, rl, 0.0f, ra);
+        omx_gate_instance_resolve(&g_inst, bypass, ke, t, rg, KNEE_HARD, KNEE_HARD, a, 0.0f, rl, 0.0f, ra);
         const float en = bypass ? 0.0f : 1.0f, kx = ke ? 1.0f : 0.0f;
         const struct omx_gate_controls c = {&en, &kx, &t, &ra, &rg, &a, &rl};
         struct omx_dyn p;
@@ -169,13 +173,13 @@ static void arm_resolve(float sr) {
 static void arm_latency(float sr) {
   g_arm = "C latency";
   omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -40.0f, -90.0f, 0.1f, 0.0f, 100.0f, 0.0f, 16.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -40.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 0.0f, 100.0f, 0.0f, 16.0f);
   ok(omx_gate_instance_latency(&g_inst) == (float)OMX_OVS_LATENCY_4X, "a 0.1 ms attack reports the 4x latency",
      omx_gate_instance_latency(&g_inst), OMX_OVS_LATENCY_4X);
   ok(omx_gate_instance_latency(&g_inst) == omx_gate_latency(&g_inst.atom), "the latency is omx_gate_latency's", 0, 0);
-  omx_gate_instance_resolve(&g_inst, 1, 1, -40.0f, -90.0f, 0.1f, 0.0f, 100.0f, 0.0f, 16.0f);
+  omx_gate_instance_resolve(&g_inst, 1, 1, -40.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 0.0f, 100.0f, 0.0f, 16.0f);
   ok(omx_gate_instance_latency(&g_inst) == 0.0f, "a bypassed gate reports none", omx_gate_instance_latency(&g_inst), 0);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -40.0f, -90.0f, 5.0f, 0.0f, 100.0f, 0.0f, 16.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -40.0f, -90.0f, KNEE_HARD, KNEE_HARD, 5.0f, 0.0f, 100.0f, 0.0f, 16.0f);
   ok(omx_gate_instance_latency(&g_inst) == 0.0f, "a 5 ms attack reports none", omx_gate_instance_latency(&g_inst), 0);
 }
 
@@ -192,7 +196,7 @@ static void arm_run(float sr) {
       omx_gate_instance_init(&g_inst, sr);
       for (uint32_t off = 0, b = 0; off < N; b++) {
         const uint32_t m = N - off < blocks[b % 5u] ? N - off : blocks[b % 5u];
-        omx_gate_instance_resolve(&g_inst, bypass, ke, -30.0f, -90.0f, attacks[ai], 0.0f, 50.0f, 0.0f, 16.0f);
+        omx_gate_instance_resolve(&g_inst, bypass, ke, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, attacks[ai], 0.0f, 50.0f, 0.0f, 16.0f);
         omx_gate_instance_run(&g_inst, key ? key + off : NULL, l + off, r + off, ol + off, or_ + off, m);
         off += m;
       }
@@ -222,10 +226,10 @@ static void arm_alias(float sr) {
   static float l[N], r[N], k[N], ol[N], or_[N];
   fill(l, r, k);
   omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, 0.1f, 0.0f, 50.0f, 0.0f, 16.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 0.0f, 50.0f, 0.0f, 16.0f);
   omx_gate_instance_run(&g_inst, k, l, r, ol, or_, N);
   omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, 0.1f, 0.0f, 50.0f, 0.0f, 16.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 0.0f, 50.0f, 0.0f, 16.0f);
   omx_gate_instance_run(&g_inst, k, l, r, l, r, N);
   uint32_t mis = 0;
   for (uint32_t i = 0; i < N; i++) mis += l[i] != ol[i] || r[i] != or_[i];
@@ -246,7 +250,7 @@ static void arm_hold_hysteresis(float sr) {
     omx_gate_instance_init(&g_inst, sr);
     for (uint32_t off = 0, b = 0; off < N; b++) {
       const uint32_t m = N - off < blocks[b % 5u] ? N - off : blocks[b % 5u];
-      omx_gate_instance_resolve(&g_inst, 0, 0, -30.0f, -80.0f, 0.5f, h, 2.0f, y, 8.0f);
+      omx_gate_instance_resolve(&g_inst, 0, 0, -30.0f, -80.0f, KNEE_HARD, KNEE_HARD, 0.5f, h, 2.0f, y, 8.0f);
       omx_gate_instance_run(&g_inst, NULL, l + off, r + off, ol + off, or_ + off, m);
       off += m;
     }
@@ -266,10 +270,10 @@ static void arm_hold_hysteresis(float sr) {
   /* the controls are live: a hold changes the output against none */
   fill(l, r, k);
   omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 0, -30.0f, -80.0f, 0.5f, 0.0f, 2.0f, 0.0f, 8.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 0, -30.0f, -80.0f, KNEE_HARD, KNEE_HARD, 0.5f, 0.0f, 2.0f, 0.0f, 8.0f);
   omx_gate_instance_run(&g_inst, NULL, l, r, el, er, N);
   omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 0, -30.0f, -80.0f, 0.5f, 5.0f, 2.0f, 6.0f, 8.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 0, -30.0f, -80.0f, KNEE_HARD, KNEE_HARD, 0.5f, 5.0f, 2.0f, 6.0f, 8.0f);
   omx_gate_instance_run(&g_inst, NULL, l, r, ol, or_, N);
   uint32_t moved = 0;
   for (uint32_t j = 0; j < N; j++) moved += ol[j] != el[j];
@@ -283,9 +287,9 @@ static void arm_no_alloc(float sr) {
   g_allocs = 0;
   g_counting = 1;
   const int ready = omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, 0.1f, 25.0f, 50.0f, 6.0f, 16.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 25.0f, 50.0f, 6.0f, 16.0f);
   omx_gate_instance_run(&g_inst, k, l, r, l, r, 512u);
-  omx_gate_instance_resolve(&g_inst, 1, 0, -30.0f, -90.0f, 2.0f, 0.0f, 50.0f, 0.0f, 16.0f);
+  omx_gate_instance_resolve(&g_inst, 1, 0, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 2.0f, 0.0f, 50.0f, 0.0f, 16.0f);
   omx_gate_instance_run(&g_inst, NULL, l, r, l, r, 512u);
   g_counting = 0;
   ok(ready && g_allocs == 0, "init, resolve and run allocate nothing", (double)g_allocs, 0);
