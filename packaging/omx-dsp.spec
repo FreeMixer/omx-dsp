@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.4.0
+Version: 0.4.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel = 2.0.0
+BuildRequires: omx-contract-devel = 2.1.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -34,7 +34,7 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel = 2.0.0
+Requires: omx-contract-devel = 2.1.0
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -69,6 +69,9 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.4.1-1
+- Built against omx-contract 2.1.0
+
 * Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.4.0-1
 - pitch and limiter instance faces own their rings: init takes (instance, rate)
   and allocates nothing (breaking while 0.x: the caller-ring init is gone)

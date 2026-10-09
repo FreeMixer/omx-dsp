@@ -12,15 +12,18 @@
 # data/kernels/<k>.json (tools/contract-include.sh --data). A face's resolve is
 #   omx_<k>_instance_resolve(Omx<K>Instance *s, int bypass, <one argument per control>)
 # where each argument is named after its control in C case (`rateHz` -> `rate_hz`) and typed by its
-# kind: a travel is a `float` in the control's user unit, a choice is an `int`, its index. A plugin
-# binding generated from the contract then calls resolve without a hand-written map.
+# kind: a travel is a `float` in the control's user unit, a choice is an `int`, its index. A control
+# the kernel takes once per band is passed as `const float <name>[OMX_<COUNT>]`, an array whose
+# extent is a count the pinned contract renders (`band[OMX_GEQ_BANDS]`); any other extent is named
+# as a mismatch. A plugin binding generated from the contract then calls resolve without a
+# hand-written map.
 #
 # PENDING names the faces written before the rule, whose arguments carry units or another shape
 # (`depth_ms`, a ports struct, a band array). Each is reported, not failed; a PENDING face that
 # conforms fails, so the list only shrinks.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-PENDING="drive dynamics eq gate geq"
+PENDING="dynamics eq gate"
 
 # controls <kernel.json>: "name kind" per control, in the declared order.
 controls() {
@@ -59,6 +62,20 @@ arguments() {
   ' "$1"
 }
 
+# per_band: an array argument `const T name[OMX_X]` read as `T name` when OMX_X is a count the
+# pinned contract's render defines; every other line, and any other extent, unchanged.
+LIMITS="$(sh "$HERE/tools/contract-include.sh")/omxcontract/omx_contract_limits.h"
+per_band() {
+  local line t n x
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^const\ (float|int)\ ([a-z_0-9]+)\[(OMX_[A-Z0-9_]+)\]$ ]]; then
+      t="${BASH_REMATCH[1]}" n="${BASH_REMATCH[2]}" x="${BASH_REMATCH[3]}"
+      if grep -q "^#define $x [0-9]" "$LIMITS"; then echo "$t $n"; continue; fi
+    fi
+    echo "$line"
+  done
+}
+
 # check <fx include dir> <kernel data dir>: 0 when every face conforms (PENDING aside).
 check() {
   local fx="$1" data="$2" bad=0 ok=0 k face got want
@@ -70,7 +87,7 @@ check() {
     fi
     want="$(expected "$data/$k.json")"
     [ -n "$want" ] || { echo "face-conformance: $k: no controls read from $k.json" >&2; bad=1; continue; }
-    got="$(arguments "$face" "$k")"
+    got="$(arguments "$face" "$k" | per_band)"
     if [ "$got" = "$want" ]; then
       if [[ " $PENDING " == *" $k "* ]]; then
         echo "face-conformance: $k conforms but is listed PENDING: remove it from the list" >&2; bad=1
@@ -104,7 +121,12 @@ if [ "${1:-}" = --self-test ]; then
   sed -i 's/float lookahead_ms, float release_ms) {$/float lookahead_ms) {/' "$scratch/omx_limiter_instance.h"
   out="$(check "$scratch" "$DATA" 2>&1)" && { echo "face-conformance self-test: a dropped limiter argument passed" >&2; exit 1; }
   grep -q 'contract: *float release_ms$' <<<"$out" || { echo "face-conformance self-test: a dropped limiter argument was NOT named" >&2; exit 1; }
-  echo "face-conformance self-test: a renamed and a dropped argument were each named"
+  cp "$HERE/include/omxdsp/fx/omx_limiter_instance.h" "$scratch/"
+  # A per-band array whose extent is no contract count: the geq's bands as a literal 31.
+  sed -i 's/const float band\[OMX_GEQ_BANDS\]/const float band[31]/' "$scratch/omx_geq_instance.h"
+  out="$(check "$scratch" "$DATA" 2>&1)" && { echo "face-conformance self-test: a geq band array of literal extent passed" >&2; exit 1; }
+  grep -q 'face: *const float band\[31\]$' <<<"$out" || { echo "face-conformance self-test: a geq band array of literal extent was NOT named" >&2; exit 1; }
+  echo "face-conformance self-test: a renamed and a dropped argument, and a band array of no contract count, were each named"
   exit 0
 fi
 
