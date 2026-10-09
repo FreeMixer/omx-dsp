@@ -50,7 +50,7 @@ static void render_one(int which, float sr, float *out) {
   float *ol = alias ? g_l : g_ol, *or_ = alias ? g_r : g_or;
   for (int o = 0, b = 0; o < OMX_FX_GOLDEN_FRAMES; o += HOST_BLOCK, b++) {
     const uint32_t n = OMX_FX_GOLDEN_FRAMES - o < HOST_BLOCK ? (uint32_t)(OMX_FX_GOLDEN_FRAMES - o) : HOST_BLOCK;
-    omx_comp_instance_resolve(&g_inst, toggle && (b & 1), t, ra, k, a, rl, mk, KIND(rms), ovs);
+    omx_comp_instance_resolve(&g_inst, toggle && (b & 1), t, ra, k, a, rl, mk, 100.0f, KIND(rms), ovs);
     omx_comp_instance_run(&g_inst, g_l + o, g_r + o, ol + o, or_ + o, n);
   }
   for (int i = 0; i < OMX_FX_GOLDEN_FRAMES; i++) { out[2 * i] = ol[i]; out[2 * i + 1] = or_[i]; }

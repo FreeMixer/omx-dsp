@@ -18,6 +18,9 @@
 //      block, bit for bit — peak and RMS, base path, `4x`, a soft knee with make-up; bypassed is
 //      the identity; an engaged comp moves the signal;
 //   E  aliasing: outputs on the inputs is the unaliased run, bit for bit;
+//   M  mix: the face's mix reaches the kernel's dry share (omx_dyn_dry_share of the clamped
+//      percent, a non-finite word at the declared 100 %), and the run is omx_dynamics on that
+//      atom, bit for bit; 50 % moves the output against 100 %;
 //   H  init, resolve (re-engage included) and run allocate nothing: malloc, calloc, realloc and
 //      free are wrapped at link time and counted across the instance's whole life.
 #define OMX_CONTRACT_STORAGE 1
@@ -134,7 +137,7 @@ static void arm_ready(float sr) {
     const float rate = b < 2 ? bad[b] : nanf("");
     ok(omx_comp_instance_init(&g_inst, rate) == 0 && !g_inst.ready, "a rate that is not positive is refused", rate, 0);
     ok(omx_comp_instance_latency(&g_inst) == 0.0f, "a refused instance reports no latency", 0, 0);
-    omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 0.0f, 0.1f, 50.0f, 6.0f, KIND(0), OMX_DYN_OVS_X4);
+    omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 0.0f, 0.1f, 50.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4);
     fill(l, r);
     omx_comp_instance_run(&g_inst, l, r, ol, or_, N);
     memcpy(cl, l, sizeof l);
@@ -151,7 +154,7 @@ static void arm_ready(float sr) {
   /* a kind outside COMP_KINDS reads as the declared default, comp: the RMS detector */
   static const int BAD[] = {-1, 2, 7, 0x7fffffff};
   for (int m = 0; m < 4; m++) {
-    omx_comp_instance_resolve(&g_inst, 0, -20.0f, 4.0f, 6.0f, 5.0f, 100.0f, 0.0f, BAD[m], 9);
+    omx_comp_instance_resolve(&g_inst, 0, -20.0f, 4.0f, 6.0f, 5.0f, 100.0f, 0.0f, 100.0f, BAD[m], 9);
     ok(g_inst.atom.detect == OMX_DETECT_RMS && g_inst.atom.ovs_mode == OMX_DYN_OVS_AUTO,
        "a kind or detector oversampling outside its ids reads as the declared default", BAD[m], 0);
   }
@@ -174,7 +177,7 @@ static void arm_resolve(float sr) {
         if (i < 4) { t = v[i][0]; ra = v[i][1]; k = v[i][2]; a = v[i][3]; rl = v[i][4]; mk = v[i][5]; }
         else t = ra = k = a = rl = mk = nanf("");
         const int ovs = modes[(i + bypass + rms) % 5];
-        omx_comp_instance_resolve(&g_inst, bypass, t, ra, k, a, rl, mk, KIND(rms), ovs);
+        omx_comp_instance_resolve(&g_inst, bypass, t, ra, k, a, rl, mk, 100.0f, KIND(rms), ovs);
         expect_atom(&g_inst.atom, sr, bypass, t, ra, k, a, rl, mk, rms, ovs);
       }
 }
@@ -183,15 +186,15 @@ static void arm_latency(float sr) {
   g_arm = "C latency";
   omx_comp_instance_init(&g_inst, sr);
   ok(omx_comp_instance_latency(&g_inst) == 0.0f, "the defaults report none", omx_comp_instance_latency(&g_inst), 0);
-  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, KIND(0), OMX_DYN_OVS_AUTO);
+  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO);
   ok(omx_comp_instance_latency(&g_inst) == (float)OMX_OVS_LATENCY_4X, "a 0.2 ms attack on auto reports the 4x latency",
      omx_comp_instance_latency(&g_inst), OMX_OVS_LATENCY_4X);
-  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, KIND(0), OMX_DYN_OVS_OFF);
+  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_OFF);
   ok(omx_comp_instance_latency(&g_inst) == 0.0f, "off reports none", omx_comp_instance_latency(&g_inst), 0);
-  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 20.0f, 200.0f, 0.0f, KIND(0), OMX_DYN_OVS_X4);
+  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 20.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4);
   ok(omx_comp_instance_latency(&g_inst) == (float)OMX_OVS_LATENCY_4X, "4x reports the 4x latency",
      omx_comp_instance_latency(&g_inst), OMX_OVS_LATENCY_4X);
-  omx_comp_instance_resolve(&g_inst, 1, -18.0f, 4.0f, 6.0f, 20.0f, 200.0f, 0.0f, KIND(0), OMX_DYN_OVS_X4);
+  omx_comp_instance_resolve(&g_inst, 1, -18.0f, 4.0f, 6.0f, 20.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4);
   ok(omx_comp_instance_latency(&g_inst) == 0.0f, "bypassed reports none", omx_comp_instance_latency(&g_inst), 0);
 }
 
@@ -213,7 +216,7 @@ static void arm_run(float sr) {
     omx_comp_instance_init(&g_inst, sr);
     for (uint32_t off = 0, b = 0; off < N; b++) {
       const uint32_t m = N - off < blocks[b % 5u] ? N - off : blocks[b % 5u];
-      omx_comp_instance_resolve(&g_inst, bypass, -30.0f, 8.0f, cases[ci][1], cases[ci][2], 80.0f, cases[ci][3],
+      omx_comp_instance_resolve(&g_inst, bypass, -30.0f, 8.0f, cases[ci][1], cases[ci][2], 80.0f, cases[ci][3], 100.0f,
                                     KIND(rms), ovs);
       omx_comp_instance_run(&g_inst, l + off, r + off, ol + off, or_ + off, m);
       off += m;
@@ -239,14 +242,45 @@ static void arm_alias(float sr) {
   static float l[N], r[N], ol[N], or_[N];
   fill(l, r);
   omx_comp_instance_init(&g_inst, sr);
-  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, KIND(0), OMX_DYN_OVS_AUTO);
+  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO);
   omx_comp_instance_run(&g_inst, l, r, ol, or_, N);
   omx_comp_instance_init(&g_inst, sr);
-  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, KIND(0), OMX_DYN_OVS_AUTO);
+  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO);
   omx_comp_instance_run(&g_inst, l, r, l, r, N);
   uint32_t mis = 0;
   for (uint32_t i = 0; i < N; i++) mis += l[i] != ol[i] || r[i] != or_[i];
   ok(mis == 0u, "outputs on the inputs is the unaliased run, bit for bit", mis, 0);
+}
+
+static void arm_mix(float sr) {
+  g_arm = "M mix";
+  static float l[N], r[N], ol[N], or_[N], el[N], er[N], fl[N], fr[N];
+  static const float mixes[] = {50.0f, 0.0f, 100.0f, 150.0f, -5.0f, 25.0f};
+  for (int i = 0; i < 7; i++) {
+    const float mx = i < 6 ? mixes[i] : nanf("");
+    const float want = omx_dyn_dry_share(mx - mx != 0.0f ? OMX_COMP_MIX_PCT_DEFAULT
+                                         : mx < OMX_COMP_MIX_PCT_MIN ? OMX_COMP_MIX_PCT_MIN
+                                         : mx > OMX_COMP_MIX_PCT_MAX ? OMX_COMP_MIX_PCT_MAX : mx);
+    fill(l, r);
+    omx_comp_instance_init(&g_inst, sr);
+    omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 5.0f, 80.0f, 3.0f, mx, KIND(1), OMX_DYN_OVS_AUTO);
+    ok(g_inst.atom.dry == want, "the mix lands in the kernel's dry share", g_inst.atom.dry, want);
+    omx_comp_instance_run(&g_inst, l, r, ol, or_, N);
+    memcpy(el, l, sizeof l);
+    memcpy(er, r, sizeof r);
+    struct omx_dyn_state st;
+    omx_dyn_state_init(&st, 1u);
+    omx_dynamics(el, er, N, &g_inst.atom, &st);
+    uint32_t mis = 0;
+    for (uint32_t j = 0; j < N; j++) mis += ol[j] != el[j] || or_[j] != er[j];
+    ok(mis == 0u, "with a mix the instance is omx_dynamics on that atom, bit for bit", mis, mx);
+    if (i == 0) memcpy(fl, ol, sizeof fl), memcpy(fr, or_, sizeof fr);
+    if (i == 2) {
+      uint32_t moved = 0;
+      for (uint32_t j = 0; j < N; j++) moved += ol[j] != fl[j];
+      ok(moved > 0u, "50 % differs from 100 %", moved, 0);
+    }
+  }
 }
 
 static void arm_no_alloc(float sr) {
@@ -256,11 +290,11 @@ static void arm_no_alloc(float sr) {
   g_allocs = 0;
   g_counting = 1;
   const int ready = omx_comp_instance_init(&g_inst, sr);
-  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, KIND(1), OMX_DYN_OVS_X4);
+  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(1), OMX_DYN_OVS_X4);
   omx_comp_instance_run(&g_inst, l, r, l, r, 512u);
-  omx_comp_instance_resolve(&g_inst, 1, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, KIND(0), OMX_DYN_OVS_AUTO);
+  omx_comp_instance_resolve(&g_inst, 1, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO);
   omx_comp_instance_run(&g_inst, l, r, l, r, 256u);
-  omx_comp_instance_resolve(&g_inst, 0, -24.0f, 4.0f, 0.0f, 10.0f, 200.0f, 0.0f, KIND(0), OMX_DYN_OVS_OFF);
+  omx_comp_instance_resolve(&g_inst, 0, -24.0f, 4.0f, 0.0f, 10.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_OFF);
   omx_comp_instance_run(&g_inst, l + 512, r + 512, l + 512, r + 512, 512u);
   g_counting = 0;
   ok(ready && g_allocs == 0, "init, resolve, a re-engage and run allocate nothing", (double)g_allocs, 0);
@@ -287,6 +321,8 @@ int main(void) {
     arm_run(sr);
     expect_clean();
     arm_alias(sr);
+    expect_clean();
+    arm_mix(sr);
     expect_clean();
     arm_no_alloc(sr);
     expect_clean();

@@ -26,10 +26,8 @@
  *      input and output buffers (and may connect them to the same memory). run() copies in to out
  *      when they differ and runs the kernel on out. Without a key nothing else can alias.
  *
- * WHAT THE DESK'S COMP HAS THAT THIS ONE DOES NOT: the `mix` control (OMX_COMP_MIX_PCT_*). The
- * kernel's atom carries no dry/wet, and a blend here would be DSP the console's slot does not run;
- * the face takes it when the kernel does (lane dyn-declared-controls), and until then
- * face-conformance lists comp PENDING.
+ * THE MIX: the contract's mixPct (percent) reaches the kernel's own dry share, `omx_dyn.dry` by
+ * omx_dyn_dry_share; 100 % is the processed output bit for bit, 0 % the compensated input.
  *
  * STATE ACROSS BYPASS: the kernel's disabled path leaves the slot's state as it was, and the
  * shell adds no re-arm the console's slot does not have. {@link omx_comp_instance_init} (a
@@ -78,6 +76,8 @@ typedef struct {
  * @param attack_ms The attack, ms.
  * @param release_ms The release, ms.
  * @param makeup_db The make-up gain, dB.
+ * @param mix_pct The mix, percent (OMX_COMP_MIX_PCT_*): 100 fully processed, 0 the dry input; a
+ *        non-finite word reads as the declared default.
  * @param kind A COMP_KINDS index: comp detects RMS, limiter peak; anything else reads as comp.
  * @param detector_oversampling A DETECTOR_OVERSAMPLINGS index (auto, off, x4: OMX_DYN_OVS_*);
  *        anything else reads as `auto`.
@@ -87,7 +87,8 @@ typedef struct {
 static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
                                              float threshold_db, float ratio, float knee_db,
                                                  float attack_ms, float release_ms,
-                                                 float makeup_db, int kind, int detector_oversampling) {
+                                                 float makeup_db, float mix_pct, int kind,
+                                                 int detector_oversampling) {
   if (!s || !s->ready) return;
   struct omx_dyn *p = &s->atom;
   memset(p, 0, sizeof *p);
@@ -99,6 +100,7 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
   p->gc.knee_db = omx_clampf(knee_db, OMX_COMP_KNEE_DB_MIN, OMX_COMP_KNEE_DB_MAX);
   p->gc.range_db = 0.0f; /* ignored ACT-ABOVE */
   p->gc.makeup_lin = omx_db_to_lin(omx_clampf(makeup_db, OMX_COMP_MAKEUP_DB_MIN, OMX_COMP_MAKEUP_DB_MAX));
+  p->dry = omx_dyn_dry_share(omx_clamp_or(mix_pct, OMX_COMP_MIX_PCT_MIN, OMX_COMP_MIX_PCT_MAX, OMX_COMP_MIX_PCT_DEFAULT));
   p->ovs_mode = detector_oversampling == OMX_DETECTOR_OVERSAMPLINGS_OFF ? OMX_DYN_OVS_OFF
                 : detector_oversampling == OMX_DETECTOR_OVERSAMPLINGS_X4 ? OMX_DYN_OVS_X4
                                                                           : OMX_DYN_OVS_AUTO;
@@ -113,7 +115,7 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
                p->gc.thresh_db <= OMX_COMP_THRESHOLD_DB_MAX && p->gc.makeup_lin >= 1.0f &&
                p->attack_ms >= OMX_COMP_ATTACK_MS_MIN && p->attack_ms <= OMX_COMP_ATTACK_MS_MAX &&
                p->attack_coeff >= 0.0f && p->attack_coeff < 1.0f && p->release_coeff >= 0.0f &&
-               p->release_coeff < 1.0f,
+               p->release_coeff < 1.0f && p->dry >= 0.0f && p->dry <= 1.0f,
            "atom-meets-the-kernel-preconditions");
 }
 #undef OMX_CONTRACT_STAGE
@@ -136,7 +138,7 @@ static inline int omx_comp_instance_init(OmxCompInstance *s, float sr) {
   s->ready = 1;
   omx_comp_instance_resolve(s, 0, OMX_COMP_THRESHOLD_DB_DEFAULT, OMX_COMP_RATIO_DEFAULT,
                                 OMX_COMP_KNEE_DB_DEFAULT, OMX_COMP_ATTACK_MS_DEFAULT,
-                                OMX_COMP_RELEASE_MS_DEFAULT, OMX_COMP_MAKEUP_DB_DEFAULT,
+                                OMX_COMP_RELEASE_MS_DEFAULT, OMX_COMP_MAKEUP_DB_DEFAULT, OMX_COMP_MIX_PCT_DEFAULT,
                                 (int)OMX_COMP_KINDS_DEFAULT, (int)OMX_DETECTOR_OVERSAMPLINGS_DEFAULT);
   return 1;
 }
