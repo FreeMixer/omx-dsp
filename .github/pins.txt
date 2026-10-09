@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # What this repository is checked against, one line per source: name, git URL, commit.
-# omx-contract: the release tools/contract-agree.sh compares the committed limits with (CI) -- v2.0.0.
+# omx-contract: the release tools/contract-agree.sh compares the committed limits with (CI) -- v2.2.0.
 # openmixer: the commit whose declaration rendered include/omxdsp/omx_contract_limits.h and whose engine copies
 # tools/engine-identity.sh compares with (tools/render-check.sh too): desk checks, the repository is private.
-omx-contract https://github.com/FreeMixer/omx-contract 2.1.0
+omx-contract https://github.com/FreeMixer/omx-contract 2.2.0
 openmixer https://github.com/FreeMixer/openmixer f98836216b5385ce3b1090239434e89ea037e4cf
