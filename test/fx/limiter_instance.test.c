@@ -3,8 +3,9 @@
 /*
  * limiter_instance.test.c — the precision limiter instance core (omx_limiter_instance.h), every
  * arm at every rate in OMX_DECLARED_RATES:
- *   A  a refused init (no rate, a rate the console does not declare, no memory, a ring short of
- *      the longest look-ahead) is the identity and publishes no latency;
+ *   A  a refused init (no rate, a rate the console does not declare) is the identity and publishes
+ *      no latency; every declared rate is accepted, its longest look-ahead inside the instance's
+ *      own rings;
  *   B  bypassed is the identity byte for byte, in place and out of place, and publishes no latency;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_limiter_process on a state armed
  *      at the same look-ahead and the atom of the same knobs, and it publishes that state's `T`;
@@ -14,7 +15,9 @@
  *   E  a bypass->engaged edge re-arms the state: the re-engaged instance is a fresh one; a
  *      look-ahead move re-arms it at the new latency;
  *   F  in == out (an aliased port) is the out-of-place answer;
- *   G  an instance run between two others leaves each the instance alone (no shared state).
+ *   G  an instance run between two others leaves each the instance alone (no shared state);
+ *   H  init, resolve (re-engage and look-ahead move included) and run allocate nothing: malloc,
+ *      calloc, realloc and free are wrapped at link time and counted across the instance's life.
  *   make test-fx
  */
 #include <math.h>
@@ -35,24 +38,42 @@ static float land(float x, float lo, float hi, float def) {
   return x < lo ? lo : x > hi ? hi : x;
 }
 
-/* One instance and the caller's memory for it. */
+/* ---- the allocation counter (linked with --wrap=malloc,calloc,realloc,free) ---------------- */
+
+void *__real_malloc(size_t n);
+void *__real_calloc(size_t n, size_t sz);
+void *__real_realloc(void *p, size_t n);
+void __real_free(void *p);
+
+static int g_counting = 0;
+static long g_allocs = 0;
+
+void *__wrap_malloc(size_t n) {
+  if (g_counting) g_allocs++;
+  return __real_malloc(n);
+}
+void *__wrap_calloc(size_t n, size_t sz) {
+  if (g_counting) g_allocs++;
+  return __real_calloc(n, sz);
+}
+void *__wrap_realloc(void *p, size_t n) {
+  if (g_counting) g_allocs++;
+  return __real_realloc(p, n);
+}
+void __wrap_free(void *p) {
+  if (g_counting) g_allocs++;
+  __real_free(p);
+}
+
+/* One instance; it owns its memory. */
 typedef struct {
   OmxLimiterInstance s;
-  float *mem;
-  uint32_t *idx;
   uint32_t cap;
 } Box;
 
 static void box_new(Box *b) {
   b->cap = omx_limiter_instance_cap_for(g_sr);
-  b->mem = calloc(omx_limiter_mem_floats(b->cap), sizeof(float));
-  b->idx = calloc(b->cap, sizeof(uint32_t));
-  omx_limiter_instance_init(&b->s, g_sr, b->mem, b->idx, b->cap);
-}
-
-static void box_free(Box *b) {
-  free(b->mem);
-  free(b->idx);
+  omx_limiter_instance_init(&b->s, g_sr);
 }
 
 /* A programme block, loud: peaks well above every ceiling the arms use. */
@@ -65,24 +86,20 @@ static void loud(float *l, float *r, uint32_t n, uint32_t t0) {
 }
 
 static void arm_refused(void) {
-  const uint32_t cap = omx_limiter_instance_cap_for(g_sr);
-  float *mem = calloc(omx_limiter_mem_floats(cap), sizeof(float));
-  uint32_t *idx = calloc(cap, sizeof(uint32_t));
   OmxLimiterInstance s;
-  ok(omx_limiter_instance_init(&s, 0.0f, mem, idx, cap) == 0, "A: rate 0 refused");
-  ok(omx_limiter_instance_init(&s, NAN, mem, idx, cap) == 0, "A: NaN rate refused");
-  ok(omx_limiter_instance_init(&s, g_sr + 1.0f, mem, idx, cap) == 0, "A: an undeclared rate refused");
-  ok(omx_limiter_instance_init(&s, g_sr, NULL, idx, cap) == 0, "A: no memory refused");
-  ok(omx_limiter_instance_init(&s, g_sr, mem, NULL, cap) == 0, "A: no index memory refused");
-  ok(omx_limiter_instance_init(&s, g_sr, mem, idx, cap - 1u) == 0, "A: short ring refused");
+  ok(omx_limiter_instance_init(&s, 0.0f) == 0, "A: rate 0 refused");
+  ok(omx_limiter_instance_init(&s, NAN) == 0, "A: NaN rate refused");
+  ok(omx_limiter_instance_init(&s, g_sr + 1.0f) == 0, "A: an undeclared rate refused");
   omx_limiter_instance_resolve(&s, 0, -6.0f, 2.0f, 50.0f);
   float l[BLK], r[BLK], ol[BLK], or_[BLK];
   loud(l, r, BLK, 0);
   omx_limiter_instance_run(&s, l, r, ol, or_, BLK);
   ok(same_bytes(l, ol, BLK) && same_bytes(r, or_, BLK), "A: a refused instance is the identity");
   ok(omx_limiter_instance_latency(&s) == 0u, "A: a refused instance publishes no latency");
-  ok(omx_limiter_instance_init(&s, g_sr, mem, idx, cap) == 1, "A: the sized ring is accepted");
-  free(mem); free(idx);
+  ok(omx_limiter_instance_init(&s, g_sr) == 1, "A: the declared rate is accepted");
+  ok(s.cap == omx_limiter_instance_cap_for(g_sr) && s.cap <= OMX_LIMITER_INSTANCE_CAP &&
+         omx_limiter_mem_floats(s.cap) <= 4u * OMX_LIMITER_INSTANCE_CAP,
+     "A: the kernel's rings hold the longest look-ahead, inside the instance's own");
   drain_violations("A: no contract broken");
 }
 
@@ -102,7 +119,6 @@ static void arm_bypass(void) {
   }
   ok(same, "B: bypassed is the identity, in place and out of place");
   ok(omx_limiter_instance_latency(&b.s) == 0u, "B: bypassed publishes no latency");
-  box_free(&b);
   drain_violations("B: no contract broken");
 }
 
@@ -132,7 +148,6 @@ static void arm_is_the_kernel(void) {
     ok(same, "C: the engaged instance is omx_limiter_process on the same state and atom, bit for bit");
     ok(omx_limiter_instance_latency(&b.s) == omx_limiter_latency(&ks),
        "C: the engaged instance publishes the armed state's latency");
-    box_free(&b);
     free(kmem); free(kidx);
   }
   drain_violations("C: no contract broken");
@@ -167,7 +182,6 @@ static void arm_clamps(void) {
          "D: hostile knobs leave the output finite and inside the ceiling");
     }
   }
-  box_free(&b);
   drain_violations("D: no contract broken");
 }
 
@@ -198,8 +212,6 @@ static void arm_reengage_and_move(void) {
   const uint32_t after = omx_limiter_instance_latency(&b.s);
   ok(after == omx_truepeak_delay() + omx_limiter_lookahead_frames(5.0f, g_sr) && after > before,
      "E: a look-ahead move re-arms the state at the new latency");
-  box_free(&b);
-  box_free(&fresh);
   drain_violations("E: no contract broken");
 }
 
@@ -228,8 +240,32 @@ static void arm_alias_and_independence(void) {
   }
   ok(alias, "F: in place is the out-of-place answer");
   ok(indep, "G: an instance between two others leaves them each the instance alone");
-  box_free(&a); box_free(&b); box_free(&c); box_free(&alone);
   drain_violations("F/G: no contract broken");
+}
+
+static void arm_no_allocation(void) {
+  static OmxLimiterInstance s;
+  float l[BLK], r[BLK];
+  g_allocs = 0;
+  g_counting = 1;
+  const int ready = omx_limiter_instance_init(&s, g_sr);
+  for (int k = 0; k < NBLK; k++) {
+    loud(l, r, BLK, (uint32_t)k * BLK);
+    omx_limiter_instance_resolve(&s, k == 5, -6.0f, k < 8 ? 1.5f : 4.0f, 80.0f);
+    omx_limiter_instance_run(&s, l, r, l, r, BLK);
+  }
+  g_counting = 0;
+  ok(ready, "H: the instance came up");
+  ok(g_allocs == 0, "H: init, resolve, a re-engage, a look-ahead move and run allocate nothing");
+  /* The counter is live: an allocation inside the window is counted. Called through volatile
+   * pointers, so the compiler cannot fold the pair away. */
+  void *(*volatile alloc)(size_t) = malloc;
+  void (*volatile release)(void *) = free;
+  g_counting = 1;
+  release(alloc(16));
+  g_counting = 0;
+  ok(g_allocs == 2, "H: the allocation counter counts (a malloc and a free inside the window)");
+  drain_violations("H: no contract broken");
 }
 
 int main(void) {
@@ -242,6 +278,7 @@ int main(void) {
     arm_clamps();
     arm_reengage_and_move();
     arm_alias_and_independence();
+    arm_no_allocation();
   }
   return finish("limiter_instance");
 }

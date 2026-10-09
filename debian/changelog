@@ -1,3 +1,16 @@
+omx-dsp (0.4.0) unstable; urgency=medium
+
+  * The pitch and limiter instance faces own their rings, inline, sized for
+    the highest declared rate: omx_pitch_instance_init and
+    omx_limiter_instance_init take the instance and the rate, as the other
+    instance faces do, and allocate nothing. The kernels and their
+    caller-owned rings are unchanged.
+  * Breaking, while the library is 0.x: the caller-ring forms of those two
+    init functions are gone, and both refuse a rate the console does not
+    declare.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 16:00:26 +0200
+
 omx-dsp (0.3.0) unstable; urgency=medium
 
   * Instance faces for tremolo, phaser, pitch, rotary and limiter, named after

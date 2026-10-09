@@ -6,14 +6,16 @@
  * `omx_limiter.h`'s `omx_limiter_process`, THE SAME INLINE the console's limiter stage runs, and
  * this file adds no DSP to it. It adds what a host's port model needs and the atom does not carry:
  *
- *   1. MEMORY. `struct omx_limiter_state` reads caller-owned rings; the shell's caller hands them
- *      in through {@link omx_limiter_instance_init}, sized for the longest declared look-ahead at
- *      the instance rate (omx_limiter_instance_cap_for). A shorter one is refused there.
+ *   1. MEMORY. `struct omx_limiter_state` reads four rings and an index ring; the instance OWNS
+ *      them, inline, sized for the longest declared look-ahead at the highest declared rate
+ *      (OMX_LIMITER_INSTANCE_CAP), and arms the kernel over the first
+ *      omx_limiter_instance_cap_for(sr) of them. Nothing is allocated, at init or after; a rate
+ *      the inline rings cannot serve is refused at init.
  *   2. RESOLVE. {@link omx_limiter_instance_resolve} takes the kernel's contract controls in their
  *      declared order and user units (dBFS, ms, ms) and clamps each into its declared travel
  *      (OMX_LIMITER_*, omx_contract_limits.h; a non-finite word reads as the declared default).
  *      The look-ahead is the state's geometry, not an atom word: when it moves by a frame the
- *      state is re-armed (omx_limiter_init: a bounded pass over the caller's rings, no
+ *      state is re-armed (omx_limiter_init: a bounded pass over the instance's rings, no
  *      allocation), the gain restarts at unity and the latency changes.
  *   3. IN -> OUT. The kernel works IN PLACE; run() copies in to out where they differ (they may
  *      alias) and runs the kernel on out. Identity when bypassed or not ready.
@@ -23,7 +25,9 @@
  * reads it after every resolve. Re-engaging from bypass re-arms the state, so a re-enabled limiter
  * does not release a gain or replay audio held before the bypass.
  *
- * No mutable globals: every word of state is in the caller's {@link OmxLimiterInstance}.
+ * No mutable globals: every word of state is in the caller's {@link OmxLimiterInstance}. The state
+ * points into the instance's own rings, so an instance is initialised where it lives and is never
+ * copied after init.
  */
 #ifndef OMX_LIMITER_INSTANCE_H
 #define OMX_LIMITER_INSTANCE_H
@@ -36,13 +40,21 @@
 
 #define OMX_LIMITER_INSTANCE_CHANNELS 2
 
-/** One instance. The rings are NOT owned here; {@link omx_limiter_instance_init} is given them. */
+/** The highest rate, Hz, the inline rings are sized for: the top of the declared rate set. */
+#define OMX_LIMITER_INSTANCE_RATE_MAX 192000u
+/** The inline ring length: the longest declared look-ahead (rounded up to a whole ms) at
+ * OMX_LIMITER_INSTANCE_RATE_MAX, plus the detector's delay and guard with room to spare; init
+ * refuses a rate whose omx_limiter_cap() exceeds it. */
+#define OMX_LIMITER_INSTANCE_CAP \
+  (((uint32_t)(OMX_LIMITER_LOOKAHEAD_MS_MAX) + 1u) * (OMX_LIMITER_INSTANCE_RATE_MAX / 1000u) + 64u)
+
+/** One instance. It owns its rings; the kernel is armed over the first `cap` of them. */
 typedef struct {
   float sr;
   struct omx_limiter atom;
   struct omx_limiter_state state;
-  float *mem;
-  uint32_t *idx;
+  float mem[4u * OMX_LIMITER_INSTANCE_CAP];
+  uint32_t idx[OMX_LIMITER_INSTANCE_CAP];
   uint32_t cap;
   /** The look-ahead, ms, the state is armed at. */
   float lookahead_ms;
@@ -51,27 +63,26 @@ typedef struct {
   int ready;
 } OmxLimiterInstance;
 
-/** The ring length every declared look-ahead fits at `sr`: allocate omx_limiter_mem_floats() of
- * it in floats and as many uint32_t indices. */
+/** The ring length every declared look-ahead fits at `sr`: how much of the inline rings the
+ * kernel uses (omx_limiter_mem_floats() of it in floats and as many indices). */
 static inline uint32_t omx_limiter_instance_cap_for(float sr) { return omx_limiter_cap(sr); }
 
 /**
- * Bind an instance to its rate and the caller's memory: `mem` holds omx_limiter_mem_floats(cap)
- * floats, `idx` holds `cap` indices. Returns 1 when usable, 0 when not (a refused init leaves
- * `ready` clear and run() is the identity). The kernel is defined at the declared rates only, so
- * any other rate is refused. The state is armed at the declared default look-ahead.
+ * Bind an instance to its rate, over its own rings. Returns 1 when usable, 0 when not (a refused
+ * init leaves `ready` clear and run() is the identity). The kernel is defined at the declared rates
+ * only, so any other rate is refused, as is one the inline rings cannot hold. The state is armed
+ * at the declared default look-ahead. Allocates nothing.
  */
-static inline int omx_limiter_instance_init(OmxLimiterInstance *s, float sr, float *mem, uint32_t *idx,
-                                            uint32_t cap) {
+static inline int omx_limiter_instance_init(OmxLimiterInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr) || !mem || !idx || cap < omx_limiter_instance_cap_for(sr)) return 0;
+  if (!omx_rate_is_declared(sr)) return 0;
+  const uint32_t cap = omx_limiter_instance_cap_for(sr);
+  if (cap > OMX_LIMITER_INSTANCE_CAP || omx_limiter_mem_floats(cap) > 4u * OMX_LIMITER_INSTANCE_CAP) return 0;
   s->sr = sr;
-  s->mem = mem;
-  s->idx = idx;
   s->cap = cap;
   s->lookahead_ms = OMX_LIMITER_LOOKAHEAD_MS_DEFAULT;
-  omx_limiter_init(&s->state, s->lookahead_ms, sr, mem, idx, cap);
+  omx_limiter_init(&s->state, s->lookahead_ms, sr, s->mem, s->idx, cap);
   s->atom.enabled = 0;
   s->atom.ceiling_db = OMX_LIMITER_CEILING_DB_DEFAULT;
   s->atom.release_ms = OMX_LIMITER_RELEASE_MS_DEFAULT;

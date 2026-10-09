@@ -194,8 +194,13 @@ $(BUILD)/fx_%_math: test/fx/%_math.test.c $(FX_DEPS)
 $(BUILD)/fx_%_golden: test/fx/%_golden.test.c $(FX_DEPS) $(SUPPORT_HEADERS)
 	$(CC) $(CFLAGS) $(INC) -Itest/fx $(GOLDEN_SUBST) -o $@ $< $(LIB) -lm
 
+# An oracle that proves a face allocates nothing links with the allocators wrapped (FX_LDFLAGS_<k>).
+FX_NO_ALLOC_LDFLAGS = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
+FX_LDFLAGS_pitch_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_limiter_instance = $(FX_NO_ALLOC_LDFLAGS)
+
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
-	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm,$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm)
+	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm $(FX_LDFLAGS_$*),$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm $(FX_LDFLAGS_$*))
 
 FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k)_math.test.c),$(BUILD)/fx_$(k)_math) $(BUILD)/fx_$(k)_golden) \
           $(foreach k,$(FX_INSTANCES),$(BUILD)/fx_$(k)_instance)
