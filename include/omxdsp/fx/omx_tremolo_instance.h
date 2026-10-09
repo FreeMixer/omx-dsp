@@ -38,8 +38,8 @@
 /** Port defaults: the declaration's (TREMOLO_*_RANGE.default), the mode the stage comes up at. */
 #define OMX_TREMOLO_INSTANCE_MODE_DEFAULT OMX_TREMOLO_MODE_TREMOLO
 #define OMX_TREMOLO_INSTANCE_RATE_HZ_DEFAULT ((float)OMX_TREMOLO_RATE_RANGE_DEFAULT)
-#define OMX_TREMOLO_INSTANCE_DEPTH_PCT_DEFAULT ((float)OMX_TREMOLO_DEPTH_RANGE_DEFAULT)
-#define OMX_TREMOLO_INSTANCE_MIX_PCT_DEFAULT ((float)OMX_TREMOLO_MIX_RANGE_DEFAULT)
+#define OMX_TREMOLO_INSTANCE_DEPTH_DEFAULT ((float)OMX_TREMOLO_DEPTH_RANGE_DEFAULT)
+#define OMX_TREMOLO_INSTANCE_MIX_DEFAULT ((float)OMX_TREMOLO_MIX_RANGE_DEFAULT)
 
 /** One instance: the atom the host's ports resolve to and the oscillator it drives. */
 typedef struct {
@@ -70,13 +70,14 @@ static inline int omx_tremolo_instance_init(OmxTremoloInstance *s, float sr) {
 
 /**
  * Resolve the host's control-port values into the kernel's atom for one cycle. `bypass` non-zero
- * disables the atom. `mode` is an `enum omx_tremolo_mode` member (any other value reads as the
- * tremolo); `rate_hz`, `depth_pct` and `mix_pct` are clamped into their declared travels, a
- * non-finite word reading as the declared default.
+ * disables the atom. The arguments are the kernel's contract controls, in their declared order and
+ * user units: `rate_hz` (Hz), `depth` and `mix` (percent) are clamped into their declared travels,
+ * a non-finite word reading as the declared default; `mode` is the TREMOLO_MODES index, an
+ * `enum omx_tremolo_mode` member (any other value reads as the tremolo).
  */
 #define OMX_CONTRACT_STAGE "tremolo/instance-resolve"
-static inline void omx_tremolo_instance_resolve(OmxTremoloInstance *s, int bypass, int mode,
-                                                float rate_hz, float depth_pct, float mix_pct) {
+static inline void omx_tremolo_instance_resolve(OmxTremoloInstance *s, int bypass, float rate_hz,
+                                                float depth, float mix, int mode) {
   if (!s || !s->ready) return;
   /* CONTRACT (omx_contract.h). The atom this leaves behind satisfies every PRE
    * omx_tremolo_process states, whatever the host's ports held. */
@@ -90,11 +91,11 @@ static inline void omx_tremolo_instance_resolve(OmxTremoloInstance *s, int bypas
                                         (float)OMX_TREMOLO_RATE_RANGE_MAX,
                                         OMX_TREMOLO_INSTANCE_RATE_HZ_DEFAULT),
                            s->sr);
-  o->depth = 0.01f * omx_clamp_or(depth_pct, (float)OMX_TREMOLO_DEPTH_RANGE_MIN,
+  o->depth = 0.01f * omx_clamp_or(depth, (float)OMX_TREMOLO_DEPTH_RANGE_MIN,
                                   (float)OMX_TREMOLO_DEPTH_RANGE_MAX,
-                                  OMX_TREMOLO_INSTANCE_DEPTH_PCT_DEFAULT);
-  o->mix = 0.01f * omx_clamp_or(mix_pct, (float)OMX_TREMOLO_MIX_RANGE_MIN,
-                                (float)OMX_TREMOLO_MIX_RANGE_MAX, OMX_TREMOLO_INSTANCE_MIX_PCT_DEFAULT);
+                                  OMX_TREMOLO_INSTANCE_DEPTH_DEFAULT);
+  o->mix = 0.01f * omx_clamp_or(mix, (float)OMX_TREMOLO_MIX_RANGE_MIN,
+                                (float)OMX_TREMOLO_MIX_RANGE_MAX, OMX_TREMOLO_INSTANCE_MIX_DEFAULT);
   OMX_POST(o->depth >= 0.0f && o->depth <= 1.0f && o->mix >= 0.0f && o->mix <= 1.0f &&
                o->lfo_inc >= 0.0f && o->lfo_inc < 1.0f &&
                (o->mode == OMX_TREMOLO_MODE_TREMOLO || o->mode == OMX_TREMOLO_MODE_PAN),
@@ -120,5 +121,12 @@ static inline void omx_tremolo_instance_run(OmxTremoloInstance *s, const float *
            "bypass-identity");
 }
 #undef OMX_CONTRACT_STAGE
+
+/** The frames of latency the instance introduces: none, at every rate (the gain is applied to the
+ * frame it is computed for). */
+static inline uint32_t omx_tremolo_instance_latency(const OmxTremoloInstance *s) {
+  (void)s;
+  return 0u;
+}
 
 #endif /* OMX_TREMOLO_INSTANCE_H */
