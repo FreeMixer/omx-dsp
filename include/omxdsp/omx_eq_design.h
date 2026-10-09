@@ -172,6 +172,33 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "eq-design/bandwidth-q"
+/**
+ * @brief The cookbook's bandwidth-to-Q relation, term for term core's `bandwidthOctavesQ`
+ *        (eq.ts): the Q at which a section designed at `freq_hz` has its −3 dB points `bw_oct`
+ *        octaves apart (for the bandpass and the notch). The `w0/sin(w0)` term is the cookbook's
+ *        own correction for the bilinear warp, so the edges land at `f·2^(±bw/2)` at every rate.
+ * @param freq_hz Centre, Hz; clamped to `[1, 0.999·Nyquist]`, as omx_eq_design() clamps it.
+ * @param bw_oct The width, in octaves, positive.
+ * @param sample_rate Sample rate, Hz, positive.
+ * @return The quality factor.
+ * @pre `finite-params-and-positive-rate`.
+ * @post `finite-positive-q`.
+ * @note RT-safe: `sin` and `sinh` on the RT-safe allowlist. Thread-safe: pure.
+ */
+static inline double omx_eq_bandwidth_q(double freq_hz, double bw_oct, double sample_rate) {
+  OMX_PRE(sample_rate > 0.0 && isfinite(freq_hz) && isfinite(bw_oct) && bw_oct > 0.0,
+          "finite-params-and-positive-rate");
+  const double nyquist = sample_rate * 0.5;
+  const double lo = 1.0, hi = nyquist * 0.999;
+  const double f0 = freq_hz < lo ? lo : (freq_hz > hi ? hi : freq_hz);
+  const double w0 = (2.0 * M_PI * f0) / sample_rate;
+  const double q = 1.0 / (2.0 * sinh(((M_LN2 / 2.0) * bw_oct * w0) / sin(w0)));
+  OMX_POST(isfinite(q) && q > 0.0, "finite-positive-q");
+  return q;
+}
+#undef OMX_CONTRACT_STAGE
+
 #define OMX_CONTRACT_STAGE "eq-design/section-float"
 /**
  * @brief omx_eq_design() narrowed to the float tuple the cascade runs.
