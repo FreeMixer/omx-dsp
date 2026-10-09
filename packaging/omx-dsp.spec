@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.2.0
+BuildRequires: omx-contract-devel >= 2.3.0
 BuildRequires: omx-contract-devel < 3
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
@@ -35,7 +35,7 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.2.0
+Requires: omx-contract-devel >= 2.3.0
 Requires: omx-contract-devel < 3
 
 %description devel
