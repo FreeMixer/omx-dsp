@@ -6,11 +6,13 @@
  * `omx_flanger.h`'s `omx_flanger_process`, THE SAME INLINE the console's flanger stage runs, and
  * this file adds no DSP to it. It adds what a host's port model needs and the atom does not carry:
  *
- *   1. RINGS. `struct omx_flanger_state` is caller-owned by design; the shell's caller hands the
- *      two rings in through {@link omx_flanger_instance_init}. A ring too short for the deepest
- *      sweep at the instance rate is refused there, not discovered by the kernel's PRE.
- *   2. RESOLVE. {@link omx_flanger_instance_resolve} turns the operator's units (ms, Hz, percent,
- *      a signed feedback) into the atom, the same conversions resolve_fx_flanger (mixer_rt.c)
+ *   1. RINGS. `struct omx_flanger_state` reads two rings; the instance OWNS them, inline, sized for
+ *      the deepest sweep at the highest rate the kernel admits (OMX_FLANGER_CAP per leg), and arms
+ *      the kernel over the first omx_flanger_instance_cap_for(sr) floats of each. Nothing is
+ *      allocated, at init or after; a rate the console does not declare is refused at init.
+ *   2. RESOLVE. {@link omx_flanger_instance_resolve} takes the kernel's contract controls in their
+ *      declared order and user units (Hz, ms, a signed feedback, percent) and turns them into the
+ *      atom, the same conversions resolve_fx_flanger (mixer_rt.c)
  *      makes, with every knob clamped through omx_param into the declared travel
  *      (FLANGER_*_RANGE, omx_contract_limits.h): a foreign host's port is not the console's codec,
  *      and a non-finite word reads as the declared default.
@@ -21,7 +23,9 @@
  * a re-enabled flanger does not replay a tail buffered before the bypass. LATENCY IS ZERO: the
  * dry path is frame-aligned with the input.
  *
- * No mutable globals: every word of state is in the caller's {@link OmxFlangerInstance}.
+ * No mutable globals: every word of state is in the caller's {@link OmxFlangerInstance}. The state
+ * points into the instance's own rings, so an instance is initialised where it lives and is never
+ * copied after init.
  */
 #ifndef OMX_FLANGER_INSTANCE_H
 #define OMX_FLANGER_INSTANCE_H
@@ -41,48 +45,46 @@
 #define OMX_FLANGER_INSTANCE_FEEDBACK_DEFAULT ((float)OMX_FLANGER_FEEDBACK_RANGE_DEFAULT)
 #define OMX_FLANGER_INSTANCE_MIX_PCT_DEFAULT ((float)OMX_FLANGER_MIX_RANGE_DEFAULT)
 
-/** One instance. The rings are NOT owned here; {@link omx_flanger_instance_init} is given them. */
+/** One instance. It owns its rings; the kernel is armed over the first `cap` floats of each. */
 typedef struct {
   float sr;
   struct omx_flanger atom;
   struct omx_flanger_state state;
-  float *ring_l;
-  float *ring_r;
+  float ring_l[OMX_FLANGER_CAP];
+  float ring_r[OMX_FLANGER_CAP];
   uint32_t cap;
   /** The previous cycle's engaged flag, so a bypass->engaged edge can clear the rings. */
   int was_engaged;
   int ready;
 } OmxFlangerInstance;
 
-/** The ring, per leg, the deepest sweep needs at `sr`: allocate this many floats per leg. */
+/** The ring, per leg, the deepest sweep needs at `sr`: the floats of each inline ring the kernel uses. */
 static inline uint32_t omx_flanger_instance_cap_for(float sr) {
   return omx_fdelay_cap_for((OMX_FLANGER_BASE_MS + OMX_FLANGER_MAX_DEPTH_MS) * 0.001f * sr,
                             OMX_FLANGER_ORDER);
 }
 
 /**
- * Bind an instance to its rate and the caller's two rings of `cap` floats each. Returns 1 when
- * usable, 0 when not (a refused init leaves `ready` clear and run() is the identity).
+ * Bind an instance to its rate, over its own rings. Returns 1 when usable, 0 when not (a refused
+ * init leaves `ready` clear and run() is the identity). A rate that is not declared, or whose
+ * sweep the inline rings cannot hold, is refused. Allocates nothing.
  */
-static inline int omx_flanger_instance_init(OmxFlangerInstance *s, float sr, float *ring_l,
-                                           float *ring_r, uint32_t cap) {
+static inline int omx_flanger_instance_init(OmxFlangerInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!(sr > 0.0f) || sr > (float)OMX_FLANGER_MAX_RATE || !ring_l || !ring_r ||
-      cap < omx_flanger_instance_cap_for(sr))
-    return 0;
+  if (!omx_rate_is_declared(sr)) return 0;
+  const uint32_t cap = omx_flanger_instance_cap_for(sr);
+  if (cap > OMX_FLANGER_CAP) return 0;
   s->sr = sr;
-  s->ring_l = ring_l;
-  s->ring_r = ring_r;
   s->cap = cap;
-  if (omx_flanger_state_init(&s->state, ring_l, ring_r, cap) != OMX_FDELAY_OK) return 0;
+  if (omx_flanger_state_init(&s->state, s->ring_l, s->ring_r, cap) != OMX_FDELAY_OK) return 0;
   s->atom.enabled = 0;
   s->ready = 1;
   return 1;
 }
 
 /** Clear the rings and restart the oscillator — the re-enable recipe. A bounded memset over the
- * caller's fixed rings, no allocation. */
+ * instance's own rings, no allocation. */
 #define OMX_CONTRACT_STAGE "flanger/instance-clear"
 static inline void omx_flanger_instance_clear(OmxFlangerInstance *s) {
   if (!s || !s->ready) return;
@@ -97,13 +99,14 @@ static inline void omx_flanger_instance_clear(OmxFlangerInstance *s) {
 
 /**
  * Resolve the host's control-port values into the kernel's atom for one cycle. `bypass` non-zero
- * disables the atom. `depth_ms`, `rate_hz`, `feedback` (signed) and `mix_pct` are clamped into
- * their declared travels, a non-finite word reading as the declared default; the kernel's own
+ * disables the atom. The arguments are the kernel's contract controls, in their declared order and
+ * user units: `rate` (Hz), `depth` (ms), `feedback` (signed) and `mix` (percent), each clamped
+ * into its declared travel, a non-finite word reading as the declared default; the kernel's own
  * feedback clamp stays the last line before the recursion.
  */
 #define OMX_CONTRACT_STAGE "flanger/instance-resolve"
-static inline void omx_flanger_instance_resolve(OmxFlangerInstance *s, int bypass, float depth_ms,
-                                                float rate_hz, float feedback, float mix_pct) {
+static inline void omx_flanger_instance_resolve(OmxFlangerInstance *s, int bypass, float rate,
+                                                float depth, float feedback, float mix) {
   if (!s || !s->ready) return;
   /* CONTRACT (omx_contract.h). The atom this leaves behind satisfies every PRE
    * omx_flanger_process states, whatever the host's ports held. */
@@ -113,18 +116,18 @@ static inline void omx_flanger_instance_resolve(OmxFlangerInstance *s, int bypas
   struct omx_flanger *o = &s->atom;
   o->enabled = engaged;
   o->base_samples = OMX_FLANGER_BASE_MS * 0.001f * s->sr;
-  o->depth_samples = omx_clamp_or(depth_ms, (float)OMX_FLANGER_DEPTH_RANGE_MIN,
+  o->depth_samples = omx_clamp_or(depth, (float)OMX_FLANGER_DEPTH_RANGE_MIN,
                                   (float)OMX_FLANGER_DEPTH_RANGE_MAX,
                                   OMX_FLANGER_INSTANCE_DEPTH_MS_DEFAULT) *
                      0.001f * s->sr;
-  o->lfo_inc = omx_lfo_inc(omx_clamp_or(rate_hz, (float)OMX_FLANGER_RATE_RANGE_MIN,
+  o->lfo_inc = omx_lfo_inc(omx_clamp_or(rate, (float)OMX_FLANGER_RATE_RANGE_MIN,
                                         (float)OMX_FLANGER_RATE_RANGE_MAX,
                                         OMX_FLANGER_INSTANCE_RATE_HZ_DEFAULT),
                            s->sr);
   o->feedback = omx_flanger_clamp_fb(omx_clamp_or(feedback, OMX_FLANGER_FEEDBACK_RANGE_MIN,
                                                   OMX_FLANGER_FEEDBACK_RANGE_MAX,
                                                   OMX_FLANGER_INSTANCE_FEEDBACK_DEFAULT));
-  o->mix = 0.01f * omx_clamp_or(mix_pct, (float)OMX_FLANGER_MIX_RANGE_MIN,
+  o->mix = 0.01f * omx_clamp_or(mix, (float)OMX_FLANGER_MIX_RANGE_MIN,
                                 (float)OMX_FLANGER_MIX_RANGE_MAX, OMX_FLANGER_INSTANCE_MIX_PCT_DEFAULT);
   OMX_POST(o->mix >= 0.0f && o->mix <= 1.0f && o->feedback >= -OMX_FLANGER_FB_MAX &&
                o->feedback <= OMX_FLANGER_FB_MAX && o->depth_samples >= 0.0f &&
