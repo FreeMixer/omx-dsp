@@ -153,6 +153,8 @@ checks:
 	bash tools/log10f-guard.sh include src
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
+	bash tools/face-conformance.sh
+	bash tools/face-conformance.sh --self-test
 
 lint: checks
 
