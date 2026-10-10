@@ -24,6 +24,8 @@
 #   make engine-identity OPENMIXER=<checkout>  the golden digests rendered again through the
 #               dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and
 #               the check's own sabotages (tools/engine-identity.sh)
+#   make strip-input-identity OMX_PLUGINS=<checkout>  the trim and eq faces against omx-plugins'
+#               omx_strip.h input stage, and the check's sabotage (tools/strip-input-identity.sh)
 
 CC      ?= cc
 AR      ?= ar
@@ -86,7 +88,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity strip-input-identity
 
 all: lib
 
@@ -176,9 +178,9 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn deesser dyn_controls
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn deesser dyn_controls trim_instance
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn dyn_controls $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn dyn_controls trim_instance $(addsuffix _instance,$(FX_INSTANCES))
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
@@ -209,6 +211,7 @@ FX_LDFLAGS_eq_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_comp_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_gate_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_gate_knee = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_trim_instance = $(FX_NO_ALLOC_LDFLAGS)
 
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm $(FX_LDFLAGS_$*),$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm $(FX_LDFLAGS_$*))
@@ -234,6 +237,13 @@ engine-identity: $(LIB)
 	@test -n "$(OPENMIXER)" || { echo "make engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
+
+# The trim and eq faces against omx-plugins' channel strip's own input stage (omx_strip.h): a desk
+# check, the strip lives in another repository (tools/strip-input-identity.sh).
+strip-input-identity: $(LIB)
+	@test -n "$(OMX_PLUGINS)" || { echo "make strip-input-identity OMX_PLUGINS=<omx-plugins checkout>"; exit 2; }
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh "$(OMX_PLUGINS)"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh --self-test "$(OMX_PLUGINS)"
 
 golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden)
 	@set -e; for k in $(FX_KERNELS); do ./$(BUILD)/fx_$${k}_golden --write > test/golden/$$k.sha256; done

@@ -16,6 +16,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make lint` | the doc check, the source scan, the log10f guard, tools/contract-single-source.sh (no name omx-contract defines is defined again here) and tools/face-conformance.sh (every instance face's resolve takes its kernel's contract controls by name, order and kind); both check their own sabotage |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
 | `make engine-identity OPENMIXER=<checkout>` | renders the golden digests again through the dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and checks that each of its sabotages goes red; a desk check, not run in CI |
+| `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
@@ -101,6 +102,17 @@ repository, and no public repository carries them to compare with. Run it agains
 commit pinned in `.github/pins.txt` whenever a kernel's golden digest or one of the four engine
 copies changes. It ends when the engine builds from this library's headers instead of its copies:
 there is then nothing left to compare.
+
+## The channel strip's input stage
+
+omx-plugins' channel strip ran its input trim and the trim's ramp as arithmetic of its own. That
+stage is now two faces: `fx/omx_trim_instance.h` (the trim kernel's one control, the console's
+de-zippered head gain) and `fx/omx_eq_instance.h` with every band off (the HPF and the LPF, which
+the console runs as sections of its channel EQ). `test/golden/trim_instance.sha256` was written by
+`make strip-input-identity OMX_PLUGINS=<checkout>` (`tools/strip-input-identity.sh`) from the
+plugin's own `omx_strip.h`, and `test/fx/trim_instance_golden.test.c` holds the two faces to it at
+every declared rate. Run it again whenever either face or the strip's input stage changes; it ends
+when the strip is generated from these faces and holds no arithmetic of its own.
 
 ## The limits come from omx-contract
 
