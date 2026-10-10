@@ -1,3 +1,16 @@
+omx-dsp (0.5.2) unstable; urgency=medium
+
+  * A trim face, fx/omx_trim_instance.h: the console's input trim, a
+    de-zippered gain ramped from the last block's to the resolved one, both
+    legs from the same start. Its resolve takes the contract's trim kernel
+    control, trimDb, clamped into TRIM_RANGE.
+  * With the EQ face's pass filters (every band off) it is the channel
+    strip plugin's input stage, bit for bit at every declared rate.
+  * Built against omx-contract 2.3.0, the release that declares the trim
+    kernel; any 2.x from 2.3.0 on.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 21:52:36 +0000
+
 omx-dsp (0.5.1) unstable; urgency=medium
 
   * The gate runs the contract's knee range (kneeStartDb, kneeEndDb): a
