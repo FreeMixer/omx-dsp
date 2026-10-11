@@ -180,6 +180,9 @@ struct omx_dyn_state {
   uint32_t hold_left;              /**< hold frames still owed, at the running factor's rate */
   int gate_open;                   /**< 1 while the gate is open (hold/hysteresis state) */
   float hyst_credit_db;            /**< dB the open curve still lends a closed gate, decaying */
+  float gr_min_db;                 /**< the DEEPEST gain applied inside the LAST call, dB <= 0
+                                    *   (omx_gr_block_db() of it): the host's gain-reduction
+                                    *   reading; 0 = none, so a zeroed state reads "no reduction" */
 };
 
 /**
@@ -301,6 +304,27 @@ static inline void omx_dyn_mix_gain(float *gain, uint32_t m, float dry) {
 }
 
 #undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "dyn/gr-block-db"
+/**
+ * @brief A block's minimum applied gain (linear) as a gain-reduction reading in dB.
+ *
+ * What omx_dynamics_keyed() and omx_band_dyn_run() record in their state's `gr_min_db`.
+ * @param min_gain The deepest linear gain applied inside the block.
+ * @return The reading, dB: <= 0, finite (a closed gate floors at -120 dB), and 0 for no reduction
+ *         (`min_gain >= 1`).
+ * @post `reading-not-positive`, `finite`.
+ * @note RT-safe: one libm log10f. Thread-safe: pure.
+ */
+static inline float omx_gr_block_db(float min_gain) {
+  if (!(min_gain > 1e-6f)) min_gain = 1e-6f; /* also catches NaN */
+  if (min_gain > 1.0f) min_gain = 1.0f;
+  const float db = omx_lin_to_db(min_gain);
+  OMX_POST(db <= 0.0f, "reading-not-positive");
+  OMX_POST(db - db == 0.0f, "finite");
+  return db;
+}
+
+#undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "dynamics"
 /*
  * CONTRACT (omx_contract.h). The dynamics slot is a TIME-VARYING GAIN: it multiplies the block
@@ -357,6 +381,8 @@ static inline void omx_dyn_mix_gain(float *gain, uint32_t m, float dry) {
  *      `makeup-positive`, `hysteresis-not-negative`, `dry-share-in-unit`, `knee-shift-inside-the-knee`.
  * @post `finite-out-l`, `finite-out-r`; `gain-finite-nonneg` and `no-gain-added`: the last gain
  *       applied is finite, non-negative and at most the make-up.
+ *       `st->gr_min_db` holds the deepest gain applied in this call, per sample, the 4x path's
+ *       decimated gain and a factor switch's crossfade included, in dB (omx_gr_block_db()).
  * @invariant `envelope-finite`: the detector cascade stays finite.
  * @note RT-safe: O(n), no allocation, bounded scratch. Thread-safe on distinct state.
  */
@@ -427,6 +453,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
                                 ? powf(p->release_coeff, 1.0f / (float)st->factor)
                                 : p->release_coeff;
 
+  float gmin = 1.0f; /* the block's deepest applied gain, whatever path produced it */
   uint32_t done = 0u;
   while (done < n) {
     const uint32_t m = (n - done > OMX_DYN_OVS_CHUNK) ? OMX_DYN_OVS_CHUNK : (n - done);
@@ -527,6 +554,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         w = omx_lookahead_fwd(w, 1u, ring);
       }
       st->delay_pos = w;
+      for (uint32_t i = 0; i < m; i++) gmin = gain[i] < gmin ? gain[i] : gmin;
       for (uint32_t i = 0; i < m; i++) l[done + i] *= gain[i];
       if (r)
         for (uint32_t i = 0; i < m; i++) r[done + i] *= gain[i];
@@ -539,14 +567,17 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         const uint32_t rd = omx_lookahead_back(st->delay_pos, tap, ring);
         float gl = st->delay_l[rd] * gain[i];
         float gr = st->delay_r[rd] * gain[i];
+        float ge = gain[i]; /* the gain the listener got: the crossfade's blend while one is owed */
         if (st->xfade_left > 0u) {
           const float a = 1.0f - (float)st->xfade_left / (float)OMX_DYN_XFADE;
           const uint32_t xt = st->xfade_tap;
           const uint32_t ord = omx_lookahead_back(st->delay_pos, xt, ring);
           gl = a * gl + (1.0f - a) * st->delay_l[ord] * st->xfade_gain;
           gr = a * gr + (1.0f - a) * st->delay_r[ord] * st->xfade_gain;
+          ge = a * ge + (1.0f - a) * st->xfade_gain;
           st->xfade_left--;
         }
+        gmin = ge < gmin ? ge : gmin;
         st->delay_pos = omx_lookahead_fwd(st->delay_pos, 1u, ring);
         l[done + i] = gl;
         if (r) r[done + i] = gr;
@@ -555,6 +586,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
     st->last_gain = gain[m - 1u];
     done += m;
   }
+  st->gr_min_db = omx_gr_block_db(gmin);
   OMX_POST(omx_block_finite(l, n), "finite-out-l");
   OMX_POST(omx_block_finite(r, n), "finite-out-r");
   OMX_POST(st->last_gain >= 0.0f && st->last_gain - st->last_gain == 0.0f, "gain-finite-nonneg");
