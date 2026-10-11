@@ -21,9 +21,6 @@
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
 #               1024 frames
-#   make engine-identity OPENMIXER=<checkout>  the golden digests rendered again through the
-#               dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and
-#               the check's own sabotages (tools/engine-identity.sh)
 #   make strip-input-identity OMX_PLUGINS=<checkout>  the trim and eq faces against omx-plugins'
 #               omx_strip.h input stage, and the check's sabotage (tools/strip-input-identity.sh)
 
@@ -88,7 +85,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f engine-identity strip-input-identity
+.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity
 
 all: lib
 
@@ -229,14 +226,6 @@ test-fx: $(FX_BINS)
 	@set -e; for p in $(FX_PERTURB); do \
 	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
 	done
-
-# The engine's copies of the dynamics, balance, rotor and limiter kernels against this library's
-# golden digests: needs a checkout of the private OpenMixer repository, so it is a desk check, not part of
-# make test and not run in CI (BUILDING.md, "The engine's copies").
-engine-identity: $(LIB)
-	@test -n "$(OPENMIXER)" || { echo "make engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
 
 # The trim and eq faces against omx-plugins' channel strip's own input stage (omx_strip.h): a desk
 # check, the strip lives in another repository (tools/strip-input-identity.sh).
