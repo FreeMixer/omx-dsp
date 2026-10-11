@@ -51,9 +51,11 @@ struct omx_band_dyn_state {
   struct omx_env env; /**< The detector cascade, in the detector's level domain. */
   float b_l[4];       /**< `B`'s history on the left leg. */
   float b_r[4];       /**< `B`'s history on the right leg. */
+  float gr_min_db;    /**< The deepest `g` inside the LAST run, dB <= 0 (omx_gr_block_db() of it):
+                       *   the host's gain-reduction reading; 0 = none. */
 };
 
-_Static_assert(sizeof(struct omx_band_dyn_state) == sizeof(float) * (OMX_DYN_ENV_STAGES + 8u),
+_Static_assert(sizeof(struct omx_band_dyn_state) == sizeof(float) * (OMX_DYN_ENV_STAGES + 9u),
                "band-dynamics state must stay plain inline floats - nothing to allocate");
 
 /** @brief Per-block resolved detector: the cascade parameters and its per-stage poles. */
@@ -203,7 +205,7 @@ static inline void omx_band_dyn_flush(struct omx_band_dyn_state *st) {
  * @param enabled 0: a no-op that touches no sample and no state word.
  * @pre `finite-in-l`, `finite-in-r`; behind the enable gate: `ratio-at-least-one`,
  *      `knee-not-negative`, `peak-detector`, `no-make-up`.
- * @post `finite-out-l`, `finite-out-r`.
+ * @post `finite-out-l`, `finite-out-r`; `st->gr_min_db` holds the run's deepest `g` in dB.
  * @note RT-safe: O(n), no allocation, no lock, no IO.
  */
 static inline void omx_band_dyn_run(float *l, float *r, uint32_t n, const struct omx_dyn *dyn, const float c[5],
@@ -217,12 +219,15 @@ static inline void omx_band_dyn_run(float *l, float *r, uint32_t n, const struct
   OMX_PRE(dyn->gc.makeup_lin == 1.0f, "no-make-up");
   const struct omx_band_dyn_block bk = omx_band_dyn_begin(dyn);
   const int stereo = r != NULL;
+  float gmin = 1.0f;
   for (uint32_t i = 0; i < n; i++) {
     float bl, br;
     const float g = omx_band_dyn_detect(c, st, &dyn->gc, &bk, l[i], stereo ? r[i] : 0.0f, stereo, &bl, &br);
+    gmin = g < gmin ? g : gmin;
     l[i] = wideband ? l[i] * g : omx_band_dyn_split(l[i], g, bl);
     if (stereo) r[i] = wideband ? r[i] * g : omx_band_dyn_split(r[i], g, br);
   }
+  st->gr_min_db = omx_gr_block_db(gmin);
   omx_band_dyn_flush(st);
   OMX_POST(omx_block_finite(l, n), "finite-out-l");
   OMX_POST(omx_block_finite(r, n), "finite-out-r");

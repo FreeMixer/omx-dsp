@@ -116,7 +116,7 @@ struct omx_deess_state {
  * `struct omx_lane_rt` carries: adding a pointer (a ring, a look-ahead line) changes the size and
  * breaks this build — which is the point, because such a member would have to be allocated
  * somewhere, and the only somewhere left would be the RT callback. */
-_Static_assert(sizeof(struct omx_deess_state) == sizeof(float) * (OMX_DYN_ENV_STAGES + 8u),
+_Static_assert(sizeof(struct omx_deess_state) == sizeof(float) * (OMX_DYN_ENV_STAGES + 9u),
                "de-esser state must stay plain inline floats - nothing to allocate");
 
 /** Clear one lane's de-esser state. CONTROL thread only. */
