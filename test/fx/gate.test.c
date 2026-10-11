@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
-// The keyed gate's oracle (omx_gate.h), its DSP moved unchanged from openmixer's keyed_gate_lv2.c
-// (omx-dsp-dev#34). At every declared rate, contracts on, an empty ledger after each arm:
+// The keyed gate's oracle (omx_gate.h), its DSP moved unchanged from openmixer's keyed_gate_lv2.c.
+// At every declared rate, contracts on, an empty ledger after each arm:
 //   A  resolve: an unconnected control is its declared default, a value outside the travel is
 //      clamped into it, a NaN reads as the floor; the atom is ACT-BELOW, peak, hard knee, unity
 //      make-up, oversampling on `auto`, its poles the attack and release times' at the rate;

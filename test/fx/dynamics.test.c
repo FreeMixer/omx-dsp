@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The self-detecting dynamics slot's oracle (omx_dyn.h, omx_dynamics), moved unchanged from
-// openmixer's mix_dsp.h (omx-dsp-dev#34). At the nine RME rates, contracts on, and after each arm
+// openmixer's mix_dsp.h. At the nine RME rates, contracts on, and after each arm
 // no violation the rate does not explain (fx_rates.h): the slot every comp and every un-keyed gate takes IS omx_dynamics_keyed with no
 // key, bit for bit, stereo and mono, a gate and a comp, on the base path, the 4x control path and
 // across an `auto` handover, in uneven blocks.

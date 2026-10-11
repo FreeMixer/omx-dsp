@@ -6,7 +6,7 @@
  *        source stays unity per leg at centre — MAIN's one stereo law, shared by the engine's
  *        strips and master, the rotary's horn/drum split and the tremolo's pan mode.
  *
- * Moved unchanged from openmixer packages/pipewire-native/src/mix_dsp.h (omx-dsp-dev#32): the
+ * Moved unchanged from openmixer packages/pipewire-native/src/mix_dsp.h: the
  * rotary and the tremolo read this law and never a second one. Stateless, pure.
  */
 #ifndef OMX_BALANCE_LAW_H

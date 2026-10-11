@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
-// The strip gate instance's oracle (fx/omx_gate_instance.h), the shell over omx_gate.h
-// (omx-dsp-dev#34). At every declared rate, contracts on, an empty ledger after each arm:
+// The strip gate instance's oracle (fx/omx_gate_instance.h), the shell over omx_gate.h.
+// At every declared rate, contracts on, an empty ledger after each arm:
 //   A  ready: a NULL instance, a zero, negative or NaN rate is refused; a refused instance is the
 //      identity (separate and aliased buffers) and reports no latency; a ready one starts at the
 //      declared defaults, the knee range, hold and hysteresis included;
