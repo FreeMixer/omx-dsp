@@ -14,7 +14,7 @@
 # checkout and this tree's include/, and renders the golden stimulus through it over
 # test/fx/strip_input_script.h with the gate, the EQ and the compressor off; its digests are compared
 # with test/golden/trim_instance.sha256, the file test/fx/trim_instance_golden.test.c holds the faces
-# to. A desk check (the strip is another repository), not part of make test, like engine-identity.
+# to. A desk check (the strip is another repository), not part of make test.
 set -euo pipefail
 : "${CONTRACT_INC:=$(sh "$(dirname "$0")/contract-include.sh")}"
 cd "$(dirname "$0")/.."

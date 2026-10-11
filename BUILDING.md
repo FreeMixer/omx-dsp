@@ -15,7 +15,6 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make docs` | the API reference with doxygen |
 | `make lint` | the doc check, the source scan, the log10f guard, tools/contract-single-source.sh (no name omx-contract defines is defined again here) and tools/face-conformance.sh (every instance face's resolve takes its kernel's contract controls by name, order and kind); both check their own sabotage |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
-| `make engine-identity OPENMIXER=<checkout>` | renders the golden digests again through the dynamics, balance, rotor and limiter copies OpenMixer's engine still carries, and checks that each of its sabotages goes red; a desk check, not run in CI |
 | `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
@@ -89,19 +88,6 @@ with a `rate-is-declared` precondition. The dynamics, balance, rotor and limiter
 32, 64 and 128 kHz, the other rates of an RME interface (`OMX_FX_RME_RATES` in
 `test/fx/fx_rates.h`), with contracts still on: there the `rate-is-declared` precondition is
 expected, and every other law must hold. Their golden digest files carry all nine rates.
-
-## The engine's copies
-
-OpenMixer's engine still carries its own copies of the dynamics, balance, rotor and limiter kernels
-(`mix_dsp.h`, `mix_rotor.h`, `mix_limiter.h`) until it switches to this library.
-`make engine-identity OPENMIXER=<checkout>` (`tools/engine-identity.sh`) compiles every golden
-program a second time with those copies in place of this library's headers and requires the same
-digests at every rate; its self-test changes one constant in each copy and requires a failure each
-time. It is a desk check and CI does not run it: the copies live in OpenMixer's private
-repository, and no public repository carries them to compare with. Run it against the OpenMixer
-commit pinned in `.github/pins.txt` whenever a kernel's golden digest or one of the four engine
-copies changes. It ends when the engine builds from this library's headers instead of its copies:
-there is then nothing left to compare.
 
 ## The channel strip's input stage
 
