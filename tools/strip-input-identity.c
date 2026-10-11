@@ -7,7 +7,7 @@
  * bypass the script's. Its digests are the ones test/fx/trim_instance_golden.test.c renders through
  * the trim and eq faces, so the faces are the strip's input stage bit for bit or the comparison
  * says which rate moved. Built and run by tools/strip-input-identity.sh against an omx-plugins
- * checkout; a desk check like tools/engine-identity.sh.
+ * checkout; a desk check.
  */
 #include <stdint.h>
 
