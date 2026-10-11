@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.5.2
+Version: 0.5.3
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,12 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Sun Oct 11 2026 Pau Aliagas <linuxnow@gmail.com> - 0.5.3-1
+- The dynamics and band-dynamics states record gr_min_db, the deepest gain
+  applied in the last call, in dB; omx_gr_block_db gives a block's reading.
+  Outputs are unchanged
+- The engine-identity desk check is gone
+
 * Fri Oct 09 2026 Pau Aliagas <linuxnow@gmail.com> - 0.5.2-1
 - A trim face, fx/omx_trim_instance.h: the console's input trim, a
   de-zippered gain; its resolve takes the trim kernel's trimDb, clamped
