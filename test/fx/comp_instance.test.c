@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The strip compressor instance's oracle (fx/omx_comp_instance.h), the shell over omx_dyn.h's
-// omx_dynamics (omx-dsp-dev#34). At every declared rate, contracts on, an empty ledger after each
+// omx_dynamics. At every declared rate, contracts on, an empty ledger after each
 // arm:
 //   A  ready: a NULL instance, a zero, negative or NaN rate is refused; a refused instance is the
 //      identity (separate and aliased buffers) and reports no latency; a ready one starts at the

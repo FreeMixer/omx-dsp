@@ -3,7 +3,7 @@
 
 #include "../fx/fx_rates.h"
 
-/* ---- the balance law (lane/fx-seams, omx-dsp-dev#32): moved unchanged from openmixer's
+/* ---- the balance law: moved unchanged from openmixer's
  * mix_dsp.h. Pins today's outputs bit for bit: a fixed table (centre, the hard legs, the clamp
  * beyond them, interior points), and at each of the nine RME rates one second of the tremolo's
  * pan-mode sweep (pan = depth·sin(2π·f·i/sr)) against the closed form, with the law's own

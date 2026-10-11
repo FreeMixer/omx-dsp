@@ -3,7 +3,7 @@
 
 #include <omxdsp/omx_dyn.h>
 
-/* ---- the dynamics atom's detector parameters (lane/fx-seams, omx-dsp-dev#32): moved unchanged
+/* ---- the dynamics atom's detector parameters: moved unchanged
  * from openmixer's mix_dsp.h. At every declared rate, for the band-dyn's and the de-esser's own
  * time constants in both detector domains, pins today's output bit for bit: the three fields copy
  * unchanged (attack stays attack, release stays release), and the detector driven through the
