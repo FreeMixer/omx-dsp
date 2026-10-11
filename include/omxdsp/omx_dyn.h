@@ -6,7 +6,7 @@
  *        a gate, a band-dyn band or a de-esser resolves its controls to, the one derivation of
  *        the envelope's parameters from it, and `omx_dynamics_keyed`, which applies it.
  *
- * Moved unchanged from openmixer packages/pipewire-native/src/mix_dsp.h (omx-dsp-dev#32, #34):
+ * Moved unchanged from openmixer packages/pipewire-native/src/mix_dsp.h:
  * the band-dyn and the de-esser kernels derive their detector from the atom here and nowhere else,
  * so the engine's slot and a kernel cannot read the attack and release poles differently; the
  * strip's gate and comp slots and the keyed gate's plugin run the one kernel here. Pure; the 4x

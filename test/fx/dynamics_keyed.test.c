@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The dynamics slot's oracle (omx_dyn.h, omx_dynamics_keyed), moved unchanged from openmixer's
-// mix_dsp.h (omx-dsp-dev#34). At the nine RME rates, contracts on, and after each arm no violation
+// mix_dsp.h. At the nine RME rates, contracts on, and after each arm no violation
 // the rate does not explain (fx_rates.h):
 //   A  a disabled slot is the identity on the audio AND the state, bit for bit;
 //   B  a mono slot keyed on its own leg is the self-detecting slot, bit for bit, at factor 1 and 4;

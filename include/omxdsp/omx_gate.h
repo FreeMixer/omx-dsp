@@ -6,7 +6,7 @@
  *        travel, its latency, and a host's block run through fixed scratch by the one dynamics
  *        kernel.
  *
- * Moved unchanged from openmixer packages/pipewire-native/src/keyed_gate_lv2.c (omx-dsp-dev#34):
+ * Moved unchanged from openmixer packages/pipewire-native/src/keyed_gate_lv2.c:
  * the processing half of the LV2 face, without the face. The port enum, the descriptor and the
  * stereo I/O binding stay with the plugin; a plugin hands this header the pointers its ports were
  * connected to, NULL for an unconnected one.
