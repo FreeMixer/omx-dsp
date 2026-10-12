@@ -4,8 +4,8 @@
  * pitch_instance.test.c — the pitch shifter instance core (omx_pitch_instance.h), every arm at
  * every rate in OMX_DECLARED_RATES:
  *   A  a refused init (no rate, a rate the console does not declare) is the identity; every
- *      declared rate is accepted, its window inside the instance's own rings; the published
- *      latency is zero;
+ *      declared rate is accepted, its window inside the instance's own rings; a refused, a
+ *      fresh and a bypassed instance publish no latency;
  *   B  bypassed is the identity byte for byte, in place and out of place;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_pitch_process on the atom the
  *      kernel's own omx_pitch_resolve builds from the same knobs;
@@ -16,7 +16,11 @@
  *   F  in == out (an aliased port) is the out-of-place answer;
  *   G  an instance run between two others leaves each the instance alone (no shared state);
  *   H  init, resolve (re-engage included) and run allocate nothing: malloc, calloc, realloc and
- *      free are wrapped at link time and counted across the instance's whole life.
+ *      free are wrapped at link time and counted across the instance's whole life;
+ *   I  at 100 % mix the output is the pre-filtered input delayed by the published latency,
+ *      d_min + W/2 frames, measured on an impulse at the defaults and at a shift; below 100 % the
+ *      published latency is zero and the dry path is undelayed; the mix crossing 100 % either way
+ *      moves the published latency at the resolve that crosses it.
  *   make test-fx
  */
 #include <math.h>
@@ -84,7 +88,10 @@ static void arm_refused(void) {
   ok(omx_pitch_instance_init(&s, g_sr) == 1, "A: the declared rate is accepted");
   ok(s.cap == omx_pitch_instance_cap_for(g_sr) && s.cap <= OMX_PITCH_INSTANCE_RING_FLOATS,
      "A: the kernel's ring is the window's, inside the instance's own");
-  ok(omx_pitch_instance_latency(&s) == 0u, "A: the published latency is zero frames");
+  ok(omx_pitch_instance_latency(&s) == 0u, "A: a fresh instance publishes no latency");
+  omx_pitch_instance_resolve(&s, 1, 0.0f, 0.0f, 100.0f);
+  ok(omx_pitch_instance_latency(&s) == 0u, "A: a bypassed instance publishes no latency");
+  ok(omx_pitch_instance_latency(NULL) == 0u, "A: no instance publishes no latency");
   drain_violations("A: no contract broken");
 }
 
@@ -235,6 +242,99 @@ static void arm_no_allocation(void) {
   drain_violations("H: no contract broken");
 }
 
+/* d_min + W/2 at g_sr, from the kernel's own words: the centre of the window's taps. */
+static uint32_t window_centre(void) {
+  return (uint32_t)lroundf(omx_fdelay_min_delay(OMX_PITCH_ORDER) + 0.5f * OMX_PITCH_WINDOW_MS * 1e-3f * g_sr);
+}
+
+/* The delay, frames, at which `y` best matches `h`: the argmax of their cross-correlation. */
+static uint32_t best_delay(const float *y, const float *h, uint32_t n) {
+  uint32_t best = 0u;
+  double top = -1.0;
+  for (uint32_t d = 0; d < n; d++) {
+    double c = 0.0;
+    for (uint32_t i = d; i < n; i++) c += (double)y[i] * (double)h[i - d];
+    if (c > top) top = c, best = d;
+  }
+  return best;
+}
+
+/* An impulse on L through the face engaged at its defaults: the measured delay against the face's
+ * own pre-filter (its group delay is the filter's, not the window's) and the largest residual. */
+static uint32_t measure_defaults(uint32_t n, double *resid) {
+  static OmxPitchInstance s;
+  omx_pitch_instance_init(&s, g_sr);
+  omx_pitch_instance_resolve(&s, 0, OMX_PITCH_SEMITONES_DEFAULT, OMX_PITCH_CENTS_DEFAULT, OMX_PITCH_MIX_DEFAULT);
+  float *l = calloc(n, sizeof(float)), *r = calloc(n, sizeof(float)), *h = calloc(n, sizeof(float));
+  float z[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  l[0] = 1.0f;
+  for (uint32_t i = 0; i < n; i++) h[i] = omx_biquad(i == 0u ? 1.0f : 0.0f, s.atom.lp, z);
+  for (uint32_t o = 0; o < n; o += BLK) omx_pitch_instance_run(&s, l + o, r + o, l + o, r + o, BLK);
+  const uint32_t d = best_delay(l, h, n / 2u);
+  *resid = 0.0;
+  for (uint32_t i = 0; i < n; i++) {
+    const double e = fabs((double)l[i] - (i >= d ? (double)h[i - d] : 0.0));
+    if (e > *resid) *resid = e;
+  }
+  free(l); free(r); free(h);
+  return d;
+}
+
+static void arm_latency(void) {
+  const uint32_t want = window_centre();
+  const uint32_t n = 2u * ((want + BLK) / BLK) * BLK;
+  static OmxPitchInstance s;
+  omx_pitch_instance_init(&s, g_sr);
+  omx_pitch_instance_resolve(&s, 0, 0.0f, 0.0f, 100.0f);
+  const uint32_t published = omx_pitch_instance_latency(&s);
+  char what[160];
+  snprintf(what, sizeof what, "I: at 100 %% the published latency is d_min + W/2 = %u frames (got %u)",
+           (unsigned)want, (unsigned)published);
+  ok(published == want, what);
+
+  double resid = 0.0;
+  const uint32_t d = measure_defaults(n, &resid);
+  snprintf(what, sizeof what, "I: at the defaults the impulse comes out %u frames late, the published %u",
+           (unsigned)d, (unsigned)published);
+  ok(d == published, what);
+  ok(resid < 1e-4, "I: at the defaults the output is the pre-filtered input, delayed and nothing else");
+
+  /* A shift sweeps the taps across the window; the published latency is the window's centre. */
+  omx_pitch_instance_resolve(&s, 0, -5.0f, 12.0f, 100.0f);
+  ok(omx_pitch_instance_latency(&s) == want, "I: a shift at 100 % publishes the same latency");
+
+  /* Below 100 %: nothing published, and the dry path is frame-aligned with the input. */
+  static OmxPitchInstance h;
+  omx_pitch_instance_init(&h, g_sr);
+  omx_pitch_instance_resolve(&h, 0, 0.0f, 0.0f, 50.0f);
+  ok(omx_pitch_instance_latency(&h) == 0u, "I: at 50 % the published latency is zero");
+  float *l = calloc(n, sizeof(float)), *r = calloc(n, sizeof(float));
+  float *l0 = calloc(n, sizeof(float)), *r0 = calloc(n, sizeof(float));
+  for (uint32_t o = 0; o < n; o += BLK) programme(l + o, r + o, BLK, o);
+  memcpy(l0, l, n * sizeof(float)); memcpy(r0, r, n * sizeof(float));
+  for (uint32_t o = 0; o < n; o += BLK) omx_pitch_instance_run(&h, l + o, r + o, l + o, r + o, BLK);
+  /* Until the wet path's first tap reaches the input (its Lagrange reach starts two frames before
+   * the centre), the output is the dry half of the input, frame for frame. */
+  int aligned = 1, live = 0;
+  for (uint32_t i = 0; i + 2u < want; i++) {
+    aligned &= l[i] == 0.5f * l0[i] && r[i] == 0.5f * r0[i];
+    live |= l0[i] != 0.0f;
+  }
+  ok(live && aligned, "I: at 50 % the dry path is undelayed (the output is half the input, frame for frame)");
+  free(l); free(r); free(l0); free(r0);
+
+  /* The mix crossing 100 % is a latency change, at the resolve that crosses it, both ways. */
+  omx_pitch_instance_resolve(&h, 0, 0.0f, 0.0f, 100.0f);
+  ok(omx_pitch_instance_latency(&h) == want, "I: 50 % -> 100 % publishes the window's centre");
+  omx_pitch_instance_resolve(&h, 0, 0.0f, 0.0f, 99.0f);
+  ok(omx_pitch_instance_latency(&h) == 0u, "I: 100 % -> 99 % publishes zero");
+  omx_pitch_instance_resolve(&h, 1, 0.0f, 0.0f, 100.0f);
+  ok(omx_pitch_instance_latency(&h) == 0u, "I: bypassed at 100 % publishes zero");
+  omx_pitch_instance_resolve(&h, 0, 0.0f, 0.0f, 100.0f);
+  ok(omx_pitch_instance_latency(&h) == want, "I: re-engaged at 100 % publishes the window's centre");
+  drain_violations("I: no contract broken");
+}
+
 int main(void) {
   omx_fx_require_rate_floor();
   for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
@@ -246,6 +346,7 @@ int main(void) {
     arm_reengage_clears();
     arm_alias_and_independence();
     arm_no_allocation();
+    arm_latency();
   }
   return finish("pitch_instance");
 }

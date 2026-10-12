@@ -19,8 +19,14 @@
  *      they differ (they may alias) and runs the kernel on out. Identity when bypassed or not ready.
  *
  * Re-engaging from bypass CLEARS the rings and restarts the ramp, so a re-enabled shifter does not
- * replay audio buffered before the bypass. LATENCY IS PUBLISHED AS ZERO, as the console's stage
- * reports it: the dry path is frame-aligned and the window's delay is the effect.
+ * replay audio buffered before the bypass.
+ *
+ * LATENCY IS PUBLISHED: {@link omx_pitch_instance_latency} answers d_min + W/2 frames (the centre
+ * of the window's taps, W = OMX_PITCH_WINDOW_MS at the instance rate) while engaged at 100 % mix,
+ * where the output is the pre-filtered input delayed by that much; and 0 below 100 % (the dry path
+ * is frame-aligned with the input, the window's delay is the effect), while bypassed and when not
+ * ready. The mix crossing 100 % is a latency change, so a host reads it after every resolve. The
+ * audio is the kernel's either way: only the published number depends on the mix.
  *
  * No mutable globals: every word of state is in the caller's {@link OmxPitchInstance}. The state
  * points into the instance's own rings, so an instance is initialised where it lives and is never
@@ -36,7 +42,6 @@
 #include <omxdsp/omx_param.h>
 
 #define OMX_PITCH_INSTANCE_CHANNELS 2
-#define OMX_PITCH_INSTANCE_LATENCY_FRAMES 0.0f
 
 /** The highest rate, Hz, the inline rings are sized for: the top of the declared rate set. */
 #define OMX_PITCH_INSTANCE_RATE_MAX 192000u
@@ -148,10 +153,11 @@ static inline void omx_pitch_instance_run(OmxPitchInstance *s, const float *in_l
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The frames of latency the instance publishes: none (see the header note). */
+/** The frames of latency the instance publishes now: d_min + W/2, rounded, while engaged at 100 %
+ * mix; 0 below 100 %, while bypassed or not ready (see the header note). */
 static inline uint32_t omx_pitch_instance_latency(const OmxPitchInstance *s) {
-  (void)s;
-  return 0u;
+  if (!s || !s->ready || !s->atom.enabled || s->atom.mix < 1.0f) return 0u;
+  return (uint32_t)lroundf(omx_fdelay_min_delay(OMX_PITCH_ORDER) + 0.5f * s->atom.window);
 }
 
 #endif /* OMX_PITCH_INSTANCE_H */
