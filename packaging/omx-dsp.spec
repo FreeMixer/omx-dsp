@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.5.3
+Version: 0.6.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,13 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Mon Oct 12 2026 Pau Aliagas <linuxnow@gmail.com> - 0.6.0-1
+- The pitch instance face reports its latency, d_min plus half the window,
+  when the mix is 100 %, and 0 below it, where the dry path is on time.
+  Outputs are unchanged
+- OMX_PITCH_INSTANCE_LATENCY_FRAMES is removed: the latency is the face's
+  latency function
+
 * Sun Oct 11 2026 Pau Aliagas <linuxnow@gmail.com> - 0.5.3-1
 - The dynamics and band-dynamics states record gr_min_db, the deepest gain
   applied in the last call, in dB; omx_gr_block_db gives a block's reading.
