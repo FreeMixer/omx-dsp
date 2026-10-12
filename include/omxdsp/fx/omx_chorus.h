@@ -115,9 +115,11 @@ struct omx_chorus_state {
 static inline enum omx_fdelay_code omx_chorus_state_init(struct omx_chorus_state *s, float *ring_l,
                                                          float *ring_r, uint32_t cap) {
   omx_lfo_start(&s->lfo);
+  /* Both lines are initialised whatever the left one answers, so a refused init leaves each line
+   * armed or unarmed and never indeterminate; the stage runs only when both are armed. */
   enum omx_fdelay_code c = omx_fdelay_init(&s->line_l, ring_l, cap, OMX_CHORUS_ORDER);
-  if (c != OMX_FDELAY_OK) return c;
-  c = omx_fdelay_init(&s->line_r, ring_r, cap, OMX_CHORUS_ORDER);
+  const enum omx_fdelay_code cr = omx_fdelay_init(&s->line_r, ring_r, cap, OMX_CHORUS_ORDER);
+  if (c == OMX_FDELAY_OK) c = cr;
   OMX_POST(c != OMX_FDELAY_OK || s->line_l.order == OMX_CHORUS_ORDER,
            "an-armed-chorus-reads-at-order-three");
   return c;
