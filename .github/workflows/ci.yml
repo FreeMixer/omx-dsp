@@ -2,8 +2,8 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: ci
 
-# On every push and pull request: the whole suite on Fedora and both Debian releases, on both
-# architectures; the packages built, their file lists checked and a consumer outside the tree built
+# On every push and pull request: the whole suite on Fedora, both Debian releases and Ubuntu 24.04,
+# on both architectures; the packages built, their file lists checked and a consumer outside the tree built
 # against each; the limits read from the pinned omx-contract release; and the
 # release workflow as a dry run. Nothing is signed or published here. Every job reads this
 # repository and other public ones, and runs on GitHub's runners.
@@ -24,7 +24,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ['fedora:44', 'debian:bookworm', 'debian:trixie']
+        # ubuntu:24.04 carries GCC 13, whose -Wmaybe-uninitialized reads paths the newer
+        # compilers prove dead.
+        image: ['fedora:44', 'debian:bookworm', 'debian:trixie', 'ubuntu:24.04']
         arch: [amd64]  # arm64 builds run at release only (release.yml)
     container:
       image: ${{ matrix.image }}
