@@ -84,9 +84,11 @@ static inline enum omx_fdelay_code omx_pitch_state_init(struct omx_pitch_state *
   s->ramp = 0u;
   s->dir = -1;
   for (int k = 0; k < 4; k++) s->lp_l[k] = s->lp_r[k] = 0.0f;
+  /* Both lines are initialised whatever the left one answers, so a refused init leaves each line
+   * armed or unarmed and never indeterminate; the stage runs only when both are armed. */
   enum omx_fdelay_code c = omx_fdelay_init(&s->line_l, ring_l, cap, OMX_PITCH_ORDER);
-  if (c != OMX_FDELAY_OK) return c;
-  c = omx_fdelay_init(&s->line_r, ring_r, cap, OMX_PITCH_ORDER);
+  const enum omx_fdelay_code cr = omx_fdelay_init(&s->line_r, ring_r, cap, OMX_PITCH_ORDER);
+  if (c == OMX_FDELAY_OK) c = cr;
   OMX_POST(c != OMX_FDELAY_OK || s->line_l.order == OMX_PITCH_ORDER,
            "an-armed-shifter-reads-at-order-three");
   return c;

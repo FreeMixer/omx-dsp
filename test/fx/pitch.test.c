@@ -12,6 +12,8 @@
  *   H  — N-thread identity: eight threads run the kernel on distinct state at once, every
  *        declared rate, and each output is byte-identical to a single-threaded reference (the
  *        kernel holds no writable data of its own; rt-thread-split §6).
+ *   I  — a refused init leaves both lines defined: the left line refuses a missing ring, the right
+ *        one arms over its own, and the stage passes the block through untouched.
  *
  * These are the E, G and H arms of the engine's mix_pitch.test.c, moved with the kernel; the
  * closed-form arms are test/fx/pitch_math.test.c.
@@ -187,6 +189,34 @@ static void arm_h_threads(void) {
 }
 
 
+static void arm_i_refused_init(void) {
+  enum { N = 256 };
+  static float x[N], l[N], rr[N];
+  for (int i = 0; i < N; i++) x[i] = (float)sin(0.05 * i) * 0.7f;
+  float *ring_r = g_ring + g_ring_cap;
+  const uint32_t cap = omx_pitch_cap_for(48000.0f);
+  struct omx_pitch p;
+  omx_pitch_resolve_ratio(&p, 1, 1.5f, 0.5f, 48000.0f);
+  struct omx_pitch_state s;
+  memset(&s, 0xA5, sizeof s);
+  const enum omx_fdelay_code c = omx_pitch_state_init(&s, NULL, ring_r, cap);
+  omx_contract_log.count = 0u; /* the refusal's own PRE, provoked on purpose */
+  ok(c == OMX_FDELAY_RING_TOO_SMALL, "I a missing left ring is refused with its code", 48000.0,
+     (double)c, (double)OMX_FDELAY_RING_TOO_SMALL);
+  ok(s.line_l.ring == NULL && s.line_l.cap == 0u && s.line_l.order == 0,
+     "I the refused left line is unarmed", 48000.0, (double)s.line_l.order, 0.0);
+  ok(s.line_r.ring == ring_r && s.line_r.cap == cap && s.line_r.wpos == 0u &&
+         s.line_r.order == OMX_PITCH_ORDER,
+     "I the right line is armed over its own ring, never left indeterminate", 48000.0,
+     (double)s.line_r.order, (double)OMX_PITCH_ORDER);
+  memcpy(l, x, sizeof x);
+  memcpy(rr, x, sizeof x);
+  omx_pitch_process(l, rr, N, &p, &s);
+  ok(memcmp(l, x, sizeof x) == 0 && memcmp(rr, x, sizeof x) == 0,
+     "I a half-armed stage passes the block through untouched", 48000.0, 0, 0);
+  drain_violations("I contracts");
+}
+
 int main(void) {
   float top = 0.0f;
   for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) top = fmaxf(top, OMX_DECLARED_RATES[ri]);
@@ -197,6 +227,7 @@ int main(void) {
   arm_e_bypass();
   arm_g_finite_and_flush();
   arm_h_threads();
+  arm_i_refused_init();
   free(g_ring);
   printf("fx/pitch: %d checks, %d failed (%d rates)\n", g_checks, g_failed, (int)OMX_DECLARED_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
