@@ -45,6 +45,8 @@
  *       kernel's worst case, Σ|c| = Λ = OMX_FDELAY_READ_L1_NORM — stays inside
  *       `omx_chorus_gain_bound` and `omx_flanger_gain_bound`, four rates, with the whole-sample
  *       control; plus the evidence that the ruled Λ/(1 − |fb|) form is NOT a bound.
+ *   H — A REFUSED INIT leaves both lines defined: the left line refuses a missing ring, the right
+ *       one arms over its own, and the stage passes the block through untouched.
  *
  * Pure C, `-lm`, no PipeWire: safe beside the live rig. Built with -DOMX_CONTRACTS.
  */
@@ -630,6 +632,36 @@ static void chorus_flanger_stay_inside_their_bound(void) {
   drain_violations("arm G: no contract violation");
 }
 
+static void arm_h_refused_init(void) {
+  enum { N = 256 };
+  static float x[N], l[N], r[N];
+  for (int i = 0; i < N; i++) x[i] = (float)sin(0.05 * i) * 0.7f;
+  struct omx_flanger p;
+  memset(&p, 0, sizeof p);
+  p.enabled = 1;
+  p.base_samples = OMX_FLANGER_BASE_MS * 48.0f;
+  p.depth_samples = 2.0f * 48.0f;
+  p.mix = 0.5f;
+  struct omx_flanger_state s;
+  memset(&s, 0xA5, sizeof s);
+  const enum omx_fdelay_code c = omx_flanger_state_init(&s, NULL, g_ring_r, OMX_FLANGER_CAP);
+  omx_contract_log.count = 0u; /* the refusal's own PRE, provoked on purpose */
+  ok(c == OMX_FDELAY_RING_TOO_SMALL, "H a missing left ring is refused with its code", (double)c,
+     (double)OMX_FDELAY_RING_TOO_SMALL);
+  ok(s.line_l.ring == NULL && s.line_l.cap == 0u && s.line_l.order == 0,
+     "H the refused left line is unarmed", (double)s.line_l.order, 0.0);
+  ok(s.line_r.ring == g_ring_r && s.line_r.cap == OMX_FLANGER_CAP && s.line_r.wpos == 0u &&
+         s.line_r.order == OMX_FLANGER_ORDER,
+     "H the right line is armed over its own ring, never left indeterminate",
+     (double)s.line_r.order, (double)OMX_FLANGER_ORDER);
+  memcpy(l, x, sizeof x);
+  memcpy(r, x, sizeof x);
+  omx_flanger_process(l, r, N, &p, &s);
+  ok(memcmp(l, x, sizeof x) == 0 && memcmp(r, x, sizeof x) == 0,
+     "H a half-armed stage passes the block through untouched", 0.0, 0.0);
+  drain_violations("H contracts");
+}
+
 int main(void) {
   omx_fx_require_rate_floor();
   arm_a_delay_follows();
@@ -639,6 +671,7 @@ int main(void) {
   arm_e_no_click();
   arm_f_bypass();
   chorus_flanger_stay_inside_their_bound();
+  arm_h_refused_init();
   printf("mix_flanger: %d checks, %d failed\n", g_checks, g_failed);
   return g_failed == 0 ? 0 : 1;
 }
