@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.6.0
+Version: 0.6.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,12 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Mon Oct 12 2026 Pau Aliagas <linuxnow@gmail.com> - 0.6.1-1
+- The rotor read its LFO carry before setting it on the first tick; it is
+  now cleared at settle
+- The pitch, chorus and flanger state inits always set both delay lines
+- Builds clean with GCC 13 -Wall -Wextra -Werror
+
 * Mon Oct 12 2026 Pau Aliagas <linuxnow@gmail.com> - 0.6.0-1
 - The pitch instance face reports its latency, d_min plus half the window,
   when the mix is 100 %, and 0 below it, where the dry path is on time.
