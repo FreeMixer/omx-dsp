@@ -1,3 +1,13 @@
+omx-dsp (0.6.0) unstable; urgency=medium
+
+  * The pitch instance face reports its latency, d_min plus half the
+    window, when the mix is 100 %, and 0 below it, where the dry path is on
+    time. Outputs are unchanged.
+  * OMX_PITCH_INSTANCE_LATENCY_FRAMES is removed: the latency is the face's
+    latency function.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Mon, 12 Oct 2026 08:00:00 +0000
+
 omx-dsp (0.5.3) unstable; urgency=medium
 
   * The dynamics and band-dynamics states record gr_min_db, the deepest
