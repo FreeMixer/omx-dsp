@@ -14,6 +14,7 @@
 #   make flavours  each archive carries its flavour, and a contracts consumer sees the compiled
 #               unit's contracts only through the contracts archive
 #   make test-fx   the effect kernels' oracles and golden digests alone
+#   make consumer  the stateful stages built and run the way a consumer drives them, release flags
 #   make test-analysis  the analysis engines' oracles (FBS feedback detection, HRP) alone
 #   make lint   the doc check and the source scan only
 #   make docs   the API reference by doxygen (build-time only)
@@ -85,7 +86,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity
 
 all: lib
 
@@ -138,6 +139,17 @@ suite: $(BUILD)/omxdsp_suite
 
 negative: $(BUILD)/omxdsp_negative
 	./$(BUILD)/omxdsp_negative
+
+# The stateful stages built the way a consumer builds them: release flags, no contracts, states on
+# the stack that only their init or settle writes; one stage per translation unit, as a consumer's.
+CONSUMER_ARMS = pitch chorus flanger rotor
+CONSUMER_BINS = $(addprefix $(BUILD)/consumer_,$(CONSUMER_ARMS))
+
+$(BUILD)/consumer_%: test/omxdsp_consumer.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -DARM_$* -o $@ test/omxdsp_consumer.c $(LIB) -lm
+
+consumer: $(CONSUMER_BINS)
+	@set -e; for b in $(CONSUMER_BINS); do echo "./$$b"; ./$$b; done
 
 threads: $(BUILD)/omxdsp_threads
 	./$(BUILD)/omxdsp_threads
@@ -273,7 +285,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative perturb threads test-fx test-analysis flavours
+test: lib checks suite negative consumer perturb threads test-fx test-analysis flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
