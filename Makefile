@@ -181,6 +181,9 @@ FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor ro
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
+# The instance faces with golden digests of their own: test/fx/<k>_instance_golden.test.c,
+# compared with test/golden/<k>_instance.sha256.
+FX_INSTANCE_GOLDENS = pitch
 # A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
 FX_PERTURB = $(wildcard test/fx/*-perturb.sh)
 FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
@@ -214,7 +217,8 @@ $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm $(FX_LDFLAGS_$*),$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm $(FX_LDFLAGS_$*))
 
 FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k)_math.test.c),$(BUILD)/fx_$(k)_math) $(BUILD)/fx_$(k)_golden) \
-          $(foreach k,$(FX_INSTANCES),$(BUILD)/fx_$(k)_instance)
+          $(foreach k,$(FX_INSTANCES),$(BUILD)/fx_$(k)_instance) \
+          $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden)
 
 test-fx: $(FX_BINS)
 	@set -e; for k in $(FX_KERNELS); do \
@@ -223,6 +227,10 @@ test-fx: $(FX_BINS)
 	  echo "./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256"; ./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256; \
 	done
 	@set -e; for k in $(FX_INSTANCES); do echo "./$(BUILD)/fx_$${k}_instance"; ./$(BUILD)/fx_$${k}_instance; done
+	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
+	  echo "./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256"; \
+	  ./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256; \
+	done
 	@set -e; for p in $(FX_PERTURB); do \
 	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
 	done
@@ -234,8 +242,11 @@ strip-input-identity: $(LIB)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh "$(OMX_PLUGINS)"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh --self-test "$(OMX_PLUGINS)"
 
-golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden)
+golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden)
 	@set -e; for k in $(FX_KERNELS); do ./$(BUILD)/fx_$${k}_golden --write > test/golden/$$k.sha256; done
+	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
+	  ./$(BUILD)/fx_$${k}_instance_golden --write > test/golden/$${k}_instance.sha256; \
+	done
 
 # ---- the analysis engines ---------------------------------------------------------------------
 # FBS feedback detection and HRP read a spectrum and answer what rings and what to cut; they run on
