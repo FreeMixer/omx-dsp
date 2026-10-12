@@ -16,6 +16,8 @@
  *      same envelope.
  *   E  stop: fast → stop; the rate reaches exactly 0.0f, no later than the closed form's
  *      τ·ln(rate₀/ε) (+3 % for the float pole) + 1 sample, and the output then holds bit-identical.
+ *   S  settle: omx_rotor_settle() writes every word of a state never written before, the phase
+ *      word's Kahan carry included, so the arms above settle from whatever the stack holds.
  *
  * Pure C, `-lm`, no PipeWire. Built with -DOMX_CONTRACTS; every arm drains the ledger and leaves no
  * violation the rate does not explain (fx_rates.h).
@@ -87,11 +89,19 @@ static double lagrange_sine(double A, double w, long n, double d) {
   }
   return y;
 }
-/* omx_rotor_settle() sets the phase, the increment and the rate, not the phase word's Kahan carry:
- * a state starts zeroed, as omx_rotary_init() leaves its rotors, and is settled from there. */
-static void settle(struct omx_rotor_state *s, float rate) {
-  memset(s, 0, sizeof *s);
-  omx_rotor_settle(s, rate, 0.0f);
+static void settle(struct omx_rotor_state *s, float rate) { omx_rotor_settle(s, rate, 0.0f); }
+
+/* ---- arm S: a settle writes every word ---------------------------------------------------- */
+
+static void arm_s(void) {
+  struct omx_rotor_state s;
+  memset(&s, 0xA5, sizeof s);
+  omx_rotor_settle(&s, HORN_FAST, 0.25f);
+  ok(s.lfo.phase == 0.25f && s.lfo.inc == 0.0f, "S settle sets the phase and freezes it", 0.0,
+     (double)s.lfo.phase, 0.25);
+  ok(s.lfo.carry == 0.0f, "S settle clears the phase word's carry", 0.0, (double)s.lfo.carry, 0.0);
+  ok(s.anchor_hz == HORN_FAST && s.dev_hz == 0.0f, "S settle sets the rate, the distance zero", 0.0,
+     (double)omx_rotor_rate(&s), (double)HORN_FAST);
 }
 
 /* ---- arm B + C: a settled fast horn ------------------------------------------------------ */
@@ -238,6 +248,7 @@ static void arm_d(double sr, const char *name, float slow, float fast, float acc
 int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
+  arm_s();
   for (uint32_t k = 0; k < OMX_FX_RME_RATE_COUNT; k++) {
     const double sr = OMX_FX_RME_RATES[k];
     arm_bc(sr);
