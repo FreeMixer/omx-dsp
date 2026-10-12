@@ -52,15 +52,17 @@ struct omx_rotor_state {
 static inline float omx_rotor_rate(const struct omx_rotor_state *s) { return s->anchor_hz + s->dev_hz; }
 
 /**
- * @brief Settle a rotor at a rate and a phase, the distance zero.
+ * @brief Settle a rotor at a rate and a phase, the distance zero and the phase word's carry
+ *        cleared: every word of the state is written, so a state never read before is settled.
  * @param s The state, written.
  * @param rate_hz The rate, Hz, non-negative.
  * @param phase The phase, turns, in [0, 1).
- * @note RT-safe: three stores. Thread-safe on distinct state.
+ * @note RT-safe: five stores. Thread-safe on distinct state.
  */
 static inline void omx_rotor_settle(struct omx_rotor_state *s, float rate_hz, float phase) {
   s->lfo.phase = phase;
   s->lfo.inc = 0.0f;
+  s->lfo.carry = 0.0f;
   s->anchor_hz = rate_hz;
   s->dev_hz = 0.0f;
 }

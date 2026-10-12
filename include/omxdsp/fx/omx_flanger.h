@@ -146,9 +146,11 @@ static inline enum omx_fdelay_code omx_flanger_state_init(struct omx_flanger_sta
   omx_lfo_start(&s->lfo);
   s->fb_l = 0.0f;
   s->fb_r = 0.0f;
+  /* Both lines are initialised whatever the left one answers, so a refused init leaves each line
+   * armed or unarmed and never indeterminate; the stage runs only when both are armed. */
   enum omx_fdelay_code c = omx_fdelay_init(&s->line_l, ring_l, cap, OMX_FLANGER_ORDER);
-  if (c != OMX_FDELAY_OK) return c;
-  c = omx_fdelay_init(&s->line_r, ring_r, cap, OMX_FLANGER_ORDER);
+  const enum omx_fdelay_code cr = omx_fdelay_init(&s->line_r, ring_r, cap, OMX_FLANGER_ORDER);
+  if (c == OMX_FDELAY_OK) c = cr;
   OMX_POST(c != OMX_FDELAY_OK || s->line_l.order == OMX_FLANGER_ORDER,
            "an-armed-flanger-reads-at-order-three");
   return c;
