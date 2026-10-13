@@ -263,6 +263,7 @@ static inline uint32_t omx_eq_curve_freqs(const struct omx_eq_band *bands, uint3
   int ascending = 1;
   for (uint32_t i = 1; i < n; i++) ascending &= f_out[i - 1] <= f_out[i];
   OMX_POST(ascending, "ascending");
+  (void)ascending; /* read only by the post-condition, compiled out in a release build */
   return n;
 }
 
