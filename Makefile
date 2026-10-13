@@ -178,7 +178,8 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 # ---- the effect kernels ------------------------------------------------------------------------
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if
 # 44.1, 48, 96 or 192 kHz is missing; the golden digests hold the kernel's output bit for bit.
-# The dynamics, balance, rotor and limiter oracles and digests run at the nine RME rates instead
+# The dynamics, balance, rotor and limiter oracles and digests, and the fractional delay line's
+# exact-copy and tone arms, run at the nine RME rates instead
 # (OMX_FX_RME_RATES in test/fx/fx_rates.h), 32, 64 and 128 kHz included.
 
 # One list, one set of rules: a kernel lane adds its name to FX_KERNELS and its three sources,

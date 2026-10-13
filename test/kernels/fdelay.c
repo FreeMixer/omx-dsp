@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
+#include "../fx/fx_rates.h"
+
 /* ---- the fractional delay line -------------------------------------------------------------- */
 
 static void arm_fdelay(void) {
@@ -48,9 +50,10 @@ static void arm_fdelay(void) {
     struct omx_fdelay l;
     ok(omx_fdelay_init(&l, ring, 4096u, order) == OMX_FDELAY_OK, "a legal order arms", order, 0.0);
     ok(l.order == order && l.cap == 4096u, "an armed line carries what it was given", l.order, order);
-    /* a whole-sample delay is an exact copy, for any input, at every declared rate's block */
-    for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-      const float sr = OMX_DECLARED_RATES[ri];
+    /* a whole-sample delay is an exact copy, for any input, at each of the nine RME rates (the
+     * strip alignment line rides this primitive at every rate the interface clocks) */
+    for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+      const float sr = OMX_FX_RME_RATES[ri];
       memset(ring, 0, sizeof ring);
       l.wpos = 0u;
       const uint32_t n = 256u, d = (uint32_t)(sr * 0.001f); /* 1 ms */
