@@ -60,7 +60,7 @@ if [ "${1:-}" = --self-test ]; then
   exit 0
 fi
 
-found="$(git ls-files | scan .)"
+found="$(git -c safe.directory="$PWD" ls-files | scan .)"
 if [ -n "$found" ]; then
   echo "public-sources-check: these lines point at private repositories or paths; state the fact itself:" >&2
   printf '%s\n' "$found" >&2
