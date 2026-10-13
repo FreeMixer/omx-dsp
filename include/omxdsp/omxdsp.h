@@ -16,7 +16,7 @@
 /** @brief API major version: a symbol's meaning changes only with a bump here. */
 #define OMXDSP_VERSION_MAJOR 0
 /** @brief API minor version: additions only. */
-#define OMXDSP_VERSION_MINOR 9
+#define OMXDSP_VERSION_MINOR 10
 /** @brief Patch version: no API change. */
 #define OMXDSP_VERSION_PATCH 0
 
@@ -55,6 +55,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_fdelay.h"
 #include "omx_fft.h"
 #include "omx_gaincomp.h"
+#include "omx_gen.h"
 #include "omx_lfo.h"
 #include "omx_lookahead.h"
 #include "omx_matched_pair.h"
@@ -64,6 +65,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_oversampler.h"
 #include "omx_param.h"
 #include "omx_port_int.h"
+#include "omx_src.h"
 #include "omx_truepeak.h"
 #include "omx_units.h"
 #include "omx_wetdry.h"
