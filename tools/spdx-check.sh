@@ -3,11 +3,11 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # Every tracked source file names its licence in an SPDX line within its first five lines.
-# Files that cannot carry a comment (the licence text, Debian's control files, the golden digests)
+# Files that cannot carry a comment (the licence text, Debian's control files, the golden digests and tables)
 # are listed here and nowhere else.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-exempt='^(LICENSE|debian/(changelog|control|copyright|source/format|libomxdsp-dev\.docs)|test/golden/.*\.sha256)$'
+exempt='^(LICENSE|debian/(changelog|control|copyright|source/format|libomxdsp-dev\.docs)|test/golden/.*\.(sha256|json))$'
 missing=0
 while IFS= read -r f; do
   [[ "$f" =~ $exempt ]] && continue

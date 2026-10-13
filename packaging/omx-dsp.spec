@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.11.0
+Version: 0.12.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,13 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.12.0-1
+- omx_magnitude.h: the magnitude in dB of a designed section or cascade
+  at the frequencies the caller passes, floored for a full null, and a
+  band's curve anchors
+- omx_eq_bandwidth_q is the one bandwidth-to-Q law, with a golden table
+  for its copies
+
 * Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.11.0-1
 - omx_idelay.h: the integer delay line with its click-free re-point, moved
   from the console's route and bus-output delay; its output is unchanged
