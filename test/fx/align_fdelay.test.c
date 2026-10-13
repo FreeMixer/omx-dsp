@@ -210,9 +210,25 @@ static void arm_c_lands_exactly(void) {
     omx_align_apply(&a, buf, NULL, 1, 40.0f);
     moved++;
   }
+  /* The duration is the spec's slew, 1/32 sample per sample (smart-alignment §7), written here as
+   * a number: read through OMX_ALIGN_SLEW it would follow a moved slew and stay green. */
   snprintf(what, sizeof what, "a 10 -> 40 move lands exactly after %u samples (960 declared)",
            moved);
-  check(a.cur == 40.0f && moved == (uint32_t)(30.0f / OMX_ALIGN_SLEW), what);
+  check(a.cur == 40.0f && moved == 960u, what);
+  /* And back down, to a fractional target: 29.5 x 32 = 944 samples. */
+  moved = 0;
+  while (a.cur != 10.5f && moved < 4096u) {
+    memset(buf, 0, sizeof buf);
+    omx_align_apply(&a, buf, NULL, 1, 10.5f);
+    moved++;
+  }
+  snprintf(what, sizeof what, "a 40 -> 10.5 move lands exactly after %u samples (944 declared)",
+           moved);
+  check(a.cur == 10.5f && moved == 944u, what);
+  for (int b = 0; b < 16; b++) {
+    memset(buf, 0, sizeof buf);
+    omx_align_apply(&a, buf, NULL, 64, 40.0f);
+  }
   memset(buf, 0, sizeof buf);
   buf[0] = 1.0f;
   omx_align_apply(&a, buf, NULL, 64, 40.0f);
