@@ -52,10 +52,10 @@
  * generator runs.
  */
 struct omx_gen_state {
-  float phase;      /* oscillator phase in cycles, always in [0,1) */
-  uint32_t rng;     /* xorshift32 state; never 0 (0 is a fixed point) */
-  float pink[7];    /* Paul Kellet refined pink filter states b0..b6 */
-  float cur_level;  /* the currently-applied level — ramped toward the target per block */
+  float phase;      /**< Oscillator phase in cycles, always in [0,1). */
+  uint32_t rng;     /**< xorshift32 state; never 0 (0 is a fixed point). */
+  float pink[7];    /**< Paul Kellet refined pink filter states b0..b6. */
+  float cur_level;  /**< The currently-applied level, ramped toward the target per block. */
 };
 
 /**
