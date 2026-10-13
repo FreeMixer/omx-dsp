@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
+#include <omxdsp/omx_rta.h>
+
 #include "../fx/fx_rates.h"
 
 /* ---- the analyser's spectrum readings and half-band decimator --------------------------------

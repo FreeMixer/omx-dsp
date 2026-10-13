@@ -10,6 +10,9 @@
  * process callback. The window and the transforms are omx_fft.h's; the half-band table and its
  * interior dot product are omx_oversampler.h's.
  *
+ * Not in the umbrella header: omx_fft.h includes the umbrella, and a reading parsed from there
+ * would call the transforms before omx_fft.h defines them. Include this header by name.
+ *
  * Moved from the OpenMixer engine (mix_dsp.h) unchanged in behaviour:
  * test/golden/engine_kernels.sha256 holds its output to the engine's, bit for bit.
  */
