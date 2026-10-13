@@ -12,6 +12,9 @@
  *
  * The live `reverse` voice is the control arm on the SAME click: it must put its energy on the
  * other side of the hit. One kernel, two placements — that is what the amendment decided.
+ *
+ * Every arm runs at the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz) over a 2 s region with
+ * the click at 1 s.
  */
 #include <math.h>
 #include <stdio.h>
@@ -19,6 +22,8 @@
 #include <string.h>
 
 #include <omxdsp/fx/omx_reverse_render.h>
+
+#include "fx_rates.h"
 
 static int g_fail = 0, g_checks = 0;
 static void check(int cond, const char *what) {
@@ -29,9 +34,9 @@ static void check(int cond, const char *what) {
   }
 }
 
-#define SR 48000.0f
-#define N 96000u        /* 2 s */
-#define HIT 48000u      /* the click, at t = 1.000 s */
+static float SR;     /* the rate the arms run at */
+static uint32_t N;   /* 2 s */
+static uint32_t HIT; /* the click, at t = 1.000 s */
 
 static struct omx_reverse_render_scratch *make_scratch(uint32_t n, uint32_t w) {
   struct omx_reverse_render_scratch *sc = calloc(1, sizeof(*sc));
@@ -90,7 +95,7 @@ static void click(float *l, float *r, uint32_t n) {
  */
 static void test_swell_lands_before_the_hit(void) {
   const uint32_t w = omx_reverse_render_window(300.0f, SR);
-  check(w == 14400u, "300 ms at 48 kHz is 14400 samples, even");
+  check(w == (uint32_t)(0.3 * (double)SR) && w % 2u == 0u, "300 ms is 0.3 x the rate in samples, even");
   float *l = malloc(N * sizeof(float)), *r = malloc(N * sizeof(float));
   struct omx_reverse_render_scratch *sc = make_scratch(N, w);
   struct omx_reverb p = row(0.5f, 0.0f);
@@ -133,7 +138,10 @@ static void test_the_live_voice_swells_after_the_hit(void) {
   omx_reverb_state_layout(s, pool, OMX_REVERB_POOL_FLOATS, SR);
   struct omx_reverb p = row(1.0f, 0.0f);
   click(l, r, N);
-  for (uint32_t off = 0; off < N; off += 256u) omx_reverb_process(l + off, r + off, 256u, &p, s, SR);
+  for (uint32_t off = 0; off < N; off += 256u) {
+    const uint32_t q = N - off < 256u ? N - off : 256u; /* 2 s is not whole blocks at every rate */
+    omx_reverb_process(l + off, r + off, q, &p, s, SR);
+  }
   const uint32_t w = omx_reverse_render_window(300.0f, SR);
   const float before = energy(l, HIT - w, HIT);
   const float after = energy(l, HIT, HIT + 2u * w);
@@ -214,11 +222,17 @@ static void test_the_regions_last_sample_is_covered(void) {
 }
 
 int main(void) {
-  test_swell_lands_before_the_hit();
-  test_the_live_voice_swells_after_the_hit();
-  test_predelay_opens_a_gap_before_the_hit();
-  test_mix_zero_is_bit_identical_and_off_refuses();
-  test_the_regions_last_sample_is_covered();
-  printf("fx/reverse_render: %d checks, %d failed\n", g_checks, g_fail);
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    SR = OMX_FX_RME_RATES[ri];
+    N = 2u * (uint32_t)SR;
+    HIT = (uint32_t)SR;
+    printf(" %.0f Hz\n", (double)SR);
+    test_swell_lands_before_the_hit();
+    test_the_live_voice_swells_after_the_hit();
+    test_predelay_opens_a_gap_before_the_hit();
+    test_mix_zero_is_bit_identical_and_off_refuses();
+    test_the_regions_last_sample_is_covered();
+  }
+  printf("fx/reverse_render: %d checks, %d failed, %u rates\n", g_checks, g_fail, (unsigned)OMX_FX_RME_RATE_COUNT);
   return g_fail ? 1 : 0;
 }
