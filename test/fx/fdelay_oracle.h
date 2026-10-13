@@ -12,7 +12,7 @@
  * `mix_fdelay.h` builds the interpolation as a product of Lagrange basis coefficients. This file
  * builds the same unique polynomial by NEWTON'S DIVIDED DIFFERENCES over the complex exponential
  * samples themselves and never forms a coefficient at all — the derivation
- * `mix_fdelay.test.c`'s own oracle uses, and the reason a stage oracle standing on it is not
+ * test/kernels/fdelay.c's own oracle uses, and the reason a stage oracle standing on it is not
  * comparing the kernel with itself.
  */
 #ifndef OMX_TEST_FDELAY_ORACLE_H
@@ -33,12 +33,12 @@
  * `d` is taken as the line's CLAMPED delay — the caller passes what `omx_fdelay_latency` would
  * answer, which for every control range in the modulation specs is the request itself.
  */
-static double complex omx_oracle_fdelay(int order, double d, double w) {
+static inline double complex omx_oracle_fdelay(int order, double d, double w) {
   const int off = (order - 1) / 2;
   const long id = (long)floor(d);
   const double fr = d - (double)id;
   double x[OMX_FDELAY_MAX_TAPS];
-  double complex v[OMX_FDELAY_MAX_TAPS];
+  double complex v[OMX_FDELAY_MAX_TAPS] = {0};
   for (int k = 0; k <= order; k++) {
     x[k] = (double)k;
     v[k] = cexp(-I * w * (double)(id + off + 1 - k));
@@ -54,7 +54,7 @@ static double complex omx_oracle_fdelay(int order, double d, double w) {
 /** The DFT of a captured impulse response at angular frequency `w` — the transfer function of a
  *  FROZEN (inc = 0) modulation stage, which is linear and time-invariant while its oscillator
  *  does not move. Exact at any frequency, unlike a windowed tone measurement. */
-static double complex omx_oracle_dft(const float *h, unsigned n, double w) {
+static inline double complex omx_oracle_dft(const float *h, unsigned n, double w) {
   double complex acc = 0.0;
   for (unsigned i = 0; i < n; i++) acc += (double)h[i] * cexp(-I * w * (double)i);
   return acc;

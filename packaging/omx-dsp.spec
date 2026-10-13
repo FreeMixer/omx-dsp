@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.12.0
+Version: 0.12.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,12 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.12.1-1
+- Tests only: the kernel arms OpenMixer's engine tests held (the LFO,
+  the one-pole, the oversampler and the comp's alias gate, the matched EQ
+  design, the fractional delay line and its sabotage battery, the band
+  dynamics at the nine RME rates) now run in make test. No API change
+
 * Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.12.0-1
 - omx_magnitude.h: the magnitude in dB of a designed section or cascade
   at the frequencies the caller passes, floored for a full null, and a
