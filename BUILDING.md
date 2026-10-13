@@ -96,7 +96,7 @@ expected, and every other law must hold. Their golden digest files carry all nin
 ## The engine's copies
 
 The sample-rate converter (`omx_src.h`), the generators (`omx_gen.h`) and the analyser's spectrum
-readings and half-band decimator (`omx_rta.h`) moved here from OpenMixer's engine unchanged in
+readings and half-band decimator (`analysis/omx_rta.h`) moved here from OpenMixer's engine unchanged in
 behaviour (FreeMixer/openmixer#1580). Their oracles are suite arms (`test/kernels/src.c`, `gen.c`,
 `rta.c`); `test/engine_kernels/golden.test.c` hashes their output per kernel at the nine RME rates,
 and `test/golden/engine_kernels.sha256` holds the digests the engine's own copies gave, written by

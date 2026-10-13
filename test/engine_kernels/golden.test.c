@@ -3,7 +3,7 @@
 /*
  * The golden digests of the kernels moved from the OpenMixer engine (FreeMixer/openmixer#1580): the
  * sample-rate converter (omx_src.h), the generators (omx_gen.h) and the analyser's spectrum
- * readings and half-band decimator (omx_rta.h), hashed per kernel and per rate at the nine RME
+ * readings and half-band decimator (analysis/omx_rta.h), hashed per kernel and per rate at the nine RME
  * rates and compared with test/golden/engine_kernels.sha256.
  *
  *   make test-engine-kernels                      compare
@@ -34,7 +34,7 @@
 #include <string.h>
 
 #include <omxdsp/omx_gen.h>
-#include <omxdsp/omx_rta.h>
+#include <omxdsp/analysis/omx_rta.h>
 #include <omxdsp/omx_src.h>
 #include <omxcontract/omx_contract_limits.h>
 
