@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.10.0
+Version: 0.11.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,11 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.11.0-1
+- omx_idelay.h: the integer delay line with its click-free re-point, moved
+  from the console's route and bus-output delay; its output is unchanged
+  bit for bit
+
 * Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.10.0-1
 - Three primitives moved from the OpenMixer engine, unchanged in
   behaviour: the offline sample-rate converter (omx_src.h), the test-
