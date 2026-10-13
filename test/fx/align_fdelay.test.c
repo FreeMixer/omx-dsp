@@ -2,8 +2,9 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * align_fdelay.test.c (formerly the console's mix_align_fdelay.test.c) — the STRIP ALIGNMENT stage
- * (omx_align.h) on the fractional line, against closed forms, at all six declared rates
- * (44.1 / 48 / 88.2 / 96 / 176.4 / 192 kHz).
+ * (omx_align.h) on the fractional line, against closed forms, at the nine RME rates
+ * (32 / 44.1 / 48 / 64 / 88.2 / 96 / 128 / 176.4 / 192 kHz, OMX_FX_RME_RATES): 64 and 128 kHz
+ * sit either side of OMX_ALIGN_FRACTION_MIN_RATE, and 32 kHz is where the ring is least used.
  *
  * Law: docs/design/specs/2026-08-31-smart-alignment.md §7 (#863), on the RULED
  * 2026-09-20-fractional-delay-line.md. The primitive's own oracle is test/kernels/fdelay.c; this file
@@ -16,7 +17,7 @@
  *       reachable at every rate inside `OMX_ALIGN_CAP`, which is the primitive's own
  *       `omx_fdelay_cap_for`; nonsense reads as 0 or saturates, never wraps.
  *   B — THE DELAY THE AUDIO TAKES. A 1 kHz tone through the settled line, its phase delay measured
- *       by a one-bin DFT over exactly 100 cycles (no leakage at any of the six rates): the
+ *       by a one-bin DFT over exactly 100 cycles (no leakage at any of the nine rates): the
  *       measured delay is the target within 0.001 sample, and the level within 0.01 dB.
  *   C — THE SLEW. (1) a move lands EXACTLY, after |Δ| / OMX_ALIGN_SLEW samples, and an impulse
  *       then arrives on the target sample; (2) NO HOLE: the delay review's D-2 probe — a tone at
@@ -43,6 +44,8 @@
 
 #include <omxdsp/omx_align.h>
 #include <omxdsp/omx_lookahead.h>
+
+#include "fx_rates.h"
 
 /* The POSITIVE CONTROL: the console's route delay (omx_delay_apply in its mix_dsp.h), a
  * whole-sample ring that re-points by blending the old and the new tap linearly across one block.
@@ -82,10 +85,9 @@ static void check(int ok, const char *what) {
   }
 }
 
-/* The declared rates (OMX_DECLARED_RATES, generated from core's STANDARD_SAMPLE_RATES — never a
- * local list). */
-#define NRATES ((int)OMX_DECLARED_RATE_COUNT)
-#define RATE(i) ((double)OMX_DECLARED_RATES[(i)])
+/* The nine RME rates (OMX_FX_RME_RATES, test/fx/fx_rates.h, generated — never a local list). */
+#define NRATES ((int)OMX_FX_RME_RATE_COUNT)
+#define RATE(i) ((double)OMX_FX_RME_RATES[(i)])
 
 static float g_rl[OMX_ALIGN_CAP], g_rr[OMX_ALIGN_CAP];
 
@@ -348,7 +350,7 @@ static void arm_d_one_target_two_legs(void) {
 }
 
 int main(void) {
-  printf("fx/align_fdelay: the strip alignment stage on the order-5 line, six rates\n");
+  printf("fx/align_fdelay: the strip alignment stage on the order-5 line, nine rates\n");
   arm_a_the_target();
   arm_b_the_delay_the_audio_takes();
   arm_c_lands_exactly();
