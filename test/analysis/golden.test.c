@@ -28,6 +28,21 @@
  *   correct  the family searches, the peaking bell over a grid of centre, Q and gain, a cascade of
  *            those bells over a noise block, the cut and score laws over a grid, and one ranked
  *            selection
+ *
+ * The rta, render and live digests cover the code that moved later (FreeMixer/openmixer#1580). Their
+ * stimulus is a ten-second take synthesised without the libm: a held A3 whose fourth harmonic
+ * rings 10 dB hot one second in every two and a half after a four-second teaching stretch, an E4
+ * from 6 to 8 s, and a noise floor. Their committed digests were written by
+ * tools/analysis-engine-identity.sh, which builds this program with those three headers answered
+ * by the engine's mix_dsp.h, hrp_render.h and hrp_lv2.h.
+ *
+ *   rta      the capture ring over uneven writes (fill count, gate, read back, a refused read, an
+ *            oversized write) and the spectrum of every window of the take
+ *   render   the learn pass, the rewind, the measure pass (every call's windows and voice set, the
+ *            whole report and the learned rows), a live pass over a fresh model, and the refusals
+ *   live     the live core driven by 256-frame quanta with the worker never late: every set it
+ *            adopts and every output sample, engaged for eight seconds then bypassed, the slots,
+ *            a worker a ring behind, and the not-ready identity
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -38,8 +53,11 @@
 #include <omxdsp/analysis/omx_hrp_attribute.h>
 #include <omxdsp/analysis/omx_hrp_baseline.h>
 #include <omxdsp/analysis/omx_hrp_correct.h>
+#include <omxdsp/analysis/omx_hrp_lv2.h>
 #include <omxdsp/analysis/omx_hrp_pitch.h>
+#include <omxdsp/analysis/omx_hrp_render.h>
 #include <omxdsp/analysis/omx_hrp_track.h>
+#include <omxdsp/analysis/omx_rta.h>
 #include <omxdsp/omx_units.h>
 
 #include "../support/log10f_cr.h"
@@ -61,7 +79,7 @@ float __wrap_log10f(float x) {
 
 /* ---- the record ---------------------------------------------------------------------------- */
 
-#define RECORD_BYTES (8u << 20)
+#define RECORD_BYTES (16u << 20)
 static uint8_t g_rec[RECORD_BYTES];
 static size_t g_len;
 static int g_overflow;
@@ -343,6 +361,290 @@ static void render_correct(double rate) {
   put_f32(omx_hrp_cents_apart(440.0f, 466.16f));
 }
 
+/* ---- the take: a held note whose fourth harmonic rings -------------------------------------- */
+
+/* sin(2π·turns) without the libm: the turn is folded into [-1/4, 1/4] and the odd Taylor series to
+ * x^13 run in double (error below 1e-9), so the take is the same bits on every libm. */
+static double tone_sin(double turns) {
+  double t = turns - (double)(int64_t)turns;
+  if (t < 0.0) t += 1.0;
+  if (t >= 0.5) return -tone_sin(t - 0.5);
+  if (t > 0.25) t = 0.5 - t;
+  const double x = 6.283185307179586 * t, x2 = x * x;
+  double s = 1.0 / 6227020800.0;
+  s = s * -x2 + 1.0 / 39916800.0;
+  s = s * -x2 + 1.0 / 362880.0;
+  s = s * -x2 + 1.0 / 5040.0;
+  s = s * -x2 + 1.0 / 120.0;
+  s = s * -x2 + 1.0 / 6.0;
+  s = s * -x2 + 1.0;
+  return x * s;
+}
+
+#define TAKE_SECONDS 10u
+#define TAKE_MAX (192000u * TAKE_SECONDS)
+static float g_take[TAKE_MAX];
+static float g_wet[TAKE_MAX];
+
+/* The ring's share of the fourth harmonic's gain, 0..1: steady for the first four seconds (the
+ * model is taught), then ringing one second in every two and a half, ramped over 50 ms. */
+static double take_ring(double t) {
+  if (t < 4.0) return 0.0;
+  double ph = t - 4.0;
+  while (ph >= 2.5) ph -= 2.5;
+  if (ph >= 1.0) return 0.0;
+  if (ph < 0.05) return ph / 0.05;
+  if (ph > 0.95) return (1.0 - ph) / 0.05;
+  return 1.0;
+}
+
+/* A3 at 216.8 Hz, five harmonics, the fourth +10 dB while it rings; an E4 of three harmonics from
+ * 6 to 8 s; a noise floor near -66 dBFS. */
+static uint32_t synth_take(double rate) {
+  static const double ladder[5] = {0.315, 0.14, 0.105, 0.07, 0.056};
+  const double hot = 3.1622776601683795; /* +10 dB */
+  const uint32_t frames = (uint32_t)rate * TAKE_SECONDS;
+  g_lcg = 0x2468aceu;
+  for (uint32_t i = 0; i < frames; i++) {
+    const double t = (double)i / rate;
+    const double ring = take_ring(t);
+    double x = 0.0;
+    for (uint32_t k = 1; k <= 5u; k++) {
+      double amp = ladder[k - 1];
+      if (k == 4u) amp *= 1.0 + ring * (hot - 1.0);
+      x += amp * tone_sin(216.796875 * (double)k * t);
+    }
+    if (t >= 6.0 && t < 8.0)
+      for (uint32_t k = 1; k <= 3u; k++) x += (0.12 / (double)k) * tone_sin(329.63 * (double)k * t);
+    x += 1e-3 * (lcg_unit() - 0.5);
+    g_take[i] = (float)x;
+  }
+  return frames;
+}
+
+static float g_carry[OMX_RTA_FFT_SIZE_MAX], g_wre[OMX_RTA_FFT_SIZE_MAX], g_wim[OMX_RTA_FFT_SIZE_MAX];
+static float g_hop[OMX_RTA_FFT_SIZE_MAX];
+
+/* ---- rta ----------------------------------------------------------------------------------- */
+
+static struct omx_ring g_ring;
+static float g_block[OMX_RTA_FFT_SIZE_MAX];
+
+static void render_rta(double rate) {
+  const uint32_t n = omx_rta_fft_size_for((uint32_t)rate);
+  put_u32(n);
+  const uint32_t frames = synth_take(rate);
+  memset(&g_ring, 0, sizeof g_ring);
+  omx_ring_reset(&g_ring);
+  uint32_t off = 0;
+  for (uint32_t q = 0; off < 4u * n; q++) {
+    const uint32_t len = 61u + (q * 37u) % 500u;
+    omx_ring_write(&g_ring, g_take + off, len);
+    off += len;
+    put_u32(omx_ring_filled(&g_ring));
+    put_i32(omx_ring_has(&g_ring, n));
+  }
+  omx_ring_read_latest(&g_ring, g_block, n);
+  put(g_block, (size_t)n * sizeof(float));
+  omx_rta_spectrum(g_block, n, g_wre, g_wim, g_mag);
+  put(g_mag, (size_t)(n / 2u) * sizeof(float));
+  omx_ring_read_at(&g_ring, g_block, n, 1000u);
+  omx_rta_spectrum(g_block, n, g_wre, g_wim, g_mag);
+  put(g_mag, (size_t)(n / 2u) * sizeof(float));
+  /* Past the capacity a read is refused: zeros. */
+  omx_ring_read_at(&g_ring, g_block, n, OMX_RTA_RING_SIZE);
+  put(g_block, (size_t)n * sizeof(float));
+  /* An oversized write keeps only the tail. */
+  omx_ring_write(&g_ring, g_take, frames < OMX_RTA_RING_SIZE + 777u ? frames : OMX_RTA_RING_SIZE + 777u);
+  put_u32(omx_ring_filled(&g_ring));
+  put_u32(atomic_load_explicit(&g_ring.pos, memory_order_relaxed));
+  omx_ring_read_at(&g_ring, g_block, 64u, 5u);
+  put(g_block, 64u * sizeof(float));
+  /* Every window of the take, the spectrum the analysis engines read. */
+  for (uint32_t s = 0; s + n <= frames; s += n) {
+    omx_rta_spectrum(g_take + s, n, g_wre, g_wim, g_mag);
+    put(g_mag, (size_t)(n / 2u) * sizeof(float));
+  }
+  for (uint32_t m = 2; m <= 16u; m *= 2) {
+    omx_rta_spectrum(g_take, m, g_wre, g_wim, g_mag);
+    put(g_mag, (size_t)(m / 2u) * sizeof(float));
+  }
+}
+
+/* ---- render -------------------------------------------------------------------------------- */
+
+static OmxHrpRender g_render;
+
+static void put_render_config(const OmxHrpRenderConfig *c) {
+  put_u32(c->rate);
+  put_u32(c->fft_size);
+  put_u32(c->hop);
+  put_config(&c->pitch);
+  put_f32(c->track.match_cents);
+  put_f32(c->track.steady_cents);
+  put_u32(c->track.promote_frames);
+  put_u32(c->track.retire_frames);
+  put_u32(c->track.octave_hold_frames);
+  put_f32(c->baseline.step_db);
+  put_u32(c->baseline.ripe_updates);
+}
+
+static void put_voice_set(const OmxHrpVoiceSet *s) {
+  put_u32(s->voice_count);
+  for (uint32_t i = 0; i < s->voice_count; i++) put_voice(&s->voices[i]);
+}
+
+static void put_report(const OmxHrpRenderReport *r) {
+  put_u32(r->windows);
+  put_u32(r->pitched_windows);
+  for (int note = 0; note < OMX_HRP_BASELINE_NOTES; note++)
+    for (uint32_t h = 0; h < OMX_HRP_HARMONICS; h++) {
+      const OmxHrpRenderCell *c = &r->cell[note][h];
+      if (c->frames == 0u) continue;
+      put_i32(note);
+      put_u32(h);
+      put_f32(c->baseline_db);
+      put_f32(c->sum_excess_db);
+      put_f32(c->sum_confidence);
+      put_f32(c->sum_voice_confidence);
+      put_f32(c->sum_f0_hz);
+      put_f32(c->peak_excess_db);
+      put_u32(c->frames);
+      put_u32(c->hot_frames);
+      put_f32(omx_hrp_render_excess_db(c));
+      put_f32(omx_hrp_render_duty(c));
+      put_f32(omx_hrp_render_peak_excess_db(c));
+      put_f32(omx_hrp_render_confidence(c));
+      put_f32(omx_hrp_render_voice_confidence(c));
+      put_f32(omx_hrp_render_f0_hz(c));
+    }
+}
+
+/* Feed the take in uneven blocks, recording what each call analysed and the voice set it left. */
+static void feed_take(uint32_t frames, int pass) {
+  uint32_t off = 0;
+  for (uint32_t q = 0; off < frames; q++) {
+    uint32_t len = 1000u + (q * 613u) % 4000u;
+    if (len > frames - off) len = frames - off;
+    put_u32(omx_hrp_render_feed(&g_render, g_take + off, len, pass));
+    put_voice_set(&g_render.voices);
+    off += len;
+  }
+}
+
+static void render_render(double rate) {
+  const uint32_t frames = synth_take(rate);
+  OmxHrpRenderConfig cfg = omx_hrp_render_config_default((uint32_t)rate);
+  put_render_config(&cfg);
+  cfg.pitch.f0_min_hz = 150.0f;
+  cfg.pitch.f0_max_hz = 400.0f;
+  put_i32(omx_hrp_render_init(&g_render, &cfg, g_carry, g_wre, g_wim, g_mag, g_residual));
+  feed_take(frames, OMX_HRP_RENDER_LEARN);
+  put_u32(g_render.learn_windows);
+  put_u32(g_render.fill);
+  omx_hrp_render_rewind(&g_render);
+  put_u32(g_render.fill);
+  put_voice_set(&g_render.voices);
+  feed_take(frames, OMX_HRP_RENDER_MEASURE);
+  put_report(&g_render.report);
+  for (int note = 0; note < OMX_HRP_BASELINE_NOTES; note++)
+    for (uint32_t h = 1; h <= OMX_HRP_HARMONICS; h++) {
+      float db = 0.0f;
+      if (omx_hrp_baseline_read(&g_render.baseline, note, h, &cfg.baseline, &db)) {
+        put_i32(note);
+        put_u32(h);
+        put_f32(db);
+      }
+    }
+  /* The one-read pass over a fresh model: measure first, then teach. */
+  put_i32(omx_hrp_render_init(&g_render, &cfg, g_carry, g_wre, g_wim, g_mag, g_residual));
+  feed_take(frames, OMX_HRP_RENDER_LIVE);
+  put_report(&g_render.report);
+  put_u32(g_render.learn_windows);
+  omx_hrp_render_reset_report(&g_render);
+  put_report(&g_render.report);
+  /* A refused init is not ready, and feeding it analyses nothing. */
+  OmxHrpRenderConfig bad = cfg;
+  bad.fft_size = 3000u;
+  put_i32(omx_hrp_render_init(&g_render, &bad, g_carry, g_wre, g_wim, g_mag, g_residual));
+  bad = cfg;
+  bad.hop = 0u;
+  put_i32(omx_hrp_render_init(&g_render, &bad, g_carry, g_wre, g_wim, g_mag, g_residual));
+  bad.hop = cfg.fft_size + 1u;
+  put_i32(omx_hrp_render_init(&g_render, &bad, g_carry, g_wre, g_wim, g_mag, g_residual));
+  put_i32(omx_hrp_render_init(&g_render, &cfg, g_carry, NULL, g_wim, g_mag, g_residual));
+  put_u32(omx_hrp_render_feed(&g_render, g_take, frames, OMX_HRP_RENDER_LIVE));
+}
+
+/* ---- live ---------------------------------------------------------------------------------- */
+
+static OmxHrpLv2 g_live;
+
+static void put_set(const OmxHrpLv2Set *s) {
+  put_u32(s->count);
+  for (uint32_t b = 0; b < s->count && b < OMX_HRP_LV2_MAX_BANDS; b++) {
+    put(s->coeffs[b], sizeof s->coeffs[b]);
+    put_f32(s->freq_hz[b]);
+    put_f32(s->cut_db[b]);
+  }
+}
+
+/* Quanta through run(), a worker pass whenever one is due, the set adopted at once: a host's
+ * schedule with the worker never late. Records every set and every output sample. */
+static void drive_live(uint32_t from, uint32_t frames, int bypass) {
+  for (uint32_t off = from; off < frames; off += 256u) {
+    const uint32_t n = frames - off < 256u ? frames - off : 256u;
+    omx_hrp_lv2_run(&g_live, g_take + off, g_wet + off, n);
+    if (omx_hrp_lv2_due(&g_live, bypass)) {
+      OmxHrpLv2Set set;
+      omx_hrp_lv2_analyse(&g_live, bypass, &set);
+      put_set(&set);
+      omx_hrp_lv2_adopt(&g_live, &set);
+      put_u32(omx_hrp_cascade_live(&g_live.live));
+    }
+  }
+  put(g_wet + from, (size_t)(frames - from) * sizeof(float));
+}
+
+static void render_live(double rate) {
+  const uint32_t frames = synth_take(rate);
+  put_i32(omx_hrp_lv2_init(&g_live, (uint32_t)rate, g_carry, g_wre, g_wim, g_mag, g_residual, g_hop));
+  put_u32(omx_hrp_lv2_hop(&g_live));
+  omx_hrp_lv2_set_family(&g_live, OMX_HRP_FAMILY_STRINGS);
+  put_config(&g_live.render.cfg.pitch);
+  g_live.render.cfg.pitch.f0_min_hz = 150.0f;
+  g_live.render.cfg.pitch.f0_max_hz = 400.0f;
+  omx_hrp_lv2_set_amount(&g_live, 1.0f, OMX_HRP_LV2_MAX_BANDS);
+  put_f32(g_live.amount);
+  put_u32(g_live.max_bands);
+  /* Engaged for the first eight seconds, then bypassed: the bands walk out. */
+  const uint32_t engaged = (uint32_t)rate * 8u;
+  drive_live(0, engaged, 0);
+  drive_live(engaged, frames, 1);
+  for (uint32_t i = 0; i < OMX_HRP_LV2_MAX_BANDS; i++) {
+    put_i32(g_live.slot[i].voice_id);
+    put_u32(g_live.slot[i].harmonic);
+    put_f32(g_live.slot[i].freq_hz);
+    put_f32(g_live.slot[i].applied_db);
+  }
+  put_u32(g_live.passes);
+  put_report(&g_live.render.report);
+  /* A worker that fell a ring behind skips to the newest hop. */
+  omx_hrp_lv2_set_amount(&g_live, 0.7f, 3u);
+  for (uint32_t off = 0; off < OMX_RTA_RING_SIZE + 3000u; off += 1024u)
+    omx_hrp_lv2_run(&g_live, g_take + off % (frames - 1024u), g_wet, 1024u);
+  OmxHrpLv2Set set;
+  omx_hrp_lv2_analyse(&g_live, 0, &set);
+  put_set(&set);
+  put_u64(atomic_load_explicit(&g_live.written, memory_order_relaxed));
+  put_u64(atomic_load_explicit(&g_live.consumed, memory_order_relaxed));
+  /* An instance that is not ready is the identity. */
+  put_i32(omx_hrp_lv2_init(&g_live, 0u, g_carry, g_wre, g_wim, g_mag, g_residual, g_hop));
+  omx_hrp_lv2_run(&g_live, g_take, g_wet, 512u);
+  put_i32(memcmp(g_take, g_wet, 512u * sizeof(float)) == 0);
+  put_i32(omx_hrp_lv2_due(&g_live, 0));
+}
+
 /* ---- the driver ---------------------------------------------------------------------------- */
 
 static void render_fbs_both(double rate) {
@@ -353,7 +655,8 @@ static void render_fbs_both(double rate) {
 static const struct {
   const char *name;
   void (*render)(double rate);
-} ENGINES[] = {{"fbs", render_fbs_both}, {"hrp", render_hrp}, {"correct", render_correct}};
+} ENGINES[] = {{"fbs", render_fbs_both}, {"hrp", render_hrp}, {"correct", render_correct},
+               {"rta", render_rta},    {"render", render_render}, {"live", render_live}};
 
 int main(int argc, char **argv) {
   omx_analysis_require_rates();
