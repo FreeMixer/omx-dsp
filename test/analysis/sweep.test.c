@@ -50,7 +50,7 @@ static void arm_rate(double rate) {
   const double K = 2.0 * M_PI * f0 * L;
   const uint32_t nf = (uint32_t)round(fade * rate);
   double worst = 0.0;
-  for (uint32_t i = nf; i < n - nf; i++) worst = fmax(worst, fabs(stim[i] - sin(K * (exp(((double)i / rate) / L) - 1.0))));
+  for (uint32_t i = nf; i < n - nf; i++) worst = room_worse(worst, fabs(stim[i] - sin(K * (exp(((double)i / rate) / L) - 1.0))));
   check(worst < 1e-9, "between the fades, sin(K·(e^{t/L} − 1))", worst, 0);
   check(stim[0] == 0.0 && fabs(stim[n - 1u]) < 1e-15, "both ends at zero", stim[n - 1u], 0);
 
@@ -68,7 +68,7 @@ static void arm_rate(double rate) {
   const uint32_t ms = (uint32_t)ceil(rate / 1000.0);
   double side = 0.0;
   for (uint32_t i = 0; i < 2048u; i++)
-    if (i + ms < 1024u || i > 1024u + ms) side = fmax(side, fabs(ir[i]));
+    if (i + ms < 1024u || i > 1024u + ms) side = room_worse(side, fabs(ir[i]));
   check(20.0 * log10(side) < -40.0, "a millisecond off it, under −40 dB", 20.0 * log10(side), -40.0);
 
   /* A room of three arrivals. */
@@ -147,7 +147,7 @@ static void arm_convolve(void) {
   double *s = room_alloc(4u * (size_t)omx_sweep_convolve_size(300u, 77u) * sizeof(double));
   check(omx_sweep_convolve(x, 300u, y, 77u, s) == 376u, "length 376", 0, 0);
   double worst = 0.0;
-  for (int i = 0; i < 376; i++) worst = fmax(worst, fabs(s[i] - direct[i]));
+  for (int i = 0; i < 376; i++) worst = room_worse(worst, fabs(s[i] - direct[i]));
   check(worst < 1e-12, "the FFT convolution is the direct sum", worst, 0);
   free(s);
 }

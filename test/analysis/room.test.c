@@ -135,10 +135,10 @@ static void check_flat_curve(Bufs *b, double gain, double d, const char *what) {
   double worst_db = 0.0, worst_ph = 0.0, worst_co = 0.0, worst_hz = 0.0;
   for (uint32_t i = 0; i < m; i++) {
     const double k = (double)(acc->k_lo + i);
-    worst_hz = fmax(worst_hz, fabs(b->hz[i] - k * acc->sample_rate / n));
-    worst_db = fmax(worst_db, fabs(b->db[i] - 20.0 * log10(gain)));
-    worst_ph = fmax(worst_ph, fabs((b->ph[i] - b->ph[0]) - (-360.0 * (k - (double)acc->k_lo) * d / n)));
-    worst_co = fmax(worst_co, fabs(b->co[i] - 1.0));
+    worst_hz = room_worse(worst_hz, fabs(b->hz[i] - k * acc->sample_rate / n));
+    worst_db = room_worse(worst_db, fabs(b->db[i] - 20.0 * log10(gain)));
+    worst_ph = room_worse(worst_ph, fabs((b->ph[i] - b->ph[0]) - (-360.0 * (k - (double)acc->k_lo) * d / n)));
+    worst_co = room_worse(worst_co, fabs(b->co[i] - 1.0));
   }
   g_arm = what;
   check(worst_hz < 1e-9, "bin k sits at k·rate/n", worst_hz, 0);
@@ -206,7 +206,7 @@ static void arm_transfer(Bufs *b, double rate) {
   for (int i = 0; i < 64; i++) ramp[i] = atan2(sin(-0.9 * i + 0.3), cos(-0.9 * i + 0.3));
   omx_room_unwrap(ramp, 64u);
   double worst = 0.0;
-  for (int i = 0; i < 64; i++) worst = fmax(worst, fabs(ramp[i] - (-0.9 * i + 0.3)));
+  for (int i = 0; i < 64; i++) worst = room_worse(worst, fabs(ramp[i] - (-0.9 * i + 0.3)));
   check(worst < 1e-12, "a wrapped ramp unwraps to the ramp", worst, 0);
 }
 

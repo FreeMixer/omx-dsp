@@ -90,6 +90,10 @@ static double room_noise(RoomRng *r) {
   return (double)x / 2147483648.0 - 1.0;
 }
 
+/* The larger of a running worst and a new error, as a comparison (BUILDING.md, "GCC 12.2 on
+ * arm64"); a NaN error is carried. */
+static inline double room_worse(double worst, double e) { return !(e <= worst) ? e : worst; }
+
 static int room_report(const char *name) {
   printf("analysis/%s: %d checks, %d failed\n", name, g_checks, g_fail);
   return g_fail ? 1 : 0;
