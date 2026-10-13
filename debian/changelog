@@ -1,3 +1,13 @@
+omx-dsp (0.9.0) unstable; urgency=medium
+
+  * Three analysis headers arrive from the console, unchanged:
+    analysis/omx_rta.h, the capture ring and magnitude spectrum the
+    analysis engines read; analysis/omx_hrp_render.h, HRP's offline render
+    over a whole take; and analysis/omx_hrp_lv2.h, HRP's live corrector
+    core, host-agnostic. Their outputs are the console's own, bit for bit.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
 omx-dsp (0.8.0) unstable; urgency=medium
 
   * omx_align.h: the console's input alignment stage, moved unchanged.
