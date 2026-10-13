@@ -286,11 +286,13 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
 # and requires the golden digests of that kernel to move.
 # The room analysis, the Farina sweep and the alignment fit (FreeMixer/openmixer#1602) run on the same
-# thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h.
+# thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h;
+# align_fit, room and sweep hold them to closed forms at the nine RME rates and count allocations.
 ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 rates golden \
-                 room_ts
+                 room_ts align_fit
 ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
+ANALYSIS_LDFLAGS_align_fit = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) $(wildcard test/analysis/fixtures/*.h) \
                 test/fx/sha256.h $(SUPPORT_HEADERS) | $(BUILD)
 
