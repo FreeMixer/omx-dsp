@@ -267,12 +267,13 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 
 # ---- the analysis engines ---------------------------------------------------------------------
 # FBS feedback detection and HRP read a spectrum and answer what rings and what to cut; they run on
-# a control thread, never in the audio callback. Each test/analysis/<t>.test.c is one program at
+# a control thread, never in the audio callback. omx_rta.h is the capture ring
+# and the spectrum they read. Each test/analysis/<t>.test.c is one program at
 # release flags against the plain archive; -Isrc lets a test include the compiled unit it checks.
 # rates runs the HRP chain at the nine RME rates and counts allocations through wrapped allocators;
 # golden compares every answer of both engines with test/golden/analysis.sha256, which the engine's
 # own copy of this code wrote before it moved here; its log10f is the correctly rounded omx_log10f of test/support, wrapped in at link time.
-ANALYSIS_TESTS = fbs_detect hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct rates golden
+ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct rates golden
 ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
 ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) test/fx/sha256.h $(SUPPORT_HEADERS) | $(BUILD)
