@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.6.1
+Version: 0.10.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,16 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.10.0-1
+- Three primitives moved from the OpenMixer engine, unchanged in
+  behaviour: the offline sample-rate converter (omx_src.h), the test-
+  signal generators (omx_gen.h), and the analyser's complex spectrum and
+  half-band decimator, which join the capture ring and spectrum in
+  analysis/omx_rta.h. Golden digests at the nine RME rates, written by the
+  engine's own copies, hold them bit for bit
+- Built against omx-contract 2.6.0, which declares the converter's design
+  and the generators' kinds and waveforms; any 2.x from 2.6.0 on
+
 * Mon Oct 12 2026 Pau Aliagas <linuxnow@gmail.com> - 0.6.1-1
 - The rotor read its LFO carry before setting it on the first tick; it is
   now cleared at settle

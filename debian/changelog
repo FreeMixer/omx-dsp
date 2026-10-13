@@ -1,3 +1,16 @@
+omx-dsp (0.10.0) unstable; urgency=medium
+
+  * Three primitives moved from the OpenMixer engine, unchanged in
+    behaviour: the offline sample-rate converter (omx_src.h), the test-
+    signal generators (omx_gen.h), and the analyser's complex spectrum and
+    half-band decimator, which join the capture ring and spectrum in
+    analysis/omx_rta.h. Golden digests at the nine RME rates, written by
+    the engine's own copies, hold them bit for bit.
+  * Built against omx-contract 2.6.0, which declares the converter's
+    design and the generators' kinds and waveforms; any 2.x from 2.6.0 on.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
 omx-dsp (0.9.0) unstable; urgency=medium
 
   * Three analysis headers arrive from the console, unchanged:
