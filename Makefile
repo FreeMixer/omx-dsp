@@ -22,6 +22,7 @@
 #               own copies (mix_src.h, mix_dsp.h), and the check's sabotages (tools/engine-kernels-identity.sh)
 #   make lint   the doc check and the source scan only
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
+#   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
@@ -93,7 +94,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage bandwidth-q-table
 
 all: lib
 
@@ -165,6 +166,15 @@ threads: $(BUILD)/omxdsp_threads
 # suite above is the control.
 magnitude-sabotage: test/omxdsp_suite.c test/magnitude-sabotage.sh $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/magnitude-sabotage.sh $(BUILD)/magnitude-sabotage $(LIB_CONTRACTS)
+
+# The bandwidth-to-Q law's table (FreeMixer/omx-dsp#41), held equal to what omx_eq_bandwidth_q()
+# computes; openmixer's TypeScript copy is tested against the committed file.
+$(BUILD)/eq_bandwidth_q_table: test/eq_bandwidth_q_table.c $(LIB) $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< $(LIB) -lm
+
+bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
+	./$(BUILD)/eq_bandwidth_q_table | diff -u test/golden/eq_bandwidth_q.json -
+	@echo "bandwidth-q-table: test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s"
 
 perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
@@ -271,7 +281,8 @@ strip-input-identity: $(LIB)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh "$(OMX_PLUGINS)"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh --self-test "$(OMX_PLUGINS)"
 
-golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden)
+golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden) $(BUILD)/eq_bandwidth_q_table
+	./$(BUILD)/eq_bandwidth_q_table > test/golden/eq_bandwidth_q.json
 	@set -e; for k in $(FX_KERNELS); do ./$(BUILD)/fx_$${k}_golden --write > test/golden/$$k.sha256; done
 	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
 	  ./$(BUILD)/fx_$${k}_instance_golden --write > test/golden/$${k}_instance.sha256; \
@@ -332,7 +343,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage consumer perturb threads test-fx test-analysis test-engine-kernels flavours
+test: lib checks suite negative magnitude-sabotage bandwidth-q-table consumer perturb threads test-fx test-analysis test-engine-kernels flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
