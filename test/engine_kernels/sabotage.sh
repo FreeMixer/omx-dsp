@@ -23,8 +23,10 @@ while IFS='|' read -r kernel header expr; do
   if cmp -s "$PKG/include/omxdsp/$header" "$OUT/include/omxdsp/$header"; then
     echo "SABOTAGE $kernel: the edit changed nothing in $header"; fail=1; continue
   fi
+  # A sabotaged copy need not be warning-clean: GCC 16 reads the src break's shortened loop as a
+  # possible overflow of the record (-Wstringop-overflow), so the copy builds without -Werror.
   # shellcheck disable=SC2086
-  $CC $CFLAGS -I"$OUT/include" -isystem "$CONTRACT_INC" -o "$OUT/golden" "$PKG/test/engine_kernels/golden.test.c" -lm
+  $CC $CFLAGS -Wno-error -I"$OUT/include" -isystem "$CONTRACT_INC" -o "$OUT/golden" "$PKG/test/engine_kernels/golden.test.c" -lm
   if "$OUT/golden" "$PKG/test/golden/engine_kernels.sha256" >"$OUT/log" 2>&1; then
     echo "SABOTAGE $kernel: STAYED GREEN"; fail=1; continue
   fi
