@@ -3,7 +3,8 @@
 /**
  * @file band_dyn.test.c
  * @brief The band-dynamics word's oracle, docs/design/specs/2026-09-26-native-dynamic-eq.md §5
- *        O1–O9, at every declared rate (O10 is the de-esser's own battery, out of scope here).
+ *        O1–O9, at the nine RME rates (OMX_FX_RME_RATES, fx_rates.h: the six declared plus 32, 64 and
+ *        128 kHz), so O9's rate spread spans all nine (O10 is the de-esser's own battery, out of scope here).
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omx_contract.h>
@@ -21,9 +22,9 @@
 
 /** @brief The shared band-dynamics knee, dB — `BAND_DYN_KNEE_DB`, spec §3b. */
 #define KNEE_DB 6.0f
-/** @brief Where the 4-stage peak cascade settles on a 1 kHz sine, dB under its peak (measured −0.742 at six rates). */
+/** @brief Where the 4-stage peak cascade settles on a 1 kHz sine, dB under its peak (measured −0.742 at the nine RME rates). */
 #define PEAK_SETTLE_DB (-0.742)
-/** @brief Samples held in one scratch leg: 2 s at the highest declared rate. */
+/** @brief Samples held in one scratch leg: 2 s at 192 kHz, the highest RME rate. */
 #define MAXN 400000u
 
 static int g_fail = 0, g_checks = 0;
@@ -272,9 +273,9 @@ static void o8(double sr) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  double curve[OMX_DECLARED_RATE_COUNT][4][16], att[OMX_DECLARED_RATE_COUNT], rel[OMX_DECLARED_RATE_COUNT];
-  for (unsigned r = 0; r < OMX_DECLARED_RATE_COUNT; r++) {
-    const double sr = OMX_DECLARED_RATES[r];
+  double curve[OMX_FX_RME_RATE_COUNT][4][16], att[OMX_FX_RME_RATE_COUNT], rel[OMX_FX_RME_RATE_COUNT];
+  for (unsigned r = 0; r < OMX_FX_RME_RATE_COUNT; r++) {
+    const double sr = OMX_FX_RME_RATES[r];
     o1_o2(sr);
     o3(sr, curve[r]);
     const double cut = fmax(o4(sr, B_BELL, 1000.0, -12.0f, 1), fmax(o4(sr, B_LOW, 200.0, -12.0f, 1), o4(sr, B_HIGH, 8000.0, -12.0f, 1)));
@@ -291,13 +292,13 @@ int main(void) {
   for (int c = 0; c < 4; c++)
     for (int li = 0; li < 16; li++) {
       double lo = 1e9, hi = -1e9;
-      for (unsigned r = 0; r < OMX_DECLARED_RATE_COUNT; r++) {
+      for (unsigned r = 0; r < OMX_FX_RME_RATE_COUNT; r++) {
         lo = fmin(lo, curve[r][c][li]);
         hi = fmax(hi, curve[r][c][li]);
       }
       spread = fmax(spread, hi - lo);
     }
-  for (unsigned r = 0; r < OMX_DECLARED_RATE_COUNT; r++)
+  for (unsigned r = 0; r < OMX_FX_RME_RATE_COUNT; r++)
     tspread = fmax(tspread, fmax(fabs(att[r] - att[0]) / att[0], fabs(rel[r] - rel[0]) / rel[0]));
   check(spread <= 0.1, "O9 the static curve agrees across rates within 0.1 dB", 0.0);
   check(tspread <= 0.02, "O9 the time constants agree across rates within 2 %", 0.0);

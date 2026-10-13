@@ -93,8 +93,8 @@ static inline omx_f32x4 omx_f32x4_load(const float *p) {
  * It computes OMX_HALFBAND_RUN outputs at a time: the window's odd-offset samples are split once
  * into a contiguous array, and each tap then adds into sixteen accumulators — each accumulator's
  * sum is formed in exactly the dot's order (the centre product, then tap 1, 3, …, 47), so the
- * result is BIT-identical to the loop it replaces (`omx_oversampler.test.c` holds that at every
- * length and alignment). A tail shorter than a run is the dot itself.
+ * result is BIT-identical to the loop it replaces (test/kernels/oversampler.c's
+ * arm_oversampler_parallel holds that at every length and alignment). A tail shorter than a run is the dot itself.
  *
  * @param c   the centre of output 0; `c[-47] … c[2(n-1) + 47]` are read.
  * @param n   outputs to compute.

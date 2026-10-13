@@ -94,7 +94,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage bandwidth-q-table
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage bandwidth-q-table
 
 all: lib
 
@@ -178,6 +178,11 @@ bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 
 perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
+
+# The fractional delay line's suite arm against three sabotaged copies of omx_fdelay.h: each must
+# go red on that arm (test/fdelay-sabotage.sh). The tree is never edited.
+fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kernels-gen.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fdelay-sabotage.sh $(BUILD)/fdelay-sabotage
 
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
@@ -343,7 +348,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage bandwidth-q-table consumer perturb threads test-fx test-analysis test-engine-kernels flavours
+test: lib checks suite negative magnitude-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
