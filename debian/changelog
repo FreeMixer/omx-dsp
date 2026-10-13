@@ -1,3 +1,13 @@
+omx-dsp (0.12.0) unstable; urgency=medium
+
+  * omx_magnitude.h: the magnitude in dB of a designed section or cascade
+    at the frequencies the caller passes, floored for a full null, and a
+    band's curve anchors.
+  * omx_eq_bandwidth_q is the one bandwidth-to-Q law, with a golden table
+    for its copies.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 14:09:13 +0000
+
 omx-dsp (0.11.0) unstable; urgency=medium
 
   * omx_idelay.h: the integer delay line with its click-free re-point,
