@@ -185,7 +185,7 @@ bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
 
-# The fractional delay line's suite arm against three sabotaged copies of omx_fdelay.h: each must
+# The fractional delay line's suite arm against four sabotaged copies of omx_fdelay.h: each must
 # go red on that arm (test/fdelay-sabotage.sh). The tree is never edited.
 fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fdelay-sabotage.sh $(BUILD)/fdelay-sabotage
