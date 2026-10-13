@@ -65,7 +65,6 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_oversampler.h"
 #include "omx_param.h"
 #include "omx_port_int.h"
-#include "omx_rta.h"
 #include "omx_src.h"
 #include "omx_truepeak.h"
 #include "omx_units.h"
