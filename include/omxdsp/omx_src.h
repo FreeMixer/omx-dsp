@@ -63,9 +63,9 @@ static inline uint32_t omx_src_gcd(uint32_t a, uint32_t b) {
 
 /** @brief One conversion's shape: the reduced ratio and the filter length. */
 struct omx_src_plan {
-  uint32_t l; /* interpolation factor */
-  uint32_t m; /* decimation factor */
-  uint32_t taps;
+  uint32_t l;    /**< Interpolation factor. */
+  uint32_t m;    /**< Decimation factor. */
+  uint32_t taps; /**< Taps per phase: OMX_SRC_TAPS, or 1 for the identity plan. */
 };
 
 /**
@@ -210,17 +210,17 @@ static inline void omx_src_design(const struct omx_src_plan *p, float *coef, dou
  * rate pair) and `hist` (per track: it is the signal's own state).
  */
 struct omx_src {
-  uint32_t l;
-  uint32_t m;
-  uint32_t taps;
-  const float *coef;
-  /* The last `taps` input samples, newest FIRST — so a dot product walks `coef` forward and
+  uint32_t l;        /**< The plan's interpolation factor. */
+  uint32_t m;        /**< The plan's decimation factor. */
+  uint32_t taps;     /**< The plan's taps per phase. */
+  const float *coef; /**< The designed table, phase-major, the caller's. */
+  /** The last `taps` input samples, newest FIRST — so a dot product walks `coef` forward and
    * `hist` forward together, which is what the phase-major layout was chosen for. */
   float *hist;
-  /* n*M + (taps/2)*L, where n is the output index. The offset IS the group-delay compensation:
+  /** n*M + (taps/2)*L, where n is the output index. The offset IS the group-delay compensation:
    * it starts the output at the input sample the filter's centre is over. */
   uint64_t acc;
-  /* Input samples pushed so far. `acc / l` is the input index the next output needs. */
+  /** Input samples pushed so far. `acc / l` is the input index the next output needs. */
   uint64_t consumed;
 };
 
