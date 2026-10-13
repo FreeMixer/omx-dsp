@@ -23,8 +23,9 @@ OUT="${1:?scratch dir}"
 CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2}"
 : "${CONTRACT_INC:=$(sh "$PKG/tools/contract-include.sh")}"   # make exports it
-bash "$PKG/tools/kernels-gen.sh" "$PKG/build" >/dev/null
 rm -rf "$OUT" && mkdir -p "$OUT"
+# the arm list into the scratch dir, never build/: a parallel make builds the suite from build/'s
+bash "$PKG/tools/kernels-gen.sh" "$OUT" >/dev/null
 
 sabotage() { # name sed-expression
   local name=$1 expr=$2 d="$OUT/$1" rc=0
@@ -37,7 +38,7 @@ sabotage() { # name sed-expression
   fi
   # shellcheck disable=SC2086 # CFLAGS is a word list
   $CC $CFLAGS -ffp-contract=off -I"$d" -I"$PKG/include" -isystem "$CONTRACT_INC" -DOMX_CONTRACTS \
-    -I"$PKG/build" -o "$d/suite" "$PKG/test/omxdsp_suite.c" "$PKG"/src/*.c -lm
+    -I"$OUT" -o "$d/suite" "$PKG/test/omxdsp_suite.c" "$PKG"/src/*.c -lm
   "$d/suite" > "$d/out" 2>&1 || rc=$?
   if [ "$rc" -eq 0 ]; then
     echo "fdelay-sabotage.sh: FAIL — sabotage '$name' left the suite GREEN; the arm cannot see the defect"
