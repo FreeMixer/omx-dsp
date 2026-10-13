@@ -661,7 +661,10 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         omx_dyn_gate_chain(st, p, &ep, ac, rc, gain, m, hold, credit_pole);
       } else {
         for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
-        if (flat)
+        if (flat && p->knee_shift_db == 0.0f) /* the centred knee hoisted, as below */
+          for (uint32_t i = 0; i < m; i++)
+            gain[i] = lev[i] <= fl.lo ? fl.g_floor : lev[i] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, lev[i]);
+        else if (flat)
           for (uint32_t i = 0; i < m; i++) gain[i] = omx_dyn_flat_gain(&fl, p, lev[i]);
         else if (p->knee_shift_db == 0.0f)
           for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
@@ -695,7 +698,10 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
       if (gate_state) omx_dyn_gate_chain(st, p, &ep, ac, rc, g4, mf, hold, credit_pole);
       else {
         for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
-        if (flat)
+        if (flat && p->knee_shift_db == 0.0f)
+          for (uint32_t k = 0; k < mf; k++)
+            g4[k] = g4[k] <= fl.lo ? fl.g_floor : g4[k] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, g4[k]);
+        else if (flat)
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_dyn_flat_gain(&fl, p, g4[k]);
         else if (p->knee_shift_db == 0.0f)
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
