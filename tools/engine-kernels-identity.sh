@@ -16,9 +16,9 @@
 # test/engine_kernels/golden.test.c is compiled with -DOMX_GOLDEN_ENGINE against a copy of include/
 # in which the three moved headers forward to the engine's copies:
 #
-#   omxdsp/omx_src.h -> mix_src.h   the converter
-#   omxdsp/omx_gen.h -> mix_dsp.h   the generators
-#   omxdsp/omx_rta.h -> mix_dsp.h   the spectrum readings and the half-band decimator
+#   omxdsp/omx_src.h -> mix_src.h            the converter
+#   omxdsp/omx_gen.h -> mix_dsp.h            the generators
+#   omxdsp/analysis/omx_rta.h -> mix_dsp.h   the spectrum readings and the half-band decimator
 #
 # and against the omx-contract release the engine pins (packages/core/package.json), whose header
 # the engine's generated omx_console_limits.h completes. Every other primitive comes from this
@@ -62,7 +62,7 @@ build() {
   cp -r "$INCLUDE" "$shim"
   printf '#include "mix_src.h"\n' > "$shim/omxdsp/omx_src.h"
   printf '#include "mix_dsp.h"\n' > "$shim/omxdsp/omx_gen.h"
-  printf '#include "mix_dsp.h"\n' > "$shim/omxdsp/omx_rta.h"
+  printf '#include "mix_dsp.h"\n' > "$shim/omxdsp/analysis/omx_rta.h"
   # shellcheck disable=SC2086
   if ! $CC $CFLAGS -ffp-contract=off -DOMX_GOLDEN_ENGINE -H -I"$shim" -isystem "$eci" -I"$src" \
       -o "$out/golden" "$PKG/test/engine_kernels/golden.test.c" -lm 2>"$out/trace"; then

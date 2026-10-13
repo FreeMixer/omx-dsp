@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # sabotage.sh <dir> — the golden digests of the kernels moved from the engine see a break in each:
-# one line of omx_src.h, omx_gen.h and omx_rta.h is changed in a COPY of include/, the golden
+# one line of omx_src.h, omx_gen.h and analysis/omx_rta.h is changed in a COPY of include/, the golden
 # program is built against the copy, and it must report that kernel's digests moved at every RME
 # rate and no other kernel's. The tree is never edited; a sed that matches nothing is a failure.
 set -euo pipefail
@@ -37,7 +37,7 @@ while IFS='|' read -r kernel header expr; do
 done <<'EOF'
 src|omx_src.h|s/  for (uint32_t k = 0; k < s->taps; k++) acc += c\[k\] \* h\[k\];/  for (uint32_t k = 0; k + 1u < s->taps; k++) acc += c[k] * h[k];/
 gen|omx_gen.h|s/  b\[6\] = w \* 0.115926f;/  b[6] = w * 0.115927f;/
-rta|omx_rta.h|s/    if (hi > last) hi = last;/    if (hi > last) hi = last - 1;/
+rta|analysis/omx_rta.h|s/    if (hi > last) hi = last;/    if (hi > last) hi = last - 1;/
 EOF
 rm -rf "$OUT"
 [ "$fail" = 0 ] || exit 1
