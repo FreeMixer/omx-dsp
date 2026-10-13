@@ -285,10 +285,14 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # the engine's own copies and compares them (tools/analysis-engine-identity.sh), a desk check.
 # test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
 # and requires the golden digests of that kernel to move.
-ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 rates golden
+# The room analysis, the Farina sweep and the alignment fit (FreeMixer/openmixer#1602) run on the same
+# thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h.
+ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 rates golden \
+                 room_ts
 ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
-ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) test/fx/sha256.h $(SUPPORT_HEADERS) | $(BUILD)
+ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) $(wildcard test/analysis/fixtures/*.h) \
+                test/fx/sha256.h $(SUPPORT_HEADERS) | $(BUILD)
 
 $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
 	$(CC) $(CFLAGS) $(INC) -Isrc -Itest/analysis -Itest/fx $(ANALYSIS_LDFLAGS_$*) -o $@ $< $(LIB) -lm
