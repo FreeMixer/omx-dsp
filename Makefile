@@ -277,6 +277,8 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # own copy of this code wrote before it moved here; its log10f is the correctly rounded omx_log10f of test/support, wrapped in at link time.
 # make analysis-engine-identity OPENMIXER=<checkout> writes the rta, render and live digests again from
 # the engine's own copies and compares them (tools/analysis-engine-identity.sh), a desk check.
+# test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
+# and requires the golden digests of that kernel to move.
 ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 rates golden
 ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
@@ -287,6 +289,7 @@ $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
 
 test-analysis: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
 	@set -e; for t in $(ANALYSIS_TESTS); do echo "./$(BUILD)/analysis_$$t"; ./$(BUILD)/analysis_$$t; done
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/sabotage.sh $(BUILD)/analysis-sabotage
 
 analysis-engine-identity: $(LIB)
 	@test -n "$(OPENMIXER)" || { echo "make analysis-engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
