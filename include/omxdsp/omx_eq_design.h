@@ -294,4 +294,110 @@ static inline double omx_eq_octaves_q(double bw_oct) {
 }
 #undef OMX_CONTRACT_STAGE
 
+/**
+ * @brief True when a band is exactly identity, core's `eqBandIsIdentity`: a gain-carrying kind
+ *        (peaking or a shelf) at exactly 0 dB, whose zeros and poles omx_eq_design() places by the
+ *        same call, so `H(z) ≡ 1` whatever its frequency or Q. Every other kind removes or nulls
+ *        something at any gain.
+ * @param kind The section kind.
+ * @param gain_db Gain, dB.
+ * @return 1 for an identity band, else 0.
+ * @note RT-safe and thread-safe: two comparisons, pure.
+ */
+static inline int omx_eq_band_is_identity(enum omx_eq_kind kind, double gain_db) {
+  return (kind == OMX_EQ_PEAKING || kind == OMX_EQ_LOWSHELF || kind == OMX_EQ_HIGHSHELF) &&
+         gain_db == 0.0;
+}
+
+/** @brief One EQ band in engineering values, core's `EqBand` (a drawn `BiquadBand` with `on` set). */
+struct omx_eq_band {
+  enum omx_eq_kind kind; /**< The section kind. */
+  double freq_hz;        /**< Centre or corner, Hz. */
+  double gain_db;        /**< Gain, dB; read by the peaking and shelf kinds. */
+  double q;              /**< Quality factor. */
+  int on;                /**< Zero for a band switched off. */
+};
+
+/** @brief One head pass filter, core's `PassFilter`: a 12 or 24 dB/oct Butterworth corner. */
+struct omx_eq_pass {
+  int on;         /**< Zero when the filter is out. */
+  double freq_hz; /**< The corner, Hz. */
+  int slope_24;   /**< Non-zero for 24 dB/oct (two sections), zero for 12 dB/oct (one). */
+};
+
+/** @brief The most sections omx_eq_pass_design() writes: the high-pass and the low-pass at the
+ *         steepest slope, two sections each (core's `passFilterMaxSections`). */
+#define OMX_EQ_PASS_MAX_SECTIONS 4u
+
+#define OMX_CONTRACT_STAGE "eq-design/bank"
+/**
+ * @brief An EQ's bands as the ordered bank the cascade runs, core's `eqCoeffs`: each band that is
+ *        on, in order, designed by omx_eq_design() at `sample_rate`; a band that is
+ *        omx_eq_band_is_identity() is in the bank at its position and parked (`enabled = 0`); a
+ *        band that is off is not in the bank and the slots close up; an EQ that is off is an
+ *        empty bank. The head pass filters are not here: omx_eq_pass_design().
+ * @param eq_on The whole-EQ switch, `EqState.on`.
+ * @param bands The bands, in order.
+ * @param nbands Bands in `bands`.
+ * @param sample_rate Sample rate, Hz, positive.
+ * @param coeffs One `{b0, b1, b2, a1, a2}` per section written; room for `nbands`.
+ * @param enabled One byte per section written: 1 runs, 0 parked; room for `nbands`.
+ * @return The sections written.
+ * @pre `positive-rate`.
+ * @post `no-more-sections-than-bands`.
+ * @note Not for the audio thread (the designs' libm calls, as the desk designs on its control
+ *       thread); thread-safe on distinct output.
+ */
+static inline uint32_t omx_eq_bank_design(int eq_on, const struct omx_eq_band *bands,
+                                          uint32_t nbands, double sample_rate,
+                                          double coeffs[][5], uint8_t *enabled) {
+  OMX_PRE(sample_rate > 0.0, "positive-rate");
+  uint32_t n = 0;
+  if (!eq_on) return 0u;
+  for (uint32_t i = 0; i < nbands; i++) {
+    const struct omx_eq_band *b = &bands[i];
+    if (!b->on) continue;
+    omx_eq_design(b->kind, b->freq_hz, b->q, b->gain_db, sample_rate, coeffs[n]);
+    enabled[n] = omx_eq_band_is_identity(b->kind, b->gain_db) ? 0u : 1u;
+    n++;
+  }
+  OMX_POST(n <= nbands, "no-more-sections-than-bands");
+  return n;
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "eq-design/pass"
+/**
+ * @brief The head filters as the sections the strip runs at its head, core's `passFilterCoeffs`:
+ *        the high-pass, then the low-pass, each only while its own `on` is set, as
+ *        omx_eq_butterworth_qs() sections (always enabled: a pass filter is never identity). The
+ *        whole-EQ switch does not reach them.
+ * @param hpf The high-pass.
+ * @param lpf The low-pass.
+ * @param sample_rate Sample rate, Hz, positive.
+ * @param coeffs One `{b0, b1, b2, a1, a2}` per section written.
+ * @return The sections written, at most OMX_EQ_PASS_MAX_SECTIONS.
+ * @pre `filters-and-positive-rate`.
+ * @post `at-most-four-sections`.
+ * @note Not for the audio thread (the designs' libm calls); thread-safe on distinct output.
+ */
+static inline uint32_t omx_eq_pass_design(const struct omx_eq_pass *hpf,
+                                          const struct omx_eq_pass *lpf, double sample_rate,
+                                          double coeffs[OMX_EQ_PASS_MAX_SECTIONS][5]) {
+  OMX_PRE(hpf && lpf && sample_rate > 0.0, "filters-and-positive-rate");
+  const struct omx_eq_pass *pf[2] = {hpf, lpf};
+  const enum omx_eq_kind kind[2] = {OMX_EQ_HIGHPASS, OMX_EQ_LOWPASS};
+  uint32_t n = 0;
+  for (int k = 0; k < 2; k++) {
+    if (!pf[k]->on) continue;
+    double qs[2];
+    const uint32_t ns = omx_eq_butterworth_qs(pf[k]->slope_24, qs);
+    for (uint32_t s = 0; s < ns; s++)
+      omx_eq_design(kind[k], pf[k]->freq_hz, qs[s], 0.0, sample_rate, coeffs[n++]);
+  }
+  OMX_POST(n <= OMX_EQ_PASS_MAX_SECTIONS, "at-most-four-sections");
+  return n;
+}
+#undef OMX_CONTRACT_STAGE
+
 #endif /* OMX_EQ_DESIGN_H */
