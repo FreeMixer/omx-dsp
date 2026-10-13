@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # eq-sabotage.sh <dir> <archive> — the EQ bank's, head filters' and drawn curve's oracles are not
-# blind (openmixer #1601). The suite is built once per sabotage against a SABOTAGED COPY of the
+# blind. The suite is built once per sabotage against a SABOTAGED COPY of the
 # headers, placed ahead of the real include directory, and each build must fail both the closed-form
 # arm (eq-curve) and the arm against the TypeScript (eq-design-ts):
 #   complement  the complement's b1 is b1 − a1 instead of a1 − b1;

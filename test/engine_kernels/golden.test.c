@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The golden digests of the kernels moved from the OpenMixer engine (FreeMixer/openmixer#1580): the
+ * The golden digests of the kernels moved from the OpenMixer engine: the
  * sample-rate converter (omx_src.h), the generators (omx_gen.h) and the analyser's spectrum
  * readings and half-band decimator (analysis/omx_rta.h), hashed per kernel and per rate at the nine RME
  * rates and compared with test/golden/engine_kernels.sha256.
@@ -10,7 +10,7 @@
  *   build/engine_kernels_golden --write           print the lines the digest file holds
  *
  * The committed digests were written by this program compiled against the engine's own copies
- * (openmixer 6ee8a9bde101: mix_src.h and mix_dsp.h) by tools/engine-kernels-identity.sh, so the
+ * (mix_src.h and mix_dsp.h) by tools/engine-kernels-identity.sh, so the
  * moved code is held to the engine's output bit for bit. -DOMX_GOLDEN_ENGINE is that build: the
  * engine spells the converter's design rolloff OMX_SRC_ROLLOFF, a double, where omx-contract's
  * double spelling is OMX_SRC_ROLLOFF_DOUBLE (the same 0.92).

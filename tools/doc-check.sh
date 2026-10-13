@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # doc-check.sh — every public symbol of libomxdsp carries its structured doc comment
-# (docs/design/specs/2026-09-26-dsp-primitives.md §6), checked without doxygen: pure awk.
+# (the dsp primitives spec §6), checked without doxygen: pure awk.
 #
 # For every `include/omxdsp/*.h` (or the files given as arguments), at file scope:
 #   - a function (`static inline` definition or a non-static declaration) named omx_*/omxdsp_*,

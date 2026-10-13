@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * Standalone unit test for the SHARED correcting half (hrp_correct.h) —
- * docs/design/specs/2026-08-18-hrp-polyphonic-architecture.md §16/§23/§25/§26/§29/§30:
+ * the hrp polyphonic architecture spec §16/§23/§25/§26/§29/§30:
  *   cc -Wall -Wextra -O2 -o build/hrp_correct_test src/hrp_correct.test.c -lm && ./build/hrp_correct_test
  * (also driven from `pnpm test` via the test:dsp script).
  *

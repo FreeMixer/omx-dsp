@@ -5,7 +5,7 @@
  * @brief The ROTARY SPEAKER stage: a drum rotor on the low band and a horn rotor on the high band
  *        of one complementary split, weighed by the balance law, mixed with the dry signal.
  *
- * Spec: docs/design/specs/2026-09-26-rotary-speaker.md §2-§4. Composed of mix_rotor.h (twice),
+ * Spec: the rotary speaker spec §2-§4. Composed of mix_rotor.h (twice),
  * `omx_biquad` over `omx_eq_design_f`'s low-pass for the split (`hi = x − lo`, exact), and
  * `omx_balance_law`. The rings are inline: nothing is allocated. Latency is zero (L1).
  */

@@ -5,7 +5,7 @@
  * @brief The 31-band graphic EQ kernel: {@link OMX_GEQ_BANDS} peaking sections at the ISO
  *        third-octave centres, in their OWN section array, run by the library's double cascade.
  *
- * Spec: docs/design/specs/2026-09-26-graphic-eq-31.md §4, §5 finding, §6. Composed from the library
+ * Spec: the graphic eq 31 spec §4, §5 finding, §6. Composed from the library
  * words only: {@link omx_biquad_cascade_d_stereo}, the double-precision cascade, runs the sections
  * over the GEQ's own array (never a claimant on `OMX_EQ_MAX_BANDS`, roster ruling 3), because a
  * float32 section at 20 Hz, Q 4.3 misses its design by 2.4 dB at 192 kHz; {@link omx_flush_d}

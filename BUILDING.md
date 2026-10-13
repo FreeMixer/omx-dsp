@@ -98,7 +98,7 @@ expected, and every other law must hold. Their golden digest files carry all nin
 
 The sample-rate converter (`omx_src.h`), the generators (`omx_gen.h`) and the analyser's spectrum
 readings and half-band decimator (`analysis/omx_rta.h`) moved here from OpenMixer's engine unchanged in
-behaviour (FreeMixer/openmixer#1580). Their oracles are suite arms (`test/kernels/src.c`, `gen.c`,
+behaviour. Their oracles are suite arms (`test/kernels/src.c`, `gen.c`,
 `rta.c`); `test/engine_kernels/golden.test.c` hashes their output per kernel at the nine RME rates,
 and `test/golden/engine_kernels.sha256` holds the digests the engine's own copies gave, written by
 `tools/engine-kernels-identity.sh --write`. `make engine-kernels-identity OPENMIXER=<checkout>`
@@ -127,12 +127,12 @@ when the strip is generated from these faces and holds no arithmetic of its own.
 
 ## The EQ maths openmixer's TypeScript computes
 
-openmixer designs its console EQ and draws its curve in TypeScript today (openmixer #1601). The C
+openmixer designs its console EQ and draws its curve in TypeScript today. The C
 here computes the same results, so the engine and the server can take them from one place:
 
 | TypeScript | C |
 |---|---|
-| core `rbjSection`, `rbjCoeffs` (`packages/core/src/eq.ts`) | `omx_eq_design`, `omx_eq_design_f` |
+| core `rbjSection`, `rbjCoeffs` (core `eq.ts`) | `omx_eq_design`, `omx_eq_design_f` |
 | core `bandwidthOctavesQ` | `omx_eq_bandwidth_q` |
 | core `butterworthSlopeQs`, web `butterworthSectionQs` | `omx_eq_butterworth_qs` |
 | core `passFilterMaxSections` | `OMX_EQ_PASS_MAX_SECTIONS` |
@@ -143,10 +143,10 @@ here computes the same results, so the engine and the server can take them from 
 | core `sectionMagnitudeDb` | `omx_biquad_magnitude_db_d` |
 | core `biquadMagnitudeDb` | `omx_eq_band_magnitude_db` |
 | core `eqCurveDb` | `omx_eq_curve_db` (its frequencies: `omx_eq_curve_freqs`) |
-| web `magnitudeSumDb`, `seatY`'s value (`packages/web-ui/app/utils/eqCurveGeom.ts`) | `omx_eq_magnitude_sum_db` |
+| web `magnitudeSumDb`, `seatY`'s value (web `eqCurveGeom.ts`) | `omx_eq_magnitude_sum_db` |
 | web `eqStateBands`, `filterBands`, `passFilterBands` | `omx_eq_curve_bands` |
 | web `eqStateCurveDb`, `compositeCurveDb` | `omx_eq_curve_bands`, then `omx_eq_curve_db` |
-| catalog `octavesToQ` (`packages/catalog/src/eq.ts`) | `omx_eq_octaves_q` |
+| catalog `octavesToQ` (catalog `eq.ts`) | `omx_eq_octaves_q` |
 
 `test/kernels/fixtures/eq_design_ts.h` is what that TypeScript computes on fixed inputs at the nine
 RME rates, written by `tools/ts-golden.mjs design <openmixer> <contract-ts>` (Node 22.7 or later;

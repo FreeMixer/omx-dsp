@@ -3,8 +3,8 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # fdelay-sabotage.sh <dir> — the fractional delay line's suite arm, proven able to SEE its own
-# defects (docs/design/specs/2026-09-20-fractional-delay-line.md §4, moved from openmixer's
-# harness/integration/dsp-fdelay-sabotage.sh, FreeMixer/openmixer#1603). Each sabotage is applied
+# defects (fractional delay line design §4, moved from the engine's
+# fractional-delay sabotage harness). Each sabotage is applied
 # to a COPY of omx_fdelay.h placed ahead of the real include directory, the suite is built against
 # it and must go red on its fdelay arm:
 #   exact    — §1's exact-copy branch made to flush its result (arm A feeds words below the flush

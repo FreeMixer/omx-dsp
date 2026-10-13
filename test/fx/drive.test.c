@@ -4,7 +4,7 @@
  * Oracle for the native DRIVE stage (omx_drive.h), every arm at every rate in OMX_DECLARED_RATES:
  *   make test-fx
  *
- * Spec: docs/design/specs/2026-09-14-native-drive-stage.md §4.
+ * Spec: the native drive stage spec §4.
  *
  * WHAT THIS FILE IS FOR. A saturator's whole job is the harmonics it adds, so a test that only
  * proves "the numbers changed" proves nothing — it would pass over a stage that added noise.

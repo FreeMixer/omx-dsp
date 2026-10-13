@@ -329,7 +329,7 @@ analysis-engine-identity: $(LIB)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh --self-test "$(OPENMIXER)"
 
 # ---- the kernels moved from the engine ---------------------------------------------------------
-# The sample-rate converter, the generators and the analyser's readings (FreeMixer/openmixer#1580):
+# The sample-rate converter, the generators and the analyser's readings (moved from the engine):
 # their oracles are suite arms (test/kernels/src.c, gen.c, rta.c); here are their golden digests at
 # the nine RME rates, which the engine's own copies wrote (test/golden/engine_kernels.sha256), and
 # a break in each kernel that must move its own digests and no other's.

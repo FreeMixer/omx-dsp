@@ -3,7 +3,7 @@
 /*
  * omx_chorus.h — the native CHORUS stage: N voices reading ONE modulated fractional delay line.
  *
- * Spec: docs/design/specs/2026-09-22-chorus-and-flanger.md (openmixer#859). The primitives are
+ * Spec: the chorus and flanger design, chorus half. The primitives are
  * `mix_fdelay.h` at order 3 (the fdelay ruling's own row for this consumer) and `mix_lfo.h`;
  * nothing here is a kernel of its own.
  *

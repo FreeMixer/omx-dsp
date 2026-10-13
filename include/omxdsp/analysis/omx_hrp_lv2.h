@@ -3,9 +3,9 @@
  *
  * omx_hrp_lv2.h — HRP+ AS A LIVE INSERT: the third shell's core, with no LV2 in it.
  *
- * Spec: docs/design/specs/2026-07-16-recording-vsc.md §0.5 ("one C core, three shells": the
+ * Spec: the recording vsc spec §0.5 ("one C core, three shells": the
  * console, a CLI, and an LV2 plugin for sound hosts) over
- * docs/design/specs/2026-08-18-hrp-polyphonic-architecture.md, whose laws bind here in FULL —
+ * the hrp polyphonic architecture spec, whose laws bind here in FULL —
  * this is the live tier, so none of the three constraints §0.5 lifts for the offline render is
  * lifted here, and the header says at each one why not.
  *
@@ -268,7 +268,7 @@ static inline void omx_hrp_lv2_run(OmxHrpLv2 *s, const float *in, float *out, ui
   if (!s || !s->ready) {
     if (out != in) memcpy(out, in, (size_t)n * sizeof(float));
     /* R-056/laws: bypass-identity -- accepted 2026-09-17,
-     * docs/design/notes/2026-09-17-contracts-proposals.json. Not ready is not "processed a
+     * the contracts proposals notes. Not ready is not "processed a
      * little" -- it is the identity, byte for byte. */
     OMX_POST(out == in || memcmp(out, in, (size_t)n * sizeof(float)) == 0, "bypass-identity");
     return;

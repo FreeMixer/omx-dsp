@@ -7,9 +7,9 @@
  * own. Both were written the same night in different lanes and collided at the merge; the
  * element on the integration branch is the one that stands, and what this lane measured about
  * its FILTER is filed as a measured recommendation rather than as a second implementation
- * (docs/design/notes/2026-09-14-oversampler-filter-quality.md).
+ * (the oversampler filter quality notes).
  *
- * Spec: docs/design/specs/2026-09-14-native-drive-stage.md §4.
+ * Spec: the native drive stage spec §4.
  *
  * Same contract as the primitives and omx_delay.h: NO PipeWire, NO napi, NO allocation on the RT
  * thread, NO libc beyond <math.h>/<string.h>. Controls (`struct omx_drive`) are a word-atomic
@@ -266,7 +266,7 @@ static inline float omx_drive_shape(int curve, float u) {
       y = tanhf(u);
       break;
   }
-  /* R-056/laws: finite -- accepted 2026-09-17, docs/design/notes/2026-09-17-contracts-proposals.json.
+  /* R-056/laws: finite -- accepted 2026-09-17, the contracts proposals notes.
    * Every curve branch is bounded and finite for any finite u. */
   OMX_POST(y - y == 0.0f, "finite");
   return y;
@@ -306,7 +306,7 @@ static inline struct omx_drive_bias omx_drive_bias_for(int curve, float w) {
   s.b = w * OMX_DRIVE_BIAS_MAX;
   s.off = omx_drive_shape(curve, s.b);
   s.inv = 1.0f / (1.0f + s.off);
-  /* R-056/laws: finite -- accepted 2026-09-17, docs/design/notes/2026-09-17-contracts-proposals.json.
+  /* R-056/laws: finite -- accepted 2026-09-17, the contracts proposals notes.
    * s.off is bounded by omx_drive_shape's own finite range, so the reciprocal stays finite. */
   OMX_POST(s.inv - s.inv == 0.0f, "finite");
   return s;
@@ -322,7 +322,7 @@ static inline struct omx_drive_bias omx_drive_bias_for(int curve, float w) {
 #define OMX_CONTRACT_STAGE "drive/sample"
 static inline float omx_drive_sample(int curve, float u, const struct omx_drive_bias *s) {
   float y = (omx_drive_shape(curve, u + s->b) - s->off) * s->inv;
-  /* R-056/laws: finite -- accepted 2026-09-17, docs/design/notes/2026-09-17-contracts-proposals.json.
+  /* R-056/laws: finite -- accepted 2026-09-17, the contracts proposals notes.
    * composition of finite omx_drive_shape outputs and a finite s->inv. */
   OMX_POST(y - y == 0.0f, "finite");
   return y;
@@ -447,7 +447,7 @@ static inline void omx_drive_leg_chunk(struct omx_drive_leg *g, const struct omx
   *sum_in = si;
   *sum_out = so;
   /* R-056/laws: finite -- corrected 2026-09-17 from the cluster's output-le-input-plus,
-   * docs/design/notes/2026-09-17-contracts-proposals.json (`mix` is a dry/wet blend fraction,
+   * the contracts proposals notes (`mix` is a dry/wet blend fraction,
    * not the makeup-gain shape that law names). dry/delta are each finite and mix is clamped
    * upstream, so y stays finite at every sample. */
   OMX_POST(omx_block_finite(out, n), "finite-out");
@@ -526,7 +526,7 @@ static inline float omx_drive_auto_gain(struct omx_drive_ag *ag, const struct om
   if (want < OMX_DRIVE_AG_MIN) want = OMX_DRIVE_AG_MIN;
   if (!ag->primed) { ag->gain = want; ag->primed = 1; }
   else omx_onepole_toward(&ag->gain, want, a);
-  /* R-056/laws: finite -- accepted 2026-09-17, docs/design/notes/2026-09-17-contracts-proposals.json.
+  /* R-056/laws: finite -- accepted 2026-09-17, the contracts proposals notes.
    * want and ag->gain are hard-clamped to [OMX_DRIVE_AG_MIN, OMX_DRIVE_AG_MAX] before use, and
    * the floor-ms guard above keeps the sqrt argument away from zero. */
   OMX_POST(ag->gain - ag->gain == 0.0f && ag->gain <= OMX_DRIVE_AG_MAX &&

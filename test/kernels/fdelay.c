@@ -94,8 +94,8 @@ static void arm_fdelay(void) {
 
 /* ---- the fractional delay line against a CLOSED-FORM oracle (moved from openmixer) -----------
  *
- * Spec: openmixer docs/design/specs/2026-09-20-fractional-delay-line.md §4, arms A-D; until
- * openmixer#1603 these lived in the engine's mix_fdelay.test.c. The oracle is
+ * Spec: fractional delay line design §4, arms A-D; these lived in the engine's
+ * mix_fdelay.test.c. The oracle is
  * ../fx/fdelay_oracle.h's omx_oracle_fdelay: the same unique interpolating polynomial built by
  * NEWTON'S DIVIDED DIFFERENCES over the complex-exponential samples, never forming a Lagrange
  * coefficient, so the kernel is never compared with itself. Nothing below is a recorded number

@@ -4,7 +4,7 @@
  * tremolo.test.c — the tremolo / auto-pan kernel against its closed form, at every declared
  * rate (`OMX_DECLARED_RATES`, generated from core's STANDARD_SAMPLE_RATES — never a local list).
  *
- * Spec: docs/design/specs/2026-09-26-native-fx-catalogue.md §2 row "M32 Tremolo / Panner", §6
+ * Spec: the native fx catalogue spec §2 row "M32 Tremolo / Panner", §6
  * ("every SMALL EXTENSION: an identity arm at the default and a movement arm").
  *
  * The stage is a gain, so a DC input of 1 on both legs reads the gain itself sample by sample.

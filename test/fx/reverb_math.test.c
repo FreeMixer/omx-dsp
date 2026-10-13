@@ -8,7 +8,7 @@
  * reverb.test.c proves the voices exist and differ, at every declared rate. This file proves the NUMBERS:
  * the decay each configuration declares, how it moves with the sample rate, and the laws a
  * reverb has to keep between blocks. It is the measured half of
- * docs/design/notes/2026-09-17-reverb-math-review.md, and every tolerance below is a measured
+ * the reverb math review notes, and every tolerance below is a measured
  * figure from that note with a band around it — never a round number chosen to pass.
  *
  * Three of these arms carried a DIVERGENCE until the operator ruled on them (2026-09-17, note

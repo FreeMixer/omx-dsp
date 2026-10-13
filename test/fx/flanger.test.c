@@ -3,7 +3,7 @@
 /*
  * flanger.test.c — the flanger against the closed form of its RESONANT comb.
  *
- * Spec: docs/design/specs/2026-09-22-chorus-and-flanger.md §2 and §9, at the four basic rates
+ * Spec: the chorus and flanger spec §2 and §9, at the four basic rates
  * (44.1 / 48 / 96 / 192 kHz — the operator's 2026-09-20 ruling).
  *
  * Same method as `mix_chorus.test.c`: with its oscillator frozen the stage is LTI, so each arm

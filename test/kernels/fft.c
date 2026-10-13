@@ -47,7 +47,7 @@ static uint64_t fft_digest(float *a, float *b) {
 }
 
 /* The digest of the OpenMixer engine's own omx_hann_window / omx_fft_radix2 / omx_fft_real_half
- * (packages/pipewire-native/src/mix_dsp.h at openmixer integration/waves-2026-10 7574f4fa6, copied
+ * (mix_dsp.h, copied
  * verbatim into a harness built with -ffp-contract=off at -O0 and -O2, both giving this value) on
  * the vector set above. The move into omx-dsp is bit-exact when this matches. */
 #define FFT_ENGINE_DIGEST 0x14b42bb357621e5full

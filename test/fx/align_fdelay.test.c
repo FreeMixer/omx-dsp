@@ -5,7 +5,7 @@
  * (omx_align.h) on the fractional line, against closed forms, at all six declared rates
  * (44.1 / 48 / 88.2 / 96 / 176.4 / 192 kHz).
  *
- * Law: docs/design/specs/2026-08-31-smart-alignment.md §7 (#863), on the RULED
+ * Law: the smart alignment spec §7 (#863), on the RULED
  * 2026-09-20-fractional-delay-line.md. The primitive's own oracle is test/kernels/fdelay.c; this file
  * holds what the STAGE adds on top of it — the ms → samples target, where it settles, the slew —
  * and measures each against a number derived here, never one recorded from a run.

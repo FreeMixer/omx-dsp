@@ -8,7 +8,7 @@
  * Operator decision 2026-10-04: the fader, the pan law, a send and a DCA never touch audio on
  * their own; each only sets one entry of the summing matrix G (omx_mixmatrix.h). This header is
  * that entry's one definition: `g = fader · pan · send · dca · mute · dca_mute`. Stateless, pure.
- * Design: docs/design/specs/2026-10-04-mix-matrix.md.
+ * Design: the mix matrix spec.
  */
 #ifndef OMX_FADER_LAW_H
 #define OMX_FADER_LAW_H

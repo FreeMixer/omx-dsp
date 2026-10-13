@@ -12,11 +12,11 @@
  *   - the ms -> samples conversion over a list of requests, hostile ones included.
  *
  * The digests in test/golden/idelay.sha256 were written by the console engine's own copy of this
- * line (omx_delay_samples, omx_delay_apply and omx_bus_out_delay in openmixer
- * packages/pipewire-native/src/mix_dsp.h at 6ee8a9bd, against omx-dsp 0.6.1 and omx-contract
+ * line (omx_delay_samples, omx_delay_apply and omx_bus_out_delay in the
+ * engine's mix_dsp.h, against omx-dsp 0.6.1 and omx-contract
  * 2.3.0), by building this file with -DOMX_IDELAY_ENGINE_COPY and -I<that src>:
  *
- *   cc $(CFLAGS) -DOMX_IDELAY_ENGINE_COPY -I<openmixer>/packages/pipewire-native/src -Iinclude \
+ *   cc $(CFLAGS) -DOMX_IDELAY_ENGINE_COPY -I<engine src> -Iinclude \
  *      -isystem $(CONTRACT_INC) -Itest/fx -include test/support/log10f_subst.h \
  *      -o build/fx_idelay_golden_engine test/fx/idelay_golden.test.c build/libomxdsp.a -lm
  *   build/fx_idelay_golden_engine --write > test/golden/idelay.sha256

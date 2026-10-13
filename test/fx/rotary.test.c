@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * mix_rotary.test.c — the rotary stage's oracle, docs/design/specs/2026-09-26-rotary-speaker.md §5
+ * mix_rotary.test.c — the rotary stage's oracle, the rotary speaker spec §5
  * arms A and H, at the nine RME rates (32 to 192 kHz), closed forms in double.
  *
  *   A  frozen rotors: `speed: stop` with both rotors settled at rate 0 at 8 phases each; the

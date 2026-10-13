@@ -4,10 +4,10 @@
  * omx_drive_instance.h (formerly mix_drive_lv2.h) — the DRIVE stage as a live insert for other
  * hosts: the shell's core, with no format in it.
  *
- * Plan: docs/design/notes/2026-09-23-omx-lv2-pack-scope.md §7 lane A, under the HRP shells
- * rule (docs/design/specs/2026-07-16-recording-vsc.md §0.5: one C core, several shells — what
+ * Plan: the omx lv2 pack scope notes §7 lane A, under the HRP shells
+ * rule (the recording vsc spec §0.5: one C core, several shells — what
  * differs is who calls it) and the drive stage's own law
- * (docs/design/specs/2026-09-14-native-drive-stage.md §4). §3 of that spec rules drive NATIVE
+ * (native drive stage design, §4). §3 of that design rules drive NATIVE
  * inside the console; this shell does not reopen that — it is the same kernel offered to a
  * host that is not openmixer.
  *

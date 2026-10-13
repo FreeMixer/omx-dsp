@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * omxdsp_negative.c — one arm per contract kind, each recording EXACTLY the violation it
- * provokes (docs/design/specs/2026-09-26-dsp-primitives.md §8b item 2). Compiled against
+ * provokes (the dsp primitives spec §8b item 2). Compiled against
  * test/sabotage.sh's copy of the headers, placed ahead of the real include directory, so the
  * POST arm runs a kernel that does not sum to one.
  */

@@ -6,7 +6,7 @@
  *
  * `g_dB = attackDb·min(1, ΔA/REF) + sustainDb·min(1, ΔS/REF) + outputDb`, `y = 10^(g_dB/20)·x` on
  * both legs; ΔA and ΔS are omx_envdiff_step() over the legs' 0.5/0.5 peak fold, sharing one fast
- * cascade. Zero latency. Design: docs/design/specs/2026-09-26-transient-designer.md §2, §4, §6.
+ * cascade. Zero latency. Design: the transient designer spec §2, §4, §6.
  */
 #ifndef OMX_MIX_TRANSIENT_H
 #define OMX_MIX_TRANSIENT_H

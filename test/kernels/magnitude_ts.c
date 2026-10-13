@@ -6,7 +6,7 @@
 #include "fixtures/eq_curve_ts.h"
 
 /* The largest gap the C evaluator over omx_eq_design() may keep from core's eqCurveDb at a point:
- * the bound of openmixer's dsp-results-from-c spec §4.3. Both sides evaluate one formula in double
+ * the bound of the DSP-results-from-C design, §4.3. Both sides evaluate one formula in double
  * over sections that differ by a few ulp (Math.pow against exp for the gain, V8's cos and sin
  * against the libm's); measured, the gap is under 2e-12 dB, the floored nulls included, so the
  * bound leaves the libm of another platform some 500 times that room and still catches any change
