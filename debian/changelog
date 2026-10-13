@@ -1,3 +1,11 @@
+omx-dsp (0.11.0) unstable; urgency=medium
+
+  * omx_idelay.h: the integer delay line with its click-free re-point,
+    moved from the console's route and bus-output delay; its output is
+    unchanged bit for bit.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
 omx-dsp (0.10.0) unstable; urgency=medium
 
   * Three primitives moved from the OpenMixer engine, unchanged in
