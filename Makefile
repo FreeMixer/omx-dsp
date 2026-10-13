@@ -16,6 +16,10 @@
 #   make test-fx   the effect kernels' oracles and golden digests alone
 #   make consumer  the stateful stages built and run the way a consumer drives them, release flags
 #   make test-analysis  the analysis engines' oracles (FBS feedback detection, HRP) alone
+#   make test-engine-kernels  the golden digests of the converter, generators and analyser readings
+#               moved from the engine, and a sabotage of each
+#   make engine-kernels-identity OPENMIXER=<checkout>  the same digests rendered through the engine's
+#               own copies (mix_src.h, mix_dsp.h), and the check's sabotages (tools/engine-kernels-identity.sh)
 #   make lint   the doc check and the source scan only
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
@@ -88,7 +92,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity
 
 all: lib
 
@@ -296,6 +300,25 @@ analysis-engine-identity: $(LIB)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh "$(OPENMIXER)"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh --self-test "$(OPENMIXER)"
 
+# ---- the kernels moved from the engine ---------------------------------------------------------
+# The sample-rate converter, the generators and the analyser's readings (FreeMixer/openmixer#1580):
+# their oracles are suite arms (test/kernels/src.c, gen.c, rta.c); here are their golden digests at
+# the nine RME rates, which the engine's own copies wrote (test/golden/engine_kernels.sha256), and
+# a break in each kernel that must move its own digests and no other's.
+$(BUILD)/engine_kernels_golden: test/engine_kernels/golden.test.c test/fx/sha256.h $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
+
+test-engine-kernels: $(BUILD)/engine_kernels_golden
+	./$(BUILD)/engine_kernels_golden test/golden/engine_kernels.sha256
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/engine_kernels/sabotage.sh $(BUILD)/engine-kernels-sabotage
+
+# The same digests through the engine's copies: needs a checkout of the private OpenMixer repository,
+# so it is a desk check, not part of make test and not run in CI (BUILDING.md, "The engine's copies").
+engine-kernels-identity:
+	@test -n "$(OPENMIXER)" || { echo "make engine-kernels-identity OPENMIXER=<openmixer checkout>"; exit 2; }
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
+
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked
 # against the plain one it must fail, or the check is blind.
@@ -303,7 +326,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative consumer perturb threads test-fx test-analysis flavours
+test: lib checks suite negative consumer perturb threads test-fx test-analysis test-engine-kernels flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
