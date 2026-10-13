@@ -339,6 +339,116 @@ static inline void omx_dyn_mix_gain(float *gain, uint32_t m, float dry) {
   for (uint32_t i = 0; i < m; i++) gain[i] = dry + wet * gain[i];
 }
 
+/**
+ * @brief Where a BELOW-mode slot's gain is flat: at or below `lo` it is `g_floor` (the range
+ *        floor), at or above `hi` it is `g_open` (the gate open), and only between them does it
+ *        move. From omx_dyn_flat_bounds().
+ */
+struct omx_dyn_flat {
+  float lo;      /**< Detector level, linear: at or below it the gain is `g_floor`; NaN when none. */
+  float hi;      /**< Detector level, linear: at or above it the gain is `g_open`; NaN when none. */
+  float g_floor; /**< The gain computer's own gain at `lo`. */
+  float g_open;  /**< The gain computer's own gain at `hi`. */
+};
+
+/**
+ * @brief The level from the threshold, dB, exactly as omx_gaincomp_db() forms it.
+ * @param p The atom.
+ * @param level The detector level, linear.
+ * @return `omx_lin_to_db(level) - thresh_db`.
+ * @note RT-safe: one log10f. Thread-safe: pure.
+ */
+static inline float omx_dyn_flat_x(const struct omx_dyn *p, float level) {
+  return omx_lin_to_db(level) - p->gc.thresh_db;
+}
+
+/**
+ * @brief 1 when the gain computer takes its open branch at `level`: the BELOW gain is 0 dB there
+ *        before the floor, through the same compares omx_gaincomp_db() or
+ *        omx_gaincomp_db_shifted() make. Monotone in `level`.
+ * @param p The atom; BELOW mode.
+ * @param level The detector level, linear.
+ * @return 1 or 0.
+ * @note RT-safe: one log10f. Thread-safe: pure.
+ */
+static inline int omx_dyn_flat_is_open(const struct omx_dyn *p, float level) {
+  const float x = omx_dyn_flat_x(p, level);
+  const float half = 0.5f * p->gc.knee_db;
+  if (p->knee_shift_db == 0.0f) return x >= half;
+  return !(x <= p->knee_shift_db - half) && x >= p->knee_shift_db + half;
+}
+
+/**
+ * @brief 1 when the gain computer takes its floor at `level`: the expander's line, out of the
+ *        knee, at or below `range_db`, through the same compares and the same product
+ *        omx_gaincomp_db() or omx_gaincomp_db_shifted() make. Monotone in `level`.
+ * @param p The atom; BELOW mode.
+ * @param level The detector level, linear.
+ * @return 1 or 0.
+ * @note RT-safe: one log10f. Thread-safe: pure.
+ */
+static inline int omx_dyn_flat_is_floor(const struct omx_dyn *p, float level) {
+  const float x = omx_dyn_flat_x(p, level);
+  const float half = 0.5f * p->gc.knee_db;
+  const int line = p->knee_shift_db == 0.0f ? (x < half && x <= -half) : x <= p->knee_shift_db - half;
+  return line && (p->gc.ratio - 1.0f) * x <= p->gc.range_db;
+}
+
+/**
+ * @brief The levels between which a BELOW-mode slot's gain moves, per block.
+ *
+ * Each bound starts from the closed form (the level of the open edge, or of the floor), is moved
+ * a little outward until the gain computer's own branch holds there, and is then moved outward
+ * once more by the same step, so a level past the bound is past a level where the branch was seen
+ * to hold by far more than log10f's rounding: the branch holds for every level past it. The
+ * constants are the gain computer's own output at the bound, so a level past it gets the same
+ * float the gain computer would have made. A bound that does not hold after a few steps is NaN,
+ * and every level then takes the gain computer.
+ * @param p The atom; BELOW mode.
+ * @param f Receives the bounds and their gains.
+ * @note RT-safe: at most a dozen log10f and powf, once per block. Thread-safe: pure.
+ */
+static inline void omx_dyn_flat_bounds(const struct omx_dyn *p, struct omx_dyn_flat *f) {
+  const float step = 1.0005f; /* 0.0043 dB, far above log10f's rounding at any level */
+  const float half = 0.5f * p->gc.knee_db;
+  const float edge_open = p->knee_shift_db == 0.0f ? half : p->knee_shift_db + half;
+  f->lo = NAN;
+  f->hi = NAN;
+  f->g_floor = 0.0f;
+  f->g_open = 0.0f;
+  float h = omx_db_to_lin(p->gc.thresh_db + edge_open) * step;
+  for (int k = 0; k < 4 && !omx_dyn_flat_is_open(p, h); k++) h *= step;
+  if (h * step - h * step == 0.0f && omx_dyn_flat_is_open(p, h) && omx_dyn_flat_is_open(p, h * step)) {
+    f->hi = h * step;
+    f->g_open = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, f->hi);
+  }
+  if (!(p->gc.ratio > 1.0f)) return; /* a flat line never reaches a floor below 0 dB */
+  const float edge_line = p->knee_shift_db == 0.0f ? -half : p->knee_shift_db - half;
+  const float edge_range = p->gc.range_db / (p->gc.ratio - 1.0f);
+  const float edge_floor = edge_line < edge_range ? edge_line : edge_range;
+  float q = omx_db_to_lin(p->gc.thresh_db + edge_floor) / step;
+  for (int k = 0; k < 4 && !omx_dyn_flat_is_floor(p, q); k++) q /= step;
+  if (q - q == 0.0f && omx_dyn_flat_is_floor(p, q) && omx_dyn_flat_is_floor(p, q / step)) {
+    f->lo = q / step;
+    f->g_floor = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, f->lo);
+  }
+}
+
+/**
+ * @brief The BELOW gain at `level` through the flat bounds: a constant past either bound, the
+ *        gain computer between them; the same float omx_gaincomp_gain_shifted() makes.
+ * @param f The bounds, from omx_dyn_flat_bounds().
+ * @param p The atom; BELOW mode.
+ * @param level The detector level, linear.
+ * @return The gain.
+ * @note RT-safe: two compares, and the gain computer only between the bounds. Thread-safe: pure.
+ */
+static inline float omx_dyn_flat_gain(const struct omx_dyn_flat *f, const struct omx_dyn *p, float level) {
+  if (level <= f->lo) return f->g_floor;
+  if (level >= f->hi) return f->g_open;
+  return omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, level);
+}
+
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "dyn/gr-block-db"
 /**
@@ -489,6 +599,12 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
                                 ? powf(p->release_coeff, 1.0f / (float)st->factor)
                                 : p->release_coeff;
 
+  /* A BELOW slot without the gate's state machine: its gain is flat wherever the gate is open
+   * or on its floor, and only the levels between take the dB path (#56). */
+  const int flat = p->gc.mode == OMX_DYN_BELOW && !gate_state;
+  struct omx_dyn_flat fl = {NAN, NAN, 0.0f, 0.0f};
+  if (flat) omx_dyn_flat_bounds(p, &fl);
+
   float gmin = 1.0f; /* the block's deepest applied gain, whatever path produced it */
   /* A keyed slot detects its key, which a loop cannot hear through: feedback is the
    * self-detecting slot's. Entering the loop seeds its one stage from the cascade's level (same
@@ -545,7 +661,9 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         omx_dyn_gate_chain(st, p, &ep, ac, rc, gain, m, hold, credit_pole);
       } else {
         for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
-        if (p->knee_shift_db == 0.0f)
+        if (flat)
+          for (uint32_t i = 0; i < m; i++) gain[i] = omx_dyn_flat_gain(&fl, p, lev[i]);
+        else if (p->knee_shift_db == 0.0f)
           for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
         else
           for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, lev[i]);
@@ -577,7 +695,9 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
       if (gate_state) omx_dyn_gate_chain(st, p, &ep, ac, rc, g4, mf, hold, credit_pole);
       else {
         for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
-        if (p->knee_shift_db == 0.0f)
+        if (flat)
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_dyn_flat_gain(&fl, p, g4[k]);
+        else if (p->knee_shift_db == 0.0f)
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
         else
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, g4[k]);
