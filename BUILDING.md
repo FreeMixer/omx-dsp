@@ -20,6 +20,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make engine-kernels-identity OPENMIXER=<checkout>` | renders those digests again through the copies OpenMixer's engine still carries (`mix_src.h`, `mix_dsp.h`), and checks that each of its sabotages goes red; a desk check, not run in CI |
 | `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
 | `make analysis-engine-identity OPENMIXER=<checkout>` | builds the analysis golden against the engine's own `mix_dsp.h`, `hrp_render.h` and `hrp_lv2.h` and requires the committed digests, then its sabotage; a desk check, not run in CI |
+| `make eq-sabotage` | the EQ bank, head-filter and drawn-curve arms (`eq-curve`, `eq-design-ts`) against nine sabotaged copies of the headers; each must fail both arms (part of `make test`) |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
@@ -123,6 +124,40 @@ the console runs as sections of its channel EQ). `test/golden/trim_instance.sha2
 plugin's own `omx_strip.h`, and `test/fx/trim_instance_golden.test.c` holds the two faces to it at
 every declared rate. Run it again whenever either face or the strip's input stage changes; it ends
 when the strip is generated from these faces and holds no arithmetic of its own.
+
+## The EQ maths openmixer's TypeScript computes
+
+openmixer designs its console EQ and draws its curve in TypeScript today (openmixer #1601). The C
+here computes the same results, so the engine and the server can take them from one place:
+
+| TypeScript | C |
+|---|---|
+| core `rbjSection`, `rbjCoeffs` (`packages/core/src/eq.ts`) | `omx_eq_design`, `omx_eq_design_f` |
+| core `bandwidthOctavesQ` | `omx_eq_bandwidth_q` |
+| core `butterworthSlopeQs`, web `butterworthSectionQs` | `omx_eq_butterworth_qs` |
+| core `passFilterMaxSections` | `OMX_EQ_PASS_MAX_SECTIONS` |
+| core `complementSection` | `omx_eq_complement` |
+| core `eqBandIsIdentity` | `omx_eq_band_is_identity` |
+| core `eqCoeffs` | `omx_eq_bank_design` |
+| core `passFilterCoeffs` | `omx_eq_pass_design` |
+| core `sectionMagnitudeDb` | `omx_biquad_magnitude_db_d` |
+| core `biquadMagnitudeDb` | `omx_eq_band_magnitude_db` |
+| core `eqCurveDb` | `omx_eq_curve_db` (its frequencies: `omx_eq_curve_freqs`) |
+| web `magnitudeSumDb`, `seatY`'s value (`packages/web-ui/app/utils/eqCurveGeom.ts`) | `omx_eq_magnitude_sum_db` |
+| web `eqStateBands`, `filterBands`, `passFilterBands` | `omx_eq_curve_bands` |
+| web `eqStateCurveDb`, `compositeCurveDb` | `omx_eq_curve_bands`, then `omx_eq_curve_db` |
+| catalog `octavesToQ` (`packages/catalog/src/eq.ts`) | `omx_eq_octaves_q` |
+
+`test/kernels/fixtures/eq_design_ts.h` is what that TypeScript computes on fixed inputs at the nine
+RME rates, written by `tools/ts-golden.mjs design <openmixer> <contract-ts>` (Node 22.7 or later;
+`<contract-ts>` is omx-contract's TypeScript render, `build/omx-contract/<version>/package/dist/ts`
+once the build has fetched the pin). The `eq-design-ts` arm holds the C to it: a coefficient, a Q or
+a frequency of the drawn grid within 4 ulp, a magnitude within 1e-9 dB, the bank's order, count and
+parked sections exactly. Two families of coefficient pass 4 ulp, both a cancellation that turns one
+ulp of V8's `exp` or `cos` into many (a matched bell or shelf at a low corner or a wide Q, and the
+fitted low-pass's b2 far below Nyquist); they are held to 1e-13 absolute, and the arm prints the
+largest gap of each kind. Regenerate the fixture when openmixer's TypeScript changes, until it is
+deleted. The `eq-curve` arm holds the same functions to closed forms.
 
 ## The limits come from omx-contract
 
