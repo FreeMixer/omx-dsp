@@ -249,4 +249,28 @@ static inline uint32_t omx_eq_butterworth_qs(int slope_24, double q_out[2]) {
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "eq-design/complement"
+/**
+ * @brief The complement `1 − H` of a normalised section, as one section over the same
+ *        denominator: `{1 − b0, a1 − b1, a2 − b2, a1, a2}`, core's `complementSection`. The
+ *        complement of the cookbook bandpass is the cookbook notch on the bandpass's poles, the
+ *        de-esser's dry remainder.
+ * @param c The section `{b0, b1, b2, a1, a2}`, `a0` folded to 1.
+ * @param out The complement; may be `c` itself.
+ * @pre `finite-coeffs`.
+ * @post `same-denominator`.
+ * @note RT-safe and thread-safe: three subtractions, pure.
+ */
+static inline void omx_eq_complement(const double c[5], double out[5]) {
+  OMX_PRE(omx_block_finite_d(c, 5u), "finite-coeffs");
+  const double b0 = c[0], b1 = c[1], b2 = c[2], a1 = c[3], a2 = c[4];
+  out[0] = 1.0 - b0;
+  out[1] = a1 - b1;
+  out[2] = a2 - b2;
+  out[3] = a1;
+  out[4] = a2;
+  OMX_POST(out[3] == a1 && out[4] == a2, "same-denominator");
+}
+#undef OMX_CONTRACT_STAGE
+
 #endif /* OMX_EQ_DESIGN_H */
