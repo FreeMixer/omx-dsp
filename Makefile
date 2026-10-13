@@ -188,9 +188,11 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn deesser dyn_controls trim_instance dynamics_feedback
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn deesser dyn_controls trim_instance align dynamics_feedback
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn dyn_controls trim_instance dynamics_feedback $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback $(addsuffix _instance,$(FX_INSTANCES))
+# Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
+FX_ORACLES = align_fdelay
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
@@ -231,6 +233,7 @@ $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 
 FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k)_math.test.c),$(BUILD)/fx_$(k)_math) $(BUILD)/fx_$(k)_golden) \
           $(foreach k,$(FX_INSTANCES),$(BUILD)/fx_$(k)_instance) \
+          $(foreach o,$(FX_ORACLES),$(BUILD)/fx_$(o)) \
           $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden)
 
 test-fx: $(FX_BINS)
@@ -240,6 +243,7 @@ test-fx: $(FX_BINS)
 	  echo "./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256"; ./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256; \
 	done
 	@set -e; for k in $(FX_INSTANCES); do echo "./$(BUILD)/fx_$${k}_instance"; ./$(BUILD)/fx_$${k}_instance; done
+	@set -e; for o in $(FX_ORACLES); do echo "./$(BUILD)/fx_$$o"; ./$(BUILD)/fx_$$o; done
 	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
 	  echo "./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256"; \
 	  ./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256; \
