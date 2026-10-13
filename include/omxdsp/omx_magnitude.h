@@ -24,11 +24,39 @@
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "magnitude/section"
 /**
+ * @brief The magnitude of one normalised section `{b0, b1, b2, a1, a2}` at the angular frequency
+ *        `w`, in dB, with no clamp: the unit-circle arithmetic every evaluator here shares.
+ *
+ * A zero denominator is not a filter and answers 0 dB; a zero numerator is a full null and answers
+ * `floor_db`.
+ * @param c The coefficients, in double, `a0` folded to 1.
+ * @param w The angular frequency, radians per sample.
+ * @param floor_db The lowest value answered, dB.
+ * @return `max(floor_db, 20·log10|H(e^jw)|)`.
+ * @pre `finite-args`.
+ * @note RT-safe: `cos`, `sin`, `hypot`, `log10`, no allocation. Thread-safe: pure.
+ */
+static inline double omx_biquad_magnitude_db_w(const double c[5], double w, double floor_db) {
+  OMX_PRE(isfinite(w) && isfinite(floor_db), "finite-args");
+  const double cw = cos(w), sw = sin(w), cw2 = cos(2.0 * w), sw2 = sin(2.0 * w);
+  /* H(e^jw) with z^-1 = cos w - j sin w, z^-2 = cos 2w - j sin 2w. */
+  const double num_re = c[0] + c[1] * cw + c[2] * cw2;
+  const double num_im = -(c[1] * sw + c[2] * sw2);
+  const double den_re = 1.0 + c[3] * cw + c[4] * cw2;
+  const double den_im = -(c[3] * sw + c[4] * sw2);
+  const double num = hypot(num_re, num_im);
+  const double den = hypot(den_re, den_im);
+  if (den == 0.0) return 0.0;
+  const double r = num / den;
+  const double db = r > 0.0 ? 20.0 * log10(r) : -INFINITY;
+  return db < floor_db ? floor_db : db;
+}
+
+/**
  * @brief The magnitude of one normalised section `{b0, b1, b2, a1, a2}` at `freq_hz`, in dB.
  *
  * The frequency is clamped to `0.999·Nyquist`, as omx_eq_design() clamps a centre and eqCurveDb
- * clamps a point; a non-positive frequency answers 0 dB. A zero denominator is not a filter and
- * answers 0 dB; a zero numerator is a full null and answers `floor_db`.
+ * clamps a point; a non-positive frequency answers 0 dB. Otherwise omx_biquad_magnitude_db_w().
  * @param c The coefficients, in double, `a0` folded to 1.
  * @param freq_hz The frequency, Hz.
  * @param sample_rate Sample rate, Hz, positive.
@@ -45,19 +73,7 @@ static inline double omx_biquad_magnitude_db_d(const double c[5], double freq_hz
   if (!(freq_hz > 0.0) || !(sample_rate > 0.0)) return 0.0;
   const double hi = sample_rate * 0.5 * 0.999;
   const double f = freq_hz > hi ? hi : freq_hz;
-  const double w = (2.0 * M_PI * f) / sample_rate;
-  const double cw = cos(w), sw = sin(w), cw2 = cos(2.0 * w), sw2 = sin(2.0 * w);
-  /* H(e^jw) with z^-1 = cos w - j sin w, z^-2 = cos 2w - j sin 2w. */
-  const double num_re = c[0] + c[1] * cw + c[2] * cw2;
-  const double num_im = -(c[1] * sw + c[2] * sw2);
-  const double den_re = 1.0 + c[3] * cw + c[4] * cw2;
-  const double den_im = -(c[3] * sw + c[4] * sw2);
-  const double num = hypot(num_re, num_im);
-  const double den = hypot(den_re, den_im);
-  if (den == 0.0) return 0.0;
-  const double r = num / den;
-  const double db = r > 0.0 ? 20.0 * log10(r) : -INFINITY;
-  return db < floor_db ? floor_db : db;
+  return omx_biquad_magnitude_db_w(c, (2.0 * M_PI * f) / sample_rate, floor_db);
 }
 
 /**
