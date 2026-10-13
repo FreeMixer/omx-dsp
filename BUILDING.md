@@ -102,7 +102,9 @@ behaviour (FreeMixer/openmixer#1580). Their oracles are suite arms (`test/kernel
 and `test/golden/engine_kernels.sha256` holds the digests the engine's own copies gave, written by
 `tools/engine-kernels-identity.sh --write`. `make engine-kernels-identity OPENMIXER=<checkout>`
 compiles the program again with those copies in place of the three headers, against the
-omx-contract release the engine pins, and requires the same digests; its self-test changes one line
+omx-contract release the engine pins, and requires the same digests (set
+`ENGINE_IDENTITY_INCLUDE` to the include directory of the omx-dsp the engine pins, e.g. `git archive
+<its commit> include`, when this tree's other headers need a newer contract than the engine's); its self-test changes one line
 in each copy and requires a failure each time. It is a desk check and CI does not run it: the copies
 live in OpenMixer's private repository. It ends when the engine builds from these headers instead
 of its copies.
