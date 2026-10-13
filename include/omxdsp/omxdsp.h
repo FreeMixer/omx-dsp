@@ -58,6 +58,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_gen.h"
 #include "omx_lfo.h"
 #include "omx_lookahead.h"
+#include "omx_magnitude.h"
 #include "omx_matched_pair.h"
 #include "omx_mixmatrix.h"
 #include "omx_onepole.h"
