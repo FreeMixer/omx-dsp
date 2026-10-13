@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.7.0
+Version: 0.8.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,11 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.8.0-1
+- omx_align.h: the console's input alignment stage, moved unchanged
+- fx/omx_reverse_render.h: the console's offline pre-hit reverse render,
+  moved unchanged
+
 * Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.7.0-1
 - The dynamics atom carries a detector topology. Feedback detects the
   slot's own pre-make-up output one sample late through one envelope stage,
