@@ -10,13 +10,14 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make test` | the whole suite: every primitive's and kernel's oracle at every declared rate with contracts on, the negative, perturbation and thread arms, the writable-data and doc checks, and the golden digests |
 | `make test-fx` | the effect kernels' oracles and golden digests alone |
 | `make consumer` | the stateful stages built the way a consumer builds them (release flags, `-Werror`, states on the stack that only their init or settle writes) and run |
-| `make test-analysis` | the feedback detector's and HRP's oracles at the nine RME rates (32 to 192 kHz), their no-allocation arm and golden digests alone |
+| `make test-analysis` | the feedback detector's, the RTA ring and spectrum's and HRP's oracles (the HRP render and live core among them) at the nine RME rates (32 to 192 kHz), their no-allocation arm, golden digests and one sabotage per kernel alone |
 | `make install PREFIX=/usr LIBDIR=/usr/lib64 DESTDIR=…` | headers, the three archives and `omxdsp.pc`, `omxdsp-contracts.pc`, `omxdsp-tsan.pc` |
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
 | `make lint` | the doc check, the source scan, the log10f guard, tools/contract-single-source.sh (no name omx-contract defines is defined again here) and tools/face-conformance.sh (every instance face's resolve takes its kernel's contract controls by name, order and kind); both check their own sabotage |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
 | `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
+| `make analysis-engine-identity OPENMIXER=<checkout>` | builds the analysis golden against the engine's own `mix_dsp.h`, `hrp_render.h` and `hrp_lv2.h` and requires the committed digests, then its sabotage; a desk check, not run in CI |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
