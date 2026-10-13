@@ -24,6 +24,8 @@
 #               1024 frames
 #   make strip-input-identity OMX_PLUGINS=<checkout>  the trim and eq faces against omx-plugins'
 #               omx_strip.h input stage, and the check's sabotage (tools/strip-input-identity.sh)
+#   make analysis-engine-identity OPENMIXER=<checkout>  the RTA, HRP render and HRP live core against
+#               the engine's own copies, and the check's sabotage (tools/analysis-engine-identity.sh)
 
 CC      ?= cc
 AR      ?= ar
@@ -86,7 +88,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity
 
 all: lib
 
@@ -267,12 +269,17 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 
 # ---- the analysis engines ---------------------------------------------------------------------
 # FBS feedback detection and HRP read a spectrum and answer what rings and what to cut; they run on
-# a control thread, never in the audio callback. Each test/analysis/<t>.test.c is one program at
+# a control thread, never in the audio callback. omx_rta.h is the capture ring
+# and the spectrum they read. Each test/analysis/<t>.test.c is one program at
 # release flags against the plain archive; -Isrc lets a test include the compiled unit it checks.
 # rates runs the HRP chain at the nine RME rates and counts allocations through wrapped allocators;
 # golden compares every answer of both engines with test/golden/analysis.sha256, which the engine's
 # own copy of this code wrote before it moved here; its log10f is the correctly rounded omx_log10f of test/support, wrapped in at link time.
-ANALYSIS_TESTS = fbs_detect hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct rates golden
+# make analysis-engine-identity OPENMIXER=<checkout> writes the rta, render and live digests again from
+# the engine's own copies and compares them (tools/analysis-engine-identity.sh), a desk check.
+# test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
+# and requires the golden digests of that kernel to move.
+ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 rates golden
 ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
 ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) test/fx/sha256.h $(SUPPORT_HEADERS) | $(BUILD)
@@ -282,6 +289,12 @@ $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
 
 test-analysis: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
 	@set -e; for t in $(ANALYSIS_TESTS); do echo "./$(BUILD)/analysis_$$t"; ./$(BUILD)/analysis_$$t; done
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/sabotage.sh $(BUILD)/analysis-sabotage
+
+analysis-engine-identity: $(LIB)
+	@test -n "$(OPENMIXER)" || { echo "make analysis-engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh "$(OPENMIXER)"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh --self-test "$(OPENMIXER)"
 
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked
