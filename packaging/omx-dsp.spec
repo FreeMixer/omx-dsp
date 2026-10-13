@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.9.0
+Version: 0.6.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.5.0
+BuildRequires: omx-contract-devel >= 2.6.0
 BuildRequires: omx-contract-devel < 3
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
@@ -35,7 +35,7 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.5.0
+Requires: omx-contract-devel >= 2.6.0
 Requires: omx-contract-devel < 3
 
 %description devel
@@ -71,28 +71,6 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
-* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.9.0-1
-- Three analysis headers arrive from the console, unchanged:
-  analysis/omx_rta.h, the capture ring and magnitude spectrum the analysis
-  engines read; analysis/omx_hrp_render.h, HRP's offline render over a
-  whole take; and analysis/omx_hrp_lv2.h, HRP's live corrector core, host-
-  agnostic. Their outputs are the console's own, bit for bit
-
-* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.8.0-1
-- omx_align.h: the console's input alignment stage, moved unchanged
-- fx/omx_reverse_render.h: the console's offline pre-hit reverse render,
-  moved unchanged
-
-* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.7.0-1
-- The dynamics atom carries a detector topology. Feedback detects the
-  slot's own pre-make-up output one sample late through one envelope stage,
-  its attack floored at (R-1)/R, never oversampled; a keyed slot stays
-  feed-forward. Feed-forward outputs are unchanged
-- omx_gaincomp_db_fb, the feedback detector's output-domain curve
-- The comp face's resolve takes detector_topology after
-  detector_oversampling
-- Built against omx-contract 2.5.0; any 2.x from 2.5.0 on
-
 * Mon Oct 12 2026 Pau Aliagas <linuxnow@gmail.com> - 0.6.1-1
 - The rotor read its LFO carry before setting it on the first tick; it is
   now cleared at settle
