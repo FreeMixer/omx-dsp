@@ -16,7 +16,7 @@
 /** @brief API major version: a symbol's meaning changes only with a bump here. */
 #define OMXDSP_VERSION_MAJOR 0
 /** @brief API minor version: additions only. */
-#define OMXDSP_VERSION_MINOR 11
+#define OMXDSP_VERSION_MINOR 12
 /** @brief Patch version: no API change. */
 #define OMXDSP_VERSION_PATCH 0
 
@@ -58,6 +58,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_gen.h"
 #include "omx_lfo.h"
 #include "omx_lookahead.h"
+#include "omx_magnitude.h"
 #include "omx_matched_pair.h"
 #include "omx_mixmatrix.h"
 #include "omx_onepole.h"
