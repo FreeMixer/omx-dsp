@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.12.1
+Version: 0.13.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,14 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.13.0-1
+- The EQ maths openmixer computes in TypeScript, in C: the bank and
+  head filters an EQ runs (omx_eq_bank_design, omx_eq_pass_design), a
+  section's complement, the identity test, the analogue width-to-Q law, a
+  band's magnitude and the drawn curve with its frequencies and bands
+- A parity table of the TypeScript at the nine RME rates holds them to
+  it
+
 * Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.12.1-1
 - Tests only: the kernel arms OpenMixer's engine tests held (the LFO,
   the one-pole, the oversampler and the comp's alias gate, the matched EQ
