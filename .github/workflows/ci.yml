@@ -58,6 +58,10 @@ jobs:
         id: handback-spdx
         run: tools/spdx-check.sh
 
+      - name: No source points into a private repository
+        id: handback-public-sources
+        run: make public-sources
+
       - name: The release workflow builds arm on every tag
         id: handback-release-arm-gate
         run: tools/release-arm-gate-selftest.sh

@@ -24,6 +24,7 @@
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
+#   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
@@ -46,7 +47,7 @@ override CFLAGS += $(FPFLAGS)
 # The limits come from FreeMixer/omx-contract, the version .github/pins.txt names, resolved by
 # tools/contract-include.sh (installed omx-contract-devel, else the release tarball); this tree
 # commits no copy of them. Every sub-script that compiles gets the directory as CONTRACT_INC.
-ifeq ($(filter version clean docs,$(MAKECMDGOALS)),)
+ifeq ($(filter version clean docs public-sources,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
 $(error tools/contract-include.sh found no omx-contract: see its message above)
@@ -95,7 +96,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage bandwidth-q-table
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage bandwidth-q-table public-sources
 
 all: lib
 
@@ -201,6 +202,12 @@ checks:
 	bash tools/face-conformance.sh --self-test
 
 lint: checks
+
+# Public sources state public facts only: no pointer into a private repository (operator ruling
+# 2026-10-13). The check, then its self-test.
+public-sources:
+	bash tools/public-sources-check.sh
+	bash tools/public-sources-check.sh --self-test
 
 # omx_log10f() (test/support) against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
 # where the libm's log10f is correctly rounded (glibc 2.43), so not part of make test.
