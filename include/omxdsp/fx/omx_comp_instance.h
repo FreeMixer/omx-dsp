@@ -21,7 +21,8 @@
  *      because a foreign host's port is not the console's codec and nothing upstream has clamped
  *      it. The `kind` picks the detector as the console does (`console-rig.ts`): RMS for a comp,
  *      peak for a limiter. The detector oversampling is a DETECTOR_OVERSAMPLINGS index, in the
- *      order of OMX_DYN_OVS_*; any value outside either set reads as its declared default.
+ *      order of OMX_DYN_OVS_*; the detector topology is a DETECTOR_TOPOLOGY index
+ *      (OMX_DETECTOR_TOPOLOGY_*); a value outside its set reads as its declared default.
  *   3. IN -> OUT. The kernel works IN PLACE on the strip's two legs; a host connects separate
  *      input and output buffers (and may connect them to the same memory). run() copies in to out
  *      when they differ and runs the kernel on out. Without a key nothing else can alias.
@@ -35,6 +36,7 @@
  *
  * LATENCY IS PUBLISHED: OMX_OVS_LATENCY_4X while the 4x control path is engaged (the kernel's
  * compensation delay), else 0 — read off omx_dyn_oversample_factor, the kernel's own derivation.
+ * A feedback slot is never oversampled, so it reports 0.
  *
  * Everything below is plain C; test/fx/comp_instance.test.c drives it with a plain `cc`.
  */
@@ -81,6 +83,9 @@ typedef struct {
  * @param kind A COMP_KINDS index: comp detects RMS, limiter peak; anything else reads as comp.
  * @param detector_oversampling A DETECTOR_OVERSAMPLINGS index (auto, off, x4: OMX_DYN_OVS_*);
  *        anything else reads as `auto`.
+ * @param detector_topology A DETECTOR_TOPOLOGY index (OMX_DETECTOR_TOPOLOGY_*): `feedback` runs
+ *        the kernel's feedback loop at factor 1 whatever the oversampling says; anything else
+ *        reads as `feedforward`.
  * @post `atom-meets-the-kernel-preconditions`: every field inside the declared OMX_COMP_* travel.
  * @note RT-safe: two expf and one powf per call. Thread-safe on distinct instances.
  */
@@ -88,7 +93,7 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
                                              float threshold_db, float ratio, float knee_db,
                                                  float attack_ms, float release_ms,
                                                  float makeup_db, float mix_pct, int kind,
-                                                 int detector_oversampling) {
+                                                 int detector_oversampling, int detector_topology) {
   if (!s || !s->ready) return;
   struct omx_dyn *p = &s->atom;
   memset(p, 0, sizeof *p);
@@ -104,6 +109,8 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
   p->ovs_mode = detector_oversampling == OMX_DETECTOR_OVERSAMPLINGS_OFF ? OMX_DYN_OVS_OFF
                 : detector_oversampling == OMX_DETECTOR_OVERSAMPLINGS_X4 ? OMX_DYN_OVS_X4
                                                                           : OMX_DYN_OVS_AUTO;
+  p->topology = detector_topology == OMX_DETECTOR_TOPOLOGY_FEEDBACK ? OMX_DETECTOR_TOPOLOGY_FEEDBACK
+                                                                     : OMX_DETECTOR_TOPOLOGY_FEEDFORWARD;
   const float a_ms = omx_clampf(attack_ms, OMX_COMP_ATTACK_MS_MIN, OMX_COMP_ATTACK_MS_MAX);
   const float r_ms = omx_clampf(release_ms, OMX_COMP_RELEASE_MS_MIN, OMX_COMP_RELEASE_MS_MAX);
   p->attack_ms = a_ms;
@@ -139,7 +146,8 @@ static inline int omx_comp_instance_init(OmxCompInstance *s, float sr) {
   omx_comp_instance_resolve(s, 0, OMX_COMP_THRESHOLD_DB_DEFAULT, OMX_COMP_RATIO_DEFAULT,
                                 OMX_COMP_KNEE_DB_DEFAULT, OMX_COMP_ATTACK_MS_DEFAULT,
                                 OMX_COMP_RELEASE_MS_DEFAULT, OMX_COMP_MAKEUP_DB_DEFAULT, OMX_COMP_MIX_PCT_DEFAULT,
-                                (int)OMX_COMP_KINDS_DEFAULT, (int)OMX_DETECTOR_OVERSAMPLINGS_DEFAULT);
+                                (int)OMX_COMP_KINDS_DEFAULT, (int)OMX_DETECTOR_OVERSAMPLINGS_DEFAULT,
+                                (int)OMX_DETECTOR_TOPOLOGY_DEFAULT);
   return 1;
 }
 

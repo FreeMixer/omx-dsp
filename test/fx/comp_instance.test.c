@@ -137,7 +137,7 @@ static void arm_ready(float sr) {
     const float rate = b < 2 ? bad[b] : nanf("");
     ok(omx_comp_instance_init(&g_inst, rate) == 0 && !g_inst.ready, "a rate that is not positive is refused", rate, 0);
     ok(omx_comp_instance_latency(&g_inst) == 0.0f, "a refused instance reports no latency", 0, 0);
-    omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 0.0f, 0.1f, 50.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4);
+    omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 0.0f, 0.1f, 50.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
     fill(l, r);
     omx_comp_instance_run(&g_inst, l, r, ol, or_, N);
     memcpy(cl, l, sizeof l);
@@ -151,12 +151,15 @@ static void arm_ready(float sr) {
   ok(omx_comp_instance_init(&g_inst, sr) == 1 && g_inst.ready, "a declared rate is accepted", sr, 0);
   expect_atom(&g_inst.atom, sr, 0, OMX_COMP_THRESHOLD_DB_DEFAULT, OMX_COMP_RATIO_DEFAULT, OMX_COMP_KNEE_DB_DEFAULT,
               OMX_COMP_ATTACK_MS_DEFAULT, OMX_COMP_RELEASE_MS_DEFAULT, OMX_COMP_MAKEUP_DB_DEFAULT, 1, OMX_DYN_OVS_AUTO);
+  ok(g_inst.atom.topology == OMX_DETECTOR_TOPOLOGY_DEFAULT, "the defaults run the declared topology, feedforward",
+     g_inst.atom.topology, OMX_DETECTOR_TOPOLOGY_DEFAULT);
   /* a kind outside COMP_KINDS reads as the declared default, comp: the RMS detector */
   static const int BAD[] = {-1, 2, 7, 0x7fffffff};
   for (int m = 0; m < 4; m++) {
-    omx_comp_instance_resolve(&g_inst, 0, -20.0f, 4.0f, 6.0f, 5.0f, 100.0f, 0.0f, 100.0f, BAD[m], 9);
-    ok(g_inst.atom.detect == OMX_DETECT_RMS && g_inst.atom.ovs_mode == OMX_DYN_OVS_AUTO,
-       "a kind or detector oversampling outside its ids reads as the declared default", BAD[m], 0);
+    omx_comp_instance_resolve(&g_inst, 0, -20.0f, 4.0f, 6.0f, 5.0f, 100.0f, 0.0f, 100.0f, BAD[m], 9, BAD[m]);
+    ok(g_inst.atom.detect == OMX_DETECT_RMS && g_inst.atom.ovs_mode == OMX_DYN_OVS_AUTO &&
+           g_inst.atom.topology == OMX_DETECTOR_TOPOLOGY_FEEDFORWARD,
+       "a kind, detector oversampling or topology outside its ids reads as the declared default", BAD[m], 0);
   }
 }
 
@@ -177,7 +180,7 @@ static void arm_resolve(float sr) {
         if (i < 4) { t = v[i][0]; ra = v[i][1]; k = v[i][2]; a = v[i][3]; rl = v[i][4]; mk = v[i][5]; }
         else t = ra = k = a = rl = mk = nanf("");
         const int ovs = modes[(i + bypass + rms) % 5];
-        omx_comp_instance_resolve(&g_inst, bypass, t, ra, k, a, rl, mk, 100.0f, KIND(rms), ovs);
+        omx_comp_instance_resolve(&g_inst, bypass, t, ra, k, a, rl, mk, 100.0f, KIND(rms), ovs, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
         expect_atom(&g_inst.atom, sr, bypass, t, ra, k, a, rl, mk, rms, ovs);
       }
 }
@@ -186,16 +189,19 @@ static void arm_latency(float sr) {
   g_arm = "C latency";
   omx_comp_instance_init(&g_inst, sr);
   ok(omx_comp_instance_latency(&g_inst) == 0.0f, "the defaults report none", omx_comp_instance_latency(&g_inst), 0);
-  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO);
+  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   ok(omx_comp_instance_latency(&g_inst) == (float)OMX_OVS_LATENCY_4X, "a 0.2 ms attack on auto reports the 4x latency",
      omx_comp_instance_latency(&g_inst), OMX_OVS_LATENCY_4X);
-  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_OFF);
+  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_OFF, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   ok(omx_comp_instance_latency(&g_inst) == 0.0f, "off reports none", omx_comp_instance_latency(&g_inst), 0);
-  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 20.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4);
+  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 20.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   ok(omx_comp_instance_latency(&g_inst) == (float)OMX_OVS_LATENCY_4X, "4x reports the 4x latency",
      omx_comp_instance_latency(&g_inst), OMX_OVS_LATENCY_4X);
-  omx_comp_instance_resolve(&g_inst, 1, -18.0f, 4.0f, 6.0f, 20.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4);
+  omx_comp_instance_resolve(&g_inst, 1, -18.0f, 4.0f, 6.0f, 20.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   ok(omx_comp_instance_latency(&g_inst) == 0.0f, "bypassed reports none", omx_comp_instance_latency(&g_inst), 0);
+  omx_comp_instance_resolve(&g_inst, 0, -18.0f, 4.0f, 6.0f, 0.2f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_X4, OMX_DETECTOR_TOPOLOGY_FEEDBACK);
+  ok(g_inst.atom.topology == OMX_DETECTOR_TOPOLOGY_FEEDBACK && omx_comp_instance_latency(&g_inst) == 0.0f,
+     "feedback reaches the atom and reports none on 4x", omx_comp_instance_latency(&g_inst), 0);
 }
 
 static void arm_run(float sr) {
@@ -217,7 +223,7 @@ static void arm_run(float sr) {
     for (uint32_t off = 0, b = 0; off < N; b++) {
       const uint32_t m = N - off < blocks[b % 5u] ? N - off : blocks[b % 5u];
       omx_comp_instance_resolve(&g_inst, bypass, -30.0f, 8.0f, cases[ci][1], cases[ci][2], 80.0f, cases[ci][3], 100.0f,
-                                    KIND(rms), ovs);
+                                    KIND(rms), ovs, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
       omx_comp_instance_run(&g_inst, l + off, r + off, ol + off, or_ + off, m);
       off += m;
     }
@@ -242,10 +248,10 @@ static void arm_alias(float sr) {
   static float l[N], r[N], ol[N], or_[N];
   fill(l, r);
   omx_comp_instance_init(&g_inst, sr);
-  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO);
+  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   omx_comp_instance_run(&g_inst, l, r, ol, or_, N);
   omx_comp_instance_init(&g_inst, sr);
-  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO);
+  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   omx_comp_instance_run(&g_inst, l, r, l, r, N);
   uint32_t mis = 0;
   for (uint32_t i = 0; i < N; i++) mis += l[i] != ol[i] || r[i] != or_[i];
@@ -263,7 +269,7 @@ static void arm_mix(float sr) {
                                          : mx > OMX_COMP_MIX_PCT_MAX ? OMX_COMP_MIX_PCT_MAX : mx);
     fill(l, r);
     omx_comp_instance_init(&g_inst, sr);
-    omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 5.0f, 80.0f, 3.0f, mx, KIND(1), OMX_DYN_OVS_AUTO);
+    omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 5.0f, 80.0f, 3.0f, mx, KIND(1), OMX_DYN_OVS_AUTO, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
     ok(g_inst.atom.dry == want, "the mix lands in the kernel's dry share", g_inst.atom.dry, want);
     omx_comp_instance_run(&g_inst, l, r, ol, or_, N);
     memcpy(el, l, sizeof l);
@@ -290,11 +296,11 @@ static void arm_no_alloc(float sr) {
   g_allocs = 0;
   g_counting = 1;
   const int ready = omx_comp_instance_init(&g_inst, sr);
-  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(1), OMX_DYN_OVS_X4);
+  omx_comp_instance_resolve(&g_inst, 0, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(1), OMX_DYN_OVS_X4, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   omx_comp_instance_run(&g_inst, l, r, l, r, 512u);
-  omx_comp_instance_resolve(&g_inst, 1, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO);
+  omx_comp_instance_resolve(&g_inst, 1, -30.0f, 8.0f, 6.0f, 0.2f, 80.0f, 6.0f, 100.0f, KIND(0), OMX_DYN_OVS_AUTO, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   omx_comp_instance_run(&g_inst, l, r, l, r, 256u);
-  omx_comp_instance_resolve(&g_inst, 0, -24.0f, 4.0f, 0.0f, 10.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_OFF);
+  omx_comp_instance_resolve(&g_inst, 0, -24.0f, 4.0f, 0.0f, 10.0f, 200.0f, 0.0f, 100.0f, KIND(0), OMX_DYN_OVS_OFF, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   omx_comp_instance_run(&g_inst, l + 512, r + 512, l + 512, r + 512, 512u);
   g_counting = 0;
   ok(ready && g_allocs == 0, "init, resolve, a re-engage and run allocate nothing", (double)g_allocs, 0);
