@@ -11,11 +11,13 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make test-fx` | the effect kernels' oracles and golden digests alone |
 | `make consumer` | the stateful stages built the way a consumer builds them (release flags, `-Werror`, states on the stack that only their init or settle writes) and run |
 | `make test-analysis` | the feedback detector's, the RTA ring and spectrum's and HRP's oracles (the HRP render and live core among them) at the nine RME rates (32 to 192 kHz), their no-allocation arm, golden digests and one sabotage per kernel alone |
+| `make test-engine-kernels` | the golden digests of the sample-rate converter, the generators and the analyser's readings at the nine RME rates, which the engine's own copies wrote, and a break in each that must move its own digests and no other's |
 | `make install PREFIX=/usr LIBDIR=/usr/lib64 DESTDIR=…` | headers, the three archives and `omxdsp.pc`, `omxdsp-contracts.pc`, `omxdsp-tsan.pc` |
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
 | `make lint` | the doc check, the source scan, the log10f guard, tools/contract-single-source.sh (no name omx-contract defines is defined again here) and tools/face-conformance.sh (every instance face's resolve takes its kernel's contract controls by name, order and kind); both check their own sabotage |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
+| `make engine-kernels-identity OPENMIXER=<checkout>` | renders those digests again through the copies OpenMixer's engine still carries (`mix_src.h`, `mix_dsp.h`), and checks that each of its sabotages goes red; a desk check, not run in CI |
 | `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
 | `make analysis-engine-identity OPENMIXER=<checkout>` | builds the analysis golden against the engine's own `mix_dsp.h`, `hrp_render.h` and `hrp_lv2.h` and requires the committed digests, then its sabotage; a desk check, not run in CI |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
@@ -90,6 +92,26 @@ with a `rate-is-declared` precondition. The dynamics, balance, rotor and limiter
 32, 64 and 128 kHz, the other rates of an RME interface (`OMX_FX_RME_RATES` in
 `test/fx/fx_rates.h`), with contracts still on: there the `rate-is-declared` precondition is
 expected, and every other law must hold. Their golden digest files carry all nine rates.
+
+## The engine's copies
+
+The sample-rate converter (`omx_src.h`), the generators (`omx_gen.h`) and the analyser's spectrum
+readings and half-band decimator (`analysis/omx_rta.h`) moved here from OpenMixer's engine unchanged in
+behaviour (FreeMixer/openmixer#1580). Their oracles are suite arms (`test/kernels/src.c`, `gen.c`,
+`rta.c`); `test/engine_kernels/golden.test.c` hashes their output per kernel at the nine RME rates,
+and `test/golden/engine_kernels.sha256` holds the digests the engine's own copies gave, written by
+`tools/engine-kernels-identity.sh --write`. `make engine-kernels-identity OPENMIXER=<checkout>`
+compiles the program again with those copies in place of the three headers, against the
+omx-contract release the engine pins, and requires the same digests (set
+`ENGINE_IDENTITY_INCLUDE` to the include directory of the omx-dsp the engine pins, e.g. `git archive
+<its commit> include`, when this tree's other headers need a newer contract than the engine's); its self-test changes one line
+in each copy and requires a failure each time. It is a desk check and CI does not run it: the copies
+live in OpenMixer's private repository. It ends when the engine builds from these headers instead
+of its copies.
+
+The engine spells the converter's design rolloff `OMX_SRC_ROLLOFF`, a double; omx-contract renders
+it as the float `OMX_SRC_ROLLOFF` and the double `OMX_SRC_ROLLOFF_DOUBLE`. A caller that wants the
+engine's coefficients passes `OMX_SRC_ROLLOFF_DOUBLE` to `omx_src_design`.
 
 ## The channel strip's input stage
 

@@ -13,6 +13,11 @@
 #   3. the release tarball of that version (its include/ is the render `omx-contract render --check`
 #      holds equal to the data), fetched once into build/omx-contract/<version>/.
 #
+# A fourth field on the pin line, a commit of FreeMixer/omx-contract, takes that commit's tree instead
+# of 2 and 3, before the release exists (a pull request's head): its committed renders, fetched once
+# into build/omx-contract/<commit>/, and its package.json must carry the pinned version. The pin goes
+# back to three fields when the release is tagged.
+#
 # With --data it prints instead the directory holding that version's kernel files
 # (data/kernels/<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh
 # reads. The installed packages ship the renders only, so this always takes the release tarball (3).
@@ -28,13 +33,25 @@ if [ "$data" = 0 ] && [ -n "${OMX_CONTRACT_INC:-}" ]; then
 fi
 v="$(awk '$1 == "omx-contract" { print $3 }' "$HERE/.github/pins.txt")"
 [ -n "$v" ] || { echo "contract-include: .github/pins.txt has no omx-contract line" >&2; exit 1; }
-if [ "$data" = 0 ] && command -v pkg-config >/dev/null 2>&1 && pkg-config --exact-version="$v" omx-contract 2>/dev/null; then
+c="$(awk '$1 == "omx-contract" { print $4 }' "$HERE/.github/pins.txt")"
+if [ -n "$c" ]; then
+  printf '%s\n' "$c" | grep -qE '^[0-9a-f]{40}$' || { echo "contract-include: the pinned commit '$c' is not 40 hex digits" >&2; exit 1; }
+  dir="$HERE/build/omx-contract/$c"
+  if [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
+    command -v curl >/dev/null 2>&1 || { echo "contract-include: curl is missing to fetch omx-contract $c" >&2; exit 1; }
+    rm -rf "$dir"; mkdir -p "$dir/package"
+    curl -fsSL "https://codeload.github.com/FreeMixer/omx-contract/tar.gz/$c" -o "$dir/tree.tgz" \
+      || { echo "contract-include: omx-contract $c could not be fetched" >&2; rm -rf "$dir"; exit 1; }
+    tar xzf "$dir/tree.tgz" -C "$dir/package" --strip-components=1
+  fi
+fi
+if [ -z "$c" ] && [ "$data" = 0 ] && command -v pkg-config >/dev/null 2>&1 && pkg-config --exact-version="$v" omx-contract 2>/dev/null; then
   inc="$(pkg-config --variable=includedir omx-contract)"
   [ -f "$inc/omxcontract/omx_contract_limits.h" ] || { echo "contract-include: omx-contract $v is installed but $inc/omxcontract/omx_contract_limits.h is missing" >&2; exit 1; }
   printf '%s\n' "$inc"; exit 0
 fi
-dir="$HERE/build/omx-contract/$v"
-if [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
+[ -n "$c" ] || dir="$HERE/build/omx-contract/$v"
+if [ -z "$c" ] && [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
   command -v curl >/dev/null 2>&1 || { echo "contract-include: omx-contract $v is not installed (pkg-config) and curl is missing to fetch the release" >&2; exit 1; }
   rm -rf "$dir"; mkdir -p "$dir"
   curl -fsSL "https://github.com/FreeMixer/omx-contract/releases/download/v$v/openmixer-omx-contract-$v.tgz" -o "$dir/release.tgz" \
@@ -42,7 +59,7 @@ if [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
   tar xzf "$dir/release.tgz" -C "$dir"
 fi
 got="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$dir/package/package.json")"
-[ "$got" = "$v" ] || { echo "contract-include: the release unpacked at $dir is $got, the pin is $v" >&2; exit 1; }
+[ "$got" = "$v" ] || { echo "contract-include: the tree unpacked at $dir is $got, the pin is $v" >&2; exit 1; }
 if [ "$data" = 1 ]; then
   [ -d "$dir/package/data/kernels" ] || { echo "contract-include: the omx-contract $v release has no data/kernels/" >&2; exit 1; }
   printf '%s\n' "$dir/package/data/kernels"; exit 0
