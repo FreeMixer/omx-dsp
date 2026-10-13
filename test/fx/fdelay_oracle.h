@@ -12,7 +12,7 @@
  * `mix_fdelay.h` builds the interpolation as a product of Lagrange basis coefficients. This file
  * builds the same unique polynomial by NEWTON'S DIVIDED DIFFERENCES over the complex exponential
  * samples themselves and never forms a coefficient at all — the derivation
- * `mix_fdelay.test.c`'s own oracle uses, and the reason a stage oracle standing on it is not
+ * test/kernels/fdelay.c's own oracle uses, and the reason a stage oracle standing on it is not
  * comparing the kernel with itself.
  */
 #ifndef OMX_TEST_FDELAY_ORACLE_H

@@ -96,7 +96,7 @@ enum omx_drive_band {
 /* How many base-rate samples the kernel processes per pass. The whole point of a fixed chunk is
  * that every scratch buffer becomes an INLINE array: the state is one calloc, not a pool with a
  * layout. The oversampler's state is streaming, so chunking is invisible in the result —
- * omx_oversampler.test.c's own streaming arms are what
+ * test/kernels/oversampler.c's block-quantum arms (arm_oversampler_promises) are what
  * makes that a checked claim rather than a hope. */
 #define OMX_DRIVE_CHUNK 64u
 
