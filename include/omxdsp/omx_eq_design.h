@@ -273,4 +273,25 @@ static inline void omx_eq_complement(const double c[5], double out[5]) {
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "eq-design/octaves-q"
+/**
+ * @brief The analogue bandwidth-to-Q relation, `√(2^N)/(2^N − 1)` for a width of `N` octaves held
+ *        at or above 0.05: core's catalog `octavesToQ`, which reads a hosted plugin's width port.
+ *        Unlike omx_eq_bandwidth_q() it knows no rate, so it carries no bilinear correction.
+ * @param bw_oct The width, in octaves.
+ * @return The quality factor.
+ * @pre `finite-width`.
+ * @post `finite-positive-q`.
+ * @note Not for the audio thread (`pow`); thread-safe: pure.
+ */
+static inline double omx_eq_octaves_q(double bw_oct) {
+  OMX_PRE(isfinite(bw_oct), "finite-width");
+  const double bw = bw_oct > 0.05 ? bw_oct : 0.05;
+  const double t = pow(2.0, bw);
+  const double q = sqrt(t) / (t - 1.0);
+  OMX_POST(isfinite(q) && q > 0.0, "finite-positive-q");
+  return q;
+}
+#undef OMX_CONTRACT_STAGE
+
 #endif /* OMX_EQ_DESIGN_H */
