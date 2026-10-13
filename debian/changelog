@@ -1,3 +1,16 @@
+omx-dsp (0.7.0) unstable; urgency=medium
+
+  * The dynamics atom carries a detector topology. Feedback detects the
+    slot's own pre-make-up output one sample late through one envelope
+    stage, its attack floored at (R-1)/R, never oversampled; a keyed slot
+    stays feed-forward. Feed-forward outputs are unchanged.
+  * omx_gaincomp_db_fb, the feedback detector's output-domain curve.
+  * The comp face's resolve takes detector_topology after
+    detector_oversampling.
+  * Built against omx-contract 2.5.0; any 2.x from 2.5.0 on.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
 omx-dsp (0.6.1) unstable; urgency=medium
 
   * The rotor read its LFO carry before setting it on the first tick; it is
