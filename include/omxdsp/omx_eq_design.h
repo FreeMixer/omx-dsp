@@ -174,10 +174,12 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
 
 #define OMX_CONTRACT_STAGE "eq-design/bandwidth-q"
 /**
- * @brief The cookbook's bandwidth-to-Q relation, term for term core's `bandwidthOctavesQ`
- *        (eq.ts): the Q at which a section designed at `freq_hz` has its −3 dB points `bw_oct`
- *        octaves apart (for the bandpass and the notch). The `w0/sin(w0)` term is the cookbook's
- *        own correction for the bilinear warp, so the edges land at `f·2^(±bw/2)` at every rate.
+ * @brief The cookbook's bandwidth-to-Q relation: the Q at which a section designed at `freq_hz`
+ *        has its −3 dB points `bw_oct` octaves apart (for the bandpass and the notch). The
+ *        `w0/sin(w0)` term is the cookbook's own correction for the bilinear warp, so the edges
+ *        land at `f·2^(±bw/2)` at every rate. This is the law's one home (FreeMixer/omx-dsp#41);
+ *        core's `bandwidthOctavesQ` (eq.ts) is a copy, held to test/golden/eq_bandwidth_q.json
+ *        until it is deleted.
  * @param freq_hz Centre, Hz; clamped to `[1, 0.999·Nyquist]`, as omx_eq_design() clamps it.
  * @param bw_oct The width, in octaves, positive.
  * @param sample_rate Sample rate, Hz, positive.
