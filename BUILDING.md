@@ -218,7 +218,7 @@ version check. The perturbation arms use it, and so can you: render a contract w
 into a scratch directory, `make test`, and the kernel test that reads that value must go red.
 `tools/contract-include.sh --data` prints the directory of the installed package's kernel files, which
 `tools/face-conformance.sh` reads: the package's `data/kernels` or `kernels` when it ships them, else
-one `<kernel>.json` per kernel cut (needs `python3`) from the `omx-contract.json` it ships, written under `build/`.
+one `<kernel>.json` per kernel cut from the `omx-contract.json` it ships, written under `build/`.
 Raising the floor is one commit of its own, with the spec and `debian/control`. A name the kernels need that the contract lacks is added to
 the contract and released there first; it is never typed here.
 
