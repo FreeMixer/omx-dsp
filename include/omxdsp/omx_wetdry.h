@@ -5,7 +5,7 @@
  * @brief The convex wet/dry, `y = (1 − mix)·x + mix·w`, and the loop stages' per-sample tail
  *        that flushes each leg's feedback word before it mixes.
  *
- * Design: docs/design/specs/2026-09-26-dsp-primitives.md §1 rows 22 and 22a.
+ * Design: the dsp primitives spec §1 rows 22 and 22a.
  */
 #ifndef OMX_WETDRY_H
 #define OMX_WETDRY_H

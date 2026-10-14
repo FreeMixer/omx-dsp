@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The rotor word's oracle (omx_rotor.h, formerly openmixer's mix_rotor.test.c),
- * docs/design/specs/2026-09-26-rotary-speaker.md §5 arms B, C, D, E, at the nine RME rates (32 to
+ * the rotary speaker spec §5 arms B, C, D, E, at the nine RME rates (32 to
  * 192 kHz), closed forms in double.
  *
  *   B  Doppler: a 1 kHz tone through a rotor settled at the horn's fast speed, 2 s; every sample

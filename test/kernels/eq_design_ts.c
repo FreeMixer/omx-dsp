@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
-/* ---- the EQ design and curve against today's TypeScript (openmixer #1601) ------------------ */
+/* ---- the EQ design and curve against today's TypeScript  ------------------ */
 
 #include "fixtures/eq_design_ts.h"
 
-/* The bounds of openmixer's dsp-results-from-c spec §4.3: a coefficient or a Q within
+/* The bounds of the DSP-results-from-C design, §4.3: a coefficient or a Q within
  * EQ_TS_TOL_ULP ulps of the TypeScript's, a magnitude within EQ_TS_TOL_DB dB. Both sides run one
  * formula in double; what differs is the libm: V8's exp, cos, sin and pow are fdlibm's and not
  * always correctly rounded, the C library's are. A frequency of the drawn grid is

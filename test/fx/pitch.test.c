@@ -3,7 +3,7 @@
 /*
  * The dual-tap pitch shifter's oracle (omx_pitch.h): bypass, finite/flush and thread arms, at
  * EVERY declared rate (OMX_DECLARED_RATES) — the engine's spec
- * docs/design/specs/2026-09-22-native-pitch-shift.md. Contracts are compiled in and every arm
+ * the native pitch shift spec. Contracts are compiled in and every arm
  * drains the ledger empty.
  *
  *   E  — bypass identity: enabled = 0 and mix = 0 are memcmp-identical, subnormal words included.

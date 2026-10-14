@@ -5,7 +5,7 @@
  * @brief The true-peak detector: the largest `|sample|` of each frame's four ×4 images, through the
  *        shared half-band interpolator (ITU-R BS.1770-4's 4× true peak).
  *
- * Design: docs/design/specs/2026-09-26-dsp-primitives.md §1 row 11. The reading of frame `n`
+ * Design: the dsp primitives spec §1 row 11. The reading of frame `n`
  * covers the input interval `[n − U, n − U + 1)`, `U = omx_truepeak_delay()`; its phase-0 image is
  * the input sample `n − U` itself.
  */

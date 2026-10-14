@@ -8,7 +8,7 @@
  * expander): unity above, slope `ratio − 1` below, floored at `range_db`. A quadratic knee of
  * width `knee_db` centred on the threshold joins the two segments C¹; in BELOW mode the knee may
  * also sit off centre, spanning a gate's start and end points (omx_gaincomp_db_shifted). Stateless. Design:
- * docs/design/specs/2026-09-26-dsp-primitives.md §1 row 9 and Appendix A.
+ * the dsp primitives spec §1 row 9 and Appendix A.
  */
 #ifndef OMX_GAINCOMP_H
 #define OMX_GAINCOMP_H
@@ -169,8 +169,7 @@ static inline float omx_gaincomp_gain_shifted(const struct omx_gaincomp_params *
  *
  * Above the threshold the slope is `−(R − 1)` against the level the detector HEARD, which is the
  * compressor's own output; closing the loop `y = x + g(y)` gives `y − T = (x − T)/R`, the
- * feed-forward curve at the same ratio (openmixer docs/design/specs/2026-09-26-ssl-bus-compressor.md
- * §4 L2). The knee is the library's C¹ parabola, `−(R − 1)(x + W/2)²/(2W)` across `±W/2`: it is
+ * feed-forward curve at the same ratio (bus compressor design, §4 L2). The knee is the library's C¹ parabola, `−(R − 1)(x + W/2)²/(2W)` across `±W/2`: it is
  * omx_gaincomp_db()'s BELOW branch read at the mirrored level `−x` against the mirrored threshold
  * `−T`, with no floor — the same word, never a second knee.
  * @param p The slot's gain-computer parameters (`thresh_db`, `ratio`, `knee_db` are read).

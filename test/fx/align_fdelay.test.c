@@ -6,7 +6,7 @@
  * (32 / 44.1 / 48 / 64 / 88.2 / 96 / 128 / 176.4 / 192 kHz, OMX_FX_RME_RATES): 64 and 128 kHz
  * sit either side of OMX_ALIGN_FRACTION_MIN_RATE, and 32 kHz is where the ring is least used.
  *
- * Law: docs/design/specs/2026-08-31-smart-alignment.md §7 (#863), on the RULED
+ * Law: the smart alignment spec §7 (#863), on the RULED
  * 2026-09-20-fractional-delay-line.md. The primitive's own oracle is test/kernels/fdelay.c; this file
  * holds what the STAGE adds on top of it — the ms → samples target, where it settles, the slew —
  * and measures each against a number derived here, never one recorded from a run.

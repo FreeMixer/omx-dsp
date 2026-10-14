@@ -6,7 +6,7 @@
  *
  * `y = x·(1−p) + y·p`; DC gain 1 for every `p < 1`; corner `−ln(p)·sr/2π`; time constant
  * `τ = −1/(sr·ln p)`. Pole 0 is a wire, pole 1 a frozen filter. Neither constructor clamps:
- * the caller's physics owns the range. Design: docs/design/specs/2026-09-26-dsp-primitives.md
+ * the caller's physics owns the range. Design: the dsp primitives spec
  * §1 row 15 and Appendix A.
  */
 #ifndef OMX_ONEPOLE_H

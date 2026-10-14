@@ -12,11 +12,11 @@
  *   - GATED (ROOM's network), a window under the floor (clamped to 50 ms), mix 0.7.
  *
  * The digests in test/golden/reverse_render.sha256 were written by the console engine's own copy
- * of this kernel (openmixer packages/pipewire-native/src/mix_reverse_render.h at 6ee8a9bd, against
+ * of this kernel (the engine's mix_reverse_render.h, against
  * omx-dsp 0.6.1 and omx-contract 2.3.0), by building this file with
  * -DOMX_REVERSE_RENDER_ENGINE_COPY and -I<that src>:
  *
- *   cc $(CFLAGS) -DOMX_REVERSE_RENDER_ENGINE_COPY -I<openmixer>/packages/pipewire-native/src \
+ *   cc $(CFLAGS) -DOMX_REVERSE_RENDER_ENGINE_COPY -I<engine src> \
  *      -Iinclude -isystem $(CONTRACT_INC) -Itest/fx -include test/support/log10f_subst.h \
  *      -o build/fx_reverse_render_golden_engine test/fx/reverse_render_golden.test.c build/libomxdsp.a -lm
  *   build/fx_reverse_render_golden_engine --write > test/golden/reverse_render.sha256

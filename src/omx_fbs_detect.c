@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * omx_fbs_detect.c — the FBS detector (<omxdsp/analysis/omx_fbs_detect.h>), moved unchanged from
- * openmixer packages/pipewire-native/src/fbs_detect.c (omx-dsp#15).
+ * the OpenMixer engine's fbs_detect.c (omx-dsp#15).
  *
  * Every reading is in double and in the order core's TS detector computed it, because the
  * identity record holds this file to that detector's decisions bit for bit.

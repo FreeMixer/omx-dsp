@@ -35,7 +35,7 @@
 #define OMX_ROTARY_INSTANCE_LATENCY_FRAMES 0.0f
 
 /** Port defaults: the declaration's (ROTARY_*_RANGE.default). The speed set declares no default;
- * the stage comes up at `slow` (docs/design/specs/2026-09-26-rotary-speaker.md §3). */
+ * the stage comes up at `slow` (the rotary speaker spec §3). */
 #define OMX_ROTARY_INSTANCE_HORN_SLOW_HZ_DEFAULT ((float)OMX_ROTARY_HORN_SLOW_RANGE_DEFAULT)
 #define OMX_ROTARY_INSTANCE_HORN_FAST_HZ_DEFAULT ((float)OMX_ROTARY_HORN_FAST_RANGE_DEFAULT)
 #define OMX_ROTARY_INSTANCE_DRUM_SLOW_HZ_DEFAULT ((float)OMX_ROTARY_DRUM_SLOW_RANGE_DEFAULT)

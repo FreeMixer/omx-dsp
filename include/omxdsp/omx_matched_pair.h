@@ -5,7 +5,7 @@
  * @brief One conjugate pair placed by the matched-Z map `z = exp(sT)`, the primitive every
  *        matched biquad design is built from; the C twin of core's `matchedPair` (eq.ts).
  *
- * Design: docs/design/specs/2026-09-26-dsp-primitives.md §1 row 3 and Appendix A (why the
+ * Design: the dsp primitives spec §1 row 3 and Appendix A (why the
  * polynomial at `z = 1` is returned factored, and why the real-root branch divides).
  */
 #ifndef OMX_MATCHED_PAIR_H

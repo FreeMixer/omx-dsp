@@ -12,7 +12,7 @@
  * inverted, so `lo + hi = AP1(fc)`, omx_allpass1()'s transfer as the section `{a, 1, 0, a, 0}`.
  * The sections run in omx_biquad_tdf2_d(); the bands are narrowed to float at the end. An N-band tree
  * is N−1 crossovers with omx_xover_allpass() of every later corner on every earlier band. Design:
- * docs/design/specs/2026-09-26-dsp-primitives.md §1 row 6 and Appendix A.
+ * the dsp primitives spec §1 row 6 and Appendix A.
  */
 #ifndef OMX_XOVER_H
 #define OMX_XOVER_H

@@ -5,7 +5,7 @@
  * rt_contracts.test.c moved with the kernel: every declared rate, every input shape, random knobs
  * across the declared travels. The stage's declared postconditions — the applied gain inside L4's
  * interval and a finite block — and the identity a bypassed stage owes
- * (docs/design/specs/2026-09-26-transient-designer.md §4 L4, L5). The positive control: an attack
+ * (the transient designer spec §4 L4, L5). The positive control: an attack
  * time below its travel IS recorded, so the silence above is a ledger that could have spoken.
  *
  *   make test-fx

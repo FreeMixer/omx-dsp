@@ -5,14 +5,12 @@
  * engine's MEASUREMENTS into a filter, when there is no TypeScript on the other side of the
  * boundary to do it.
  *
- * Moved unchanged from openmixer packages/pipewire-native/src/hrp_correct.h (omx-dsp#15,
- * lean-engine spec §1(a)); the one change is that the cascade comes from <omxdsp/omx_biquad.h>
+ * Moved unchanged from the OpenMixer engine's hrp_correct.h (omx-dsp#15); the one change is that the cascade comes from <omxdsp/omx_biquad.h>
  * and <omxdsp/omx_contract.h> directly instead of through the engine's mix_dsp.h.
  *
- * Spec: openmixer docs/design/specs/2026-08-18-hrp-polyphonic-architecture.md (§16 the family is
- * a broad prior, §23 positive deviations only, §25 cuts never boosts, §26/§29/§30 the existing EQ and
- * the one globally ranked list), under docs/design/specs/2026-07-16-recording-vsc.md §0.5's
- * "one C core, three shells".
+ * Design rules kept here: the family is a broad prior (§16), positive deviations only (§23), cuts
+ * never boosts (§25), the existing EQ and the one globally ranked list (§26/§29/§30) - one C core,
+ * three shells.
  *
  * ## Why this header exists — the third shell, and what it cannot reach
  *
@@ -40,7 +38,7 @@
  * NOT a second vocabulary. {@link OmxHrpFamily}'s members are `INSTRUMENT_FAMILIES` in its own
  * order, so a family's INDEX is its identity across the boundary; the numbers below are the
  * console's own, twinned rather than re-decided. Both twinnings are asserted from the TypeScript
- * side by `packages/audio-engine/src/hrp-native-twins.test.ts`, which reads THIS FILE — the same
+ * side by the console's TypeScript twin test, which reads THIS FILE — the same
  * idiom that holds `OMX_EQ_MAX_BANDS` equal to `EQ_MAX_BANDS`. A number edited here and not
  * there goes red; a family added there and not here goes red.
  *

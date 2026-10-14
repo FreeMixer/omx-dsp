@@ -5,10 +5,10 @@
  * @brief The native PITCH SHIFTER: one fractional delay line per leg read twice, half a ramp apart,
  *        crossfaded by the ramp's own phase.
  *
- * Spec: docs/design/specs/2026-09-22-native-pitch-shift.md (§1, §3, §8, §10, §11). Composed from
+ * Composed from
  * libomxdsp words only: `omx_fdelay.h` at order 3, `omx_lfo.h` (its parabola is the crossfade;
  * the ramp is a fixed-point turn counter, spec §11), `omx_eq_design.h`'s low-pass and `omx_biquad.h` (the pre-filter),
- * `omx_denormal.h`. Every declared number is read from `OMX_PITCH_*` (packages/core/src/pitch-kernel.ts).
+ * `omx_denormal.h`. Every declared number is read from `OMX_PITCH_*` (the console's pitch kernel declaration).
  *
  *     d_A = d_min + W·p          (down)      d_A = d_min + W·(1 − p)          (up)
  *     d_B = d_min + W·wrap(p+½)  (down)      d_B = d_min + W·(1 − wrap(p+½))  (up)

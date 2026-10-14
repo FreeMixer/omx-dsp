@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * Standalone unit test for the OFFLINE HRP render kernel (hrp_render.h) —
- * docs/design/specs/2026-07-16-recording-vsc.md §0.5 over
- * docs/design/specs/2026-08-18-hrp-polyphonic-architecture.md:
+ * the recording vsc spec §0.5 over
+ * the hrp polyphonic architecture spec:
  *   cc -Wall -Wextra -O2 -o build/hrp_render_test src/hrp_render.test.c -lm && ./build/hrp_render_test
  * (also driven from `pnpm test` via the test:dsp script).
  *

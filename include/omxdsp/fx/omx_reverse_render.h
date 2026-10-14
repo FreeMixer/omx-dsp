@@ -4,7 +4,7 @@
  * @file omx_reverse_render.h (formerly the console's mix_reverse_render.h)
  * @brief The PRE-HIT reverse swell, offline, over a whole region.
  *
- * Spec: docs/design/specs/2026-07-15-native-delay-reverb.md, Amendment 2026-09-17 §G (the
+ * Spec: the native delay reverb spec, Amendment 2026-09-17 §G (the
  * operator's 04:05 ruling: "queue the pre-hit reverse as an offline render lane. It must not
  * affect anything if not enabled"). §B of the same amendment REFUSED this gesture on the live
  * strip and named the arithmetic that refuses it: a swell landing BEFORE the hit needs the dry

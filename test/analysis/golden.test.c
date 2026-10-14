@@ -8,7 +8,7 @@
  *   make test-analysis                        compare
  *   build/analysis_golden --write       print the lines test/golden/analysis.sha256 holds
  *
- * The committed digests were written by this program compiled against openmixer's in-tree
+ * The committed digests were written by this program compiled against the OpenMixer engine's in-tree
  * fbs_detect.c and hrp_*.h, the code these headers moved from, so the moved code is held to the
  * engine's output bit for bit. The stimulus makes no libm call: the floors come from an integer
  * generator and every tone is placed at a bin computed by one division.
@@ -29,7 +29,7 @@
  *            those bells over a noise block, the cut and score laws over a grid, and one ranked
  *            selection
  *
- * The rta, render and live digests cover the code that moved later (FreeMixer/openmixer#1580). Their
+ * The rta, render and live digests cover the code that moved later (the engine kernels move). Their
  * stimulus is a ten-second take synthesised without the libm: a held A3 whose fourth harmonic
  * rings 10 dB hot one second in every two and a half after a four-second teaching stretch, an E4
  * from 6 to 8 s, and a noise floor. Their committed digests were written by

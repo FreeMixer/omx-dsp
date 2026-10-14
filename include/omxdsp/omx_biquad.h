@@ -6,7 +6,7 @@
  *
  * Direct form I keeps the raw input and output history as its state, so a coefficient set
  * swapped live re-reads real samples with no rescaling. Design:
- * docs/design/specs/2026-09-26-dsp-primitives.md §1 rows 1–2 and Appendix A.
+ * the dsp primitives spec §1 rows 1–2 and Appendix A.
  */
 #ifndef OMX_BIQUAD_H
 #define OMX_BIQUAD_H

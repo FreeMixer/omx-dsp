@@ -20,7 +20,7 @@
  * non-zero — a strip that feeds few outputs then costs that few, not every output. Both are one
  * pass over the block, no allocation, no thread, no external BLAS: straight-line C over `restrict`
  * pointers, left to -O2's auto-vectoriser (no intrinsics unless measured necessary). Design:
- * docs/design/specs/2026-10-04-mix-matrix.md.
+ * the mix matrix spec.
  */
 #ifndef OMX_MIXMATRIX_H
 #define OMX_MIXMATRIX_H

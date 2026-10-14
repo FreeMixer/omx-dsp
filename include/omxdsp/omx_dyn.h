@@ -6,7 +6,7 @@
  *        a gate, a band-dyn band or a de-esser resolves its controls to, the one derivation of
  *        the envelope's parameters from it, and `omx_dynamics_keyed`, which applies it.
  *
- * Moved unchanged from openmixer packages/pipewire-native/src/mix_dsp.h:
+ * Moved unchanged from the OpenMixer engine:
  * the band-dyn and the de-esser kernels derive their detector from the atom here and nowhere else,
  * so the engine's slot and a kernel cannot read the attack and release poles differently; the
  * strip's gate and comp slots and the keyed gate's plugin run the one kernel here. Pure; the 4x
@@ -36,7 +36,7 @@
  * pass. The ONE thing measured to cross the −90 dBc line while leaving attack, release and gain
  * reduction bit-identical is running the whole CONTROL chain — rectifier, envelope, log, curve,
  * exp — at 4× and decimating the GAIN back, with the audio never resampled at all
- * (docs/design/notes/2026-09-14-oversampling-vs-192k.md §9a/§10).
+ * (the oversampling vs 192k notes §9a/§10).
  *
  * It is expensive, so it is a per-instance choice rather than a law, and `auto` — the default —
  * spends it only where the measurement says it is needed: below
@@ -202,7 +202,7 @@ _Static_assert(OMX_DYN_FB_LOOP_DELAY_SAMPLES == 1u, "fb_yl/fb_yr hold exactly on
  * The one-stage loop's small-signal pole is `ρ = p − (1 − p)(R − 1)` (ssl-bus-compressor §4 L3);
  * it is non-negative — no sign-alternating chatter, no divergence — iff `p ≥ (R − 1)/R` (§4 L4).
  * The floor is derived from the ratio here and the attack pole was made at the live rate, so the
- * floor follows the rate every block. openmixer core's `effectiveAttackMsOf` is the same law in
+ * floor follows the rate every block. the console's TypeScript `effectiveAttackMsOf` is the same law in
  * milliseconds.
  * @param attack_pole The operator's attack pole at the live rate, in [0, 1).
  * @param ratio The ratio, at least `OMX_COMP_RATIO_MIN`.
@@ -494,7 +494,7 @@ static inline float omx_gr_block_db(float min_gain) {
  * `l` is always driven; `r` may be NULL (mono — one leg) or a second leg (stereo). ONE gain is
  * applied to both legs, so a stereo strip's image never shifts under gain reduction.
  *
- * THE KEY (docs/design/specs/2026-09-08-keyed-gates.md). `key` is the MONO signal the detector
+ * THE KEY (the keyed gates spec). `key` is the MONO signal the detector
  * measures, already filtered by whatever the key filter is set to — the caller's copy, never a
  * leg of the audio. `key == NULL` is the ordinary self-detecting slot and is the ONLY shape the
  * comp slot and an un-keyed gate ever take: the detector then tracks the max across the provided
@@ -537,8 +537,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   OMX_PRE(omx_block_finite(l, n), "finite-in-l");
   OMX_PRE(omx_block_finite(r, n), "finite-in-r");
   /* The KEY is a third input block and it was the one with no precondition until 2026-09-17: it
-   * is the caller's own filtered copy of somebody ELSE's audio (docs/design/specs/
-   * 2026-09-08-keyed-gates.md), so it arrives from a different strip's scratch through a biquad
+   * is the caller's own filtered copy of somebody ELSE's audio (the keyed
+   * gates spec), so it arrives from a different strip's scratch through a biquad
    * pair this stage does not own. A NaN there is permanent — it enters the envelope cascade,
    * which is recursive. `omx_block_finite` answers 1 for the NULL an un-keyed slot passes. */
   OMX_PRE(omx_block_finite(key, n), "finite-in-key");
@@ -709,7 +709,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, g4[k]);
       }
       omx_oversampler_down(&st->ovs_a, g4, m, gain);
-      /* D-1, 2026-09-17 (docs/design/notes/2026-09-17-dynamics-math-review.md, measured by
+      /* D-1, 2026-09-17 (the dynamics math review notes, measured by
        * mix_dyn_math.test.c at all four rates): a half-band RINGS on a step, and the step a hard
        * gate makes when it re-opens is the steepest this stage can produce — four poles of 0.1 ms
        * attack take the gain from the range floor to unity inside a handful of oversampled

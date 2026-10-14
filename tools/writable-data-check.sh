@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # writable-data-check.sh — libomxdsp carries no mutable global or function-static state
-# (docs/design/specs/2026-09-26-dsp-primitives.md §4.3 (a) and (b)).
+# (the dsp primitives spec §4.3 (a) and (b)).
 #
 #  (a) SYMBOLS. Every public header (the top level and analysis/) compiled into its own object (a translation unit that
 #      includes it and defines one anchor function so the object is not empty), plus the one
@@ -21,7 +21,7 @@
 #      relative to the working directory, a function-static's `.N` suffix dropped), plus the
 #      source scan of (b) over the unit's own include closure as `file<TAB>name<TAB>source`.
 #      The shrink-only ratchet that consumes the list is the judge
-#      (packages/server/src/rt-writable-data-conformance.test.ts).
+#      (the console server's writable-data conformance test).
 #
 # Usage: writable-data-check.sh <scratch-dir>   (CC and CFLAGS from the environment)
 #        writable-data-check.sh --rt <scratch-dir> <unit.c> [cc flags…]

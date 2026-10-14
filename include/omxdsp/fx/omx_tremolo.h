@@ -4,8 +4,8 @@
  * @file omx_tremolo.h
  * @brief The native TREMOLO / AUTO-PAN kernel: one `omx_lfo` read per sample, turned into a gain.
  *
- * Spec: docs/design/specs/2026-09-26-native-fx-catalogue.md §2 (row "M32 Tremolo / Panner") and
- * docs/design/specs/2026-09-26-dsp-primitives.md §2 — a CONSUMER of primitive 12 (`omx_lfo.h`),
+ * Spec: the native fx catalogue spec §2 (row "M32 Tremolo / Panner") and
+ * the dsp primitives spec §2 — a CONSUMER of primitive 12 (`omx_lfo.h`),
  * no new primitive. With `s = omx_lfo_at(lfo, 0)`:
  *
  *     tremolo  both legs × (1 − mix·depth·(1 − s)/2)

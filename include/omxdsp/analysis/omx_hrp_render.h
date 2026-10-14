@@ -3,9 +3,9 @@
  *
  * omx_hrp_render.h — HRP over a WHOLE RECORDED TRACK: the offline render kernel.
  *
- * Spec: docs/design/specs/2026-07-16-recording-vsc.md §0.5 (HRP+ renders offline, beside the
+ * Spec: the recording vsc spec §0.5 (HRP+ renders offline, beside the
  * originals — "whole-file analysis with the same C engine, no live budget: polyphonic,
- * iterative, look-ahead"), over docs/design/specs/2026-08-18-hrp-polyphonic-architecture.md,
+ * iterative, look-ahead"), over the hrp polyphonic architecture spec,
  * whose laws this obeys unchanged except where §0.5 lifts a LIVE constraint and this header
  * names the line that lifts it.
  *

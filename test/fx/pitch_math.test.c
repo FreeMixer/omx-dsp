@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The dual-tap pitch shifter (omx_pitch.h) against the closed forms of its own splice — the
- * engine's spec docs/design/specs/2026-09-22-native-pitch-shift.md §3, §7 and §11, at EVERY
+ * the native pitch shift spec §3, §7 and §11, at EVERY
  * declared rate (OMX_DECLARED_RATES, the generated header — never this file's own list). Every
  * number the stage declares is read from OMX_PITCH_*; the oracle's formulas are the spec's, in
  * double, and never call the kernel's own delay or weight words. Contracts are compiled in and

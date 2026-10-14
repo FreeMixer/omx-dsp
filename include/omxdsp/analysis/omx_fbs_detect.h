@@ -3,12 +3,8 @@
  *
  * FBS feedback detection: one magnitude spectrum per push in, the confirmed rings out.
  *
- * Spec: openmixer docs/design/specs/2026-07-10-auto-feedback-corrector.md, "The detector is one C
- * engine"; rule R-101.
- *
- * Moved unchanged from openmixer packages/pipewire-native/src/fbs_detect.h (omx-dsp#15, lean-engine
- * spec §1(a)): the engine keeps the rings and the control-thread tick that feed it a spectrum, and
- * plants what it confirms in the strip's own EQ bands; the detection itself lives here.
+ * Moved unchanged from the OpenMixer engine's fbs_detect.h (omx-dsp#15): the engine keeps the rings and the control-thread
+ * tick that feed it a spectrum, and plants what it confirms in the strip's own EQ bands; the detection itself lives here.
  *
  * The gates are core's declaration (`DEFAULT_THRESHOLDS`, `thresholdsFor`), read here from the
  * generated omx_contract_limits.h or handed in per detector; this file restates none of them.
@@ -21,7 +17,7 @@
 #include <omxcontract/omx_contract_limits.h>
 #include <stdint.h>
 
-/* Every constant this engine reads is declared once in `@freemixer/core`'s `feedback.ts` and reaches
+/* Every constant this engine reads is declared once in core's feedback declaration and reaches
  * it through the generated omx_contract_limits.h: the gates (OMX_DEFAULT_THRESHOLDS_*,
  * OMX_GROWTH_WINDOW_FRAMES, OMX_DEEP_PLATEAU_FRAMES, OMX_SUBHARMONIC_RADIUS_BINS), the ratio
  * neighbourhoods (OMX_FBS_PAPR_GUARD_BINS, OMX_FBS_PNPR_RADIUS_BINS, OMX_FBS_PNPR_GUARD_BINS,

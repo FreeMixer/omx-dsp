@@ -3,7 +3,7 @@
 /*
  * chorus.test.c — the chorus against the closed form of its own swept comb.
  *
- * Spec: docs/design/specs/2026-09-22-chorus-and-flanger.md §2 and §9, at the four basic rates
+ * Spec: the chorus and flanger spec §2 and §9, at the four basic rates
  * (44.1 / 48 / 96 / 192 kHz — the operator's 2026-09-20 ruling, memory
  * `feedback_dsp_oracles_measure_four_rates_minimum`).
  *
