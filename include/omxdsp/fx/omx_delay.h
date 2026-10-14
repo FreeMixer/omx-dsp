@@ -23,6 +23,7 @@
 #include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_lookahead.h>
 #include <omxdsp/omx_param.h>
+#include <omxdsp/omx_wetdry.h>
 
 /** Max FX delay time (ms). ~2 s covers slow ambient repeats. Read from the generated header
  * (OMX_FX_DELAY_TIME_RANGE_MAX, FX_DELAY_TIME_RANGE.max — F7): this ring's ceiling and the TS travel
@@ -191,8 +192,7 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
     float fbR = p->pingpong ? dampL : dampR;
     s->ring_l[w] = xl + fb * fbL;
     s->ring_r[w] = xr + fb * fbR;
-    l[i] = dry * xl + mix * tapL;
-    r[i] = dry * xr + mix * tapR;
+    omx_wetdry_mix(&l[i], &r[i], xl, xr, tapL, tapR, dry, mix);
     w = omx_lookahead_fwd(w, 1u, cap);
   }
   s->wpos = w;

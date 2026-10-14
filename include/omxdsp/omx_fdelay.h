@@ -398,6 +398,41 @@ static inline float omx_fdelay_tick(struct omx_fdelay *l, float x, float delay) 
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "fdelay/tick-pair"
+/**
+ * @brief omx_fdelay_tick() on two lines written in lockstep at ONE delay: both writes, then one
+ *        split and one kernel serve both reads, bit-identical to two omx_fdelay_tick() calls.
+ *        A pair with an unarmed line takes the two ticks.
+ * @param a The left line.
+ * @param b The right line, the same geometry.
+ * @param xa The sample to write to `a`.
+ * @param xb The sample to write to `b`.
+ * @param delay The delay to read at, samples.
+ * @param ya Receives the read from `a`.
+ * @param yb Receives the read from `b`.
+ * @pre `line-is-armed`, `both-legs-share-one-geometry`, `a-delay-is-a-finite-number-of-samples`,
+ *      `delay-is-inside-the-ring`, `a-fractional-delay-clears-the-kernels-reach`.
+ * @note RT-safe: two writes, one kernel, two reads. Thread-safe on distinct state.
+ */
+static inline void omx_fdelay_tick_pair(struct omx_fdelay *a, struct omx_fdelay *b, float xa,
+                                        float xb, float delay, float *ya, float *yb) {
+  OMX_PRE(a->order != 0 && a->ring != 0 && b->order != 0 && b->ring != 0, "line-is-armed");
+  if (a->order == 0 || a->ring == 0 || a->cap == 0u || b->order == 0 || b->ring == 0 ||
+      b->cap == 0u) {
+    *ya = omx_fdelay_tick(a, xa, delay);
+    *yb = omx_fdelay_tick(b, xb, delay);
+    return;
+  }
+  OMX_PRE(delay - delay == 0.0f, "a-delay-is-a-finite-number-of-samples");
+  OMX_PRE(delay <= omx_fdelay_max_delay(a->cap, a->order), "delay-is-inside-the-ring");
+  OMX_PRE(delay >= omx_fdelay_min_delay(a->order) || delay == floorf(delay),
+          "a-fractional-delay-clears-the-kernels-reach");
+  omx_fdelay_write(a, xa);
+  omx_fdelay_write(b, xb);
+  omx_fdelay_read_pair(a, b, delay, ya, yb);
+}
+#undef OMX_CONTRACT_STAGE
+
 #define OMX_CONTRACT_STAGE "fdelay"
 /**
  * @brief Process a block in place at a constant delay: the kernel computed once for the block.
