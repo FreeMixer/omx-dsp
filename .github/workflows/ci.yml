@@ -61,7 +61,8 @@ jobs:
             [ "$ID" = ubuntu ] && suite=trixie
             echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] $URL_BASE/deb/debian/$suite ./" > /etc/apt/sources.list.d/freemixer.list
             apt-get update -qq
-            apt-get install -y --no-install-recommends 'libomx-contract-dev (>= 2.6.0)' 'libomx-contract-dev (<< 3)'
+            # apt takes no range on the command line: the newest is installed and contract-include.sh holds it to the range
+            apt-get install -y --no-install-recommends libomx-contract-dev
           fi
           sh tools/contract-include.sh
           sh tools/contract-include.sh --data
