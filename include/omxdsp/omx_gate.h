@@ -23,8 +23,10 @@
  * listens to and nothing else; the audio the gate attenuates never passes through them. The
  * filter is the console's: one section per edge, 12 dB per octave, Butterworth (Q = 1/sqrt 2),
  * designed for the gate's rate by omx_eq_design (the cookbook high-pass, the matched-Z low-pass,
- * a corner above 0.999 Nyquist held there), the high-pass first. An edge at 0 is out; with both
- * out the gate is the gate that shipped before them, bit for bit.
+ * a corner above 0.999 Nyquist held there), the high-pass first. Each section runs in double
+ * (omx_biquad_d): a 20 Hz corner at 192 kHz puts the poles within 5e-4 of the unit circle, where
+ * a float section misses its closed form by most of a dB. An edge at 0 is out; with both out the
+ * gate is the gate that shipped before them, bit for bit.
  *
  * The key the filter runs on is the external key when the gate listens to one, and otherwise
  * the gate's own input as the console's self key builds it, the mono sum `(l + r) / 2`. A gate
@@ -100,10 +102,10 @@ struct omx_gate_controls {
 struct omx_gate_key {
   float hp_hz;    /**< the high-pass corner the section was designed at, Hz; 0 is out */
   float lp_hz;    /**< the low-pass corner the section was designed at, Hz; 0 is out */
-  float hp_c[5];  /**< the high-pass section, `{b0, b1, b2, a1, a2}` */
-  float lp_c[5];  /**< the low-pass section, `{b0, b1, b2, a1, a2}` */
-  float hp_s[4];  /**< the high-pass history */
-  float lp_s[4];  /**< the low-pass history */
+  double hp_c[5]; /**< the high-pass section, `{b0, b1, b2, a1, a2}` */
+  double lp_c[5]; /**< the low-pass section, `{b0, b1, b2, a1, a2}` */
+  double hp_s[4]; /**< the high-pass history */
+  double lp_s[4]; /**< the low-pass history */
 };
 
 /** @brief One gate instance: its rate, the dynamics slot's state and the block scratch. */
@@ -160,12 +162,12 @@ static inline float omx_gate_clampf(const float *port, float lo, float hi, float
  */
 static inline void omx_gate_key_design(struct omx_gate_key *k, float rate, float hp_hz, float lp_hz) {
   if (hp_hz != k->hp_hz) {
-    if (hp_hz > 0.0f) omx_eq_design_f(OMX_EQ_HIGHPASS, hp_hz, M_SQRT1_2, 0.0, rate, k->hp_c);
+    if (hp_hz > 0.0f) omx_eq_design(OMX_EQ_HIGHPASS, hp_hz, M_SQRT1_2, 0.0, rate, k->hp_c);
     if (!(hp_hz > 0.0f) || !(k->hp_hz > 0.0f)) memset(k->hp_s, 0, sizeof k->hp_s);
     k->hp_hz = hp_hz;
   }
   if (lp_hz != k->lp_hz) {
-    if (lp_hz > 0.0f) omx_eq_design_f(OMX_EQ_LOWPASS, lp_hz, M_SQRT1_2, 0.0, rate, k->lp_c);
+    if (lp_hz > 0.0f) omx_eq_design(OMX_EQ_LOWPASS, lp_hz, M_SQRT1_2, 0.0, rate, k->lp_c);
     if (!(lp_hz > 0.0f) || !(k->lp_hz > 0.0f)) memset(k->lp_s, 0, sizeof k->lp_s);
     k->lp_hz = lp_hz;
   }
@@ -192,14 +194,14 @@ static inline int omx_gate_key_active(const struct omx_gate_key *k) {
  * @param n Frames.
  * @pre `finite-key`.
  * @post `finite-filtered-key`.
- * @note RT-safe: O(n), no allocation, no call but omx_biquad(). Thread-safe on distinct filters.
+ * @note RT-safe: O(n), no allocation, no call but omx_biquad_d(). Thread-safe on distinct filters.
  */
 static inline void omx_gate_key_run(struct omx_gate_key *k, float *buf, uint32_t n) {
   OMX_PRE(omx_block_finite(buf, n), "finite-key");
   if (k->hp_hz > 0.0f)
-    for (uint32_t i = 0; i < n; i++) buf[i] = omx_biquad(buf[i], k->hp_c, k->hp_s);
+    for (uint32_t i = 0; i < n; i++) buf[i] = omx_biquad_d(buf[i], k->hp_c, k->hp_s);
   if (k->lp_hz > 0.0f)
-    for (uint32_t i = 0; i < n; i++) buf[i] = omx_biquad(buf[i], k->lp_c, k->lp_s);
+    for (uint32_t i = 0; i < n; i++) buf[i] = omx_biquad_d(buf[i], k->lp_c, k->lp_s);
   OMX_POST(omx_block_finite(buf, n), "finite-filtered-key");
 }
 #undef OMX_CONTRACT_STAGE
