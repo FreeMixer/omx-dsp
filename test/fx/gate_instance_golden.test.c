@@ -14,7 +14,8 @@
  *
  * Every render passes a zero-width knee range (start == end), at the threshold here; the
  * neutral-knee golden (gate_knee_golden.test.c) includes this file with the pair elsewhere and
- * must land on these same digests.
+ * must land on these same digests. Every render here has the key filter out;
+ * gate_keyfilter_golden.test.c includes this file with its edges in.
  *
  *   make test-fx                                compare
  *   build/fx_gate_instance_golden --write       print the lines test/golden/gate_instance.sha256 holds
@@ -29,6 +30,11 @@
 /* The knee pair of render `which`, both edges at one point: here the render's own threshold. */
 #ifndef GATE_GOLDEN_KNEE
 #define GATE_GOLDEN_KNEE(which, t) (t)
+#endif
+/* The key filter's edges of render `which`: out here; gate_keyfilter_golden.test.c sets them. */
+#ifndef GATE_GOLDEN_HP
+#define GATE_GOLDEN_HP(which) ((void)(which), 0.0f)
+#define GATE_GOLDEN_LP(which) ((void)(which), 0.0f)
 #endif
 #ifndef GATE_GOLDEN_NAME
 #define GATE_GOLDEN_NAME "gate_instance"
@@ -66,7 +72,8 @@ static void render_one(int which, float sr, float *out) {
   float *ol = alias ? g_l : g_ol, *or_ = alias ? g_r : g_or;
   for (int o = 0, b = 0; o < OMX_FX_GOLDEN_FRAMES; o += HOST_BLOCK, b++) {
     const uint32_t n = OMX_FX_GOLDEN_FRAMES - o < HOST_BLOCK ? (uint32_t)(OMX_FX_GOLDEN_FRAMES - o) : HOST_BLOCK;
-    omx_gate_instance_resolve(&g_inst, toggle && (b & 1), ke, t, rg, knee, knee, a, 0.0f, rl, 0.0f, ra);
+    omx_gate_instance_resolve(&g_inst, toggle && (b & 1), ke, t, rg, knee, knee, a, 0.0f, rl, 0.0f, ra,
+                              GATE_GOLDEN_HP(which), GATE_GOLDEN_LP(which));
     omx_gate_instance_run(&g_inst, key ? key + o : NULL, g_l + o, g_r + o, ol + o, or_ + o, n);
   }
   for (int i = 0; i < OMX_FX_GOLDEN_FRAMES; i++) { out[2 * i] = ol[i]; out[2 * i + 1] = or_[i]; }
