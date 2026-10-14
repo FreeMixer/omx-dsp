@@ -5,9 +5,10 @@
  * console's mix_dsp.test.c and mix_delay_math.test.c, moved with the line. The arms there that
  * measure the FX delay and the input alignment stay with those stages.
  *
- * Four claims, at every declared rate: the delay dialled in ms is the delay the audio takes, to
- * the nearest sample; zero is an exact passthrough; a steady delay does not depend on the block
- * size; and a re-point cross-fades across one block and lands exactly on the new delay. The ring
+ * Four claims, at the nine RME rates (32 to 192 kHz): the delay dialled in ms is the delay the
+ * audio takes, to the nearest sample; zero is an exact passthrough; a steady delay does not
+ * depend on the block size; and a re-point cross-fades across one block and lands exactly on the
+ * new delay. The ring
  * the arms use is the console's: 1000 ms at OMX_RT_HARD_TARGET_RATE, plus one. Contracts are
  * compiled in and the last arm requires an empty ledger.
  */
@@ -29,8 +30,8 @@
 #define MAX_RATE OMX_RT_HARD_TARGET_RATE
 #define CAP (((MAX_RATE / 1000) * MAX_MS) + 1)
 
-#define NRATES ((int)OMX_DECLARED_RATE_COUNT)
-#define RATE OMX_DECLARED_RATES
+#define NRATES ((int)OMX_FX_RME_RATE_COUNT)
+#define RATE OMX_FX_RME_RATES
 
 static int g_fail = 0, g_checks = 0;
 
@@ -58,6 +59,15 @@ static void in_band(double v, double lo, double hi, const char *what) {
     g_fail++;
     fprintf(stderr, "FAIL: %s — measured %.6g, wanted [%.6g, %.6g]\n", what, v, lo, hi);
   }
+}
+
+/* After each rate: the ledger holds nothing the rate does not explain (fx_rates.h). At 32, 64 and
+ * 128 kHz, outside the declaration, the conversion's `rate-is-declared` precondition is the
+ * contract saying so, and is not counted. */
+static void rate_done(float sr) {
+  char what[120];
+  snprintf(what, sizeof what, "%.0f Hz: no contract violation the rate does not explain", (double)sr);
+  check(omx_fx_drain_ledger(sr) == 0u, what);
 }
 
 /** The index of the largest |sample|: where an impulse lands. */
@@ -113,6 +123,7 @@ static void test_samples_round_to_nearest_at_every_rate(void) {
     uint32_t d = omx_idelay_samples((float)MAX_MS, sr, CAP);
     snprintf(what, sizeof what, "%.0f Hz: the full %d ms is reached without clamping", (double)sr, MAX_MS);
     check((double)d == floor((double)MAX_MS * (double)sr * 0.001 + 0.5) && d < CAP, what);
+    rate_done(sr);
   }
 }
 
@@ -277,6 +288,7 @@ static void test_an_impulse_lands_on_the_declared_sample(void) {
       check(peak_index(buf, n) == (int)d && buf[(int)d] == 1.0f && clean, what);
       free(buf);
     }
+    rate_done(sr);
   }
   free(ring);
 }
@@ -312,6 +324,7 @@ static void test_the_pair_gives_each_leg_its_own_delay(void) {
     check(peak_index(l, n) == (int)tl && peak_index(r, n) == (int)tr, what);
     free(l);
     free(r);
+    rate_done(sr);
   }
   free(d.ring_l);
   free(d.ring_r);
@@ -335,6 +348,7 @@ static void test_zero_is_an_exact_passthrough_at_every_rate(void) {
     omx_idelay_apply(rb, N, NULL, 0u, &wpos, &cur, 0u);
     snprintf(what, sizeof what, "%.0f Hz: an unallocated ring is a passthrough, not a fault", (double)sr);
     check(memcmp(rb, src, sizeof src) == 0, what);
+    rate_done(sr);
   }
   free(ring);
 }
@@ -370,6 +384,7 @@ static void test_a_steady_delay_is_block_size_invariant(void) {
       }
     }
     free(ref);
+    rate_done(sr);
   }
   free(ring);
 }
@@ -422,6 +437,7 @@ static void test_the_re_point_nulls_at_the_antiphase_frequency(void) {
       in_band((double)deep, 0.25 * n - 12.0, 0.25 * n + 4.0, what);
       free(buf);
     }
+    rate_done(sr);
   }
   free(ring);
 }
@@ -453,6 +469,7 @@ static void test_the_re_point_arrives_at_the_new_delay_exactly(void) {
     check(peak_index(buf, tail) == (int)d1 && buf[(int)d1] == 1.0f, what);
     free(warm);
     free(buf);
+    rate_done(sr);
   }
   free(ring);
 }
@@ -493,6 +510,7 @@ static void test_a_move_never_steps_past_the_signal(void) {
     snprintf(what, sizeof what, "%.0f Hz: the move through the line never steps past the signal's own worst step",
              (double)sr);
     in_band(worst_route, 0.0, 0.760, what);
+    rate_done(sr);
   }
   free(ring);
 }
