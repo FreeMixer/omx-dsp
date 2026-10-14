@@ -1,3 +1,12 @@
+omx-dsp (0.18.1) unstable; urgency=medium
+
+  * The EQ sabotage check for the 0.999 Nyquist hold no longer depends on
+    the libm: a peak just under Nyquist makes the held point differ by
+    several dB, where 0.18.0 saw a last-bit difference that aarch64 did
+    not have.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 15 Oct 2026 09:00:00 +0000
+
 omx-dsp (0.18.0) unstable; urgency=medium
 
   * analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room

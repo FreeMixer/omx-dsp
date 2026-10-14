@@ -201,6 +201,23 @@ static void arm_eq_design_ts(void) {
     }
     eq_ts_curve_drain(drawn, nd, f, db, n, TS_COMPOSITE[r].sr);
   }
+  /* The hold under 0.999 Nyquist, where the response is not flat. The fixture's curves are near
+   * flat there, so on their own they see the hold only through a last-bit rounding difference that
+   * differs between libms (aarch64 read none: v0.18.0's release). A peak just under Nyquist makes
+   * the held point and the unheld one (0 dB at and past Nyquist) several dB apart. */
+  static const double hold_rates[4] = {44100.0, 48000.0, 96000.0, 192000.0};
+  for (uint32_t r = 0; r < 4u; r++) {
+    const double sr = hold_rates[r], hi = sr / 2.0 * 0.999;
+    const struct omx_eq_band pk = {OMX_EQ_PEAKING, sr / 2.0 * 0.995, 12.0, 5.0, 1};
+    double f[OMX_EQ_CURVE_CAP(160u, 1u)], db[OMX_EQ_CURVE_CAP(160u, 1u)];
+    const uint32_t n = omx_eq_curve_db(&pk, 1u, 20.0, sr / 2.0, 160u, sr, -120.0, f, db);
+    const double want = omx_eq_band_magnitude_db(&pk, hi, sr, -120.0);
+    ok(fabs(want) > 3.0, "the band reads several dB at 0.999 Nyquist", want, 3.0);
+    ok(n > 0u && f[n - 1u] == sr / 2.0, "the axis ends on Nyquist", n, sr / 2.0);
+    for (uint32_t i = 0; i < n; i++)
+      if (f[i] > hi) ok(db[i] == want, "a point past 0.999 Nyquist is held at its value there", db[i], want);
+    eq_curve_drain(sr);
+  }
   printf("eq-design-ts: %u rows held, %u past the low-pass hand-over left out (omx-dsp#105)\n", held, moved);
   ok(held > moved, "the hand-over leaves most of the fixture held", (double)held, (double)moved);
   printf("eq-design-ts: largest gaps from the TypeScript: design %.0f ulp, bank %.0f ulp, past the ulp bound %.3g absolute, "
