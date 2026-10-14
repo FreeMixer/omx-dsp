@@ -41,7 +41,7 @@ rm -f "$S/share/omx-contract/omx-contract.json"
 if out="$(run --data 2>&1)"; then fail "--data answered a package with no kernel files: $out"
 else case "$out" in *omx-contract*) ;; *) fail "the --data refusal names no package: $out" ;; esac; fi
 mv "$S/share/omx-contract/data.off" "$S/share/omx-contract/data"
-for v in 2.5.9 2.0.0 3.0.0 3.1.0; do
+for v in 2.5.9 2.0.0 3.0.0 3.1.0 4.0.0 10.1.0; do
   render "$v"
   if out="$(run 2>&1)"; then fail "$v is out of range and was taken: $out"; continue; fi
   case "$out" in *omx-contract-devel*libomx-contract-dev*) ;; *) fail "the refusal at $v does not name the package: $out" ;; esac
