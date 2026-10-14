@@ -8,7 +8,8 @@
  * exactly 0.95 on either leg and with a NULL or aliased second leg; the per-leg peaks are each
  * leg's own peak times its own coefficient; a run of two full-scale samples is no clip, a run of
  * three is, on either leg, and a scale that lifts the tone to full scale for three samples
- * running trips it. ------------------------------------------------------------------------- */
+ * running trips it. The peak hold, fed the tone's 10 ms block peaks, ends on the whole second's
+ * peak; a smaller, an equal (+0 against −0) or a NaN peak leaves the slot as it is. ----------- */
 
 static const float MIX_METER_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
 
@@ -46,6 +47,18 @@ static void arm_mix_meter(void) {
     /* scaled by 2 the 0.7 tone crests at 1.4, over full scale for several samples running */
     ok(omx_meter_clip_run(a, NULL, n, 2.0f, OMX_METER_CLIP_LINEAR, OMX_METER_CLIP_RUN),
        "a scale that lifts the tone over full scale trips the run", 0, 0);
+
+    /* the peak hold over the second's 10 ms blocks ends on the second's own peak */
+    a[n / 3] = -0.95f;
+    const uint32_t blk = n / 100u;
+    float held = 0.0f;
+    for (uint32_t i = 0; i + blk <= n; i += blk) held = omx_meter_hold_peak(held, omx_meter_block_peak(a + i, NULL, blk));
+    ok(held == omx_meter_block_peak(a, NULL, n), "the hold ends on the loudest block's peak", held, 0.95);
+    ok(omx_meter_hold_peak(0.5f, 0.25f) == 0.5f, "a smaller peak leaves the slot as it is",
+       omx_meter_hold_peak(0.5f, 0.25f), 0.5);
+    ok(omx_meter_hold_peak(0.25f, 0.5f) == 0.5f, "a greater peak replaces it", omx_meter_hold_peak(0.25f, 0.5f), 0.5);
+    ok(!signbit(omx_meter_hold_peak(0.0f, -0.0f)), "an equal peak is not stored (+0 stays +0)", 0, 0);
+    ok(omx_meter_hold_peak(0.5f, NAN) == 0.5f, "a NaN peak never lands in the slot", omx_meter_hold_peak(0.5f, NAN), 0.5);
   }
   expect_clean();
 }

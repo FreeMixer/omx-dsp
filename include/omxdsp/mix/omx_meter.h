@@ -3,15 +3,17 @@
 /**
  * @file omx_meter.h
  * @brief The measure half of the console's meters: a block's peak, the per-leg post-coefficient
- *        peaks, and the sustained-over clip run.
+ *        peaks, the sustained-over clip run, the peak hold's comparison, and the gain-reduction
+ *        reading's hold and recovery.
  *
  * Meters are two halves. Measure
- * is here: pure functions over the block a lane hands in. Publish (the tap point, the atomic
- * slots, the hold into them, the cadence, the clip latch, the watched test) stays in the engine.
- * Moved unchanged from the engine's `omx_block_peak`, `omx_strip_meter_legs` and
- * `omx_sustained_over` (OpenMixer's mix_dsp.h).
+ * is here: pure functions over the block a lane hands in, and over a state struct the engine owns
+ * and passes in. Publish (the tap point, the atomic slots, the stores into them, the cadence, the
+ * clip latch, the watched test) stays in the engine. Moved unchanged from the engine's
+ * `omx_block_peak`, `omx_strip_meter_legs`, `omx_sustained_over` and the comparison inside
+ * `omx_meter_hold` (OpenMixer's mix_dsp.h), and `omx_gr_meter_step` (its mix_gr_meter.h).
  *
- * Stateless, pure, header-only. Not in omxdsp.h: include <omxdsp/mix/omx_meter.h>.
+ * Pure, header-only. Not in omxdsp.h: include <omxdsp/mix/omx_meter.h>.
  */
 #ifndef OMX_METER_H
 #define OMX_METER_H
@@ -20,6 +22,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include <omxdsp/omx_contract.h>
+#include <omxdsp/omx_units.h>
 
 /**
  * @brief Digital full scale, linear: exactly 1.0 (0 dBFS), the level a clip run must reach.
@@ -109,5 +114,77 @@ static inline bool omx_meter_clip_run(const float *a, const float *b, uint32_t n
   }
   return false;
 }
+
+/**
+ * @brief The peak hold's measure half: what a meter slot holds once this block's peak is in.
+ *
+ * A slot answers "the loudest moment since you last looked": it keeps the larger of what it
+ * holds and the block's peak. Strictly greater, never greater-or-equal, so an equal peak leaves
+ * the slot as it is and a NaN peak never lands in it. The engine loads its slot, calls this, and
+ * stores the result only when it differs; the read that clears the slot is the engine's too.
+ * @param held What the slot holds, linear.
+ * @param peak This block's peak, linear (omx_meter_block_peak, omx_meter_leg_peaks).
+ * @return `peak` when it is greater than `held`, else `held`.
+ * @note RT-safe: one compare. Thread-safe: pure.
+ */
+static inline float omx_meter_hold_peak(float held, float peak) {
+  return peak > held ? peak : held;
+}
+
+/**
+ * @brief The gain-reduction reading's hold, ms: a deeper reading stays on the meter this long.
+ */
+#define OMX_METER_GR_HOLD_MS 300.0f
+
+/**
+ * @brief One gain-reduction reading's state, owned by the engine (one per gate, compressor or
+ *        de-esser slot). Zero-initialised: no reduction, no hold.
+ */
+struct omx_meter_gr {
+  float db;          /**< The reading, dB, <= 0. */
+  float hold_left_s; /**< Seconds of hold still owed. */
+};
+
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "meter/gr-step"
+/**
+ * @brief Advance a gain-reduction reading by one block: the block's deepest applied gain, held
+ *        OMX_METER_GR_HOLD_MS, then recovered with the stage's own release pole.
+ *
+ * A block deeper than (or as deep as) the reading replaces it at once and restarts the hold. A
+ * shallower block spends the hold first; once it is spent the reading closes on the block as a
+ * linear gain, by `release_pole^n` per block, the time constant the stage's own gain recovers
+ * with, so the meter never lags the audio by more than the hold plus the release. It lands on the
+ * block once within 0.001 dB, and never passes it. A pole outside [0, 1) (a 0 ms release, NaN)
+ * lands at once.
+ * @param m The reading's state, read and written.
+ * @param block_db This block's minimum applied gain, dB, <= 0 (the kernel's `gr_min_db`).
+ * @param n Frames in the block.
+ * @param sr Sample rate, Hz, > 0.
+ * @param release_pole The stage's release pole per frame at `sr` (struct omx_dyn `release_coeff`).
+ * @return The reading to publish, dB, <= 0.
+ * @post `reading-not-positive`, `finite`.
+ * @note RT-safe: at most two powf and one log10f, no allocation. Thread-safe on disjoint states.
+ */
+static inline float omx_meter_gr_step(struct omx_meter_gr *m, float block_db, uint32_t n, float sr,
+                                      float release_pole) {
+  const float dt = (float)n / sr;
+  if (block_db <= m->db) {
+    m->db = block_db;
+    m->hold_left_s = OMX_METER_GR_HOLD_MS * 0.001f;
+  } else if (m->hold_left_s > 0.0f) {
+    m->hold_left_s -= dt;
+  } else {
+    const float k = (release_pole >= 0.0f && release_pole < 1.0f) ? powf(release_pole, (float)n) : 0.0f;
+    const float want = omx_db_to_lin(block_db);
+    const float g = want + (omx_db_to_lin(m->db) - want) * k;
+    m->db = omx_lin_to_db(g);
+    if (!(m->db < block_db - 0.001f)) m->db = block_db; /* landed (within 0.001 dB), or NaN */
+  }
+  OMX_POST(m->db <= 0.0f, "reading-not-positive");
+  OMX_POST(m->db - m->db == 0.0f, "finite");
+  return m->db;
+}
+#undef OMX_CONTRACT_STAGE
 
 #endif /* OMX_METER_H */
