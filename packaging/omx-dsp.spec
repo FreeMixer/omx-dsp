@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.15.0
+Version: 0.17.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,13 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.17.0-1
+- The gate's key filter: hp_hz and lp_hz in omx_gate_controls and the
+  instance's resolve, run in double; tested at the nine RME rates
+- omx_drive_instance_resolve takes the contract's oversample control (1, 2
+  or 4) and the latency follows the factor
+- Builds against omx-contract >= 2.10.1, < 2.11
+
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.15.0-1
 - omx_wetdry_mix blends the delay and the reverb, which no longer restate the
   wet/dry pair (#67).
