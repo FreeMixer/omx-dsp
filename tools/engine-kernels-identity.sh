@@ -4,13 +4,13 @@
 #
 # engine-kernels-identity.sh — the sample-rate converter, the generators and the analyser's
 # readings in this library give the same bits as the copies OpenMixer's engine still carries in
-# packages/pipewire-native/src (FreeMixer/openmixer#1580).
+# its source directory (<engine-src>, the one holding mix_src.h and mix_dsp.h).
 #
-#   tools/engine-kernels-identity.sh <openmixer>/packages/pipewire-native/src             the check
-#   tools/engine-kernels-identity.sh --write <openmixer>/packages/pipewire-native/src     print the
+#   tools/engine-kernels-identity.sh <engine-src>             the check
+#   tools/engine-kernels-identity.sh --write <engine-src>     print the
 #                                                    digests the engine's copies give (how
 #                                                    test/golden/engine_kernels.sha256 was written)
-#   tools/engine-kernels-identity.sh --self-test <openmixer>/packages/pipewire-native/src each
+#   tools/engine-kernels-identity.sh --self-test <engine-src> each
 #                                                    sabotage of an engine copy must go red
 #
 # test/engine_kernels/golden.test.c is compiled with -DOMX_GOLDEN_ENGINE against a copy of include/
@@ -20,10 +20,11 @@
 #   omxdsp/omx_gen.h -> mix_dsp.h            the generators
 #   omxdsp/analysis/omx_rta.h -> mix_dsp.h   the spectrum readings and the half-band decimator
 #
-# and against the omx-contract release the engine pins (packages/core/package.json), whose header
-# the engine's generated omx_console_limits.h completes. Every other primitive comes from this
+# and against the installed omx-contract inside this tree's range (tools/contract-include.sh), or the
+# include directory ENGINE_IDENTITY_CONTRACT_INC names, whose header the engine's generated
+# omx_console_limits.h completes. Nothing is downloaded. Every other primitive comes from this
 # tree's include/ (ENGINE_IDENTITY_INCLUDE=<dir> takes them from another omx-dsp include directory,
-# such as the one the engine pins). The program must reach both engine headers, then match the
+# such as the one the engine builds against). The program must reach both engine headers, then match the
 # committed digests at every rate.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -32,20 +33,11 @@ CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2}"
 INCLUDE="${ENGINE_IDENTITY_INCLUDE:-$PKG/include}"
 
-# engine_contract <src>: the include directory of the omx-contract release the engine pins
+# engine_contract: the include directory of the omx-contract the engine's copies compile against: the
+# installed package inside this tree's range, or ENGINE_IDENTITY_CONTRACT_INC
 engine_contract() {
-  local core v dir
-  core="$1/../../core/package.json"
-  v="$(sed -n 's/.*"@openmixer\/omx-contract": "\([0-9][0-9.]*\)".*/\1/p' "$core" 2>/dev/null | head -1)"
-  [ -n "$v" ] || { echo "engine-kernels-identity: FAIL — no @openmixer/omx-contract pin in $core" >&2; return 1; }
-  dir="$PKG/build/omx-contract/$v"
-  if [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
-    rm -rf "$dir"; mkdir -p "$dir"
-    curl -fsSL "https://github.com/FreeMixer/omx-contract/releases/download/v$v/openmixer-omx-contract-$v.tgz" -o "$dir/release.tgz" \
-      || { echo "engine-kernels-identity: FAIL — omx-contract v$v could not be fetched" >&2; rm -rf "$dir"; return 1; }
-    tar xzf "$dir/release.tgz" -C "$dir"
-  fi
-  printf '%s\n' "$dir/package/include"
+  if [ -n "${ENGINE_IDENTITY_CONTRACT_INC:-}" ]; then printf '%s\n' "$ENGINE_IDENTITY_CONTRACT_INC"; return 0; fi
+  sh "$PKG/tools/contract-include.sh" || { echo "engine-kernels-identity: FAIL — no installed omx-contract in range (or set ENGINE_IDENTITY_CONTRACT_INC)" >&2; return 1; }
 }
 
 # build <engine src dir> <scratch dir>: the golden program through the engine's copies
@@ -86,13 +78,13 @@ run_check() { # $1 = engine src dir, $2 = scratch dir
 }
 
 if [ "${1:-}" = --write ]; then
-  build "${2:?usage: engine-kernels-identity.sh --write <openmixer>/packages/pipewire-native/src}" "$PKG/build/engine-kernels-identity"
+  build "${2:?usage: engine-kernels-identity.sh --write <engine-src>}" "$PKG/build/engine-kernels-identity"
   "$PKG/build/engine-kernels-identity/golden" --write
   exit 0
 fi
 
 if [ "${1:-}" = --self-test ]; then
-  src="$(cd "${2:?usage: engine-kernels-identity.sh --self-test <openmixer>/packages/pipewire-native/src}" && pwd)"
+  src="$(cd "${2:?usage: engine-kernels-identity.sh --self-test <engine-src>}" && pwd)"
   scratch="$PKG/build/engine-kernels-identity-selftest"
   rm -rf "$scratch" && mkdir -p "$scratch"
   fail=0
@@ -129,4 +121,4 @@ EOF
   exit 0
 fi
 
-run_check "${1:?usage: engine-kernels-identity.sh <openmixer>/packages/pipewire-native/src}" "$PKG/build/engine-kernels-identity"
+run_check "${1:?usage: engine-kernels-identity.sh <engine-src>}" "$PKG/build/engine-kernels-identity"

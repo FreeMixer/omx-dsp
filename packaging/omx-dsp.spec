@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.17.0
+Version: 0.18.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -15,8 +15,8 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.10.1
-BuildRequires: omx-contract-devel < 2.11
+BuildRequires: omx-contract-devel >= 2.11.0
+BuildRequires: omx-contract-devel < 2.12
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -35,8 +35,8 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.10.1
-Requires: omx-contract-devel < 2.11
+Requires: omx-contract-devel >= 2.11.0
+Requires: omx-contract-devel < 2.12
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -71,6 +71,29 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.18.0-1
+- analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room
+  analysis (H1 transfer and coherence, impulse response and early
+  reflections, Schroeder RT60, mode finder, mode-EQ proposal), the Farina
+  sweep and deconvolution, and Smart Alignment's delay and polarity fit,
+  moved from TypeScript; held to closed forms and to a parity table of the
+  TypeScript's answers
+- The low-pass hands its poles over to the bilinear pair near Nyquist, so
+  the passband no longer lifts (#105)
+- mix/: the pan law over a speaker layout, strip and fold coefficients, a
+  bus's out stage and the meters' measure half, with golden digests (#98)
+- omx_wetdry_xfade_block and flush-to-zero on 32-bit ARM, for omx-clap-
+  core's hosted stage (omx-clap-core#61)
+- The chorus voices read both legs through omx_fdelay_read_pair (#12)
+- The align and reverse render oracles and digests run at the nine RME rates
+  (#75)
+- omx-contract is an installed package taken by pkg-config inside the range
+  the packaging declares; nothing is downloaded and there is no pins file
+  (#95, #107)
+- The drive's hf_rolloff is a DRIVE_HF_ROLLOFFS id (0 off, 1, 2) and its
+  corner comes from the contract's omx_drive_hf_rolloffs_value; builds
+  against omx-contract >= 2.11.0, < 2.12 (#97)
+
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.17.0-1
 - The gate's key filter: hp_hz and lp_hz in omx_gate_controls and the
   instance's resolve, run in double; tested at the nine RME rates
@@ -191,7 +214,7 @@ library exists.
 - omx-dsp now builds against omx-contract 1.3.0 and no longer carries its own
   copy of the console's limits. Every limit, travel, default, list and choice
   the kernels read comes from the contract's header
-  (`omxcontract/omx_contract_limits.h`, pinned in `.github/pins.txt`); the
+  (`omxcontract/omx_contract_limits.h`, pinned by this tree); the
   library installs and requires `omx-contract-devel` (or
   `libomx-contract-dev`) at exactly that version, and `omxdsp.pc` requires it.
 - Breaking, while the library is 0.x: `omxdsp/omx_contract_limits.h` is gone.

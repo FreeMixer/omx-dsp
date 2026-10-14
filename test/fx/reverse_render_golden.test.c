@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The offline pre-hit reverse render's golden digests (golden.h), at every declared rate.
+ * The offline pre-hit reverse render's golden digests (golden.h), at the nine RME rates.
  *
  * One digest per rate covers four renders of a 0.5 s stereo region laid end to end, each followed
  * by the render's return code: an impulse, noise over the first quarter, clicks at 0.25 s and on
@@ -12,16 +12,19 @@
  *   - GATED (ROOM's network), a window under the floor (clamped to 50 ms), mix 0.7.
  *
  * The digests in test/golden/reverse_render.sha256 were written by the console engine's own copy
- * of this kernel (openmixer packages/pipewire-native/src/mix_reverse_render.h at 6ee8a9bd, against
+ * of this kernel (the engine's mix_reverse_render.h, against
  * omx-dsp 0.6.1 and omx-contract 2.3.0), by building this file with
  * -DOMX_REVERSE_RENDER_ENGINE_COPY and -I<that src>:
  *
- *   cc $(CFLAGS) -DOMX_REVERSE_RENDER_ENGINE_COPY -I<openmixer>/packages/pipewire-native/src \
+ *   cc $(CFLAGS) -DOMX_REVERSE_RENDER_ENGINE_COPY -I<engine src> \
  *      -Iinclude -isystem $(CONTRACT_INC) -Itest/fx -include test/support/log10f_subst.h \
  *      -o build/fx_reverse_render_golden_engine test/fx/reverse_render_golden.test.c build/libomxdsp.a -lm
  *   build/fx_reverse_render_golden_engine --write > test/golden/reverse_render.sha256
  *
  *   make test-fx                     compare fx/omx_reverse_render.h with them
+ *
+ * The 32, 64 and 128 kHz lines were added later by fx/omx_reverse_render.h itself (`--write`), with
+ * the six the engine wrote unchanged (#75).
  */
 #include <stdint.h>
 #include <stdlib.h>
@@ -33,6 +36,7 @@
 #include <omxdsp/fx/omx_reverse_render.h>
 #endif
 
+#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
 #include "golden.h"
 
 #define MAX_N 96000u /* 0.5 s at 192 kHz */

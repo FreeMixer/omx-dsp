@@ -7,8 +7,8 @@
  *
  * Latency is declared, not small: up 24 and down 24 base samples at ×2 (48 round trip), 36 and
  * 36 at ×4 (72). A caller lines its dry path up by exactly the round trip. Design:
- * docs/design/specs/2026-09-26-dsp-primitives.md §1 row 18 and Appendix A;
- * docs/design/notes/2026-09-14-oversampling-vs-192k.md (the measurement).
+ * the dsp primitives spec §1 row 18 and Appendix A;
+ * the oversampling vs 192k notes (the measurement).
  */
 #ifndef OMX_OVERSAMPLER_H
 #define OMX_OVERSAMPLER_H

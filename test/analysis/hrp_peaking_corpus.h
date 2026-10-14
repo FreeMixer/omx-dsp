@@ -16,7 +16,7 @@
  *
  *   - `hrp_correct.test.c` runs {@link omx_hrp_peaking_coeffs} over it, and separately
  *     recomputes the design in double precision, so the corpus cannot be quietly wrong.
- *   - `packages/audio-engine/src/hrp-native-twins.test.ts` PARSES THIS FILE and runs
+ *   - the console's HRP twin test PARSES THIS FILE and runs
  *     `rbjCoeffs` over the same rows.
  *
  * Editing either implementation's arithmetic turns one of those red. Regenerating this file

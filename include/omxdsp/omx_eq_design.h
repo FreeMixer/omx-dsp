@@ -7,8 +7,7 @@
  *
  * Doubles throughout, narrowed to float at the very end, so a section designed here and one
  * designed in TypeScript run the same bits; held equal by
- * `packages/audio-engine/src/eq-lv2-design-twins.test.ts`. Design:
- * docs/design/specs/2026-09-26-dsp-primitives.md §1 row 3 and Appendix A.
+ * the console's EQ design twin test.
  */
 #ifndef OMX_EQ_DESIGN_H
 #define OMX_EQ_DESIGN_H
@@ -27,12 +26,44 @@ enum omx_eq_kind {
   OMX_EQ_LOWSHELF = 1,  /**< A low shelf, DC gain `A²`. */
   OMX_EQ_HIGHSHELF = 2, /**< A high shelf, DC gain unity. */
   OMX_EQ_HIGHPASS = 3,  /**< The cookbook high-pass. */
-  OMX_EQ_LOWPASS = 4,   /**< Matched poles, fitted numerator. */
+  OMX_EQ_LOWPASS = 4,   /**< Matched poles, fitted numerator; bilinear poles near Nyquist. */
   OMX_EQ_NOTCH = 5,     /**< Matched poles under the cookbook numerator, a total null. */
   OMX_EQ_BANDPASS = 6,  /**< The cookbook constant-0 dB-peak bandpass, cookbook poles: `½(1 − AP₂)`. */
   OMX_EQ_ALLPASS1 = 7,  /**< A first-order allpass `(k + z⁻¹)/(1 + k z⁻¹)`, −90° at the corner. */
   OMX_EQ_ALLPASS2 = 8,  /**< The second-order allpass, −180° at the corner: omx_allpass2_design(). */
 };
+
+/** @brief The low-pass hand-over (omx-dsp#105): the corner band, as fractions of Nyquist, across
+ *         which the low-pass's poles move from the matched pair to the prewarped bilinear pair.
+ *         It depends on Q, because the matched design lifts the passband sooner the higher its Q:
+ *         at Q = 1/√2 (the 12 dB Butterworth) it starts at 0.6 and ends at 0.85; at Q = 0.5412
+ *         (the low-Q half of the 24 dB Butterworth) at 0.8 and 0.9; between them it moves
+ *         linearly, and past either end it holds that end's band. Below the band the low-pass is
+ *         the matched design unchanged. */
+#define OMX_EQ_LOWPASS_HANDOVER_Q_HI 0.70710678118654752
+/** @brief The low Q end of the hand-over table: Q = 0.5412, the low-Q half of the 24 dB Butterworth. */
+#define OMX_EQ_LOWPASS_HANDOVER_Q_LO 0.54119610014619698
+/** @brief Where the hand-over starts at the high Q end, as a fraction of Nyquist. */
+#define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_HI 0.6
+/** @brief Where the hand-over ends at the high Q end, as a fraction of Nyquist. */
+#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI 0.85
+/** @brief Where the hand-over starts at the low Q end, as a fraction of Nyquist. */
+#define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_LO 0.8
+/** @brief Where the hand-over ends at the low Q end, as a fraction of Nyquist. */
+#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_LO 0.9
+
+/**
+ * @brief The low-pass hand-over band for a Q, as fractions of Nyquist.
+ * @param q Quality factor, positive.
+ * @param band `{start, end}`: the matched design below `start`, the bilinear poles from `end`.
+ * @note RT-safe and thread-safe: arithmetic only.
+ */
+static inline void omx_eq_lowpass_handover(double q, double band[2]) {
+  double u = (OMX_EQ_LOWPASS_HANDOVER_Q_HI - q) / (OMX_EQ_LOWPASS_HANDOVER_Q_HI - OMX_EQ_LOWPASS_HANDOVER_Q_LO);
+  u = u < 0.0 ? 0.0 : (u > 1.0 ? 1.0 : u);
+  band[0] = OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_HI + (OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_LO - OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_HI) * u;
+  band[1] = OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI + (OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_LO - OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI) * u;
+}
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "eq-design/matched-pair"
@@ -127,19 +158,40 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       break;
     }
     case OMX_EQ_LOWPASS: {
+      /* Matched poles and a numerator fitted to the prototype at DC, at the corner and at Nyquist.
+       * Near Nyquist the matched poles can no longer meet those three points without lifting the
+       * passband (+0.54 dB at 0.8·Nyquist, +19 dB at the 0.999 hold, omx-dsp#105), so across the
+       * hand-over band (omx_eq_lowpass_handover) the poles slide toward the prewarped bilinear
+       * pair along a smoothstep of the corner: a sweeping corner
+       * moves the response continuously. The numerator is fitted to the same three points
+       * throughout, so DC stays 1 and the corner stays at the prototype's |H| = Q. A convex mix
+       * of two stable pole pairs is stable (the stability triangle is convex). Below the
+       * hand-over the section is the matched design, bit for bit. */
       omx_eq_matched_pair(w0, 1.0 / (2.0 * qq), p);
+      double band[2];
+      omx_eq_lowpass_handover(qq, band);
+      const double r = f0 / nyquist;
+      double t = (r - band[0]) / (band[1] - band[0]);
+      t = t <= 0.0 ? 0.0 : (t >= 1.0 ? 1.0 : t * t * (3.0 - 2.0 * t));
+      const double cw = cos(w0);
+      double a1 = p[0], a2 = p[1], U = p[2] * p[2];
+      if (t > 0.0) {
+        const double alpha = sin(w0) / (2.0 * qq);
+        const double a0 = 1.0 + alpha;
+        a1 = p[0] + (-2.0 * cw / a0 - p[0]) * t;
+        a2 = p[1] + ((1.0 - alpha) / a0 - p[1]) * t;
+        U = (1.0 + a1 + a2) * (1.0 + a1 + a2);
+      }
       const double xn = nyquist / f0;
       const double un = 1.0 - xn * xn;
       const double tPi = 1.0 / (un * un + (xn / qq) * (xn / qq));
-      const double dPi = 1.0 - p[0] + p[1];
-      const double cw = cos(w0);
-      const double dr = 1.0 + p[0] * cw + p[1] * cos(2.0 * w0);
-      const double di = -(p[0] * sin(w0) + p[1] * sin(2.0 * w0));
+      const double dPi = 1.0 - a1 + a2;
+      const double dr = 1.0 + a1 * cw + a2 * cos(2.0 * w0);
+      const double di = -(a1 * sin(w0) + a2 * sin(2.0 * w0));
       const double s0 = sin(w0 / 2.0) * sin(w0 / 2.0);
-      const double U = p[2] * p[2];
       const OmxMatchedNumerator n =
           omx_matched_fit_numerator(U, tPi * dPi * dPi, qq * qq * (dr * dr + di * di), s0);
-      c[0] = n.b0; c[1] = n.b1; c[2] = n.b2; c[3] = p[0]; c[4] = p[1];
+      c[0] = n.b0; c[1] = n.b1; c[2] = n.b2; c[3] = a1; c[4] = a2;
       break;
     }
     case OMX_EQ_BANDPASS: {

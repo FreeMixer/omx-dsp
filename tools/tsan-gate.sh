@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # tsan-gate.sh — one N-thread test under ThreadSanitizer, with the sabotage that proves it can see
-# (docs/design/specs/2026-09-26-dsp-primitives.md §4.3 (e)).
+# (the dsp primitives spec §4.3 (e)).
 #
 #  1. PROBE. An empty program compiled, linked AND run under -fsanitize=thread. Where any step
 #     fails the toolchain has no TSan: print `UNJUDGED: tsan-gate <name> — <reason>` and exit 0 —

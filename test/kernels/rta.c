@@ -7,7 +7,7 @@
 
 /* ---- the analyser's spectrum readings and half-band decimator --------------------------------
  *
- * The engine's oracles (openmixer mix_dsp.test.c: the decimator and the known sinusoid;
+ * The engine's oracles (the engine's mix_dsp.test.c: the decimator and the known sinusoid;
  * mix_align.test.c: the complex reading), moved with the code. The decimator's passband, stopband
  * and three-stage cascade, and the known sinusoid, then run again at each of the nine RME rates. */
 

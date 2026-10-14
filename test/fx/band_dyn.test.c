@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * @file band_dyn.test.c
- * @brief The band-dynamics word's oracle, docs/design/specs/2026-09-26-native-dynamic-eq.md §5
+ * @brief The band-dynamics word's oracle, the native dynamic eq spec §5
  *        O1–O9, at the nine RME rates (OMX_FX_RME_RATES, fx_rates.h: the six declared plus 32, 64 and
  *        128 kHz), so O9's rate spread spans all nine (O10 is the de-esser's own battery, out of scope here).
  */

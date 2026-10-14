@@ -5,7 +5,7 @@
  * @brief libomxdsp: the umbrella header, the version and the state-layout export.
  *
  * Every primitive is a `static inline` function over caller-owned state in its own header;
- * this header includes them all. Design: docs/design/specs/2026-09-26-dsp-primitives.md.
+ * this header includes them all. Design: the dsp primitives spec.
  */
 #ifndef OMXDSP_H
 #define OMXDSP_H
@@ -16,7 +16,7 @@
 /** @brief API major version: a symbol's meaning changes only with a bump here. */
 #define OMXDSP_VERSION_MAJOR 0
 /** @brief API minor version: additions only. */
-#define OMXDSP_VERSION_MINOR 17
+#define OMXDSP_VERSION_MINOR 18
 /** @brief Patch version: no API change. */
 #define OMXDSP_VERSION_PATCH 0
 

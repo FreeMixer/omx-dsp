@@ -11,7 +11,7 @@
  * only the held value is rounded. Inside the travel a word rounds half away from zero, as every
  * face rounded it before.
  *
- * Design: docs/design/specs/2026-09-26-dsp-primitives.md §1 row 23 ("an integer port"); oracle
+ * Design: the dsp primitives spec §1 row 23 ("an integer port"); oracle
  * test/kernels/port_int.c (the face-level oracle stays the engine's src/lv2_int_ports.test.c).
  */
 #ifndef OMX_PORT_INT_H

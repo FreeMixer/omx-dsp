@@ -4,8 +4,8 @@
  * eq_bandwidth_q_table.c — omx_eq_bandwidth_q(), the one bandwidth-to-Q law, as a table
  * (FreeMixer/omx-dsp#41): every row `[sample_rate, freq_hz, bw_oct, q]` at the nine RME rates,
  * centres from below the clamp's floor to past Nyquist, widths from a tenth of an octave to four.
- * openmixer's TypeScript copy (core's bandwidthOctavesQ) is held to it until it is deleted
- * (openmixer #1601); tools/ts-golden.mjs bandwidth-q runs that check from here.
+ * the console's TypeScript copy (core's bandwidthOctavesQ) is held to it until it is deleted;
+ * tools/ts-golden.mjs bandwidth-q runs that check from here.
  *
  * Prints the JSON; `make bandwidth-q-table` holds test/golden/eq_bandwidth_q.json equal to it, and
  * `make golden-write` rewrites it. %.17g reads back as the same double in C and in JavaScript.

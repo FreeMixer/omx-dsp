@@ -3,7 +3,7 @@
 /*
  * omx_chorus.h — the native CHORUS stage: N voices reading ONE modulated fractional delay line.
  *
- * Spec: docs/design/specs/2026-09-22-chorus-and-flanger.md (openmixer#859). The primitives are
+ * Spec: the chorus and flanger design, chorus half. The primitives are
  * `mix_fdelay.h` at order 3 (the fdelay ruling's own row for this consumer) and `mix_lfo.h`;
  * nothing here is a kernel of its own.
  *
@@ -257,26 +257,19 @@ static inline void omx_chorus_process(float *l, float *r, uint32_t n, const stru
     omx_fdelay_write(&s->line_r, xr);
     float wl = 0.0f, wr = 0.0f;
     for (int k = 0; k < voices; k++) {
-      /* `omx_fdelay_read` decomposed into its own words — split, kernel, read_at — so the kernel
-       * is computed once per voice and read on both legs, bit-identical to two reads. A spread
-       * moves the right leg's delay off the left's, and then each leg splits its own. */
+      /* omx_fdelay_read_pair: the kernel is computed once per voice and read on both legs,
+       * bit-identical to two reads. A spread moves the right leg's delay off the left's, and then
+       * each leg splits its own. */
       const float d = omx_chorus_delay_at(p, &s->lfo, off[k]);
       if (split) {
         wl += omx_fdelay_read(&s->line_l, d);
         wr += omx_fdelay_read(&s->line_r, omx_chorus_delay_at(p, &s->lfo, off_r[k]));
         continue;
       }
-      uint32_t id = 0u;
-      float kf = 0.0f;
-      if (omx_fdelay_split(&s->line_l, d, &id, &kf)) {
-        wl += omx_fdelay_read_at(&s->line_l, id, 0);
-        wr += omx_fdelay_read_at(&s->line_r, id, 0);
-      } else {
-        float c[OMX_FDELAY_MAX_TAPS];
-        omx_fdelay_lagrange(s->line_l.order, kf, c);
-        wl += omx_fdelay_read_at(&s->line_l, id, c);
-        wr += omx_fdelay_read_at(&s->line_r, id, c);
-      }
+      float yl, yr;
+      omx_fdelay_read_pair(&s->line_l, &s->line_r, d, &yl, &yr);
+      wl += yl;
+      wr += yr;
     }
     l[i] = dry * xl + per_voice * wl;
     r[i] = dry * xr + per_voice * wr;

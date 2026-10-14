@@ -10,7 +10,7 @@
  * and not the console's output delay (a loudspeaker zone, per destination).
  *
  * It is an ORDER-5 FRACTIONAL line ({@link omx_fdelay}), not a whole-sample ring
- * (docs/design/specs/2026-08-31-smart-alignment.md §7, on the RULED
+ * (the smart alignment spec §7, on the RULED
  * 2026-09-20-fractional-delay-line.md):
  *   - the target is `ms × rate / 1000` fractional samples, never rounded first;
  *   - a whole-sample target is an exact copy (the kernel is skipped), so 0 is a passthrough;

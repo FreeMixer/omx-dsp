@@ -3,10 +3,7 @@
  *
  * HRP per-note harmonic baseline: what THIS instrument's harmonics normally are, at THIS pitch.
  *
- * Spec: openmixer docs/design/specs/2026-08-18-hrp-polyphonic-architecture.md §20–§23, §42 (increment 8).
- *
- * Moved unchanged from openmixer packages/pipewire-native/src/hrp_baseline.h (omx-dsp#15, lean-engine
- * spec §1(a)). The engine keeps the spectrum rings, the control-thread tick and the strip's EQ
+ * Moved unchanged from the OpenMixer engine's hrp_baseline.h (omx-dsp#15). The engine keeps the spectrum rings, the control-thread tick and the strip's EQ
  * bands that apply a correction; the analysis itself lives here.
  *
  * ## Note-relative, never channel-absolute (§20)

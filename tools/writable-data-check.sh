@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # writable-data-check.sh — libomxdsp carries no mutable global or function-static state
-# (docs/design/specs/2026-09-26-dsp-primitives.md §4.3 (a) and (b)).
+# (the dsp primitives spec §4.3 (a) and (b)).
 #
 #  (a) SYMBOLS. Every public header (the top level and analysis/) compiled into its own object (a translation unit that
 #      includes it and defines one anchor function so the object is not empty), plus the one
@@ -21,7 +21,7 @@
 #      relative to the working directory, a function-static's `.N` suffix dropped), plus the
 #      source scan of (b) over the unit's own include closure as `file<TAB>name<TAB>source`.
 #      The shrink-only ratchet that consumes the list is the judge
-#      (packages/server/src/rt-writable-data-conformance.test.ts).
+#      (the console server's writable-data conformance test).
 #
 # Usage: writable-data-check.sh <scratch-dir>   (CC and CFLAGS from the environment)
 #        writable-data-check.sh --rt <scratch-dir> <unit.c> [cc flags…]
@@ -74,7 +74,7 @@ cd "$PKG"
 fail=0
 
 # ---- (a) symbols -----------------------------------------------------------------------------
-for h in include/omxdsp/*.h include/omxdsp/analysis/*.h; do
+for h in include/omxdsp/*.h include/omxdsp/analysis/*.h include/omxdsp/mix/*.h; do
   base="$(basename "$h" .h)"
   tu="$OUT/$base.c"
   printf '#include <%s>\nvoid omxdsp_wd_anchor_%s(void) {}\n' "${h#include/}" "$base" > "$tu"
@@ -104,7 +104,7 @@ $CC $CFLAGS -c -o "$OUT/probe.o" "$OUT/probe.c"
 if [ -z "$(writable "$OUT/probe.o")" ]; then echo "writable-data-check: FAIL the symbol probe cannot see a planted static"; fail=1; fi
 
 # ---- (b) source ------------------------------------------------------------------------------
-hits="$(scan include/omxdsp/*.h include/omxdsp/analysis/*.h src/*.c)"
+hits="$(scan include/omxdsp/*.h include/omxdsp/analysis/*.h include/omxdsp/mix/*.h src/*.c)"
 if [ -n "$hits" ]; then echo "writable-data-check: FAIL mutable static or thread-local state in the library:"; echo "$hits"; fail=1; fi
 printf 'static float g_last;\n' > "$OUT/probe_src.h"
 if [ -z "$(scan "$OUT/probe_src.h")" ]; then echo "writable-data-check: FAIL the source scan cannot see a planted static"; fail=1; fi

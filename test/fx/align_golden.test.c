@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The input alignment delay's golden digests (golden.h), at every declared rate.
+ * The input alignment delay's golden digests (golden.h), at the nine RME rates.
  *
  * One digest per rate covers three renders laid end to end:
  *   - a stereo strip: the stimulus (an impulse, then noise for the whole run) through
@@ -13,15 +13,18 @@
  *     ones included.
  *
  * The digests in test/golden/align.sha256 were written by the console engine's own copy of this
- * stage (openmixer packages/pipewire-native/src/mix_dsp.h at 6ee8a9bd, against omx-dsp 0.6.1 and
+ * stage (mix_dsp.h, against omx-dsp 0.6.1 and
  * omx-contract 2.3.0), by building this file with -DOMX_ALIGN_ENGINE_COPY and -I<that src>:
  *
- *   cc $(CFLAGS) -DOMX_ALIGN_ENGINE_COPY -I<openmixer>/packages/pipewire-native/src -Iinclude \
+ *   cc $(CFLAGS) -DOMX_ALIGN_ENGINE_COPY -I<engine src> -Iinclude \
  *      -isystem $(CONTRACT_INC) -Itest/fx -include test/support/log10f_subst.h \
  *      -o build/fx_align_golden_engine test/fx/align_golden.test.c build/libomxdsp.a -lm
  *   build/fx_align_golden_engine --write > test/golden/align.sha256
  *
  *   make test-fx                     compare omx_align.h with them
+ *
+ * The 32, 64 and 128 kHz lines were added later by omx_align.h itself (`--write`), with the six
+ * the engine wrote unchanged (#75).
  */
 #include <math.h>
 #include <stdint.h>
@@ -34,6 +37,7 @@
 #include <omxdsp/omx_align.h>
 #endif
 
+#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
 #include "golden.h"
 
 #define SEG 1024

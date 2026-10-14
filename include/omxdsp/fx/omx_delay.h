@@ -82,7 +82,7 @@ static inline float omx_bpm_division_ms(float bpm, float division_beats) {
  * to `p^(REF/sr)` before it reaches the feedback one-pole, so the same knob is the same corner
  * at every declared rate — the same fix R-058 minted for `mix_reverb.h`'s second kernel.
  * Bug: handing `tone` to the pole directly made the same knob a 3 585 Hz filter at 44.1 kHz and
- * a 15 610 Hz one at 192 kHz (docs/design/notes/2026-09-17-delay-math-review.md finding D-2).
+ * a 15 610 Hz one at 192 kHz (the delay math review notes finding D-2).
  *
  * CALLED ONCE PER BLOCK, never per sample — a `powf` inside the per-sample feedback path would
  * be the most expensive line in this kernel by an order of magnitude, and the per-sample filter

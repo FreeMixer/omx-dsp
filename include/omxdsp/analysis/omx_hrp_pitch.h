@@ -3,10 +3,7 @@
  *
  * HRP multi-f0 estimation: a magnitude spectrum in, a SET of musical voices out.
  *
- * Spec: openmixer docs/design/specs/2026-08-18-hrp-polyphonic-architecture.md §3, §5, §9, §10, §55.
- *
- * Moved unchanged from openmixer packages/pipewire-native/src/hrp_pitch.h (omx-dsp#15, lean-engine
- * spec §1(a)). The engine keeps the spectrum rings, the control-thread tick and the strip's EQ
+ * Moved unchanged from the OpenMixer engine's hrp_pitch.h (omx-dsp#15). The engine keeps the spectrum rings, the control-thread tick and the strip's EQ
  * bands that apply a correction; the analysis itself lives here.
  *
  * ## Why a voice SET, from the first line

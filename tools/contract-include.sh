@@ -3,65 +3,81 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # contract-include.sh — prints the directory whose omxcontract/ holds the omx-contract C header
-# this tree builds against. The version is the one .github/pins.txt names (the omx-contract line,
-# third field); the header is never committed here (FreeMixer/omx-dsp#1, #9).
+# this tree builds against (FreeMixer/omx-dsp#1, #9, #107). The header is never committed here.
 #
 #   1. $OMX_CONTRACT_INC, when set: a scratch render, used by the perturbation arms. Not
 #      version-checked: it is a deliberate other contract.
-#   2. the installed omx-contract-devel / libomx-contract-dev, when pkg-config finds exactly that
-#      version.
-#   3. the release tarball of that version (its include/ is the render `omx-contract render --check`
-#      holds equal to the data), fetched once into build/omx-contract/<version>/.
+#   2. the installed omx-contract-devel / libomx-contract-dev, found by pkg-config, when its version
+#      is inside the range packaging/omx-dsp.spec declares (BuildRequires: omx-contract-devel >= floor,
+#      < ceiling; debian/control carries the same range, tools/contract-include-selftest.sh holds it).
 #
-# A fourth field on the pin line, a commit of FreeMixer/omx-contract, takes that commit's tree instead
-# of 2 and 3, before the release exists (a pull request's head): its committed renders, fetched once
-# into build/omx-contract/<commit>/, and its package.json must carry the pinned version. The pin goes
-# back to three fields when the release is tagged.
+# Nothing is downloaded. When the installed omx-contract is missing or outside the range the script
+# stops, naming the package, the range and the version installed.
 #
-# With --data it prints instead the directory holding that version's kernel files
-# (data/kernels/<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh
-# reads. The installed packages ship the renders only, so this always takes the release tarball (3).
+#   --range  prints "<floor> <ceiling>" as the spec declares them (the Makefile renders omxdsp.pc
+#            with them).
+#   --data   prints instead the directory holding the installed package's kernel files
+#            (<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh
+#            reads; when the package ships them only inside its omx-contract.json, they are cut
+#            out of that into build/omx-contract-kernels/<version>/.
 #
 # Prints one line on stdout and nothing else; the reason for a refusal goes to stderr, exit 1.
 set -eu
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-data=0
-[ "${1:-}" = --data ] && data=1
-if [ "$data" = 0 ] && [ -n "${OMX_CONTRACT_INC:-}" ]; then
+SPEC="$HERE/packaging/omx-dsp.spec"
+mode="${1:-}"
+floor="$(sed -n 's/^BuildRequires: *omx-contract-devel *>= *\([0-9][0-9.]*\) *$/\1/p' "$SPEC")"
+ceiling="$(sed -n 's/^BuildRequires: *omx-contract-devel *< *\([0-9][0-9.]*\) *$/\1/p' "$SPEC")"
+[ -n "$floor" ] && [ -n "$ceiling" ] || { echo "contract-include: $SPEC declares no 'BuildRequires: omx-contract-devel >= <floor>' and '< <ceiling>' pair" >&2; exit 1; }
+if [ "$mode" = --range ]; then printf '%s %s\n' "$floor" "$ceiling"; exit 0; fi
+if [ "$mode" != --data ] && [ -n "${OMX_CONTRACT_INC:-}" ]; then
   [ -f "$OMX_CONTRACT_INC/omxcontract/omx_contract_limits.h" ] || { echo "contract-include: OMX_CONTRACT_INC=$OMX_CONTRACT_INC has no omxcontract/omx_contract_limits.h" >&2; exit 1; }
   printf '%s\n' "$OMX_CONTRACT_INC"; exit 0
 fi
-v="$(awk '$1 == "omx-contract" { print $3 }' "$HERE/.github/pins.txt")"
-[ -n "$v" ] || { echo "contract-include: .github/pins.txt has no omx-contract line" >&2; exit 1; }
-c="$(awk '$1 == "omx-contract" { print $4 }' "$HERE/.github/pins.txt")"
-if [ -n "$c" ]; then
-  printf '%s\n' "$c" | grep -qE '^[0-9a-f]{40}$' || { echo "contract-include: the pinned commit '$c' is not 40 hex digits" >&2; exit 1; }
-  dir="$HERE/build/omx-contract/$c"
-  if [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
-    command -v curl >/dev/null 2>&1 || { echo "contract-include: curl is missing to fetch omx-contract $c" >&2; exit 1; }
-    rm -rf "$dir"; mkdir -p "$dir/package"
-    curl -fsSL "https://codeload.github.com/FreeMixer/omx-contract/tar.gz/$c" -o "$dir/tree.tgz" \
-      || { echo "contract-include: omx-contract $c could not be fetched" >&2; rm -rf "$dir"; exit 1; }
-    tar xzf "$dir/tree.tgz" -C "$dir/package" --strip-components=1
+data=0
+[ "$mode" = --data ] && data=1
+need="omx-contract >= $floor, < $ceiling (omx-contract-devel / libomx-contract-dev: dnf builddep packaging/omx-dsp.spec, apt-get build-dep ./)"
+command -v pkg-config >/dev/null 2>&1 || { echo "contract-include: pkg-config is missing, so the installed omx-contract cannot be found; this tree needs $need" >&2; exit 1; }
+if ! pkg-config --atleast-version="$floor" omx-contract 2>/dev/null; then
+  have="$(pkg-config --modversion omx-contract 2>/dev/null || true)"
+  if [ -n "$have" ]; then
+    echo "contract-include: omx-contract $have is installed, below the floor $floor: install $need" >&2
+  else
+    echo "contract-include: omx-contract is not installed: install $need" >&2
   fi
+  exit 1
 fi
-if [ -z "$c" ] && [ "$data" = 0 ] && command -v pkg-config >/dev/null 2>&1 && pkg-config --exact-version="$v" omx-contract 2>/dev/null; then
-  inc="$(pkg-config --variable=includedir omx-contract)"
-  [ -f "$inc/omxcontract/omx_contract_limits.h" ] || { echo "contract-include: omx-contract $v is installed but $inc/omxcontract/omx_contract_limits.h is missing" >&2; exit 1; }
-  printf '%s\n' "$inc"; exit 0
+have="$(pkg-config --modversion omx-contract)"
+# The ceiling is a version comparison, not a prefix: with "< 2.12", 2.13.0 is refused too.
+if ! pkg-config --exists "omx-contract < $ceiling"; then
+  echo "contract-include: omx-contract $have is installed, at or above the ceiling $ceiling: install $need" >&2; exit 1
 fi
-[ -n "$c" ] || dir="$HERE/build/omx-contract/$v"
-if [ -z "$c" ] && [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
-  command -v curl >/dev/null 2>&1 || { echo "contract-include: omx-contract $v is not installed (pkg-config) and curl is missing to fetch the release" >&2; exit 1; }
-  rm -rf "$dir"; mkdir -p "$dir"
-  curl -fsSL "https://github.com/FreeMixer/omx-contract/releases/download/v$v/openmixer-omx-contract-$v.tgz" -o "$dir/release.tgz" \
-    || { echo "contract-include: omx-contract v$v could not be fetched" >&2; rm -rf "$dir"; exit 1; }
-  tar xzf "$dir/release.tgz" -C "$dir"
-fi
-got="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$dir/package/package.json")"
-[ "$got" = "$v" ] || { echo "contract-include: the tree unpacked at $dir is $got, the pin is $v" >&2; exit 1; }
+prefix="$(pkg-config --variable=prefix omx-contract)"
 if [ "$data" = 1 ]; then
-  [ -d "$dir/package/data/kernels" ] || { echo "contract-include: the omx-contract $v release has no data/kernels/" >&2; exit 1; }
-  printf '%s\n' "$dir/package/data/kernels"; exit 0
+  datadir="$(pkg-config --variable=datadir omx-contract 2>/dev/null || true)"
+  [ -n "$datadir" ] || datadir="$prefix/share/omx-contract"
+  for d in "$datadir/data/kernels" "$datadir/kernels" "$datadir/omx-contract/data/kernels"; do
+    [ -d "$d" ] && { printf '%s\n' "$d"; exit 0; }
+  done
+  # The package ships the whole contract as one omx-contract.json: its kernels' controls are cut into
+  # one <kernel>.json each, in the layout of the release's data/kernels/, under build/.
+  if [ -f "$datadir/omx-contract.json" ]; then
+    out="$HERE/build/omx-contract-kernels/$have"
+    rm -rf "$out"; mkdir -p "$out"
+    awk -v out="$out" '
+      /^  "kernels": \{/ { inside = 1; next }
+      inside && /^  \}/ { inside = 0 }
+      inside && /^    "[A-Za-z0-9_]+": \{$/ { k = $0; sub(/^    "/, "", k); sub(/".*/, "", k) }
+      inside && /^      "controls": \[/ { f = out "/" k ".json"; print "{" > f; print "  \"controls\": [" > f; on = 1; next }
+      on && /^      \]/ { print "  ]" > f; print "}" > f; close(f); on = 0; next }
+      on { print substr($0, 5) > f }
+    ' "$datadir/omx-contract.json"
+    [ -n "$(ls "$out")" ] || { echo "contract-include: $datadir/omx-contract.json of omx-contract $have holds no kernels' controls" >&2; exit 1; }
+    printf '%s\n' "$out"; exit 0
+  fi
+  echo "contract-include: the installed omx-contract $have has no kernel files under $datadir (data/kernels, kernels or omx-contract.json): ls says: $(ls "$datadir" 2>&1 | tr '\n' ' ')" >&2
+  exit 1
 fi
-printf '%s\n' "$dir/package/include"
+inc="$(pkg-config --variable=includedir omx-contract)"
+[ -f "$inc/omxcontract/omx_contract_limits.h" ] || { echo "contract-include: omx-contract $have is installed but $inc/omxcontract/omx_contract_limits.h is missing" >&2; exit 1; }
+printf '%s\n' "$inc"

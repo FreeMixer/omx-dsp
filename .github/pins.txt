@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-# What this repository is checked against, one line per source: name, git URL, version[, commit].
-# omx-contract: the release tools/contract-agree.sh compares the committed limits with (CI) -- v2.10.1.
-omx-contract https://github.com/FreeMixer/omx-contract 2.10.1

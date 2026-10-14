@@ -3,7 +3,7 @@
 /*
  * reverb_96k_render.h — the excitation and the hash the 96 kHz reference is cut with.
  *
- * ONE definition, included by BOTH sides: OpenMixer's `packages/pipewire-native/tools/reverb-96k-reference.c`, which renders the
+ * ONE definition, included by BOTH sides: OpenMixer's reverb-96k-reference probe, which renders the
  * fixture, and `test/fx/reverb_math.test.c`, which re-renders and compares it. A second copy of the
  * excitation is a fixture that can go stale without a word — the responses would differ because
  * the INPUT differed, and the oracle would report a kernel change that never happened.

@@ -24,6 +24,7 @@
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
+#   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
@@ -33,6 +34,13 @@
 #               omx_strip.h input stage, and the check's sabotage (tools/strip-input-identity.sh)
 #   make analysis-engine-identity OPENMIXER=<checkout>  the RTA, HRP render and HRP live core against
 #               the engine's own copies, and the check's sabotage (tools/analysis-engine-identity.sh)
+#   make room-ts-golden OPENMIXER=<checkout>  core's room analysis and alignment fit, run under node from
+#               the checkout, against the committed parity table (tools/room-ts-golden.mjs)
+#   make test-mix  the mix module's golden digests (pan law, LCR, strip and fold coefficients, bus
+#               out stage, peak, clip) and a sabotage of each kernel against its oracle and digests
+#   make mix-engine-identity OPENMIXER=<checkout>  the same digests rendered through the engine's own
+#               copies (mix_dsp.h, mix_lcr.h, mix_bus.h), and the check's sabotages
+#               (tools/mix-engine-identity.sh)
 
 CC      ?= cc
 AR      ?= ar
@@ -43,10 +51,11 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
 override CFLAGS += $(FPFLAGS)
-# The limits come from FreeMixer/omx-contract, the version .github/pins.txt names, resolved by
-# tools/contract-include.sh (installed omx-contract-devel, else the release tarball); this tree
-# commits no copy of them. Every sub-script that compiles gets the directory as CONTRACT_INC.
-ifeq ($(filter version clean docs,$(MAKECMDGOALS)),)
+# The limits come from FreeMixer/omx-contract: the installed omx-contract-devel / libomx-contract-dev
+# inside the range packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
+# (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
+# directory as CONTRACT_INC.
+ifeq ($(filter version clean docs public-sources,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
 $(error tools/contract-include.sh found no omx-contract: see its message above)
@@ -54,11 +63,15 @@ endif
 export CONTRACT_INC
 endif
 INC      = -Iinclude -isystem $(CONTRACT_INC)
-CONTRACT_VERSION := $(shell awk '$$1 == "omx-contract" { print $$3 }' .github/pins.txt)
+# The range the spec declares, rendered into omxdsp.pc's Requires.
+CONTRACT_RANGE   := $(shell sh tools/contract-include.sh --range)
+CONTRACT_FLOOR   := $(word 1,$(CONTRACT_RANGE))
+CONTRACT_CEILING := $(word 2,$(CONTRACT_RANGE))
 BUILD    = build
 LIB      = $(BUILD)/libomxdsp.a
 HEADERS  = $(wildcard include/omxdsp/*.h)
 ANALYSIS_HEADERS = $(wildcard include/omxdsp/analysis/*.h)
+MIX_HEADERS = $(wildcard include/omxdsp/mix/*.h)
 SRC      = $(wildcard src/*.c)
 OBJ      = $(patsubst src/%.c,$(BUILD)/%.o,$(SRC))
 TESTFLAGS = $(CFLAGS) $(INC) -DOMX_CONTRACTS
@@ -95,7 +108,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage bandwidth-q-table
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage bandwidth-q-table room-ts-golden public-sources
 
 all: lib
 
@@ -130,7 +143,7 @@ $(LIB_TSAN): $(OBJ_TSAN)
 # omxdsp_suite.c #includes — a kernel lane adds ONE file and never touches this Makefile or
 # omxdsp_suite.c's main().
 
-$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) tools/kernels-gen.sh | $(BUILD)
+$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) $(MIX_HEADERS) tools/kernels-gen.sh | $(BUILD)
 	bash tools/kernels-gen.sh $(BUILD)
 	$(CC) $(TESTFLAGS) -I$(BUILD) -o $@ test/omxdsp_suite.c $(LIB_CONTRACTS) -lm
 
@@ -195,12 +208,19 @@ checks:
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
+	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
 	bash tools/face-conformance.sh
 	bash tools/face-conformance.sh --self-test
 
 lint: checks
+
+# Public sources state public facts only: no pointer into a private repository (operator ruling
+# 2026-10-13). The check, then its self-test.
+public-sources:
+	bash tools/public-sources-check.sh
+	bash tools/public-sources-check.sh --self-test
 
 # omx_log10f() (test/support) against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
 # where the libm's log10f is correctly rounded (glibc 2.43), so not part of make test.
@@ -313,10 +333,19 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # the engine's own copies and compares them (tools/analysis-engine-identity.sh), a desk check.
 # test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
 # and requires the golden digests of that kernel to move.
-ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 rates golden
+# The room analysis, the Farina sweep and the alignment fit (moved from core's TypeScript) run on the same
+# thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h;
+# align_fit, room and sweep hold them to closed forms at the nine RME rates and count allocations;
+# test/analysis/room-sabotage.sh breaks each of their kernels once and requires both kinds to fail.
+ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 rates golden \
+                 room_ts align_fit room sweep
 ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
-ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) test/fx/sha256.h $(SUPPORT_HEADERS) | $(BUILD)
+ANALYSIS_LDFLAGS_sweep = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
+ANALYSIS_LDFLAGS_room = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
+ANALYSIS_LDFLAGS_align_fit = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
+ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*.h) $(wildcard test/analysis/fixtures/*.h) \
+                test/fx/sha256.h $(SUPPORT_HEADERS) | $(BUILD)
 
 $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
 	$(CC) $(CFLAGS) $(INC) -Isrc -Itest/analysis -Itest/fx $(ANALYSIS_LDFLAGS_$*) -o $@ $< $(LIB) -lm
@@ -324,14 +353,27 @@ $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
 test-analysis: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
 	@set -e; for t in $(ANALYSIS_TESTS); do echo "./$(BUILD)/analysis_$$t"; ./$(BUILD)/analysis_$$t; done
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/sabotage.sh $(BUILD)/analysis-sabotage
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/room-sabotage.sh $(BUILD)/room-sabotage
 
 analysis-engine-identity: $(LIB)
 	@test -n "$(OPENMIXER)" || { echo "make analysis-engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh "$(OPENMIXER)"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh --self-test "$(OPENMIXER)"
 
+# core's TypeScript room analysis and alignment fit, run from an OpenMixer
+# checkout under node 22.6 or later with omx-contract's TypeScript render (OMX_CONTRACT_TS, the dist/ts of
+# the installed release), must write the committed parity table again, its
+# provenance line aside: a desk check, not part of make test and not run in CI.
+OMX_CONTRACT_TS ?=
+room-ts-golden: | $(BUILD)
+	@test -n "$(OPENMIXER)" || { echo "make room-ts-golden OPENMIXER=<openmixer checkout>"; exit 2; }
+	@test -f "$(OMX_CONTRACT_TS)/omx-contract.js" || { echo "room-ts-golden: no omx-contract TypeScript render in $(OMX_CONTRACT_TS); set OMX_CONTRACT_TS"; exit 2; }
+	node --experimental-strip-types tools/room-ts-golden.mjs "$(OPENMIXER)" "$(OMX_CONTRACT_TS)" > $(BUILD)/room_ts.h
+	diff -u -I '^/\* GENERATED by' test/analysis/fixtures/room_ts.h $(BUILD)/room_ts.h
+	@echo "room-ts-golden: core's TypeScript writes the committed parity table"
+
 # ---- the kernels moved from the engine ---------------------------------------------------------
-# The sample-rate converter, the generators and the analyser's readings (FreeMixer/openmixer#1580):
+# The sample-rate converter, the generators and the analyser's readings (moved from the engine):
 # their oracles are suite arms (test/kernels/src.c, gen.c, rta.c); here are their golden digests at
 # the nine RME rates, which the engine's own copies wrote (test/golden/engine_kernels.sha256), and
 # a break in each kernel that must move its own digests and no other's.
@@ -349,6 +391,24 @@ engine-kernels-identity:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
 
+# ---- the mix module -------------------------------------------------------------------------
+# The pan law, the strip and fold coefficients of G, a bus's out stage, and the meters' measure half
+# (include/omxdsp/mix/, FreeMixer/omx-dsp#98): their oracles are suite arms (test/kernels/mix_*.c);
+# here are their golden digests at the nine RME rates, which the engine's own copies wrote
+# (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
+$(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
+
+test-mix: $(BUILD)/mix_golden $(LIB_CONTRACTS)
+	./$(BUILD)/mix_golden test/golden/mix.sha256
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/mix/sabotage.sh $(BUILD)/mix-sabotage $(LIB_CONTRACTS)
+
+# The same digests through the engine's copies: a desk check, as engine-kernels-identity is.
+mix-engine-identity:
+	@test -n "$(OPENMIXER)" || { echo "make mix-engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
+
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked
 # against the plain one it must fail, or the check is blind.
@@ -356,7 +416,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage eq-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels flavours
+test: lib checks suite negative magnitude-sabotage eq-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
@@ -365,25 +425,26 @@ version:
 	@echo $(VERSION)
 
 PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
-	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTVERSION@|$(CONTRACT_VERSION)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
+	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTFLOOR@|$(CONTRACT_FLOOR)|' -e 's|@CONTRACTCEILING@|$(CONTRACT_CEILING)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
 
-$(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp|' -e 's|@FLAVOUR@|release, contracts compiled out|' \
 	    -e 's|@CFLAGS@||' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
 
-$(BUILD)/omxdsp-contracts.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp-contracts.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-contracts|' -e 's|@FLAVOUR@|contracts compiled in|' \
 	    -e 's|@CFLAGS@| $(CONTRACTS_CFLAGS)|' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
 
-$(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-tsan|' -e 's|@FLAVOUR@|contracts compiled in, under ThreadSanitizer|' \
 	    -e 's|@CFLAGS@| $(TSAN_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS)|' $< | sed 's/ *$$//' > $@
 
 install: $(LIBS_ALL) $(PC_ALL)
-	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis $(DESTDIR)$(LIBDIR)/pkgconfig
+	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis $(DESTDIR)$(INCLUDEDIR)/omxdsp/mix $(DESTDIR)$(LIBDIR)/pkgconfig
 	install -m 0644 include/omxdsp/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/
 	install -m 0644 include/omxdsp/fx/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx/
 	install -m 0644 include/omxdsp/analysis/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis/
+	install -m 0644 include/omxdsp/mix/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/mix/
 	install -m 0644 $(LIBS_ALL) $(DESTDIR)$(LIBDIR)/
 	install -m 0644 $(PC_ALL) $(DESTDIR)$(LIBDIR)/pkgconfig/
 

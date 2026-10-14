@@ -4,7 +4,7 @@
  * @file omx_denormal.h
  * @brief The denormal law: a value-by-value flush and the per-thread flush-to-zero mode.
  *
- * Design: docs/design/specs/2026-09-26-dsp-primitives.md §1 row 16 and Appendix A.
+ * Design: the dsp primitives spec §1 row 16 and Appendix A.
  */
 #ifndef OMX_DENORMAL_H
 #define OMX_DENORMAL_H
@@ -61,6 +61,16 @@ static inline void omx_denormals_off(void) {
   uint64_t fpcr;
   __asm__ __volatile__("mrs %0, fpcr" : "=r"(fpcr));
   __asm__ __volatile__("msr fpcr, %0" : : "r"(fpcr | (1ULL << 24)));
+}
+#elif defined(__arm__) && defined(__ARM_FP)
+/**
+ * @brief Set flush-to-zero for the calling thread (FPSCR bit 24), on 32-bit ARM with a VFP.
+ * @note RT-safe: one system-register read and write. Thread-safe: the mode is per thread.
+ */
+static inline void omx_denormals_off(void) {
+  uint32_t fpscr;
+  __asm__ __volatile__("vmrs %0, fpscr" : "=r"(fpscr));
+  __asm__ __volatile__("vmsr fpscr, %0" : : "r"(fpscr | (1u << 24)) : "memory");
 }
 #else
 /**

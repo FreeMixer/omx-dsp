@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
-/* ---- the EQ design and curve against today's TypeScript (openmixer #1601) ------------------ */
+/* ---- the EQ design and curve against today's TypeScript  ------------------ */
 
 #include "fixtures/eq_design_ts.h"
 
-/* The bounds of openmixer's dsp-results-from-c spec §4.3: a coefficient or a Q within
+/* The bounds of the DSP-results-from-C design, §4.3: a coefficient or a Q within
  * EQ_TS_TOL_ULP ulps of the TypeScript's, a magnitude within EQ_TS_TOL_DB dB. Both sides run one
  * formula in double; what differs is the libm: V8's exp, cos, sin and pow are fdlibm's and not
  * always correctly rounded, the C library's are. A frequency of the drawn grid is
@@ -36,6 +36,23 @@ static double eq_ts_ulps(double a, double b) {
   memcpy(&ib, &b, sizeof ib);
   if ((ia < 0) != (ib < 0)) return INFINITY;
   return ia > ib ? (double)(ia - ib) : (double)(ib - ia);
+}
+
+/* omx-dsp#105 moved the low-pass past the start of its hand-over band off the matched design the
+ * TypeScript still runs: a row, run or composite holding such a section is counted and left out,
+ * and every other row is held as before. openmixer's TypeScript follows when its EQ design reads
+ * the C (#1601); this exception goes when the fixture is regenerated from that TypeScript. */
+static int eq_ts_lp_moved(enum omx_eq_kind kind, double freq_hz, double q, double sr) {
+  double band[2];
+  omx_eq_lowpass_handover(q <= 0.0 ? 1e-3 : q, band);
+  return kind == OMX_EQ_LOWPASS && freq_hz > band[0] * sr * 0.5;
+}
+
+static int eq_ts_state_moved(const struct ts_state *s, double sr) {
+  if (s->lpf.on && eq_ts_lp_moved(OMX_EQ_LOWPASS, s->lpf.freq_hz, OMX_EQ_LOWPASS_HANDOVER_Q_HI, sr)) return 1;
+  for (uint32_t b = 0; b < s->nb; b++)
+    if (eq_ts_lp_moved(s->b[b].kind, s->b[b].freq_hz, s->b[b].q, sr)) return 1;
+  return 0;
 }
 
 /* A coefficient against the TypeScript's: within EQ_TS_TOL_ULP ulps, or EQ_TS_TOL_ABS absolute. */
@@ -72,9 +89,12 @@ static void eq_ts_curve_drain(const struct omx_eq_band *bands, uint32_t nbands, 
 static void arm_eq_design_ts(void) {
   g_arm = "eq-design-ts";
   double w_design = 0.0, w_abs = 0.0, w_q = 0.0, w_bank = 0.0, w_f = 0.0, w_db = 0.0;
+  uint32_t moved = 0, held = 0;
   /* rbjCoeffs */
   for (uint32_t i = 0; i < sizeof TS_DESIGN / sizeof TS_DESIGN[0]; i++) {
     const struct ts_design *t = &TS_DESIGN[i];
+    if (eq_ts_lp_moved(t->kind, t->freq, t->q, t->sr)) { moved++; continue; }
+    held++;
     double c[5];
     omx_eq_design(t->kind, t->freq, t->q, t->gain_db, t->sr, c);
     for (int j = 0; j < 5; j++)
@@ -102,6 +122,8 @@ static void arm_eq_design_ts(void) {
   for (uint32_t r = 0; r < sizeof TS_RUNS / sizeof TS_RUNS[0]; r++) {
     const struct ts_run *t = &TS_RUNS[r];
     const struct ts_state *s = &TS_STATES[t->state];
+    if (eq_ts_state_moved(s, t->sr)) { moved++; continue; }
+    held++;
     double bank[6][5], pass[OMX_EQ_PASS_MAX_SECTIONS][5];
     uint8_t on[6];
     const uint32_t nb = omx_eq_bank_design(s->on, s->b, s->nb, t->sr, bank, on);
@@ -144,6 +166,12 @@ static void arm_eq_design_ts(void) {
   /* biquadMagnitudeDb, at, around and past Nyquist */
   for (uint32_t i = 0; i < sizeof TS_BANDMAG / sizeof TS_BANDMAG[0]; i++) {
     const struct ts_bandmag *t = &TS_BANDMAG[i];
+    if (eq_ts_lp_moved(t->b.kind, t->b.freq_hz, t->b.q, t->sr)) {
+      moved++;
+      if (i + 1 == sizeof TS_BANDMAG / sizeof TS_BANDMAG[0] || TS_BANDMAG[i + 1].sr != t->sr) eq_curve_drain(t->sr);
+      continue;
+    }
+    held++;
     const double m = omx_eq_band_magnitude_db(&t->b, t->f, t->sr, -120.0), d = fabs(m - t->db);
     if (d > w_db) w_db = d;
     ok(d <= EQ_TS_TOL_DB, "a band's magnitude agrees with biquadMagnitudeDb", m, t->db);
@@ -156,6 +184,10 @@ static void arm_eq_design_ts(void) {
   for (uint32_t r = 0; r < sizeof TS_COMPOSITE / sizeof TS_COMPOSITE[0]; r++) {
     struct omx_eq_band drawn[3 + OMX_EQ_PASS_MAX_SECTIONS], three[3];
     for (int b = 0; b < 3; b++) three[b] = TS_BANDMAG[(uint32_t)b * 9u].b;
+    int comp_moved = TS_COMPOSITE_LPF.on && eq_ts_lp_moved(OMX_EQ_LOWPASS, TS_COMPOSITE_LPF.freq_hz, OMX_EQ_LOWPASS_HANDOVER_Q_HI, TS_COMPOSITE[r].sr);
+    for (int b = 0; b < 3; b++) comp_moved |= eq_ts_lp_moved(three[b].kind, three[b].freq_hz, three[b].q, TS_COMPOSITE[r].sr);
+    if (comp_moved) { moved++; continue; }
+    held++;
     const uint32_t nd = omx_eq_curve_bands(1, three, 3u, &TS_COMPOSITE_HPF, &TS_COMPOSITE_LPF, drawn);
     double f[OMX_EQ_CURVE_CAP(160u, 3u + OMX_EQ_PASS_MAX_SECTIONS)], db[OMX_EQ_CURVE_CAP(160u, 3u + OMX_EQ_PASS_MAX_SECTIONS)];
     const uint32_t n = omx_eq_curve_db(drawn, nd, TS_AXIS_F_MIN, TS_AXIS_F_MAX, 160u, TS_COMPOSITE[r].sr, -120.0, f, db);
@@ -169,6 +201,8 @@ static void arm_eq_design_ts(void) {
     }
     eq_ts_curve_drain(drawn, nd, f, db, n, TS_COMPOSITE[r].sr);
   }
+  printf("eq-design-ts: %u rows held, %u past the low-pass hand-over left out (omx-dsp#105)\n", held, moved);
+  ok(held > moved, "the hand-over leaves most of the fixture held", (double)held, (double)moved);
   printf("eq-design-ts: largest gaps from the TypeScript: design %.0f ulp, bank %.0f ulp, past the ulp bound %.3g absolute, "
          "octaves-Q %.0f ulp, curve frequency %.0f ulp, magnitude %.3g dB (bounds %d ulp, %.0e, %.0e dB)\n",
          w_design, w_bank, w_abs, w_q, w_f, w_db, EQ_TS_TOL_ULP, EQ_TS_TOL_ABS, EQ_TS_TOL_DB);

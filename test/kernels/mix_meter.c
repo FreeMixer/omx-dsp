@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+
+#include <omxdsp/mix/omx_meter.h>
+
+/* ---- the meters' measure half (mix/omx_meter.h, FreeMixer/omx-dsp#98). At each of the nine RME
+ * rates, one second of a 0.7 sine at 1 kHz with one placed sample of −0.95: the block peak is
+ * exactly 0.95 on either leg and with a NULL or aliased second leg; the per-leg peaks are each
+ * leg's own peak times its own coefficient; a run of two full-scale samples is no clip, a run of
+ * three is, on either leg, and a scale that lifts the tone to full scale for three samples
+ * running trips it. ------------------------------------------------------------------------- */
+
+static const float MIX_METER_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+
+static void arm_mix_meter(void) {
+  g_arm = "mix_meter";
+  static float a[192000], b[192000];
+  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+    const float sr = MIX_METER_RATES[ri];
+    const uint32_t n = (uint32_t)sr;
+    for (uint32_t i = 0; i < n; i++) {
+      a[i] = 0.7f * sinf((float)(2.0 * M_PI * 1000.0 * (double)i / sr));
+      b[i] = 0.5f * a[i];
+    }
+    a[n / 3] = -0.95f;
+    ok(omx_meter_block_peak(a, NULL, n) == 0.95f, "the block peak of one leg", omx_meter_block_peak(a, NULL, n), 0.95);
+    ok(omx_meter_block_peak(a, a, n) == 0.95f, "an aliased leg is read once", omx_meter_block_peak(a, a, n), 0.95);
+    ok(omx_meter_block_peak(b, a, n) == 0.95f, "the peak across two legs", omx_meter_block_peak(b, a, n), 0.95);
+    float pl, pr;
+    omx_meter_leg_peaks(a, b, n, 0.5f, 2.0f, &pl, &pr);
+    const float pb = omx_meter_block_peak(b, NULL, n);
+    ok(pl == 0.95f * 0.5f && pr == pb * 2.0f, "each leg's peak times its own coefficient", pl, 0.475);
+
+    ok(!omx_meter_clip_run(a, b, n, 1.0f, OMX_METER_CLIP_LINEAR, OMX_METER_CLIP_RUN),
+       "a tone under full scale never clips", 0, 0);
+    b[n / 2] = 1.0f;
+    b[n / 2 + 1] = -1.0f;
+    ok(!omx_meter_clip_run(a, b, n, 1.0f, OMX_METER_CLIP_LINEAR, OMX_METER_CLIP_RUN),
+       "two full-scale samples are no clip", 0, 0);
+    b[n / 2 + 2] = 1.0f;
+    ok(omx_meter_clip_run(a, b, n, 1.0f, OMX_METER_CLIP_LINEAR, OMX_METER_CLIP_RUN),
+       "three full-scale samples running are a clip, on the second leg", 0, 0);
+    ok(omx_meter_clip_run(b, NULL, n, 1.0f, OMX_METER_CLIP_LINEAR, OMX_METER_CLIP_RUN),
+       "and on a single leg", 0, 0);
+    a[n / 3] = 0.0f;
+    /* scaled by 2 the 0.7 tone crests at 1.4, over full scale for several samples running */
+    ok(omx_meter_clip_run(a, NULL, n, 2.0f, OMX_METER_CLIP_LINEAR, OMX_METER_CLIP_RUN),
+       "a scale that lifts the tone over full scale trips the run", 0, 0);
+  }
+  expect_clean();
+}

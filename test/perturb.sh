@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # perturb.sh <dir> — the C reads the generated limits header, not a copy of it
-# (docs/design/specs/2026-09-26-dsp-primitives.md §7). A PERTURBED omx_contract_limits.h is
+# (the dsp primitives spec §7). A PERTURBED omx_contract_limits.h is
 # rendered from the committed one (one declared rate dropped, the comp's ratio floor moved +0.5, the
 # opto release's fastMs moved +5 ms; then, one at a time, the LR4 section Q and the
 # all-pass/crossover tolerances; the ledger cap untouched) inside a

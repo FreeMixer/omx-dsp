@@ -4,7 +4,7 @@
  * omx_drive_design.h — the drive stage's four biquad sections, designed in C.
  *
  * Inside the console every coefficient `omx_drive.h` runs is designed in TypeScript
- * (`packages/server/src/console-rig.ts`'s `driveStateToNativeDrive` over `@freemixer/core`'s
+ * (the console's `driveStateToNativeDrive` over core's
  * `rbjSection`) and the C only RUNS it. A foreign LV2 host has no TypeScript in its process, so
  * the drive's third shell (mix_drive_lv2.h, the `omx-drive.lv2` bundle) needs the same four
  * designs reachable from C — exactly the position HRP's live shell was in, and this file is the
@@ -12,7 +12,7 @@
  *
  * Held equal to the TypeScript by `omx_drive_design_corpus.h`, which both sides check:
  * `test/fx/drive_math.test.c` runs these functions over every row, and
- * `packages/server/src/drive-lv2-design-twins.test.ts` parses the same file and runs
+ * the console's drive-design twin test parses the same file and runs
  * `driveStateToNativeDrive` over it. Editing either designer's arithmetic turns one red.
  *
  * THE DESIGN IS MATCHED, NOT BILINEAR (operator ruling 2026-09-14, eq.ts's `rbjSection` doc):

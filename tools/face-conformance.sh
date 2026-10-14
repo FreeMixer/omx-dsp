@@ -8,13 +8,13 @@
 #   tools/face-conformance.sh              the check, over include/omxdsp/fx/omx_<k>_instance.h
 #   tools/face-conformance.sh --self-test  a renamed and a dropped argument must each be named
 #
-# The pinned omx-contract declares each kernel's controls as an ordered list in
-# data/kernels/<k>.json (tools/contract-include.sh --data). A face's resolve is
+# The installed omx-contract declares each kernel's controls as an ordered list, cut into
+# <k>.json files (tools/contract-include.sh --data). A face's resolve is
 #   omx_<k>_instance_resolve(Omx<K>Instance *s, int bypass, <one argument per control>)
 # where each argument is named after its control in C case (`rateHz` -> `rate_hz`) and typed by its
 # kind: a travel is a `float` in the control's user unit, a choice is an `int`, its index. A control
 # that declares a `count` is taken once per band and is passed as `const <type> <name>[X]`, an array
-# whose extent is a count the pinned contract renders (`band[OMX_GEQ_BANDS]`) or a face macro defined
+# whose extent is a count the installed contract renders (`band[OMX_GEQ_BANDS]`) or a face macro defined
 # as one; any other extent, or a scalar for a counted control, is named as a mismatch. A control with
 # `of` (another control's travel under a choice) is no argument. A plugin binding generated from the contract then calls resolve without a
 # hand-written map.
@@ -25,6 +25,11 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 PENDING=""
+# NEWER names the controls a contract released after the floor (packaging/omx-dsp.spec) added to a kernel that the
+# face does not take yet: "<kernel>:<control>" in C case. An installed contract inside the range may carry them
+# (FreeMixer/omx-dsp#95); the face may omit them, and must take them in order when it does. Every other
+# control still has to be taken, so the list only shrinks as faces catch up.
+NEWER="gate:hp_hz gate:lp_hz drive:oversample"
 
 # controls <kernel.json>: "name kind count" per control, in the declared order; `count` is the
 # control's count (a control taken once per band) or "-". A control that carries `of` is another
@@ -72,7 +77,7 @@ arguments() {
 }
 
 # per_band <face.h>: an array argument `const T name[X]` read as `T name[]` when X is a count the
-# pinned contract's render defines, or a macro the face defines as one (`#define
+# installed contract's render defines, or a macro the face defines as one (`#define
 # OMX_EQ_INSTANCE_BANDS OMX_EQ_BAND_COUNTS_EQ8_MAX`); every other line, and any other extent,
 # unchanged, so it is named as a mismatch.
 LIMITS="$(sh "$HERE/tools/contract-include.sh")/omxcontract/omx_contract_limits.h"
@@ -92,16 +97,20 @@ per_band() {
 
 # check <fx include dir> <kernel data dir>: 0 when every face conforms (PENDING aside).
 check() {
-  local fx="$1" data="$2" bad=0 ok=0 k face got want
+  local fx="$1" data="$2" bad=0 ok=0 k face got want n
   for face in "$fx"/omx_*_instance.h; do
     k="$(basename "$face" _instance.h)"; k="${k#omx_}"
     if [ ! -f "$data/$k.json" ]; then
       if [[ " $PENDING " == *" $k "* ]]; then echo "face-conformance: $k pending (no kernel file $k.json)"; continue; fi
-      echo "face-conformance: $k: the pinned contract has no data/kernels/$k.json" >&2; bad=1; continue
+      echo "face-conformance: $k: the installed contract has no kernel file $k.json" >&2; bad=1; continue
     fi
     want="$(expected "$data/$k.json")"
     [ -n "$want" ] || { echo "face-conformance: $k: no controls read from $k.json" >&2; bad=1; continue; }
     got="$(arguments "$face" "$k" | per_band "$face")"
+    for n in $NEWER; do
+      [ "${n%%:*}" = "$k" ] || continue
+      grep -q " ${n#*:}\(\[\]\)\?\$" <<<"$got" || want="$(grep -v " ${n#*:}\(\[\]\)\?\$" <<<"$want" || true)"
+    done
     if [ "$got" = "$want" ]; then
       if [[ " $PENDING " == *" $k "* ]]; then
         echo "face-conformance: $k conforms but is listed PENDING: remove it from the list" >&2; bad=1

@@ -4,10 +4,10 @@
  * omx_deesser.h — the native DE-ESSER stage: a band-limited detector driving the COMPRESSOR's own
  * gain computer.
  *
- * Spec: docs/design/specs/2026-09-22-native-deesser-stage.md (issue #891).
+ * Spec: the native deesser stage spec (issue #891).
  *
  * THIS FILE MINTS NO DSP MECHANISM, and that is its whole design. Its detect/gain/split step is
- * the band-dynamics word, mix_band_dyn.h (docs/design/specs/2026-09-26-native-dynamic-eq.md §2). The detector is
+ * the band-dynamics word, mix_band_dyn.h (the native dynamic eq spec §2). The detector is
  * {@link omx_env_step} — the envelope cascade the gate and the comp already run. The gain computer
  * is {@link omx_gaincomp_db} in OMX_DYN_ABOVE mode — the same soft-knee characteristic the comp
  * slot runs, with ONE extra clamp (§4c: the reduction is floored at `range_db`). The band is ONE

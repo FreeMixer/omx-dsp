@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The feedback detector's oracle (omx_dyn.h, `OMX_DETECTOR_TOPOLOGY_FEEDBACK`; omx_gaincomp.h,
- * omx_gaincomp_db_fb) against its math (openmixer docs/design/specs/2026-09-26-ssl-bus-compressor.md
+ * omx_gaincomp_db_fb) against its math (bus compressor design
  * §5: every O-row but O6, which waits for the `auto` release word, and O9, the drive's own latency
  * oracle). Contracts on; after each rate no violation the rate does not explain (fx_rates.h).
  * Every arm runs at the nine RME rates (OMX_FX_RME_RATES), the dynamics tier's set, which holds

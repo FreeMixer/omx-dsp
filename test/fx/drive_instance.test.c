@@ -98,9 +98,10 @@ static struct omx_drive console_atom(uint32_t rate, const Knobs *k) {
   o.trim_lin = omx_db_to_lin(k->trim);
   o.auto_gain = k->auto_gain;
   o.stereo_link = k->stereo_link;
-  o.hf_on = k->hf_rolloff > 0;
+  float corner_hz = 0.0f;
+  o.hf_on = omx_drive_hf_rolloffs_value(k->hf_rolloff, &corner_hz) ? 1 : 0;
   o.os_factor = k->oversample;
-  omx_drive_design_bank(&o, k->band_freq, k->hf_rolloff > 0 ? (float)k->hf_rolloff : 20000.0f, rate);
+  omx_drive_design_bank(&o, k->band_freq, o.hf_on ? corner_hz : 20000.0f, rate);
   omx_drive_time_constants(&o, (float)rate);
   return o;
 }
@@ -156,11 +157,11 @@ static void arm_bypass(void) {
 static void arm_is_the_kernel(void) {
   static const Knobs K[] = {
       {0.0f, 0.0f, 2000.0f, 100.0f, 0.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_FULL, 1, 1, 0, 4},
-      {30.0f, 0.6f, 900.0f, 70.0f, -6.0f, OMX_DRIVE_EXCITER, OMX_DRIVE_BAND_TILT, 0, 1, 12000, 2},
-      {12.0f, -1.0f, 5000.0f, 100.0f, 0.0f, OMX_DRIVE_TAPE, OMX_DRIVE_BAND_LOW, 1, 0, 16000, 1},
+      {30.0f, 0.6f, 900.0f, 70.0f, -6.0f, OMX_DRIVE_EXCITER, OMX_DRIVE_BAND_TILT, 0, 1, OMX_DRIVE_HF_ROLLOFFS_12000, 2},
+      {12.0f, -1.0f, 5000.0f, 100.0f, 0.0f, OMX_DRIVE_TAPE, OMX_DRIVE_BAND_LOW, 1, 0, OMX_DRIVE_HF_ROLLOFFS_16000, 1},
       {20.0f, 1.0f, 300.0f, 45.0f, 6.0f, OMX_DRIVE_TUBE, OMX_DRIVE_BAND_HIGH, 0, 0, 0, 2},
-      {36.0f, -0.4f, 20.0f, 100.0f, -24.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_TILT, 1, 1, 16000, 1},
-      {6.0f, 0.2f, 20000.0f, 10.0f, 12.0f, OMX_DRIVE_TAPE, OMX_DRIVE_BAND_FULL, 0, 1, 12000, 4}};
+      {36.0f, -0.4f, 20.0f, 100.0f, -24.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_TILT, 1, 1, OMX_DRIVE_HF_ROLLOFFS_16000, 1},
+      {6.0f, 0.2f, 20000.0f, 10.0f, 12.0f, OMX_DRIVE_TAPE, OMX_DRIVE_BAND_FULL, 0, 1, OMX_DRIVE_HF_ROLLOFFS_12000, 4}};
   for (int k = 0; k < (int)(sizeof K / sizeof K[0]); k++) {
     OmxDriveInstance *s = inst();
     omx_drive_instance_init(s, g_sr);
@@ -214,9 +215,9 @@ static void arm_clamps(void) {
       in[knob] = x;
       want[knob] = land(x, LO[knob], HI[knob], DEF[knob]);
       omx_drive_instance_resolve(s, 0, in[0], in[1], in[2], in[3], in[4], OMX_DRIVE_TUBE, OMX_DRIVE_BAND_TILT, 1, 1,
-                                 12000, 2);
+                                 OMX_DRIVE_HF_ROLLOFFS_12000, 2);
       omx_drive_instance_resolve(e, 0, want[0], want[1], want[2], want[3], want[4], OMX_DRIVE_TUBE,
-                                 OMX_DRIVE_BAND_TILT, 1, 1, 12000, 2);
+                                 OMX_DRIVE_BAND_TILT, 1, 1, OMX_DRIVE_HF_ROLLOFFS_12000, 2);
       char what[128];
       snprintf(what, sizeof what, "D: control %d at %g lands at %g", knob, (double)x, (double)want[knob]);
       ok(memcmp(&s->atom, &e->atom, sizeof s->atom) == 0, what);
@@ -258,7 +259,7 @@ static void arm_alias_and_independence(void) {
   omx_drive_instance_init(b, g_sr);
   omx_drive_instance_init(c, g_sr);
   omx_drive_instance_init(alone, g_sr);
-  const Knobs p = {18.0f, 0.3f, 700.0f, 80.0f, 0.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_HIGH, 1, 1, 12000, 2};
+  const Knobs p = {18.0f, 0.3f, 700.0f, 80.0f, 0.0f, OMX_DRIVE_SOFT, OMX_DRIVE_BAND_HIGH, 1, 1, OMX_DRIVE_HF_ROLLOFFS_12000, 2};
   const Knobs q = {33.0f, 0.0f, 2000.0f, 100.0f, -6.0f, OMX_DRIVE_TUBE, OMX_DRIVE_BAND_FULL, 0, 0, 0, 1};
   float l[BLK], r[BLK], al[BLK], ar[BLK], bl[BLK], br[BLK], cl[BLK], cr[BLK], xl[BLK], xr[BLK];
   int alias = 1, indep = 1;
@@ -295,7 +296,7 @@ static void arm_no_allocation(void) {
     k.amount = b < 6 ? 24.0f : 6.0f;
     k.band_freq = b < 3 ? 400.0f : 3000.0f;
     k.band = b & 3;
-    k.hf_rolloff = (b % 3) * 6000 + (b % 3 ? 6000 : 0);
+    k.hf_rolloff = b % 3; /* off, 12000 Hz, 16000 Hz */
     k.oversample = 1 << (b % 3); /* a factor change every block: the state rebuilt in place */
     resolve(&s, b == 5, &k);
     omx_drive_instance_run(&s, l, r, l, r, BLK);
@@ -399,7 +400,7 @@ static void arm_oversample(void) {
   dry.amount = 24.0f;
   dry.mix = 0.0f;
   /* engaged and wet, every control off its default */
-  const Knobs wet = {18.0f, 0.3f, 700.0f, 80.0f, -3.0f, OMX_DRIVE_TUBE, OMX_DRIVE_BAND_TILT, 1, 1, 12000, 4};
+  const Knobs wet = {18.0f, 0.3f, 700.0f, 80.0f, -3.0f, OMX_DRIVE_TUBE, OMX_DRIVE_BAND_TILT, 1, 1, OMX_DRIVE_HF_ROLLOFFS_12000, 4};
   float ol[BLK], or_[BLK], el[BLK], er[BLK];
 
   for (int fi = 0; fi < 3; fi++) {

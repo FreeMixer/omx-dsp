@@ -4,8 +4,8 @@ name: ci
 
 # On every push and pull request: the whole suite on Fedora, both Debian releases and Ubuntu 24.04,
 # on both architectures; the packages built, their file lists checked and a consumer outside the tree built
-# against each; the limits read from the pinned omx-contract release; and the
-# release workflow as a dry run. Nothing is signed or published here. Every job reads this
+# against each; omx-contract installed from the FreeMixer channel inside the range the packaging
+# declares, and refused below its floor; and the release workflow as a dry run. Nothing is signed or published here. Every job reads this
 # repository and other public ones, and runs on GitHub's runners.
 
 on:
@@ -38,13 +38,35 @@ jobs:
       - name: Install the build tools
         run: |
           if command -v dnf >/dev/null; then
-            dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git curl tar gzip
+            dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git curl tar gzip dnf5-plugins pkgconf-pkg-config
           else
             apt-get update -qq
-            apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl
+            apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf dpkg-dev
           fi
 
       - uses: actions/checkout@v4
+
+      # The build dependencies, omx-contract among them, from what the packaging declares: no version
+      # is named here.
+      - name: Install the build dependencies from the FreeMixer channel
+        run: |
+          set -euo pipefail
+          if command -v dnf >/dev/null; then
+            dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo
+            dnf builddep -y --setopt=install_weak_deps=False packaging/omx-dsp.spec
+          else
+            . /etc/os-release
+            suite="$VERSION_CODENAME"
+            [ "$ID" = ubuntu ] && suite=trixie   # the channel's omx-contract is Architecture: all
+            install -d /etc/apt/keyrings
+            curl -fsSL -o /etc/apt/keyrings/freemixer.asc https://freemixer.github.io/deb/freemixer.asc
+            echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] https://freemixer.github.io/deb/debian/$suite ./" > /etc/apt/sources.list.d/freemixer.list
+            apt-get update -qq
+            apt-get build-dep -y --no-install-recommends ./
+          fi
+          pkg-config --modversion omx-contract
+          sh tools/contract-include.sh
+          sh tools/contract-include.sh --data
 
       - name: The version agrees everywhere it is written
         id: handback-version
@@ -58,6 +80,10 @@ jobs:
         id: handback-spdx
         run: tools/spdx-check.sh
 
+      - name: No source points into a private repository
+        id: handback-public-sources
+        run: make public-sources
+
       - name: The release workflow builds arm on every tag
         id: handback-release-arm-gate
         run: tools/release-arm-gate-selftest.sh
@@ -65,6 +91,58 @@ jobs:
       - name: make test
         id: handback-test
         run: make test
+
+  # The sabotage of the range: omx-contract 2.6.0, which the channel still serves and which is below
+  # the floor the spec declares, must stop the build at once with a message that names the
+  # dependency, the floor and the version installed.
+  contract-floor:
+    name: below the omx-contract floor the build refuses (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['fedora:44', 'debian:bookworm']
+    container:
+      image: ${{ matrix.image }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      OLD: 2.6.0
+    steps:
+      - name: Install the build tools and omx-contract ${{ env.OLD }}
+        run: |
+          set -euo pipefail
+          if command -v dnf >/dev/null; then
+            dnf install -y --setopt=install_weak_deps=False git gcc make gawk dnf5-plugins pkgconf-pkg-config
+            dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo
+            dnf install -y "omx-contract-devel-$OLD"
+          else
+            apt-get update -qq
+            apt-get install -y --no-install-recommends git ca-certificates curl build-essential gawk pkgconf
+            install -d /etc/apt/keyrings
+            curl -fsSL -o /etc/apt/keyrings/freemixer.asc https://freemixer.github.io/deb/freemixer.asc
+            echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] https://freemixer.github.io/deb/debian/bookworm ./" > /etc/apt/sources.list.d/freemixer.list
+            apt-get update -qq
+            apt-get install -y --no-install-recommends "libomx-contract-dev=$OLD"
+          fi
+          test "$(pkg-config --modversion omx-contract)" = "$OLD"
+
+      - uses: actions/checkout@v4
+
+      - name: make lib fails, naming omx-contract, the floor and ${{ env.OLD }}
+        run: |
+          set +e -uo pipefail
+          floor="$(sh tools/contract-include.sh --range | cut -d' ' -f1)"
+          make lib > out.txt 2>&1; rc=$?
+          cat out.txt
+          [ "$rc" != 0 ] || { echo "make lib built against omx-contract $OLD, below the floor $floor"; exit 1; }
+          ! ls build/*.o >/dev/null 2>&1 || { echo "make compiled before refusing"; exit 1; }
+          for word in omx-contract "$floor" "$OLD"; do
+            grep -q "contract-include:.*$word" out.txt || { echo "the refusal does not name '$word'"; exit 1; }
+          done
+          echo "refused as it must be: $(grep -m1 'contract-include:' out.txt)"
 
   docs:
     name: make docs (the public headers are fully documented)
