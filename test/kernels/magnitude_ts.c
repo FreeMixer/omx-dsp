@@ -18,9 +18,19 @@
 static void arm_magnitude_ts(void) {
   g_arm = "magnitude-ts";
   double worst = 0.0;
+  uint32_t skipped = 0;
   const uint32_t ncurves = (uint32_t)(sizeof TS_CURVES / sizeof TS_CURVES[0]);
   for (uint32_t k = 0; k < ncurves; k++) {
     const struct ts_curve *tc = &TS_CURVES[k];
+    /* omx-dsp#105: a low-pass past the hand-over left the TypeScript's matched design (eq_design_ts.c). */
+    int lp_moved = 0;
+    for (uint32_t b = 0; b < tc->nb; b++)
+      if (tc->b[b].kind == OMX_EQ_LOWPASS) {
+        double band[2];
+        omx_eq_lowpass_handover(tc->b[b].q <= 0.0 ? 1e-3 : tc->b[b].q, band);
+        lp_moved |= tc->b[b].freq > band[0] * tc->sr * 0.5;
+      }
+    if (lp_moved) { skipped++; continue; }
     double bank[4][5], db[64];
     ok(tc->n <= 64u, "the fixture curve fits the buffer", tc->n, 64.0);
     if (tc->n > 64u) continue;
@@ -45,7 +55,8 @@ static void arm_magnitude_ts(void) {
     }
     magnitude_drain(tc->sr);
   }
-  printf("magnitude-ts: %u curves at the nine RME rates, largest gap from eqCurveDb %.3g dB (bound %.0e)\n",
-         ncurves, worst, MAGNITUDE_TS_TOL_DB);
+  printf("magnitude-ts: %u curves at the nine RME rates (%u with a low-pass past the hand-over left out, omx-dsp#105), "
+         "largest gap from eqCurveDb %.3g dB (bound %.0e)\n", ncurves, skipped, worst, MAGNITUDE_TS_TOL_DB);
+  ok(skipped < ncurves / 2u, "the hand-over leaves most curves held", (double)skipped, (double)ncurves);
   expect_clean();
 }
