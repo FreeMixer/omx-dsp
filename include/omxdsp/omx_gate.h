@@ -16,8 +16,20 @@
  * peak detector, unity make-up, detector oversampling on `auto`. A second transcription of the
  * gain computer is how two gates would quietly stop being the same gate, so there is none.
  *
- * What the console's gate has that this gate does NOT, and why:
- *  - the KEY FILTER (HP/LP edges): an external host filters its own sidechain send.
+ * ## The key filter
+ *
+ * The contract's gate declares `hpHz` and `lpHz` (GATE_KEY_LIMITS, omx-contract 2.7.0): the two
+ * edges of the detector's key filter, each 0 (off) up to 20 kHz. They filter what the detector
+ * listens to and nothing else; the audio the gate attenuates never passes through them. The
+ * filter is the console's: one section per edge, 12 dB per octave, Butterworth (Q = 1/sqrt 2),
+ * designed for the gate's rate by omx_eq_design (the cookbook high-pass, the matched-Z low-pass,
+ * a corner above 0.999 Nyquist held there), the high-pass first. An edge at 0 is out; with both
+ * out the gate is the gate that shipped before them, bit for bit.
+ *
+ * The key the filter runs on is the external key when the gate listens to one, and otherwise
+ * the gate's own input as the console's self key builds it, the mono sum `(l + r) / 2`. A gate
+ * with both edges out and no external key keeps the kernel's own self detection (the peak of
+ * either leg), as it always has.
  *
  * `omx_gate_resolve` leaves HOLD, HYSTERESIS and the KNEE at their neutral values (0, 0, a hard
  * knee); the kernel runs all three (`omx_dyn.hold_frames`, `hyst_db`, and `gc.knee_db` with
