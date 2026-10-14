@@ -5,7 +5,7 @@
 # doc-check.sh — every public symbol of libomxdsp carries its structured doc comment
 # (docs/design/specs/2026-09-26-dsp-primitives.md §6), checked without doxygen: pure awk.
 #
-# For every `include/omxdsp/*.h` (or the files given as arguments), at file scope:
+# For every `include/omxdsp/*.h` and `include/omxdsp/mix/*.h` (or the files given as arguments), at file scope:
 #   - a function (`static inline` definition or a non-static declaration) named omx_*/omxdsp_*,
 #   - a `struct omx_*`/`enum omx_*` definition or a `typedef struct { … } Omx*;`,
 #   - a `#define OMX…` macro (its FIRST definition in the file; the release twin needs none),
@@ -117,6 +117,6 @@ fi
 
 if [ $# -gt 0 ]; then check "$@"; else
   bash "$0" --self-test
-  set -- "$PKG"/include/omxdsp/*.h
+  set -- "$PKG"/include/omxdsp/*.h "$PKG"/include/omxdsp/mix/*.h
   check "$@" && echo "doc-check: every public symbol in include/omxdsp carries its doc comment"
 fi
