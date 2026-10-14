@@ -41,10 +41,15 @@ enum omx_eq_kind {
  *         linearly, and past either end it holds that end's band. Below the band the low-pass is
  *         the matched design unchanged. */
 #define OMX_EQ_LOWPASS_HANDOVER_Q_HI 0.70710678118654752
+/** @brief The low Q end of the hand-over table: Q = 0.5412, the low-Q half of the 24 dB Butterworth. */
 #define OMX_EQ_LOWPASS_HANDOVER_Q_LO 0.54119610014619698
+/** @brief Where the hand-over starts at the high Q end, as a fraction of Nyquist. */
 #define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_HI 0.6
+/** @brief Where the hand-over ends at the high Q end, as a fraction of Nyquist. */
 #define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI 0.85
+/** @brief Where the hand-over starts at the low Q end, as a fraction of Nyquist. */
 #define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_LO 0.8
+/** @brief Where the hand-over ends at the low Q end, as a fraction of Nyquist. */
 #define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_LO 0.9
 
 /**
