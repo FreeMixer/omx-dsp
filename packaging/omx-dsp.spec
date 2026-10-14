@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.15.0
+Version: 0.16.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,14 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.16.0-1
+- Built against omx-contract 2.10.0, below 2.11: the detector oversampling
+  ids are 4x, as the contract names them since 2.10.0, so
+  omx_comp_instance.h compiles against the contract the package accepts
+  (#100).
+- The contract ceiling is the next minor: until the first public release a
+  breaking contract change ships as a minor.
+
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.15.0-1
 - omx_wetdry_mix blends the delay and the reverb, which no longer restate the
   wet/dry pair (#67).

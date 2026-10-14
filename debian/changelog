@@ -1,3 +1,14 @@
+omx-dsp (0.16.0) unstable; urgency=medium
+
+  * Built against omx-contract 2.10.0, below 2.11: the detector oversampling
+    ids are 4x, as the contract names them since 2.10.0, so
+    omx_comp_instance.h compiles against the contract the package accepts
+    (#100).
+  * The contract ceiling is the next minor: until the first public release a
+    breaking contract change ships as a minor.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 14:00:00 +0000
+
 omx-dsp (0.15.0) unstable; urgency=medium
 
   * omx_wetdry_mix blends the delay and the reverb, which no longer restate
