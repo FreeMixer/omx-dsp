@@ -10,7 +10,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make test` | the whole suite: every primitive's and kernel's oracle at every declared rate with contracts on, the negative, perturbation and thread arms, the writable-data and doc checks, and the golden digests |
 | `make test-fx` | the effect kernels' oracles and golden digests alone |
 | `make consumer` | the stateful stages built the way a consumer builds them (release flags, `-Werror`, states on the stack that only their init or settle writes) and run |
-| `make test-analysis` | the feedback detector's, the RTA ring and spectrum's and HRP's oracles (the HRP render and live core among them) at the nine RME rates (32 to 192 kHz), their no-allocation arm, golden digests and one sabotage per kernel alone |
+| `make test-analysis` | the feedback detector's, the RTA ring and spectrum's and HRP's oracles (the HRP render and live core among them) at the nine RME rates (32 to 192 kHz), their no-allocation arm, golden digests and one sabotage per kernel; the room analysis, Farina sweep and alignment fit against closed forms at the nine rates and against core's TypeScript (the parity table), and one sabotage per kernel that both must catch; alone |
 | `make test-engine-kernels` | the golden digests of the sample-rate converter, the generators and the analyser's readings at the nine RME rates, which the engine's own copies wrote, and a break in each that must move its own digests and no other's |
 | `make install PREFIX=/usr LIBDIR=/usr/lib64 DESTDIR=…` | headers, the three archives and `omxdsp.pc`, `omxdsp-contracts.pc`, `omxdsp-tsan.pc` |
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
@@ -20,6 +20,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make engine-kernels-identity OPENMIXER=<checkout>` | renders those digests again through the copies OpenMixer's engine still carries (`mix_src.h`, `mix_dsp.h`), and checks that each of its sabotages goes red; a desk check, not run in CI |
 | `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
 | `make analysis-engine-identity OPENMIXER=<checkout>` | builds the analysis golden against the engine's own `mix_dsp.h`, `hrp_render.h` and `hrp_lv2.h` and requires the committed digests, then its sabotage; a desk check, not run in CI |
+| `make room-ts-golden OPENMIXER=<checkout>` | runs core's room analysis and alignment fit from an OpenMixer checkout under node (22.6 or later) and requires the committed parity table `test/analysis/fixtures/room_ts.h`; a desk check, not run in CI |
 | `make eq-sabotage` | the EQ bank, head-filter and drawn-curve arms (`eq-curve`, `eq-design-ts`) against nine sabotaged copies of the headers; each must fail both arms (part of `make test`) |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
@@ -29,8 +30,9 @@ multiply-add would round differently from one without.
 
 ## Flavours
 
-The compiled part of the library (today only the oversampler; everything else is inline in the
-headers) is built once per flavour into `build/`:
+The compiled part of the library (the oversampler, the FBS detector, the room analysis, the Farina
+sweep and the alignment fit; everything else is inline in the headers) is built once per flavour
+into `build/`:
 
 - `libomxdsp.a`: `CFLAGS` only, contracts compiled out.
 - `libomxdsp-contracts.a`: objects in `build/contracts/`, with `-DOMX_CONTRACTS`.
@@ -125,6 +127,37 @@ plugin's own `omx_strip.h`, and `test/fx/trim_instance_golden.test.c` holds the 
 every declared rate. Run it again whenever either face or the strip's input stage changes; it ends
 when the strip is generated from these faces and holds no arithmetic of its own.
 
+## Room analysis and the alignment fit
+
+OpenMixer's room analysis and Smart Alignment's fit moved here from TypeScript:
+`analysis/omx_align_fit.h` (the cross-spectrum accumulator, the
+delay and polarity fit, the correction), `analysis/omx_room.h` (the H1 transfer and coherence,
+the impulse response and its early reflections, RT60 per octave band, the mode finder and the
+mode-EQ proposal) and `analysis/omx_sweep.h` (the Farina sweep, its inverse and the
+deconvolution), compiled in `src/omx_align_fit.c`, `src/omx_room.c` and `src/omx_sweep.c`. They
+run on a control thread, never in the audio callback: every buffer and scratch array is the
+caller's, sized as each function states, and nothing is allocated, locked or kept between calls.
+A measurement that cannot conclude returns a refusal code (`enum omx_analysis_refusal`), one per
+word of core's refusal lists.
+
+The numbers core declares for these readers and omx-contract does not yet carry (the frame
+floor, the default and mode bands, the trust coherence, the analysis floor, the early-reflection
+horizon and floor, the T20 span, the octave centres, the mode margin and position floor, the
+sweep's fade fraction) are the caller's to pass; this tree types none of them. The proposal's
+bounds are omx-contract's (`OMX_FBS_MAX_NOTCH_DEPTH_DB`, `OMX_EQ_GAIN_RANGE_*`,
+`OMX_EQ_Q_RANGE_*`).
+
+Two kinds of oracle hold them. `test/analysis/align_fit.test.c`, `room.test.c` and
+`sweep.test.c` check closed forms at the nine RME rates (a known delay, gain, reflection,
+decay, set of resonances, sweep law) and count allocations. `test/analysis/room_ts.test.c` holds
+every result to what core's TypeScript computes on fixed inputs, from the parity table
+`test/analysis/fixtures/room_ts.h`: integers exactly, reals within 1e-9 relative (measured gap
+about 1e-12; V8's libm against the host's). `tools/room-ts-golden.mjs` wrote the table from an
+OpenMixer checkout, with omx-contract's TypeScript render from the pinned release; every input
+is built from an integer PRNG and exact arithmetic, so the C test rebuilds the same bits.
+`make room-ts-golden OPENMIXER=<checkout>` writes it again and requires the committed file; run
+it whenever core's TypeScript or these kernels change, until the TypeScript is deleted. `test/analysis/room-sabotage.sh` breaks each kernel once in a
+scratch copy and requires its closed-form oracle and the parity test to fail.
 ## The EQ maths openmixer's TypeScript computes
 
 openmixer designs its console EQ and draws its curve in TypeScript today (openmixer #1601). The C
