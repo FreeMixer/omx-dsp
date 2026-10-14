@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The input alignment delay's golden digests (golden.h), at every declared rate.
+ * The input alignment delay's golden digests (golden.h), at the nine RME rates.
  *
  * One digest per rate covers three renders laid end to end:
  *   - a stereo strip: the stimulus (an impulse, then noise for the whole run) through
@@ -22,6 +22,9 @@
  *   build/fx_align_golden_engine --write > test/golden/align.sha256
  *
  *   make test-fx                     compare omx_align.h with them
+ *
+ * The 32, 64 and 128 kHz lines were added later by omx_align.h itself (`--write`), with the six
+ * the engine wrote unchanged (#75).
  */
 #include <math.h>
 #include <stdint.h>
@@ -34,6 +37,7 @@
 #include <omxdsp/omx_align.h>
 #endif
 
+#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
 #include "golden.h"
 
 #define SEG 1024

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The offline pre-hit reverse render's golden digests (golden.h), at every declared rate.
+ * The offline pre-hit reverse render's golden digests (golden.h), at the nine RME rates.
  *
  * One digest per rate covers four renders of a 0.5 s stereo region laid end to end, each followed
  * by the render's return code: an impulse, noise over the first quarter, clicks at 0.25 s and on
@@ -22,6 +22,9 @@
  *   build/fx_reverse_render_golden_engine --write > test/golden/reverse_render.sha256
  *
  *   make test-fx                     compare fx/omx_reverse_render.h with them
+ *
+ * The 32, 64 and 128 kHz lines were added later by fx/omx_reverse_render.h itself (`--write`), with
+ * the six the engine wrote unchanged (#75).
  */
 #include <stdint.h>
 #include <stdlib.h>
@@ -33,6 +36,7 @@
 #include <omxdsp/fx/omx_reverse_render.h>
 #endif
 
+#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
 #include "golden.h"
 
 #define MAX_N 96000u /* 0.5 s at 192 kHz */
