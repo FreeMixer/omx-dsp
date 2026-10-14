@@ -150,8 +150,7 @@ here computes the same results, so the engine and the server can take them from 
 
 `test/kernels/fixtures/eq_design_ts.h` is what that TypeScript computes on fixed inputs at the nine
 RME rates, written by `tools/ts-golden.mjs design <openmixer> <contract-ts>` (Node 22.7 or later;
-`<contract-ts>` is omx-contract's TypeScript render, `build/omx-contract/<version>/package/dist/ts`
-once the build has fetched the pin). The `eq-design-ts` arm holds the C to it: a coefficient, a Q or
+`<contract-ts>` is omx-contract's TypeScript render, `dist/ts` of an unpacked omx-contract release). The `eq-design-ts` arm holds the C to it: a coefficient, a Q or
 a frequency of the drawn grid within 4 ulp, a magnitude within 1e-9 dB, the bank's order, count and
 parked sections exactly. Two families of coefficient pass 4 ulp, both a cancellation that turns one
 ulp of V8's `exp` or `cos` into many (a matched bell or shelf at a low corner or a wide Q, and the
@@ -208,17 +207,18 @@ digest.
 
 omx-dsp commits no limits header. Every limit, travel, default, list and choice the kernels read
 is declared in FreeMixer/omx-contract and read through `<omxcontract/omx_contract_limits.h>`. The
-version is `omx-contract` in `.github/pins.txt`, one line, a release number.
-`tools/contract-include.sh` finds that exact version, and the build stops when it cannot:
-
-1. the installed `omx-contract-devel` / `libomx-contract-dev`, if `pkg-config --exact-version`
-   accepts the pin;
-2. otherwise the release's tarball, fetched once into `build/omx-contract/<version>/` (needs `curl`).
+range is `omx-contract >= <floor> < <ceiling>` in `.github/pins.txt` (`>= 2.6.0 < 3`, the range
+`packaging/omx-dsp.spec` and `debian/control` declare). `tools/contract-include.sh` takes the installed
+`omx-contract-devel` / `libomx-contract-dev` whose `pkg-config --atleast-version` accepts the floor and
+which is below the ceiling, and the build stops, naming the package, when none is installed. Nothing is
+downloaded: no commit, no release tarball.
 
 `OMX_CONTRACT_INC=<dir>` names another include directory (one that holds `omxcontract/`) and skips the
 version check. The perturbation arms use it, and so can you: render a contract with one value moved
 into a scratch directory, `make test`, and the kernel test that reads that value must go red.
-Moving the pin is one commit of its own. A name the kernels need that the contract lacks is added to
+`tools/contract-include.sh --data` prints the installed package's kernel files (`share/omx-contract/data/kernels`,
+else `share/omx-contract/kernels`), which `tools/face-conformance.sh` reads.
+Raising the floor is one commit of its own, with the spec and `debian/control`. A name the kernels need that the contract lacks is added to
 the contract and released there first; it is never typed here.
 
 ## Packages
