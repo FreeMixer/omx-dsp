@@ -9,7 +9,7 @@
  *
  * The committed digests were written by this program compiled against the engine's own copies
  * (OpenMixer's mix_dsp.h, mix_lcr.h, mix_bus.h and mix_gr_meter.h; engine commit ae922d2e7d74 for
- * pan to clip, ca811a46c for hold and gr) by tools/mix-engine-identity.sh, so the moved code is
+ * pan to clip, ca811a46c for hold, gr and rta) by tools/mix-engine-identity.sh, so the moved code is
  * held to the engine's output bit for bit. -DOMX_GOLDEN_ENGINE is that
  * build: each kernel below names the library's call and the engine's.
  *
@@ -29,6 +29,8 @@
  *            cleared slot every 50 blocks
  *   gr       the gain-reduction reading over runs of blocks of seven sizes, at seven release poles
  *            (inside [0, 1) and outside it): the reading and its hold state after each block
+ *   rta      one analyser tap over two legs of noise: the rate's spectrum alone, then with the
+ *            low zoom (the engine writes the legs into its rings and reads its snapshot back)
  */
 #include <math.h>
 #include <stdint.h>
@@ -48,6 +50,7 @@
 #include <omxdsp/mix/omx_meter.h>
 #include <omxdsp/mix/omx_mix_coef.h>
 #include <omxdsp/mix/omx_pan_law.h>
+#include <omxdsp/mix/omx_rta_tap.h>
 #endif
 
 #include "../fx/sha256.h"
@@ -167,6 +170,35 @@ static float k_gr(golden_gr *m, float block_db, uint32_t n, float sr, float pole
 #else
   return omx_meter_gr_step(m, block_db, n, sr, pole);
 #endif
+}
+
+/* One tap's reading over the newest window of two legs of OMX_RTA_LOW_WINDOW samples. The
+ * engine's sum is inside its ring snapshot, so its legs go through two of its rings first. */
+static float g_leg_l[OMX_RTA_LOW_WINDOW], g_leg_r[OMX_RTA_LOW_WINDOW];
+
+static const float *k_rta(uint32_t n, int low, const float **low_mags) {
+#ifdef OMX_GOLDEN_ENGINE
+  static struct omx_ring rl, rr;
+  static float leg[OMX_RTA_LOW_WINDOW];
+  static struct omx_rta_tap_snap snap;
+  static struct omx_rta_tap_scratch scr;
+  static struct omx_rta_tap_mags out;
+  memset(&rl, 0, sizeof rl);
+  memset(&rr, 0, sizeof rr);
+  omx_ring_write(&rl, g_leg_l, OMX_RTA_LOW_WINDOW);
+  omx_ring_write(&rr, g_leg_r, OMX_RTA_LOW_WINDOW);
+  omx_rta_tap_snapshot(&rl, &rr, leg, &snap, n, low);
+  omx_rta_tap_compute(&snap, &scr, &out, n, low);
+#else
+  static struct omx_rta_tap_window w;
+  static struct omx_rta_tap_work scr;
+  static struct omx_rta_tap_reading out;
+  omx_rta_tap_mono_sum(w.block, g_leg_l + OMX_RTA_LOW_WINDOW - n, g_leg_r + OMX_RTA_LOW_WINDOW - n, n);
+  if (low) omx_rta_tap_mono_sum(w.block_low, g_leg_l, g_leg_r, OMX_RTA_LOW_WINDOW);
+  omx_rta_tap_read(&w, &scr, &out, n, low);
+#endif
+  *low_mags = out.low;
+  return out.mags;
 }
 
 /* ---- the record ---------------------------------------------------------------------------- */
@@ -317,6 +349,19 @@ static void render(const char *k, uint32_t rate) {
         put_f(g.hold_left_s);
       }
     }
+  } else if (strcmp(k, "rta") == 0) {
+    uint32_t s = rate ^ 0x47a0u;
+    for (uint32_t i = 0; i < OMX_RTA_LOW_WINDOW; i++) {
+      g_leg_l[i] = lcg_noise(&s);
+      g_leg_r[i] = 0.25f * lcg_noise(&s) + 0.5f * g_leg_l[i];
+    }
+    const uint32_t n = omx_rta_fft_size_for(rate);
+    for (int low = 0; low <= 1; low++) {
+      const float *lm;
+      const float *mags = k_rta(n, low, &lm);
+      put(mags, (n / 2u) * sizeof(float));
+      if (low) put(lm, (OMX_RTA_LOW_FFT_SIZE / 2u) * sizeof(float));
+    }
   }
 }
 
@@ -343,7 +388,7 @@ int main(int argc, char **argv) {
   const char *path = argc > 1 && !write ? argv[1] : "test/golden/mix.sha256";
   FILE *f = write ? NULL : fopen(path, "r");
   if (!write && !f) { fprintf(stderr, "mix_golden: cannot read %s\n", path); return 2; }
-  static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr"};
+  static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta"};
   const unsigned nk = sizeof kernels / sizeof kernels[0];
   int fail = 0, checked = 0;
   for (unsigned ki = 0; ki < nk; ki++)

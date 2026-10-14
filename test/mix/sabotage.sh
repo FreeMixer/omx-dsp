@@ -87,4 +87,6 @@ run peak mix_meter omx_meter.h 's|      if (y > peak) peak = y;|      if (y > pe
 run clip mix_meter omx_meter.h 's|      if (run_b >= need) return true;|      if (run_b > need) return true;|'
 run hold mix_meter omx_meter.h 's|  return peak > held ? peak : held;|  return peak > held ? peak : held * 0.9999f;|'
 run gr mix_meter_gr omx_meter.h 's|    m->hold_left_s = OMX_METER_GR_HOLD_MS \* 0.001f;|    m->hold_left_s = OMX_METER_GR_HOLD_MS * 0.0011f;|'
+run rta mix_rta_tap omx_rta_tap.h 's|  for (uint32_t i = 0; i < n; i++) out\[i\] = 0.5f \* (l\[i\] + r\[i\]);|  for (uint32_t i = 0; i < n; i++) out[i] = 0.5001f * (l[i] + r[i]);|'
+run rta mix_rta_tap omx_rta_tap.h 's|  omx_decimate_halfband(scr->stage2, OMX_RTA_LOW_WINDOW / 4, scr->low_block);|  omx_decimate_halfband(scr->stage1, OMX_RTA_LOW_WINDOW / 4, scr->low_block);|'
 echo "mix-sabotage: every kernel's sabotage turns its oracle and its digests red"

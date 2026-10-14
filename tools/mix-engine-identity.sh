@@ -5,7 +5,7 @@
 # mix-engine-identity.sh — the mix module (include/omxdsp/mix/) gives the same bits as the copies
 # OpenMixer's engine still carries in its native sources (FreeMixer/omx-dsp#98): the pan
 # law, the LCR pan, the strip and fold coefficients, a bus's out stage, the block and leg peaks, the
-# clip run, the peak hold and the gain-reduction reading.
+# clip run, the peak hold, the gain-reduction reading and one analyser tap's reading.
 #
 #   tools/mix-engine-identity.sh <engine-src>             the check
 #   tools/mix-engine-identity.sh --write <engine-src>     print the
@@ -117,6 +117,8 @@ peak|mix_dsp.h|s/      if (y > peak) peak = y;/      if (y > peak) peak = x;/
 clip|mix_dsp.h|s/      if (run_b >= need) return true;/      if (run_b > need) return true;/
 hold|mix_dsp.h|s/  if (l > atomic_load_explicit(slot_l, memory_order_relaxed))/  if (l < atomic_load_explicit(slot_l, memory_order_relaxed))/
 gr|mix_gr_meter.h|s/    m->hold_left_s = OMX_GR_HOLD_MS \* 0.001f;/    m->hold_left_s = OMX_GR_HOLD_MS * 0.0011f;/
+rta|mix_dsp.h|s/    snap->block\[i\] = 0.5f \* (snap->block\[i\] + leg_scratch\[i\]);/    snap->block[i] = 0.5001f * (snap->block[i] + leg_scratch[i]);/
+rta|mix_dsp.h|s/  omx_decimate_halfband(scr->stage2, OMX_RTA_LOW_WINDOW \/ 4, scr->low_block);/  omx_decimate_halfband(scr->stage1, OMX_RTA_LOW_WINDOW \/ 4, scr->low_block);/
 EOF
   # and a tree without the engine's headers compares nothing, so it must not pass either
   mkdir -p "$scratch/x/y/empty"
