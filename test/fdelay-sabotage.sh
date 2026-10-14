@@ -60,4 +60,6 @@ sabotage exact 's|    return l->ring\[idx\];|    return omx_flush(l->ring[idx]);
 sabotage order 's|  else omx_fdelay_lagrange_body(order, f, c);|  else omx_fdelay_lagrange_body(order == 5 ? 3 : order, f, c);|'
 # §1: "A ZERO TAP IS SKIPPED, NEVER MULTIPLIED: 0 x inf is NaN." Multiply it.
 sabotage zerotap 's|    if (c\[k\] != 0.0f) acc += c\[k\] \* l->ring\[t\];|    acc += c[k] * l->ring[t];|'
-echo "fdelay-sabotage.sh: the fdelay arm sees all three sabotages"
+# #57: tick_pair's second read is the right line's, not the left's again.
+sabotage pair 's|  omx_fdelay_read_pair(a, b, delay, ya, yb);|  omx_fdelay_read_pair(a, a, delay, ya, yb);|'
+echo "fdelay-sabotage.sh: the fdelay arm sees all four sabotages"

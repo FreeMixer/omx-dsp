@@ -79,6 +79,16 @@ library exists.
   moved from TypeScript; held to closed forms and to a parity table of the
   TypeScript's answers
 
+* Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.15.0-1
+- omx_wetdry_mix blends the delay and the reverb, which no longer restate the
+  wet/dry pair (#67).
+- omx_fdelay_tick_pair ticks two fractional delay lines with one split and one
+  kernel; the flanger's two legs use it (#57).
+- The interpolated delay's oracle and digests run at the nine RME rates, the
+  six earlier digests unchanged (#81).
+- dyn: a BELOW slot skips the dB path where its gain is flat (gate open or on
+  its floor), at the cost the gate had before (#56).
+
 * Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.14.0-1
 - omx_loudness.h: EBU R 128 loudness as ITU-R BS.1770-4 defines it: the
   K-weighting designed for the rate, momentary, short-term and gated

@@ -7,7 +7,20 @@ omx-dsp (0.18.0) unstable; urgency=medium
     moved from TypeScript; held to closed forms and to a parity table of
     the TypeScript's answers.
 
- -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 05:00:00 +0000
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 14:00:00 +0000
+
+omx-dsp (0.15.0) unstable; urgency=medium
+
+  * omx_wetdry_mix blends the delay and the reverb, which no longer restate
+    the wet/dry pair (#67).
+  * omx_fdelay_tick_pair ticks two fractional delay lines with one split and
+    one kernel; the flanger's two legs use it (#57).
+  * The interpolated delay's oracle and digests run at the nine RME rates, the
+    six earlier digests unchanged (#81).
+  * dyn: a BELOW slot skips the dB path where its gain is flat (gate open or
+    on its floor), at the cost the gate had before (#56).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 12:00:00 +0000
 
 omx-dsp (0.14.0) unstable; urgency=medium
 
