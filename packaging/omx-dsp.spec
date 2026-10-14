@@ -78,6 +78,18 @@ library exists.
   sweep and deconvolution, and Smart Alignment's delay and polarity fit,
   moved from TypeScript; held to closed forms and to a parity table of the
   TypeScript's answers
+- The low-pass hands its poles over to the bilinear pair near Nyquist, so
+  the passband no longer lifts (#105)
+- mix/: the pan law over a speaker layout, strip and fold coefficients, a
+  bus's out stage and the meters' measure half, with golden digests (#98)
+- omx_wetdry_xfade_block and flush-to-zero on 32-bit ARM, for omx-clap-
+  core's hosted stage (omx-clap-core#61)
+- The chorus voices read both legs through omx_fdelay_read_pair (#12)
+- The align and reverse render oracles and digests run at the nine RME rates
+  (#75)
+- omx-contract is an installed package taken by pkg-config inside the range
+  the packaging declares; nothing is downloaded and there is no pins file
+  (#95, #107)
 
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.17.0-1
 - The gate's key filter: hp_hz and lp_hz in omx_gate_controls and the
