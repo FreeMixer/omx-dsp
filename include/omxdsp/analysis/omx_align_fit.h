@@ -2,8 +2,7 @@
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
  * omx_align_fit.h — the cross-spectrum two microphones share, and the delay and polarity it
- * implies: Smart Alignment's fit, moved from openmixer packages/core/src/smart-align.ts
- * (FreeMixer/openmixer#1602; transport in docs/design/specs/2026-10-13-dsp-results-from-c.md §6.2).
+ * implies: Smart Alignment's fit, moved from OpenMixer core's TypeScript (smart-align.ts).
  *
  * A run of paired complex spectra (target and reference, both windows taken in one pass) is
  * folded into one cross-spectrum accumulator, {@link OmxXspec}: per bin `Sxy = Σ T·conj(R)`,

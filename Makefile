@@ -314,7 +314,7 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # the engine's own copies and compares them (tools/analysis-engine-identity.sh), a desk check.
 # test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
 # and requires the golden digests of that kernel to move.
-# The room analysis, the Farina sweep and the alignment fit (FreeMixer/openmixer#1602) run on the same
+# The room analysis, the Farina sweep and the alignment fit (moved from core's TypeScript) run on the same
 # thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h;
 # align_fit, room and sweep hold them to closed forms at the nine RME rates and count allocations;
 # test/analysis/room-sabotage.sh breaks each of their kernels once and requires both kinds to fail.
@@ -341,7 +341,7 @@ analysis-engine-identity: $(LIB)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh "$(OPENMIXER)"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh --self-test "$(OPENMIXER)"
 
-# core's TypeScript room analysis and alignment fit (FreeMixer/openmixer#1602), run from an OpenMixer
+# core's TypeScript room analysis and alignment fit, run from an OpenMixer
 # checkout under node 22.6 or later with omx-contract's TypeScript render (the pinned release's, from
 # tools/contract-include.sh, or OMX_CONTRACT_TS), must write the committed parity table again, its
 # provenance line aside: a desk check, not part of make test and not run in CI.

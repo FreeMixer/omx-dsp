@@ -2,12 +2,12 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * room_ts.test.c — the room analysis, the Farina sweep and the alignment fit against core's
- * TypeScript (FreeMixer/openmixer#1602): the parity table fixtures/room_ts.h, which
- * tools/room-ts-golden.mjs wrote by running packages/core/src/room-*.ts and smart-align.ts on fixed
+ * TypeScript: the parity table fixtures/room_ts.h, which tools/room-ts-golden.mjs wrote by
+ * running core's room-*.ts and smart-align.ts on fixed
  * inputs. This program rebuilds the same inputs bit for bit (an integer PRNG and exact sums,
  * products and quotients of the table's constants) and runs the C kernels on them.
  *
- * The bounds (openmixer docs/design/specs/2026-10-13-dsp-results-from-c.md §6.2):
+ * The bounds:
  *   - every integer result is exact: refusal codes, frame counts, band bins, the direct arrival,
  *     how many reflections, peaks, modes and proposals, polarity, the bounded flag, lengths;
  *   - every real result is within 1e-9 of core's, relative to the value, or, for a value under its

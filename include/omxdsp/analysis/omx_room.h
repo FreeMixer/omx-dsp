@@ -3,10 +3,8 @@
  *
  * omx_room.h — ROOM ANALYSIS: the transfer curve, the impulse response and its early reflections,
  * RT60 per octave band, the room-mode finder and the narrow cut a confirmed mode proposes. Moved
- * from openmixer packages/core/src/room-transfer.ts, room-impulse.ts, room-rt60.ts, room-modes.ts
- * and room-mode-eq.ts (FreeMixer/openmixer#1602; the analysis is openmixer
- * docs/design/specs/2026-09-08-room-analysis.md §3, the transport
- * docs/design/specs/2026-10-13-dsp-results-from-c.md §6.2).
+ * from OpenMixer core's TypeScript (room-transfer.ts, room-impulse.ts, room-rt60.ts, room-modes.ts
+ * and room-mode-eq.ts).
  *
  *   transfer   the H1 estimate `Sxy/Pyy` and the coherence `|Sxy|²/(Pxx·Pyy)` per bin of the band,
  *              from the cross-spectrum accumulator of omx_align_fit.h (one accumulation, several

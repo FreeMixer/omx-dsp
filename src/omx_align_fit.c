@@ -2,8 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * omx_align_fit.c — the cross-spectrum accumulator and Smart Alignment's fit
- * (<omxdsp/analysis/omx_align_fit.h>), moved from openmixer packages/core/src/smart-align.ts
- * (FreeMixer/openmixer#1602).
+ * (<omxdsp/analysis/omx_align_fit.h>), moved from OpenMixer core's TypeScript (smart-align.ts).
  *
  * Every reading is in double and in the order core's TypeScript computed it, so the parity table
  * (test/analysis/room_ts.test.c) holds this file to core's answers within the stated tolerances.

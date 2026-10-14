@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * omx_sweep.c — the Farina sweep and its deconvolution (<omxdsp/analysis/omx_sweep.h>), moved from
- * openmixer packages/core/src/room-sweep-stimulus.ts (FreeMixer/openmixer#1602).
+ * OpenMixer core's TypeScript (room-sweep-stimulus.ts).
  *
  * Every reading is in double and in the order core's TypeScript computed it, so the parity table
  * (test/analysis/room_ts.test.c) holds this file to core's answers within the stated tolerances.

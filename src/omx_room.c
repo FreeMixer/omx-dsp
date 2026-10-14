@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * omx_room.c — room analysis (<omxdsp/analysis/omx_room.h>), moved from openmixer
- * packages/core/src/room-transfer.ts, room-impulse.ts, room-rt60.ts, room-modes.ts and
- * room-mode-eq.ts (FreeMixer/openmixer#1602).
+ * omx_room.c — room analysis (<omxdsp/analysis/omx_room.h>), moved from OpenMixer core's
+ * TypeScript (room-transfer.ts, room-impulse.ts, room-rt60.ts, room-modes.ts and room-mode-eq.ts).
  *
  * Every reading is in double and in the order core's TypeScript computed it, so the parity table
  * (test/analysis/room_ts.test.c) holds this file to core's answers within the stated tolerances.

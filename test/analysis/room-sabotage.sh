@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # room-sabotage.sh <dir> — the room analysis, sweep and alignment-fit oracles are not blind
-# (FreeMixer/openmixer#1602). One break per kernel: a SABOTAGED COPY of its compiled unit is linked
+# One break per kernel: a SABOTAGED COPY of its compiled unit is linked
 # ahead of the archive, and every oracle named for it must fail, the closed-form oracle and the
 # parity table against core's TypeScript (room_ts) alike. The tree is never edited, and a sed that
 # matches nothing is a failure, not a skip. The real programs, run by make test-analysis, are the

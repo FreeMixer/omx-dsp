@@ -2,9 +2,8 @@
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
  * omx_sweep.h — the exponential sine sweep, its Farina inverse filter, and the deconvolution that
- * recovers a room's impulse response from a swept capture. Moved from openmixer
- * packages/core/src/room-sweep-stimulus.ts (FreeMixer/openmixer#1602; openmixer
- * docs/design/specs/2026-09-08-room-analysis.md §3a amendment 2026-09-21).
+ * recovers a room's impulse response from a swept capture. Moved from OpenMixer core's
+ * TypeScript (room-sweep-stimulus.ts).
  *
  *   sweep     `x(t) = sin(K·(e^{t/L} − 1))`, `K = 2π·f0·L`, `L = T / ln(f1/f0)`, T the realised
  *             duration `round(T·rate)/rate`; Hann fades of the lengths the caller asks at both ends;

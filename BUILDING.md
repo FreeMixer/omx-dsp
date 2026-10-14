@@ -129,8 +129,8 @@ when the strip is generated from these faces and holds no arithmetic of its own.
 
 ## Room analysis and the alignment fit
 
-OpenMixer's room analysis and Smart Alignment's fit moved here from TypeScript
-(FreeMixer/openmixer#1602): `analysis/omx_align_fit.h` (the cross-spectrum accumulator, the
+OpenMixer's room analysis and Smart Alignment's fit moved here from TypeScript:
+`analysis/omx_align_fit.h` (the cross-spectrum accumulator, the
 delay and polarity fit, the correction), `analysis/omx_room.h` (the H1 transfer and coherence,
 the impulse response and its early reflections, RT60 per octave band, the mode finder and the
 mode-EQ proposal) and `analysis/omx_sweep.h` (the Farina sweep, its inverse and the
@@ -156,8 +156,7 @@ about 1e-12; V8's libm against the host's). `tools/room-ts-golden.mjs` wrote the
 OpenMixer checkout, with omx-contract's TypeScript render from the pinned release; every input
 is built from an integer PRNG and exact arithmetic, so the C test rebuilds the same bits.
 `make room-ts-golden OPENMIXER=<checkout>` writes it again and requires the committed file; run
-it whenever core's TypeScript or these kernels change, until the TypeScript is deleted (the
-transport of openmixer#1600). `test/analysis/room-sabotage.sh` breaks each kernel once in a
+it whenever core's TypeScript or these kernels change, until the TypeScript is deleted. `test/analysis/room-sabotage.sh` breaks each kernel once in a
 scratch copy and requires its closed-form oracle and the parity test to fail.
 ## The EQ maths openmixer's TypeScript computes
 
