@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-# What this repository is checked against, one line per source: name, git URL, version[, commit].
-# omx-contract: the release tools/contract-agree.sh compares the committed limits with (CI) -- v2.6.0.
-omx-contract https://github.com/FreeMixer/omx-contract 2.6.0
+# What this repository is built against, one line per library: name, ">=", floor, "<", ceiling. An installed
+# package inside the range is what tools/contract-include.sh takes; it is the range packaging/omx-dsp.spec
+# and debian/control declare. No URL, tag or commit.
+omx-contract >= 2.6.0 < 3
