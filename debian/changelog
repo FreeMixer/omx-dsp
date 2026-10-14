@@ -1,4 +1,4 @@
-omx-dsp (0.16.0) unstable; urgency=medium
+omx-dsp (0.18.0) unstable; urgency=medium
 
   * analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room
     analysis (H1 transfer and coherence, impulse response and early
