@@ -12,7 +12,8 @@
  *      same curve through the impulse-response path, padded to the next power of two;
  *   2. IMPULSE: a direct arrival at d0 and copies at +10 ms (×0.5), +20 ms (×0.02, under the −30 dB
  *      floor) and +100 ms (×0.5, past the 80 ms horizon) name the direct arrival at d0 exactly and
- *      exactly one reflection, at 10 ms (to the sample), 3.43 m, −6.02 dB within 0.2 dB;
+ *      exactly one reflection, at 10 ms (to the sample), 3.43 m, −6.02 dB within 0.2 dB; a negative
+ *      or NaN horizon lists none;
  *   3. RT60: a sinusoid at a band's centre under an exponential decay, `r^i·sin(2π·fc·i/rate)` with
  *      `r = 10^(−3/(T60·rate))`, is a complex exponential, so the bandpass passes it with exactly its
  *      decay and its Schroeder curve falls 60/T60 dB a second: every octave band below Nyquist reads
@@ -236,6 +237,15 @@ static void arm_impulse(Bufs *b, double rate) {
     check(fabs(r[0].distance_m - r[0].arrival_ms * 0.343) < 1e-12, "its extra path, arrival × 0.343", r[0].distance_m,
           r[0].arrival_ms * 0.343);
     check(fabs(r[0].level_db - 20.0 * log10(0.5)) < 0.2, "its level, −6.02 dB", r[0].level_db, 20.0 * log10(0.5));
+  }
+  /* A horizon that names no sample (negative or NaN) lists no reflection and still finds the direct
+   * arrival. */
+  const double no_horizon[2] = {-1.0, NAN};
+  for (int h = 0; h < 2; h++) {
+    uint32_t d = 0, nn = 7;
+    check(omx_room_impulse(&b->acc, no_horizon[h], TS_EARLY_REFLECTION_FLOOR_DB, b->sr, b->si, &d, r, cap, &nn) ==
+              OMX_ANALYSIS_OK && d == (uint32_t)d0 && nn == 0u,
+          "no horizon, no reflection", nn, 0);
   }
   free(r);
   g_arm = "impulse refusal";
