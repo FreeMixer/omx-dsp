@@ -62,6 +62,16 @@ static inline void omx_denormals_off(void) {
   __asm__ __volatile__("mrs %0, fpcr" : "=r"(fpcr));
   __asm__ __volatile__("msr fpcr, %0" : : "r"(fpcr | (1ULL << 24)));
 }
+#elif defined(__arm__) && defined(__ARM_FP)
+/**
+ * @brief Set flush-to-zero for the calling thread (FPSCR bit 24), on 32-bit ARM with a VFP.
+ * @note RT-safe: one system-register read and write. Thread-safe: the mode is per thread.
+ */
+static inline void omx_denormals_off(void) {
+  uint32_t fpscr;
+  __asm__ __volatile__("vmrs %0, fpscr" : "=r"(fpscr));
+  __asm__ __volatile__("vmsr fpscr, %0" : : "r"(fpscr | (1u << 24)) : "memory");
+}
 #else
 /**
  * @brief No flush-to-zero mode on this architecture; correctness is unaffected.
