@@ -38,10 +38,10 @@ jobs:
       - name: Install the build tools
         run: |
           if command -v dnf >/dev/null; then
-            dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git curl tar gzip dnf5-plugins pkgconf-pkg-config python3
+            dnf install -y --setopt=install_weak_deps=False gcc make binutils gawk diffutils git curl tar gzip dnf5-plugins pkgconf-pkg-config
           else
             apt-get update -qq
-            apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf python3
+            apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf
           fi
 
       - uses: actions/checkout@v4
