@@ -159,6 +159,51 @@ fitted low-pass's b2 far below Nyquist); they are held to 1e-13 absolute, and th
 largest gap of each kind. Regenerate the fixture when openmixer's TypeScript changes, until it is
 deleted. The `eq-curve` arm holds the same functions to closed forms.
 
+## Loudness
+
+`omx_loudness.h` measures EBU R 128 loudness the way ITU-R BS.1770-4 defines it
+(FreeMixer/omx-dsp#64). The engine measures and accumulates; it reads the figures and publishes
+them, and no other code computes them.
+
+- **K-weighting.** Two sections designed for the rate at init, in double, from the analogue
+  prototype of BS.1770's 48 kHz table (a high shelf at 1681.97 Hz, +4.0 dB, and the RLB high-pass
+  at 38.135 Hz), by the bilinear transform with `tan` prewarping. At 48 kHz they reproduce the
+  standard's printed coefficients; at the other rates they are the same filter. Each leg runs
+  through omx_biquad_d(), double history.
+- **Blocks.** The K-weighted squares, each leg weighted (1.0 for L, R, C; 1.41 for the surrounds;
+  0 drops a leg, the LFE), are summed in 10 ms sub-blocks (`rate / 100` samples, a whole number at
+  each of the nine RME rates). Momentary loudness is the last 40 sub-blocks (400 ms), short-term
+  the last 300 (3 s); a window that has not yet filled counts the missing time as silence.
+- **Gating.** Every 100 ms a full 400 ms block joins the integrated measurement and, once 3 s have
+  passed, the short-term value joins the range. Neither keeps the blocks: each keeps a histogram of
+  0.1 LU bins from −70 LUFS up, every bin holding its count and the exact sum of its energies. The
+  absolute gate (−70 LUFS) is a bin edge; the relative gate (−10 LU for the integrated loudness,
+  −20 LU for the range) is placed in energy, and the bin it falls in is kept when its own mean is
+  above the gate. So a programme of any length takes the same state, and the integrated value is
+  exact except for blocks within 0.1 LU of the relative gate.
+- **Loudness range.** EBU Tech 3342: the 10th to the 95th percentile of the gated short-term
+  values, each percentile read as the energy mean of the bin that holds it.
+- **True peak.** The largest reading of omx_truepeak_block() over every leg: the shared ×4
+  half-band interpolator, BS.1770-4's four, not a second one.
+
+Nothing on the process path allocates, locks or calls libm: the bin edges and coefficients are
+computed at init, and a reading calls `pow` and `log10` at most twice. The state is one caller-owned struct
+without pointers, exported with OMXDSP_STATE_LAYOUT.
+
+The oracle (`test/fx/loudness.test.c`) generates EBU Tech 3341's and 3342's test signals from
+their closed forms at each of the nine RME rates and holds the readings to the tolerances the
+documents give: momentary, short-term and integrated ±0.1 LU, true peak +0.2/−0.4 dB, loudness
+range ±1 LU. Generated: 3341 signals 1 to 6, 9, 12 and 15 to 19, and 3342 signals 1 to 4. In
+place of the burst signals 10 and 13, a burst of exactly one window (3 s, 400 ms) at −23 dBFS is
+placed off the 10 ms grid and the largest reading must be −23.0 LUFS ±0.1. Not generated: the
+programme recordings (3341 signals 7 and 8, 3342 signals 5 and 6) and the signals published only
+as files (3341 signals 11, 14 and 20 to 23). The true-peak tones are faded in over 20 ms: a sine
+switched on at full level is a step, and its reconstruction overshoots. The golden digests
+(`test/golden/loudness.sha256`) hold the readings in energy, so no libm `log10` enters them;
+`test/fx/loudness-perturb.sh` breaks the shelf, the relative gate, the range percentile, the true
+peak and the momentary window one at a time, and each must turn the oracle red and move every
+digest.
+
 ## The limits come from omx-contract
 
 omx-dsp commits no limits header. Every limit, travel, default, list and choice the kernels read
