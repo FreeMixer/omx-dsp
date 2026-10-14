@@ -27,6 +27,7 @@
 #include <omxdsp/omx_onepole.h>
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_units.h>
+#include <omxdsp/omx_wetdry.h>
 
 /*
  * FIVE configurations over TWO kernels. REVERSE and GATED are the ROOM comb network handed an
@@ -832,8 +833,7 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
         }
         wetL *= gate_env; wetR *= gate_env;
       }
-      lb[i] = dry * lb[i] + mix * wetL;
-      rb[i] = dry * rb[i] + mix * wetR;
+      omx_wetdry_mix(&lb[i], &rb[i], lb[i], rb[i], wetL, wetR, dry, mix);
     }
     s->rev_w = rev_w; s->rev_phase = rev_phase;
     s->gate_env = gate_env; s->gate_hold_left = gate_hold_left;

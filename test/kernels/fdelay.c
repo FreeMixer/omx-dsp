@@ -9,6 +9,7 @@
 /* ---- the fractional delay line -------------------------------------------------------------- */
 
 static void fdelay_moved_arms(void);
+static void fd_arm_tick_pair(void);
 
 static void arm_fdelay(void) {
   g_arm = "fdelay";
@@ -89,7 +90,56 @@ static void arm_fdelay(void) {
   ok(omx_fdelay_max_delay(omx_fdelay_cap_for(100.0f, 3), 3) >= 100.0f, "a cap sized for a delay serves it", omx_fdelay_max_delay(omx_fdelay_cap_for(100.0f, 3), 3), 100.0);
   ok(omx_fdelay_state_size() == sizeof(struct omx_fdelay), "the state layout is exported", (double)omx_fdelay_state_size(), sizeof(struct omx_fdelay));
   expect_clean();
+  fd_arm_tick_pair();
   fdelay_moved_arms();
+}
+
+/* ---- tick_pair against two ticks (#57) --------------------------------------------------------
+ * omx_fdelay_tick_pair splits the delay once and computes one kernel for both lines; its reads
+ * must be the bits two omx_fdelay_tick calls give. Orders 3 and 5, 20 000 samples each of a swept
+ * fractional delay and of whole delays, the two legs fed different signals (one of them partly
+ * below the flush floor), every read compared by memcmp. */
+#define FD_TP_CAP 2048u
+#define FD_TP_LEN 20000u
+static void fd_arm_tick_pair(void) {
+  g_arm = "fdelay tick-pair";
+  static float ra[FD_TP_CAP], rb[FD_TP_CAP], rc[FD_TP_CAP], rd[FD_TP_CAP];
+  for (int oi = 0; oi < 2; oi++) {
+    const int order = oi == 0 ? 3 : 5;
+    for (int whole = 0; whole <= 1; whole++) {
+      memset(ra, 0, sizeof ra); memset(rb, 0, sizeof rb);
+      memset(rc, 0, sizeof rc); memset(rd, 0, sizeof rd);
+      struct omx_fdelay a, b, c, d;
+      omx_fdelay_init(&a, ra, FD_TP_CAP, order);
+      omx_fdelay_init(&b, rb, FD_TP_CAP, order);
+      omx_fdelay_init(&c, rc, FD_TP_CAP, order);
+      omx_fdelay_init(&d, rd, FD_TP_CAP, order);
+      const float lo = omx_fdelay_min_delay(order);
+      const float hi = omx_fdelay_max_delay(FD_TP_CAP, order);
+      long diff = 0;
+      for (uint32_t i = 0; i < FD_TP_LEN; i++) {
+        const float xa = rnd(-1.0f, 1.0f);
+        const float xb = rnd(-1.0f, 1.0f) * (i % 5 == 0 ? 1e-30f : 1.0f);
+        const float ph = (float)i / (float)FD_TP_LEN;
+        float delay = lo + (hi - lo) * 0.5f * (1.0f - cosf(6.2831853f * 3.0f * ph));
+        if (whole) delay = floorf(delay);
+        float ya, yb;
+        omx_fdelay_tick_pair(&a, &b, xa, xb, delay, &ya, &yb);
+        const float wa = omx_fdelay_tick(&c, xa, delay);
+        const float wb = omx_fdelay_tick(&d, xb, delay);
+        if (memcmp(&ya, &wa, sizeof ya) != 0 || memcmp(&yb, &wb, sizeof yb) != 0) diff++;
+      }
+      ok(diff == 0, whole ? "tick_pair reads two ticks' bits at whole delays"
+                          : "tick_pair reads two ticks' bits at swept delays",
+         (double)diff, 0.0);
+      ok(a.wpos == c.wpos && b.wpos == d.wpos, "tick_pair advances both cursors as two ticks do",
+         (double)a.wpos, (double)c.wpos);
+      printf("omxdsp_suite fdelay: tick_pair order %d %s, %ld/%u samples bit-identical to two ticks\n",
+             order, whole ? "whole" : "swept", (long)FD_TP_LEN - diff, FD_TP_LEN);
+    }
+  }
+  expect_clean();
+  g_arm = "fdelay";
 }
 
 /* ---- the fractional delay line against a CLOSED-FORM oracle (moved from openmixer) -----------
