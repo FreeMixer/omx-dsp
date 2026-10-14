@@ -42,9 +42,10 @@ if ! pkg-config --atleast-version="$floor" omx-contract 2>/dev/null; then
   exit 1
 fi
 have="$(pkg-config --modversion omx-contract)"
-case "$have" in
-  "$ceiling".*|"$ceiling") echo "contract-include: omx-contract $have is installed, at or above the ceiling $ceiling: install $need" >&2; exit 1 ;;
-esac
+# The ceiling is a version comparison, not a prefix: with "< 2.12", 2.13.0 is refused too.
+if ! pkg-config --exists "omx-contract < $ceiling"; then
+  echo "contract-include: omx-contract $have is installed, at or above the ceiling $ceiling: install $need" >&2; exit 1
+fi
 prefix="$(pkg-config --variable=prefix omx-contract)"
 if [ "$data" = 1 ]; then
   datadir="$(pkg-config --variable=datadir omx-contract 2>/dev/null || true)"
