@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.12.0
+Version: 0.15.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,13 +71,41 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
-* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.12.0-1
+* Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.15.0-1
 - analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room
   analysis (H1 transfer and coherence, impulse response and early
   reflections, Schroeder RT60, mode finder, mode-EQ proposal), the Farina
   sweep and deconvolution, and Smart Alignment's delay and polarity fit,
   moved from TypeScript; held to closed forms and to a parity table of the
   TypeScript's answers
+
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.14.0-1
+- omx_loudness.h: EBU R 128 loudness as ITU-R BS.1770-4 defines it: the
+  K-weighting designed for the rate, momentary, short-term and gated
+  integrated loudness, the loudness range of EBU Tech 3342 and the x4
+  true peak; tested against EBU Tech 3341 and 3342 signals at the nine
+  RME rates
+
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.13.0-1
+- The EQ maths openmixer computes in TypeScript, in C: the bank and
+  head filters an EQ runs (omx_eq_bank_design, omx_eq_pass_design), a
+  section's complement, the identity test, the analogue width-to-Q law, a
+  band's magnitude and the drawn curve with its frequencies and bands
+- A parity table of the TypeScript at the nine RME rates holds them to
+  it
+
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.12.1-1
+- Tests only: the kernel arms OpenMixer's engine tests held (the LFO,
+  the one-pole, the oversampler and the comp's alias gate, the matched EQ
+  design, the fractional delay line and its sabotage battery, the band
+  dynamics at the nine RME rates) now run in make test. No API change
+
+* Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.12.0-1
+- omx_magnitude.h: the magnitude in dB of a designed section or cascade
+  at the frequencies the caller passes, floored for a full null, and a
+  band's curve anchors
+- omx_eq_bandwidth_q is the one bandwidth-to-Q law, with a golden table
+  for its copies
 
 * Tue Oct 13 2026 Pau Aliagas <linuxnow@gmail.com> - 0.11.0-1
 - omx_idelay.h: the integer delay line with its click-free re-point, moved

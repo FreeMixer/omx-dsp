@@ -21,6 +21,9 @@
 #   make engine-kernels-identity OPENMIXER=<checkout>  the same digests rendered through the engine's
 #               own copies (mix_src.h, mix_dsp.h), and the check's sabotages (tools/engine-kernels-identity.sh)
 #   make lint   the doc check and the source scan only
+#   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
+#   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
+#   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
@@ -80,7 +83,7 @@ OBJ_CONTRACTS    = $(patsubst src/%.c,$(BUILD)/contracts/%.o,$(SRC))
 OBJ_TSAN         = $(patsubst src/%.c,$(BUILD)/tsan-lib/%.o,$(SRC))
 LIBS_ALL         = $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 PC_ALL           = $(BUILD)/omxdsp.pc $(BUILD)/omxdsp-contracts.pc $(BUILD)/omxdsp-tsan.pc
-KERNELS  = $(wildcard test/kernels/*.c)
+KERNELS  = $(wildcard test/kernels/*.c) $(wildcard test/kernels/fixtures/*.h)
 FX_HEADERS = $(wildcard include/omxdsp/fx/*.h)
 FX_TESTS   = $(wildcard test/fx/*.c) $(wildcard test/fx/*.h) $(wildcard test/fx/fixtures/*.h)
 SUPPORT_HEADERS = $(wildcard test/support/*.h)
@@ -94,7 +97,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity room-ts-golden
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage bandwidth-q-table room-ts-golden
 
 all: lib
 
@@ -162,8 +165,32 @@ consumer: $(CONSUMER_BINS)
 threads: $(BUILD)/omxdsp_threads
 	./$(BUILD)/omxdsp_threads
 
+# The magnitude arms fail against a sabotaged evaluator (test/magnitude-sabotage.sh); the real
+# suite above is the control.
+magnitude-sabotage: test/omxdsp_suite.c test/magnitude-sabotage.sh $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/magnitude-sabotage.sh $(BUILD)/magnitude-sabotage $(LIB_CONTRACTS)
+
+# The EQ bank's, head filters' and drawn curve's arms fail against nine sabotages
+# (test/eq-sabotage.sh); the real suite above is the control.
+eq-sabotage: test/omxdsp_suite.c test/eq-sabotage.sh $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/eq-sabotage.sh $(BUILD)/eq-sabotage $(LIB_CONTRACTS)
+
+# The bandwidth-to-Q law's table (FreeMixer/omx-dsp#41), held equal to what omx_eq_bandwidth_q()
+# computes; openmixer's TypeScript copy is tested against the committed file.
+$(BUILD)/eq_bandwidth_q_table: test/eq_bandwidth_q_table.c $(LIB) $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< $(LIB) -lm
+
+bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
+	./$(BUILD)/eq_bandwidth_q_table | diff -u test/golden/eq_bandwidth_q.json -
+	@echo "bandwidth-q-table: test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s"
+
 perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
+
+# The fractional delay line's suite arm against three sabotaged copies of omx_fdelay.h: each must
+# go red on that arm (test/fdelay-sabotage.sh). The tree is never edited.
+fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kernels-gen.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fdelay-sabotage.sh $(BUILD)/fdelay-sabotage
 
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
@@ -186,8 +213,8 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 # ---- the effect kernels ------------------------------------------------------------------------
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if
 # 44.1, 48, 96 or 192 kHz is missing; the golden digests hold the kernel's output bit for bit.
-# The dynamics, balance, rotor and limiter oracles and digests, and the fractional delay line's
-# exact-copy and tone arms, run at the nine RME rates instead
+# The dynamics, balance, rotor, limiter and loudness oracles and digests, and the fractional delay
+# line's exact-copy and tone arms, run at the nine RME rates instead
 # (OMX_FX_RME_RATES in test/fx/fx_rates.h), 32, 64 and 128 kHz included.
 
 # One list, one set of rules: a kernel lane adds its name to FX_KERNELS and its three sources,
@@ -196,9 +223,9 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
 FX_ORACLES = align_fdelay
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
@@ -235,6 +262,7 @@ FX_LDFLAGS_comp_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_gate_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_gate_knee = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_trim_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_loudness = $(FX_NO_ALLOC_LDFLAGS)
 
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm $(FX_LDFLAGS_$*),$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm $(FX_LDFLAGS_$*))
@@ -267,7 +295,8 @@ strip-input-identity: $(LIB)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh "$(OMX_PLUGINS)"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh --self-test "$(OMX_PLUGINS)"
 
-golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden)
+golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden) $(BUILD)/eq_bandwidth_q_table
+	./$(BUILD)/eq_bandwidth_q_table > test/golden/eq_bandwidth_q.json
 	@set -e; for k in $(FX_KERNELS); do ./$(BUILD)/fx_$${k}_golden --write > test/golden/$$k.sha256; done
 	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
 	  ./$(BUILD)/fx_$${k}_instance_golden --write > test/golden/$${k}_instance.sha256; \
@@ -350,7 +379,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative consumer perturb threads test-fx test-analysis test-engine-kernels flavours
+test: lib checks suite negative magnitude-sabotage eq-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
