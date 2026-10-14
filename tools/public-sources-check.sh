@@ -23,7 +23,8 @@ PATTERN='FreeMixer/openmixer|openmixer-ops|openmixer ?#[0-9]|[A-Za-z0-9._]+-dev#
 ALLOW=$'Makefile\t$(OPENMIXER)/packages/pipewire-native/src
 tools/analysis-engine-identity.sh\t$(cd "$1" && pwd)/packages/pipewire-native/src
 tools/ts-golden-hooks.mjs\t${data.openmixer}/packages/
-tools/ts-golden.mjs\t${openmixer}/packages/'
+tools/ts-golden.mjs\t${openmixer}/packages/
+tools/room-ts-golden.mjs\t${openmixer}/packages/'
 
 # scan <root>: "file:line: text" for each private name outside the allowlist, over the files listed on stdin
 scan() {
