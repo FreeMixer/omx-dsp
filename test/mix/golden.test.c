@@ -8,9 +8,9 @@
  *   build/mix_golden --write          print the lines the digest file holds
  *
  * The committed digests were written by this program compiled against the engine's own copies
- * (openmixer ae922d2e7d74, packages/pipewire-native/src: mix_dsp.h, mix_lcr.h, mix_bus.h) by
- * tools/mix-engine-identity.sh, so the moved code is held to the engine's output bit for bit
- * (openmixer docs/design/specs/2026-10-14-lane-output-path.md §6). -DOMX_GOLDEN_ENGINE is that
+ * (OpenMixer's mix_dsp.h, mix_lcr.h and mix_bus.h, at engine commit ae922d2e7d74) by
+ * tools/mix-engine-identity.sh, so the moved code is held to the engine's output bit for bit.
+ * -DOMX_GOLDEN_ENGINE is that
  * build: each kernel below names the library's call and the engine's.
  *
  * The stimulus makes no libm call (an integer generator, rational pan sweeps); the kernels call

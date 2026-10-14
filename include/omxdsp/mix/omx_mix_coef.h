@@ -6,8 +6,7 @@
  *        balance), the mono fold's gain, the fillers that turn them into omx_mixmatrix_sparse()
  *        entries, and the silent-source test.
  *
- * openmixer docs/design/specs/2026-10-14-lane-output-path.md §3: strip coefficients
- * (gain × fader × mute × pan) are the function that fills G, the mono fold is entries in G and not
+ * Strip coefficients (gain × fader × mute × pan) are the function that fills G, the mono fold is entries in G and not
  * a code path, and a silent source has its entries left out of the sparse list for the block (the
  * test is here; leaving them out is the engine's list building). Which sources feed which output
  * is routing, and stays the engine's.

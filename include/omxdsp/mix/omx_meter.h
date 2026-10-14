@@ -5,11 +5,11 @@
  * @brief The measure half of the console's meters: a block's peak, the per-leg post-coefficient
  *        peaks, and the sustained-over clip run.
  *
- * Meters are two halves (openmixer docs/design/specs/2026-10-14-lane-output-path.md §4). Measure
+ * Meters are two halves. Measure
  * is here: pure functions over the block a lane hands in. Publish (the tap point, the atomic
  * slots, the hold into them, the cadence, the clip latch, the watched test) stays in the engine.
  * Moved unchanged from the engine's `omx_block_peak`, `omx_strip_meter_legs` and
- * `omx_sustained_over` (openmixer packages/pipewire-native/src/mix_dsp.h).
+ * `omx_sustained_over` (OpenMixer's mix_dsp.h).
  *
  * Stateless, pure, header-only. Not in omxdsp.h: include <omxdsp/mix/omx_meter.h>.
  */
