@@ -17,7 +17,8 @@
  *      before the linear response; the strongest sample in that window lies within 0.5 % of it;
  *      the delay of order 1 is 0 and of an order under 1 is not a number;
  *   5. the FFT convolution equals the direct sum, `[1, 2, 3] ⊛ [1, 1] = [1, 3, 5, 3]` and two seeded
- *      signals of 300 and 77 samples, within 1e-12; an empty operand is empty;
+ *      signals of 300 and 77 samples, within 1e-12; an empty operand is empty, and so is a
+ *      convolution longer than 2^31, which no transform holds;
  *   6. a sweep that cannot exist (f1 at Nyquist, f1 under f0, a length that is not the rate's)
  *      refuses and writes nothing.
  *
@@ -136,6 +137,9 @@ static void arm_convolve(void) {
   check(len == 4u, "length 3 + 2 − 1", len, 4);
   for (uint32_t i = 0; i < 4u; i++) check(fabs(scratch[i] - want[i]) < 1e-12, "[1, 3, 5, 3]", scratch[i], want[i]);
   check(omx_sweep_convolve(a, 0u, b, 2u, scratch) == 0u, "an empty operand is empty", 0, 0);
+  check(omx_sweep_convolve_size(0x40000000u, 0x40000001u) == 0x80000000u, "2^31 is the largest transform", 0, 0);
+  check(omx_sweep_convolve_size(0x80000000u, 2u) == 0u, "past 2^31 no transform holds it", 0, 0);
+  check(omx_sweep_convolve(a, 0x80000000u, b, 2u, scratch) == 0u, "and nothing is convolved", 0, 0);
 
   RoomRng rng = {5u};
   double x[300], y[77], direct[376];

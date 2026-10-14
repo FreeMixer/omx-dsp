@@ -119,7 +119,8 @@ enum omx_analysis_refusal omx_room_transfer(const OmxXspec *a, uint32_t min_fram
  * @param scratch_re `omx_room_ir_fft_size(n)` doubles of scratch.
  * @param scratch_im As many.
  * @param out The estimate; its arrays hold `omx_room_ir_fft_size(n) / 2` entries each.
- * @return `OMX_ANALYSIS_OK`, empty-band (frames 0) or no-shared-energy (frames 1).
+ * @return `OMX_ANALYSIS_OK`, empty-band (frames 0), no-shared-energy (frames 1), or shape-mismatch
+ *         for a response longer than 2³¹ samples, which no transform here can hold.
  * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
  */
 enum omx_analysis_refusal omx_room_transfer_from_ir(const double *ir, uint32_t n, double sample_rate, double low_hz,
@@ -129,7 +130,8 @@ enum omx_analysis_refusal omx_room_transfer_from_ir(const double *ir, uint32_t n
 /**
  * @brief The transform length {@link omx_room_transfer_from_ir} pads an `n`-sample response to.
  * @param n The response's length.
- * @return The smallest power of two ≥ n, at least 2.
+ * @return The smallest power of two ≥ n, at least 2; 0 for n over 2³¹, which none holds.
+ * @pre `length-fits-a-power-of-two`.
  * @note Allocation-free, O(log n). Thread-safe: pure.
  */
 uint32_t omx_room_ir_fft_size(uint32_t n);

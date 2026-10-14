@@ -52,7 +52,9 @@ int omx_sweep_generate(double sample_rate, double f0, double f1, double duration
  * @brief The transform length a linear convolution of `la` and `lb` samples runs at.
  * @param la One signal's length.
  * @param lb The other's.
- * @return The smallest power of two ≥ la + lb − 1 (at least 1); 0 when both are empty.
+ * @return The smallest power of two ≥ la + lb − 1 (at least 1); 0 when both are empty, or when
+ *         la + lb − 1 is over 2³¹, which none holds.
+ * @pre `length-fits-a-power-of-two`.
  * @note Allocation-free, O(log n). Thread-safe: pure.
  */
 uint32_t omx_sweep_convolve_size(uint32_t la, uint32_t lb);
@@ -65,7 +67,7 @@ uint32_t omx_sweep_convolve_size(uint32_t la, uint32_t lb);
  * @param lb Its length.
  * @param scratch `4 · omx_sweep_convolve_size(la, lb)` doubles; on return its first
  *        `la + lb − 1` entries are the convolution.
- * @return The convolution's length, `la + lb − 1` (0 when either is empty).
+ * @return The convolution's length, `la + lb − 1` (0 when either is empty, or when it is over 2³¹).
  * @note Allocation-free, O(n log n). Thread-safe on distinct scratch.
  */
 uint32_t omx_sweep_convolve(const double *a, uint32_t la, const double *b, uint32_t lb, double *scratch);

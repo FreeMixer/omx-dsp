@@ -9,7 +9,8 @@
  *      at every band bin (1e-9 dB), whatever the reference's tilt (the H1 estimate divides it out),
  *      a phase of −360·f·d/rate unwrapped across the band (1e-6°), and coherence 1; the band's bins
  *      are max(1, ⌈low/binHz⌉) and min(n/2 − 2, ⌊high/binHz⌋); one impulse `g·δ(t − d)` reads the
- *      same curve through the impulse-response path, padded to the next power of two;
+ *      same curve through the impulse-response path, padded to the next power of two (none past
+ *      2^31, which refuses);
  *   2. IMPULSE: a direct arrival at d0 and copies at +10 ms (×0.5), +20 ms (×0.02, under the −30 dB
  *      floor) and +100 ms (×0.5, past the 80 ms horizon) name the direct arrival at d0 exactly and
  *      exactly one reflection, at 10 ms (to the sample), 3.43 m, −6.02 dB within 0.2 dB; a negative
@@ -191,6 +192,10 @@ static void arm_transfer(Bufs *b, double rate) {
   memset(ir, 0, len * sizeof(double));
   ir[d] = 0.25;
   check(omx_room_ir_fft_size(len) == b->n, "padded to the next power of two", omx_room_ir_fft_size(len), b->n);
+  check(omx_room_ir_fft_size(0x80000000u) == 0x80000000u && omx_room_ir_fft_size(0x80000001u) == 0u,
+        "2^31 is the largest padding; past it none", 0, 0);
+  check(omx_room_transfer_from_ir(ir, 0x80000001u, rate, lo, hi, b->sr, b->si, &b->acc) == OMX_ANALYSIS_SHAPE_MISMATCH,
+        "a response past 2^31 refuses before touching a buffer", 0, 0);
   room_count_begin();
   const enum omx_analysis_refusal ic = omx_room_transfer_from_ir(ir, len, rate, lo, hi, b->sr, b->si, &b->acc);
   room_count_end();

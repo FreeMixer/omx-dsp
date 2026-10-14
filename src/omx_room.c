@@ -94,6 +94,8 @@ enum omx_analysis_refusal omx_room_transfer(const OmxXspec *a, uint32_t min_fram
 }
 
 uint32_t omx_room_ir_fft_size(uint32_t n) {
+  OMX_PRE(n <= 0x80000000u, "length-fits-a-power-of-two");
+  if (n > 0x80000000u) return 0u; /* no 32-bit power of two holds it; the doubling would wrap to 0 */
   uint32_t size = 2u;
   while (size < n) size <<= 1;
   return size;
@@ -103,6 +105,14 @@ enum omx_analysis_refusal omx_room_transfer_from_ir(const double *ir, uint32_t n
                                                     double high_hz, double *scratch_re, double *scratch_im,
                                                     OmxRoomAccum *out) {
   const uint32_t size = omx_room_ir_fft_size(n);
+  if (size == 0u) {
+    out->sample_rate = sample_rate;
+    out->fft_size = 0;
+    out->frames = 0;
+    out->k_lo = 0;
+    out->k_hi = 0;
+    return OMX_ANALYSIS_SHAPE_MISMATCH;
+  }
   double *re = scratch_re, *im = scratch_im;
   memset(re, 0, size * sizeof(double));
   memset(im, 0, size * sizeof(double));
