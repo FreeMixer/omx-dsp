@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
- * reverb_preset_seeds.h — GENERATED from OpenMixer's packages/core/src/reverb-presets.ts by
- * packages/core/src/reverb-presets-c-twin.test.ts (OMX_REGEN=1). Never edited by hand: that
+ * reverb_preset_seeds.h — GENERATED from the console's reverb preset declaration by its C-twin
+ * test (OMX_REGEN=1). Never edited by hand: that
  * test refuses any drift, so test/fx/reverb_math.test.c measures the seeds the console declares.
  */
 #ifndef OMX_REVERB_PRESET_SEEDS_H

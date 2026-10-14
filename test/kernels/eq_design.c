@@ -188,15 +188,15 @@ static const struct { const char *name; int kind; double f0, q, g; } EQP_RULING[
   {"low shelf -6 dB 80 Hz", EQP_LOWSHELF, 80.0, 0.707, -6.0},
 };
 
-/* THE MATCHED DESIGN AGAINST ITS ANALOGUE PROTOTYPE — moved from openmixer's
- * packages/pipewire-native/tools/eq-matched-probe.c (the before/after of the 2026-09-14 ruling: the
+/* THE MATCHED DESIGN AGAINST ITS ANALOGUE PROTOTYPE — moved from the engine's
+ * eq-matched probe (the before/after of the 2026-09-14 ruling: the
  * EQ must match the analogue prototype to Nyquist BY COEFFICIENT DESIGN at the rate the desk runs;
  * the bilinear cookbook was 1.28 dB low at 20 kHz on a +12 dB bell at 16 kHz Q 2 at 96 kHz). The
  * three controls come first: an oracle that cannot detect presence cannot report absence. */
 static void eqp_prototype_checks(void) {
   double c[5];
   /* CONTROL (a): the cookbook's PUBLISHED error, at the single rate it was published at (96 kHz,
-   * docs/design/notes/2026-09-14-oversampling-vs-192k.md §5: -1.28 dB at 20 kHz). */
+   * the oversampling vs 192k notes §5: -1.28 dB at 20 kHz). */
   eqp_cookbook(EQP_PEAK, 16000.0, 2.0, 12.0, 96000.0, c);
   const double e20 = eqp_closed_db(c, 20000.0, 96000.0) - eqp_analogue_db(EQP_PEAK, 20000.0, 16000.0, 2.0, 12.0);
   ok(e20 > -1.33 && e20 < -1.23, "control: the cookbook bell +12/16k/Q2 reads its published -1.28 dB at 20 kHz, 96 kHz",

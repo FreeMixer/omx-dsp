@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The 31-band graphic EQ kernel's oracle (omx_geq.h): identity, block, leg, denormal, thread and
- * cost arms — the engine's spec docs/design/specs/2026-09-26-graphic-eq-31.md §5, at every
+ * cost arms — the graphic eq 31 spec §5, at every
  * declared rate (OMX_DECLARED_RATES). Contracts are compiled in and the last line asserts the
  * ledger came out empty.
  *

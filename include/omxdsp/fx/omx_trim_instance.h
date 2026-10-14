@@ -8,7 +8,7 @@
  * ## What it mirrors, and what it does not
  *
  * On the desk a lane is "trim-gain fill -> [ordered stages] -> level/pan/mute" (mix_lane.h): the
- * fill is openmixer's `omx_fill_gain` (pipewire-native mix_dsp.h), `out[i] = in[i] *
+ * fill is the engine's `omx_fill_gain`, `out[i] = in[i] *
  * omx_ramp_at(r, i)` over omx_ramp.h's ramp, run once per leg from the same start gain
  * (mixer_rt.c, the trim-gain block). This face is that arithmetic, in place on the plugin's
  * output: `omx_ramp_begin` / `omx_ramp_at` / `omx_ramp_end`, the library's one ramp.

@@ -4,8 +4,8 @@
  * omx_drive_design_corpus.h — GENERATED. The frozen contract between the two languages that
  * design the drive stage's four biquad sections.
  *
- * Inside the console, `packages/server/src/console-rig.ts`'s `driveStateToNativeDrive` designs
- * them over `@freemixer/core`'s `rbjSection` and pushes them across N-API; in a foreign LV2
+ * Inside the console, the console's `driveStateToNativeDrive` designs
+ * them over core's `rbjSection` and pushes them across N-API; in a foreign LV2
  * host, omx_drive_design.h designs them in C because there is no TypeScript in that process.
  * Two languages, one bank — held equal by something mechanical, exactly as hrp_peaking_corpus.h
  * holds HRP's one curve.
@@ -14,7 +14,7 @@
  * message), so a transcription slip in the C shows against it. Both sides check every row:
  *
  *   - `test/fx/drive_math.test.c` runs omx_drive_design_lowpass / omx_drive_design_highshelf over it;
- *   - `packages/server/src/drive-lv2-design-twins.test.ts` PARSES THIS FILE and runs
+ *   - the console's drive-design twin test PARSES THIS FILE and runs
  *     `driveStateToNativeDrive` over the same rows, so the pin is to the CONSOLE's designer and
  *     its own constants (DRIVE_TILT_SHELF_DB, the SQRT1_2 Q, the 20 000 Hz "off" corner).
  *

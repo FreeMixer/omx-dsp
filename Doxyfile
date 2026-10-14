@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# libomxdsp API reference — docs/design/specs/2026-09-26-dsp-primitives.md §6.
+# libomxdsp API reference — the dsp primitives spec §6.
 # Build-time only: `make docs`; never a runtime dependency of the console.
 PROJECT_NAME           = libomxdsp
 PROJECT_BRIEF          = "openmixer's DSP primitives: one header per building block"

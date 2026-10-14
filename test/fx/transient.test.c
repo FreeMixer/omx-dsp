@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
-// The transient designer's oracle (omx_transient.h), docs/design/specs/2026-09-26-transient-designer.md
+// The transient designer's oracle (omx_transient.h), the transient designer spec
 // §5, arms A–E, G, H at every declared rate (arm F and the RT rows are the row lane's, §8 item 4).
 // Closed forms in double; the step closed form is the cascade's negative-binomial CDF on the
 // float32 per-stage poles the kernel runs. `--cost` prints the kernel's ns/sample per rate instead.

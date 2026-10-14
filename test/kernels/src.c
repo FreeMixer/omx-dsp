@@ -5,7 +5,7 @@
 
 /* ---- the offline sample-rate converter -------------------------------------------------------
  *
- * The engine's oracle (openmixer mix_src.test.c), moved with the converter. What a resampler has
+ * The engine's oracle (the engine's mix_src.test.c), moved with the converter. What a resampler has
  * to prove, each a separate claim:
  *   1. a tone comes out at the same frequency (closed-form correlation over whole cycles);
  *   2. the alias floor: an upsample invents nothing above the source's band and a downsample folds

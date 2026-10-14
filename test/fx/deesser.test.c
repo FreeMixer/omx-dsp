@@ -5,7 +5,7 @@
  *   cc -Wall -Wextra -Werror -O2 -o build/mix_deesser_test src/mix_deesser.test.c -lm \
  *     && ./build/mix_deesser_test
  *
- * Spec: docs/design/specs/2026-09-22-native-deesser-stage.md §10 (issue #891).
+ * Spec: the native deesser stage spec §10 (issue #891).
  *
  * WHAT THIS FILE IS FOR. A de-esser's whole claim is DISCRIMINATION: it must move the band and
  * leave everything else alone. A test that only measures "the level went down" would pass over a

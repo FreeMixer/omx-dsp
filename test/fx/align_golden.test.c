@@ -13,10 +13,10 @@
  *     ones included.
  *
  * The digests in test/golden/align.sha256 were written by the console engine's own copy of this
- * stage (openmixer packages/pipewire-native/src/mix_dsp.h at 6ee8a9bd, against omx-dsp 0.6.1 and
+ * stage (mix_dsp.h, against omx-dsp 0.6.1 and
  * omx-contract 2.3.0), by building this file with -DOMX_ALIGN_ENGINE_COPY and -I<that src>:
  *
- *   cc $(CFLAGS) -DOMX_ALIGN_ENGINE_COPY -I<openmixer>/packages/pipewire-native/src -Iinclude \
+ *   cc $(CFLAGS) -DOMX_ALIGN_ENGINE_COPY -I<engine src> -Iinclude \
  *      -isystem $(CONTRACT_INC) -Itest/fx -include test/support/log10f_subst.h \
  *      -o build/fx_align_golden_engine test/fx/align_golden.test.c build/libomxdsp.a -lm
  *   build/fx_align_golden_engine --write > test/golden/align.sha256

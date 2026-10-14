@@ -11,7 +11,7 @@
  * Glue over libomxdsp's `omx_allpass1` (dsp-primitives §1 row 4), `omx_lfo` (row 12) and
  * `omx_flush` (row 16); it mints no primitive. The state is caller-owned and fixed-size; nothing
  * here allocates, locks or calls libm per sample: `tan` and `exp2f` run once per control point.
- * Design: docs/design/specs/2026-09-22-native-phaser.md §2–§4.
+ * Design: the native phaser spec §2–§4.
  */
 #ifndef OMX_MIX_PHASER_H
 #define OMX_MIX_PHASER_H

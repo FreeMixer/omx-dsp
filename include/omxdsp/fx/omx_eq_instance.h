@@ -5,8 +5,7 @@
  * stage (`OMX_STAGE_EQ`, mix_lane.h), with the band count a COMPILE-TIME constant, and no format
  * in it.
  *
- * Moved unchanged from openmixer packages/pipewire-native/src/eq_lv2.h (integration/waves-2026-10
- * eb13725ea), the strip EQ anchor of the instance headers (omx-plugins' omx_delay_instance.h's shape): the
+ * Moved unchanged from the OpenMixer engine's eq_lv2.h, the strip EQ anchor of the instance headers (omx-plugins' omx_delay_instance.h's shape): the
  * includes now name the library's own headers (`omx_biquad_cascade` is omx_biquad.h's, the travels
  * omx_contract_limits.h's), and the control-word processing eq_lv2.c's run() did is here as
  * {@link omx_eq_lv2_set_controls}, so a shell carries ports across its host boundary and nothing

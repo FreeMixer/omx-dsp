@@ -9,8 +9,7 @@
  * unit-circle arithmetic directly, no approximation; a section's dB floored at the caller's floor,
  * so a full null (a notch sampled on its centre) stays finite; a cascade's dB the sum of its live
  * sections'. Held to today's TypeScript by golden vectors (test/kernels/magnitude.c). Not on the
- * audio path; a control thread or the server calls it. Design: openmixer
- * docs/design/specs/2026-10-13-dsp-results-from-c.md §4.2.
+ * audio path; a control thread or the server calls it. Design: DSP results from C, §4.2.
  */
 #ifndef OMX_MAGNITUDE_H
 #define OMX_MAGNITUDE_H

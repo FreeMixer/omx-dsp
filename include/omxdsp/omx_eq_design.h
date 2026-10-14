@@ -7,8 +7,7 @@
  *
  * Doubles throughout, narrowed to float at the very end, so a section designed here and one
  * designed in TypeScript run the same bits; held equal by
- * `packages/audio-engine/src/eq-lv2-design-twins.test.ts`. Design:
- * docs/design/specs/2026-09-26-dsp-primitives.md §1 row 3 and Appendix A.
+ * the console's EQ design twin test.
  */
 #ifndef OMX_EQ_DESIGN_H
 #define OMX_EQ_DESIGN_H

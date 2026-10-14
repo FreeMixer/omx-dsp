@@ -101,7 +101,7 @@ static void arm_oversampler_parallel(float sr) {
 }
 
 /* ---- the element's four promises, at the nine RME rates --------------------------------------
- * Moved from openmixer's omx_oversampler.test.c (openmixer#1603). The four things this element
+ * Moved from the engine's omx_oversampler.test.c. The four things this element
  * has to get right: the round trip returns the input delayed by EXACTLY the declared latency
  * (measured, not read back); its residual is far below anything a caller hears; the quantum is
  * not observable, bit for bit; and interpolation leaves no zero-stuffing image. The engine ran
@@ -270,8 +270,8 @@ static void arm_oversampler_factor_and_dot(void) {
 }
 
 /* ---- the shipped table's response, from its QUANTISED float32 taps ---------------------------
- * Moved from openmixer's tools/halfband-kernel-probe.c, its positive control and its SHIPPED row
- * (docs/design/notes/2026-09-14-oversampler-filter-quality.md; -oversampling-vs-192k.md §10g).
+ * Moved from the engine's halfband-kernel probe, its positive control and its SHIPPED row
+ * (the oversampler filter quality notes; the oversampling vs 192k notes §10g).
  * |H(f)| = |c + 2 * sum(odd_j * cos(2 pi f (2j+1)))|, f in cycles/sample of the rate the stage
  * runs at -- a half-band's edges are ratios, never Hz, so this arm has no rate loop. The probe's
  * Kaiser candidates are prototypes, not omx-dsp code, and are not moved.

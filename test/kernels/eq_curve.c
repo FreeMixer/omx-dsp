@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
-/* ---- the EQ bank, the head filters and the drawn curve (openmixer #1601) ------------------- */
+/* ---- the EQ bank, the head filters and the drawn curve  ------------------- */
 
 static const float EQ_CURVE_RME_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
 

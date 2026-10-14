@@ -3,7 +3,7 @@
 /*
  * omx_flanger.h — the native FLANGER stage: one modulated fractional delay with FEEDBACK.
  *
- * Spec: docs/design/specs/2026-09-22-chorus-and-flanger.md (openmixer#860). The primitives are
+ * Spec: the chorus and flanger design, flanger half. The primitives are
  * `mix_fdelay.h` at order 3 and `mix_lfo.h`, the same two the chorus takes; the difference is the
  * feedback path and the delay region, and those are the declared facts that make this a stage of
  * its own rather than a mode of the chorus (spec §1, answer 3).

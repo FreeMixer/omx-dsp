@@ -4,7 +4,7 @@
  * @file omx_denormal.h
  * @brief The denormal law: a value-by-value flush and the per-thread flush-to-zero mode.
  *
- * Design: docs/design/specs/2026-09-26-dsp-primitives.md §1 row 16 and Appendix A.
+ * Design: the dsp primitives spec §1 row 16 and Appendix A.
  */
 #ifndef OMX_DENORMAL_H
 #define OMX_DENORMAL_H

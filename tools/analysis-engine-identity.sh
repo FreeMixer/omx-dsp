@@ -3,8 +3,8 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # analysis-engine-identity.sh — the RTA ring and spectrum, the HRP render and the HRP live core give
-# the same bits as the engine's own copies they moved from: openmixer's
-# packages/pipewire-native/src/mix_dsp.h, hrp_render.h and hrp_lv2.h.
+# the same bits as the engine's own copies they moved from: the engine's
+# mix_dsp.h, hrp_render.h and hrp_lv2.h.
 #
 #   tools/analysis-engine-identity.sh <openmixer checkout>              the check
 #   tools/analysis-engine-identity.sh --write <openmixer checkout>      print the engine's digests

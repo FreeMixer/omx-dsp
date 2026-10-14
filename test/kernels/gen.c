@@ -7,7 +7,7 @@
 
 /* ---- the test-signal generators --------------------------------------------------------------
  *
- * The engine's oracle (openmixer mix_dsp.test.c, the generator tests), moved with the generators:
+ * The engine's oracle (the engine's mix_dsp.test.c, the generator tests), moved with the generators:
  * the waveforms at their cardinal phases, a bin-aligned sine through the analyser, the level ramp,
  * phase continuity across blocks, white noise bounded, zero-mean and replayable, pink noise
  * bounded and tilted, and the frequency guard. The sine, continuity, guard and noise claims then
