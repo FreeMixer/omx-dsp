@@ -5,11 +5,10 @@
  * @brief A bus's out stage: its fader × mute split across the legs by the balance law, applied in
  *        place with a click-free linear ramp, and the post-fader per-leg peaks measured.
  *
- * Every bus runs it, MAIN, the cue bus and each stereo matrix alike (openmixer
- * docs/design/specs/2026-10-14-lane-output-path.md §2, §4). The engine keeps the ramp cursors and
+ * Every bus runs it, MAIN, the cue bus and each stereo matrix alike. The engine keeps the ramp cursors and
  * the published meter slots: it passes the cursors in and holds the measured peaks into its slots
  * itself (the publish half). Moved from the engine's `omx_bus_out_stage` and `omx_apply_master`
- * (openmixer packages/pipewire-native/src/mix_dsp.h), bit for bit.
+ * (OpenMixer's mix_dsp.h), bit for bit.
  *
  * Header-only. Not in omxdsp.h: include <omxdsp/mix/omx_bus_out.h>.
  */

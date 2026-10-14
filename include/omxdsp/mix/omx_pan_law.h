@@ -6,15 +6,14 @@
  *        source's position mapped onto the adjacent pair of speakers and split between them by
  *        cosine and sine.
  *
- * Stereo and LCR are two layouts of this one law (openmixer docs/design/specs/
- * 2026-10-14-lane-output-path.md §4). A layout is the speakers on the pan axis, each at its pan
+ * Stereo and LCR are two layouts of this one law. A layout is the speakers on the pan axis, each at its pan
  * position (its angle mapped onto [-1, +1], first at -1, last at +1), plus an optional discrete
  * centre speaker that takes a share of the source near the middle (the centre window) scaled down
  * by the divergence; whatever power the centre does not take goes pairwise over the axis. The
  * gains, one per speaker, go straight into G (omx_mixmatrix.h).
  *
- * For the stereo layout this is the engine's `omx_pan_law` (openmixer
- * packages/pipewire-native/src/mix_dsp.h) bit for bit: theta = (pan + 1)·π/4, left cos, right sin.
+ * For the stereo layout this is the engine's `omx_pan_law` (OpenMixer's
+ * mix_dsp.h) bit for bit: theta = (pan + 1)·π/4, left cos, right sin.
  * For the LCR layout it is the engine's `omx_lcr_pan` (mix_lcr.h) bit for bit. A stereo SOURCE is
  * not panned but balanced: omx_balance_law.h.
  *

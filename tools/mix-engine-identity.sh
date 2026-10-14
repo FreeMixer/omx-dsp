@@ -3,21 +3,21 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # mix-engine-identity.sh — the mix module (include/omxdsp/mix/) gives the same bits as the copies
-# OpenMixer's engine still carries in packages/pipewire-native/src (FreeMixer/omx-dsp#98): the pan
+# OpenMixer's engine still carries in its native sources (FreeMixer/omx-dsp#98): the pan
 # law, the LCR pan, the strip and fold coefficients, a bus's out stage, the block and leg peaks and
 # the clip run.
 #
-#   tools/mix-engine-identity.sh <openmixer>/packages/pipewire-native/src             the check
-#   tools/mix-engine-identity.sh --write <openmixer>/packages/pipewire-native/src     print the
+#   tools/mix-engine-identity.sh <engine-src>             the check
+#   tools/mix-engine-identity.sh --write <engine-src>     print the
 #                                                    digests the engine's copies give (how
 #                                                    test/golden/mix.sha256 was written)
-#   tools/mix-engine-identity.sh --self-test <openmixer>/packages/pipewire-native/src each
+#   tools/mix-engine-identity.sh --self-test <engine-src> each
 #                                                    sabotage of an engine copy must move its
 #                                                    kernel's digests
 #
 # test/mix/golden.test.c is compiled with -DOMX_GOLDEN_ENGINE, which calls the engine's mix_dsp.h,
 # mix_lcr.h and mix_bus.h instead of the library's mix headers, against the omx-contract release
-# the engine pins (packages/core/package.json), whose header the engine's generated
+# the engine pins, whose header the engine's generated
 # omx_console_limits.h completes. Every primitive those headers include comes from this tree's
 # include/ (ENGINE_IDENTITY_INCLUDE=<dir> takes them from another omx-dsp include directory). The
 # program must reach the three engine headers, then match the committed digests at every rate.
@@ -82,13 +82,13 @@ run_check() { # $1 = engine src dir, $2 = scratch dir
 }
 
 if [ "${1:-}" = --write ]; then
-  build "${2:?usage: mix-engine-identity.sh --write <openmixer>/packages/pipewire-native/src}" "$PKG/build/mix-engine-identity"
+  build "${2:?usage: mix-engine-identity.sh --write <engine-src>}" "$PKG/build/mix-engine-identity"
   "$PKG/build/mix-engine-identity/golden" --write
   exit 0
 fi
 
 if [ "${1:-}" = --self-test ]; then
-  src="$(cd "${2:?usage: mix-engine-identity.sh --self-test <openmixer>/packages/pipewire-native/src}" && pwd)"
+  src="$(cd "${2:?usage: mix-engine-identity.sh --self-test <engine-src>}" && pwd)"
   scratch="$PKG/build/mix-engine-identity-selftest"
   rm -rf "$scratch" && mkdir -p "$scratch"
   fail=0
@@ -132,4 +132,4 @@ EOF
   exit 0
 fi
 
-run_check "${1:?usage: mix-engine-identity.sh <openmixer>/packages/pipewire-native/src}" "$PKG/build/mix-engine-identity"
+run_check "${1:?usage: mix-engine-identity.sh <engine-src>}" "$PKG/build/mix-engine-identity"
