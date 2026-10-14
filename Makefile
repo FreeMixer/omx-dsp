@@ -33,6 +33,11 @@
 #               omx_strip.h input stage, and the check's sabotage (tools/strip-input-identity.sh)
 #   make analysis-engine-identity OPENMIXER=<checkout>  the RTA, HRP render and HRP live core against
 #               the engine's own copies, and the check's sabotage (tools/analysis-engine-identity.sh)
+#   make test-mix  the mix module's golden digests (pan law, LCR, strip and fold coefficients, bus
+#               out stage, peak, clip) and a sabotage of each kernel against its oracle and digests
+#   make mix-engine-identity OPENMIXER=<checkout>  the same digests rendered through the engine's own
+#               copies (mix_dsp.h, mix_lcr.h, mix_bus.h), and the check's sabotages
+#               (tools/mix-engine-identity.sh)
 
 CC      ?= cc
 AR      ?= ar
@@ -59,6 +64,7 @@ BUILD    = build
 LIB      = $(BUILD)/libomxdsp.a
 HEADERS  = $(wildcard include/omxdsp/*.h)
 ANALYSIS_HEADERS = $(wildcard include/omxdsp/analysis/*.h)
+MIX_HEADERS = $(wildcard include/omxdsp/mix/*.h)
 SRC      = $(wildcard src/*.c)
 OBJ      = $(patsubst src/%.c,$(BUILD)/%.o,$(SRC))
 TESTFLAGS = $(CFLAGS) $(INC) -DOMX_CONTRACTS
@@ -95,7 +101,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage bandwidth-q-table
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-engine-kernels engine-kernels-identity test-mix mix-engine-identity magnitude-sabotage eq-sabotage bandwidth-q-table
 
 all: lib
 
@@ -130,7 +136,7 @@ $(LIB_TSAN): $(OBJ_TSAN)
 # omxdsp_suite.c #includes — a kernel lane adds ONE file and never touches this Makefile or
 # omxdsp_suite.c's main().
 
-$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) tools/kernels-gen.sh | $(BUILD)
+$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) $(MIX_HEADERS) tools/kernels-gen.sh | $(BUILD)
 	bash tools/kernels-gen.sh $(BUILD)
 	$(CC) $(TESTFLAGS) -I$(BUILD) -o $@ test/omxdsp_suite.c $(LIB_CONTRACTS) -lm
 
@@ -349,6 +355,24 @@ engine-kernels-identity:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
 
+# ---- the mix module -------------------------------------------------------------------------
+# The pan law, the strip and fold coefficients of G, a bus's out stage, and the meters' measure half
+# (include/omxdsp/mix/, FreeMixer/omx-dsp#98): their oracles are suite arms (test/kernels/mix_*.c);
+# here are their golden digests at the nine RME rates, which the engine's own copies wrote
+# (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
+$(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
+
+test-mix: $(BUILD)/mix_golden $(LIB_CONTRACTS)
+	./$(BUILD)/mix_golden test/golden/mix.sha256
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/mix/sabotage.sh $(BUILD)/mix-sabotage $(LIB_CONTRACTS)
+
+# The same digests through the engine's copies: a desk check, as engine-kernels-identity is.
+mix-engine-identity:
+	@test -n "$(OPENMIXER)" || { echo "make mix-engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
+
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked
 # against the plain one it must fail, or the check is blind.
@@ -356,7 +380,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage eq-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels flavours
+test: lib checks suite negative magnitude-sabotage eq-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
