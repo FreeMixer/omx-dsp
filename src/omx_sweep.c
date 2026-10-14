@@ -72,13 +72,15 @@ int omx_sweep_generate(double sample_rate, double f0, double f1, double duration
 uint32_t omx_sweep_convolve_size(uint32_t la, uint32_t lb) {
   if (la == 0u && lb == 0u) return 0;
   const uint64_t out_len = (uint64_t)la + (uint64_t)lb - 1u;
+  OMX_PRE(out_len <= 0x80000000u, "length-fits-a-power-of-two");
+  if (out_len > 0x80000000u) return 0u; /* no 32-bit power of two holds it; the doubling would wrap to 0 */
   uint32_t size = 1u;
   while ((uint64_t)size < out_len) size <<= 1;
   return size;
 }
 
 uint32_t omx_sweep_convolve(const double *a, uint32_t la, const double *b, uint32_t lb, double *scratch) {
-  if (la == 0u || lb == 0u) return 0;
+  if (la == 0u || lb == 0u || omx_sweep_convolve_size(la, lb) == 0u) return 0;
   const uint32_t out_len = la + lb - 1u;
   const uint32_t size = omx_sweep_convolve_size(la, lb);
   double *ar = scratch, *ai = scratch + size, *br = scratch + 2u * size, *bi = scratch + 3u * size;
