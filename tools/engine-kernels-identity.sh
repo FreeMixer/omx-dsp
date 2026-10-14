@@ -20,10 +20,11 @@
 #   omxdsp/omx_gen.h -> mix_dsp.h            the generators
 #   omxdsp/analysis/omx_rta.h -> mix_dsp.h   the spectrum readings and the half-band decimator
 #
-# and against the omx-contract release the engine pins (the engine's core package manifest), whose header
-# the engine's generated omx_console_limits.h completes. Every other primitive comes from this
+# and against the installed omx-contract inside this tree's range (tools/contract-include.sh), or the
+# include directory ENGINE_IDENTITY_CONTRACT_INC names, whose header the engine's generated
+# omx_console_limits.h completes. Nothing is downloaded. Every other primitive comes from this
 # tree's include/ (ENGINE_IDENTITY_INCLUDE=<dir> takes them from another omx-dsp include directory,
-# such as the one the engine pins). The program must reach both engine headers, then match the
+# such as the one the engine builds against). The program must reach both engine headers, then match the
 # committed digests at every rate.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -32,20 +33,11 @@ CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2}"
 INCLUDE="${ENGINE_IDENTITY_INCLUDE:-$PKG/include}"
 
-# engine_contract <src>: the include directory of the omx-contract release the engine pins
+# engine_contract: the include directory of the omx-contract the engine's copies compile against: the
+# installed package inside this tree's range, or ENGINE_IDENTITY_CONTRACT_INC
 engine_contract() {
-  local core v dir
-  core="$1/../../core/package.json"
-  v="$(sed -n 's/.*"@openmixer\/omx-contract": "\([0-9][0-9.]*\)".*/\1/p' "$core" 2>/dev/null | head -1)"
-  [ -n "$v" ] || { echo "engine-kernels-identity: FAIL — no @openmixer/omx-contract pin in $core" >&2; return 1; }
-  dir="$PKG/build/omx-contract/$v"
-  if [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
-    rm -rf "$dir"; mkdir -p "$dir"
-    curl -fsSL "https://github.com/FreeMixer/omx-contract/releases/download/v$v/openmixer-omx-contract-$v.tgz" -o "$dir/release.tgz" \
-      || { echo "engine-kernels-identity: FAIL — omx-contract v$v could not be fetched" >&2; rm -rf "$dir"; return 1; }
-    tar xzf "$dir/release.tgz" -C "$dir"
-  fi
-  printf '%s\n' "$dir/package/include"
+  if [ -n "${ENGINE_IDENTITY_CONTRACT_INC:-}" ]; then printf '%s\n' "$ENGINE_IDENTITY_CONTRACT_INC"; return 0; fi
+  sh "$PKG/tools/contract-include.sh" || { echo "engine-kernels-identity: FAIL — no installed omx-contract in range (or set ENGINE_IDENTITY_CONTRACT_INC)" >&2; return 1; }
 }
 
 # build <engine src dir> <scratch dir>: the golden program through the engine's copies
