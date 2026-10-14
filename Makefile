@@ -223,9 +223,9 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
 FX_ORACLES = align_fdelay dyn_flat
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
@@ -261,6 +261,7 @@ FX_LDFLAGS_eq_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_comp_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_gate_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_gate_knee = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_gate_keyfilter = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_trim_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_loudness = $(FX_NO_ALLOC_LDFLAGS)
 

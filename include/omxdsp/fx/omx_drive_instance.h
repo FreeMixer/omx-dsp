@@ -17,16 +17,20 @@
  * is every instance face's: {@link omx_drive_instance_init} binds an instance to a declared rate,
  * {@link omx_drive_instance_resolve} takes the drive kernel's contract controls in their declared
  * order and user units (`amount` dB, `character`, `band_freq` Hz, `mix` %, `trim` dB, then the
- * `curve` and `band` choice indices, the `auto_gain` and `stereo_link` switches and the
- * `hf_rolloff` corner in Hz), {@link omx_drive_instance_run} runs the kernel and
+ * `curve` and `band` choice indices, the `auto_gain` and `stereo_link` switches, the
+ * `hf_rolloff` corner in Hz and the `oversample` factor), {@link omx_drive_instance_run} runs the
+ * kernel and
  * {@link omx_drive_instance_latency} publishes its latency. A plugin binding generated from the
  * contract calls them with no hand-written map.
  *
- * ## What the face holds that the contract does not declare
+ * ## The oversampling factor
  *
- * The oversampling factor is no contract control of the drive kernel (omx-contract 2.1.0): the face
- * runs the oversampler's largest, {@link OMX_DRIVE_INSTANCE_FACTOR}, and builds the state for it
- * once, at init. Every other word of the row is a control (omx-contract 2.2.0).
+ * `oversample` is a contract control (omx-contract 2.8.0): the shaper runs inside the shared
+ * oversampler at 1x, 2x or 4x, the id being the factor, and comes up at 4X, the oversampler's
+ * largest ({@link OMX_DRIVE_INSTANCE_FACTOR}). A factor change rebuilds the kernel's state for the
+ * new factor inside resolve, at the block boundary, so no oversampler history designed for another
+ * rate is ever run. The coefficient bank runs at the base rate, before the oversampler and after it,
+ * so a factor change moves no coefficient and redesigns nothing.
  *
  * ## ZERO DUPLICATED DSP
  *
@@ -35,7 +39,7 @@
  * There is no second waveshaper, no second oversampler, no second auto-gain. What this file
  * owns is the RESOLVER: the console builds its `struct omx_drive` from word-atomic controls
  * plus TypeScript-designed coefficients (mixer_rt.c's resolve_fx_drive over console-rig.ts's
- * driveStateToNativeDrive); a foreign host hands us seven values and a rate, so
+ * driveStateToNativeDrive); a foreign host hands us its controls and a rate, so
  * {@link omx_drive_instance_resolve} does the same job from those, with the coefficient design in C
  * (mix_drive_design.h — a pinned twin of the TypeScript, not a second opinion) and the time
  * constants from the kernel's own `omx_drive_time_constants`.
@@ -52,7 +56,7 @@
  *
  * {@link omx_drive_instance_latency} is `omx_drive_latency`: the shared oversampler's round-trip
  * at the face's factor (72 base samples at 4x — drive-stage spec §3b, "declared by the element,
- * derived by everyone else"), and 0 while bypassed, exactly as the console's `latencySamples`
+ * derived by everyone else"; 48 at 2x, 0 at 1x), and 0 while bypassed, exactly as the console's `latencySamples`
  * row derives it. A plugin publishes it every cycle, so a host can compensate the dry paths
  * beside it.
  *
@@ -76,9 +80,13 @@
 
 #define OMX_DRIVE_INSTANCE_CHANNELS 2
 
-/** The oversampling factor the face runs the shaper at: the shared oversampler's largest. A
- * constant of the face, not a contract control. */
+/** The shared oversampler's largest factor, the `oversample` control's come-up. */
 #define OMX_DRIVE_INSTANCE_FACTOR ((int)OMX_OVS_MAX_FACTOR)
+OMXDSP_STATIC_ASSERT(OMX_DRIVE_OVERSAMPLES_DEFAULT == OMX_DRIVE_INSTANCE_FACTOR,
+                     "the contract's oversample come-up is the oversampler's largest factor");
+OMXDSP_STATIC_ASSERT(OMX_DRIVE_OVERSAMPLES_COUNT == 3u && OMX_DRIVE_OVERSAMPLES_1 == 1 && OMX_DRIVE_OVERSAMPLES_2 == 2 &&
+                         OMX_DRIVE_OVERSAMPLES_4 == 4,
+                     "the contract's oversample factors are the ones the drive's oversampler offers");
 /** What the face designs the HF roll-off section at with the roll-off off (console-rig.ts:
  * `hfHz = ... ? 20000 : ...`). */
 #define OMX_DRIVE_INSTANCE_HF_OFF_DESIGN_HZ 20000.0f
@@ -94,6 +102,7 @@
 #define OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT ((int)OMX_DRIVE_AUTO_GAINS_DEFAULT)
 #define OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT ((int)OMX_DRIVE_STEREO_LINKS_DEFAULT)
 #define OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT ((int)OMX_DRIVE_HF_ROLLOFFS_DEFAULT)
+#define OMX_DRIVE_INSTANCE_OVERSAMPLE_DEFAULT ((int)OMX_DRIVE_OVERSAMPLES_DEFAULT)
 
 /** One instance: the atom, the kernel's state (inline: the oversampler histories and the
  * compensation line), and what the coefficient bank was last designed for. Nothing is caller-owned. */
@@ -117,16 +126,19 @@ typedef struct {
  * the DRIVE_AUTO_GAINS and DRIVE_STEREO_LINKS indices (0 off, 1 on), any other value reading as the
  * declared default; `hf_rolloff` is a DRIVE_HF_ROLLOFFS id, the corner in Hz (0 none, 12000,
  * 16000), any other value reading as the declared default: a corner the low-pass design cannot
- * take is never designed. The clamps are the row's, applied
+ * take is never designed; `oversample` is a DRIVE_OVERSAMPLES id, the factor (1, 2 or 4), any other
+ * value reading as the declared default (4). The clamps are the row's, applied
  * for the same reason the console's controller applies them: the kernel's contract requires mix in
  * [0,1], and a host is free to write anything to a port.
  *
- * Coefficients are redesigned only when `band_freq` or the roll-off corner moved. Allocation-free.
+ * Coefficients are redesigned only when `band_freq` or the roll-off corner moved; the state is
+ * rebuilt for the new factor only when `oversample` moved, and the latency follows the factor.
+ * Allocation-free.
  */
 #define OMX_CONTRACT_STAGE "drive-instance/resolve"
 static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, float amount, float character,
                                               float band_freq, float mix, float trim, int curve, int band,
-                                              int auto_gain, int stereo_link, int hf_rolloff) {
+                                              int auto_gain, int stereo_link, int hf_rolloff, int oversample) {
   if (!s || !s->ready) return;
   /* CONTRACT (omx_contract.h). Whatever a host wrote to the ports, the atom leaves here inside
    * omx_drive_process's own PRE: mix in [0,1], the factor the state is built for, the bias weight
@@ -152,6 +164,14 @@ static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, f
                      ? hf_rolloff
                      : OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT;
   o->hf_on = hf > 0 ? 1 : 0;
+  const int factor = oversample == OMX_DRIVE_OVERSAMPLES_1 || oversample == OMX_DRIVE_OVERSAMPLES_2 ||
+                             oversample == OMX_DRIVE_OVERSAMPLES_4
+                         ? oversample
+                         : OMX_DRIVE_INSTANCE_OVERSAMPLE_DEFAULT;
+  if (factor != o->os_factor) {
+    o->os_factor = factor;
+    omx_drive_state_init(&s->state, factor);
+  }
   const float hf_hz = hf > 0 ? (float)hf : OMX_DRIVE_INSTANCE_HF_OFF_DESIGN_HZ;
   const float band_hz = omx_clamp_or(band_freq, (float)OMX_DRIVE_BAND_FREQ_RANGE_MIN,
                                      (float)OMX_DRIVE_BAND_FREQ_RANGE_MAX, OMX_DRIVE_INSTANCE_BAND_FREQ_DEFAULT);
@@ -169,7 +189,7 @@ static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, f
 #undef OMX_CONTRACT_STAGE
 
 /**
- * Bind an instance to its rate: the time constants, the state built for the face's factor, the
+ * Bind an instance to its rate: the time constants, the state built for the default factor, the
  * contract's defaults resolved and the bank designed, engaged. Returns 1 when usable, 0 when not: a
  * rate the console does not declare is refused, leaving `ready` clear, and run() is then the
  * identity. Allocates nothing — the caller owns the struct.
@@ -180,7 +200,7 @@ static inline int omx_drive_instance_init(OmxDriveInstance *s, float sr) {
   if (!omx_rate_is_declared(sr)) return 0;
   s->rate = (uint32_t)sr;
   omx_drive_time_constants(&s->atom, sr);
-  s->atom.os_factor = omx_drive_factor_of(OMX_DRIVE_INSTANCE_FACTOR);
+  s->atom.os_factor = OMX_DRIVE_INSTANCE_OVERSAMPLE_DEFAULT;
   omx_drive_state_init(&s->state, s->atom.os_factor);
   s->designed_band_hz = -1.0f; /* forces the first design */
   s->designed_hf_hz = -1.0f;
@@ -189,7 +209,8 @@ static inline int omx_drive_instance_init(OmxDriveInstance *s, float sr) {
                              OMX_DRIVE_INSTANCE_BAND_FREQ_DEFAULT, OMX_DRIVE_INSTANCE_MIX_DEFAULT,
                              OMX_DRIVE_INSTANCE_TRIM_DEFAULT, OMX_DRIVE_INSTANCE_CURVE_DEFAULT,
                              OMX_DRIVE_INSTANCE_BAND_DEFAULT, OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT,
-                             OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT, OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT);
+                             OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT, OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT,
+                             OMX_DRIVE_INSTANCE_OVERSAMPLE_DEFAULT);
   return 1;
 }
 
@@ -213,8 +234,8 @@ static inline void omx_drive_instance_run(OmxDriveInstance *s, const float *in_l
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The stage's declared latency in frames at the instance rate — the element's, 0 while bypassed
- * or not ready. */
+/** The stage's declared latency in frames at the instance rate — the element's at the resolved
+ * factor (0, 48 or 72 at 1x, 2x, 4x), 0 while bypassed or not ready. */
 static inline uint32_t omx_drive_instance_latency(const OmxDriveInstance *s) {
   return s && s->ready ? (uint32_t)omx_drive_latency(&s->atom) : 0u;
 }
