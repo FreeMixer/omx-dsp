@@ -1,3 +1,14 @@
+omx-dsp (0.18.0) unstable; urgency=medium
+
+  * analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room
+    analysis (H1 transfer and coherence, impulse response and early
+    reflections, Schroeder RT60, mode finder, mode-EQ proposal), the Farina
+    sweep and deconvolution, and Smart Alignment's delay and polarity fit,
+    moved from TypeScript; held to closed forms and to a parity table of
+    the TypeScript's answers.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 21:00:00 +0000
+
 omx-dsp (0.17.0) unstable; urgency=medium
 
   * The gate's key filter: hp_hz and lp_hz in omx_gate_controls and the
