@@ -166,8 +166,8 @@ static inline float omx_flanger_delay(const struct omx_flanger *p, const struct 
 
 /**
  * Process one block IN PLACE. `l`/`r` are the strip's two legs; a disabled atom, a NULL ring or an
- * unarmed line is a passthrough. RT-safe: one kernel evaluation of four taps per leg per sample,
- * no allocation, no libm in the loop.
+ * unarmed line is a passthrough. RT-safe: one kernel evaluation per sample serves both legs, four
+ * taps read per leg, no allocation, no libm in the loop.
  */
 #define OMX_CONTRACT_STAGE "flanger"
 static inline void omx_flanger_process(float *l, float *r, uint32_t n, const struct omx_flanger *p,
@@ -200,9 +200,10 @@ static inline void omx_flanger_process(float *l, float *r, uint32_t n, const str
   for (uint32_t i = 0; i < n; i++) {
     const float xl = l[i], xr = r[i];
     const float d = omx_flanger_delay(p, &s->lfo);
-    /* The per-sample door of the primitive, this time with the loop closed around it. */
-    const float wl = omx_fdelay_tick(&s->line_l, xl + fb * fl, d);
-    const float wr = omx_fdelay_tick(&s->line_r, xr + fb * fr, d);
+    /* The per-sample door of the primitive, this time with the loop closed around it: both legs
+     * share one geometry and one delay, so one split and one kernel serve both reads. */
+    float wl, wr;
+    omx_fdelay_tick_pair(&s->line_l, &s->line_r, xl + fb * fl, xr + fb * fr, d, &wl, &wr);
     /* The loop's own word, flushed: a decaying tail in a feedback path is exactly where a
      * subnormal takes hold, and the line's read flush cannot see what is held out here. */
     omx_wetdry_loop(&l[i], &r[i], &fl, &fr, xl, xr, wl, wr, dry, mix);
