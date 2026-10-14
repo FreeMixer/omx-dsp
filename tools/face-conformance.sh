@@ -25,6 +25,11 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 PENDING=""
+# NEWER names the controls a contract released after the floor (.github/pins.txt) added to a kernel that the
+# face does not take yet: "<kernel>:<control>" in C case. An installed contract inside the range may carry them
+# (FreeMixer/omx-dsp#95); the face may omit them, and must take them in order when it does. Every other
+# control still has to be taken, so the list only shrinks as faces catch up.
+NEWER="gate:hp_hz gate:lp_hz drive:oversample"
 
 # controls <kernel.json>: "name kind count" per control, in the declared order; `count` is the
 # control's count (a control taken once per band) or "-". A control that carries `of` is another
@@ -92,7 +97,7 @@ per_band() {
 
 # check <fx include dir> <kernel data dir>: 0 when every face conforms (PENDING aside).
 check() {
-  local fx="$1" data="$2" bad=0 ok=0 k face got want
+  local fx="$1" data="$2" bad=0 ok=0 k face got want n
   for face in "$fx"/omx_*_instance.h; do
     k="$(basename "$face" _instance.h)"; k="${k#omx_}"
     if [ ! -f "$data/$k.json" ]; then
@@ -102,6 +107,10 @@ check() {
     want="$(expected "$data/$k.json")"
     [ -n "$want" ] || { echo "face-conformance: $k: no controls read from $k.json" >&2; bad=1; continue; }
     got="$(arguments "$face" "$k" | per_band "$face")"
+    for n in $NEWER; do
+      [ "${n%%:*}" = "$k" ] || continue
+      grep -q " ${n#*:}\(\[\]\)\?\$" <<<"$got" || want="$(grep -v " ${n#*:}\(\[\]\)\?\$" <<<"$want" || true)"
+    done
     if [ "$got" = "$want" ]; then
       if [[ " $PENDING " == *" $k "* ]]; then
         echo "face-conformance: $k conforms but is listed PENDING: remove it from the list" >&2; bad=1
