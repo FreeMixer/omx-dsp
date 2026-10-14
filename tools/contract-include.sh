@@ -14,7 +14,8 @@
 # the script stops and names the package.
 #
 # With --data it prints instead the directory holding the installed package's kernel files
-# (<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh reads.
+# (<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh reads; when the
+# package ships them only inside its omx-contract.json, they are cut out of that into build/.
 #
 # Prints one line on stdout and nothing else; the reason for a refusal goes to stderr, exit 1.
 set -eu
@@ -47,11 +48,27 @@ esac
 prefix="$(pkg-config --variable=prefix omx-contract)"
 if [ "$data" = 1 ]; then
   datadir="$(pkg-config --variable=datadir omx-contract 2>/dev/null || true)"
-  [ -n "$datadir" ] || datadir="$prefix/share"
-  for d in "$datadir/omx-contract/data/kernels" "$datadir/omx-contract/kernels"; do
+  [ -n "$datadir" ] || datadir="$prefix/share/omx-contract"
+  for d in "$datadir/data/kernels" "$datadir/kernels" "$datadir/omx-contract/data/kernels"; do
     [ -d "$d" ] && { printf '%s\n' "$d"; exit 0; }
   done
-  echo "contract-include: the installed omx-contract $have ships no kernel files under $datadir/omx-contract (data/kernels or kernels)" >&2
+  # The package ships the whole contract as one omx-contract.json: its kernels' controls are cut into
+  # one <kernel>.json each, in the layout of the release's data/kernels/, under build/.
+  if [ -f "$datadir/omx-contract.json" ] && command -v python3 >/dev/null 2>&1; then
+    out="$HERE/build/omx-contract-kernels/$have"
+    rm -rf "$out"; mkdir -p "$out"
+    python3 -I - "$datadir/omx-contract.json" "$out" <<'PY' || { echo "contract-include: $datadir/omx-contract.json of omx-contract $have could not be cut into kernel files" >&2; exit 1; }
+import json, sys
+with open(sys.argv[1]) as f:
+    kernels = json.load(f)["kernels"]
+for name, k in kernels.items():
+    with open("%s/%s.json" % (sys.argv[2], name), "w") as o:
+        json.dump({"controls": k["controls"]}, o, indent=2)
+        o.write("\n")
+PY
+    printf '%s\n' "$out"; exit 0
+  fi
+  echo "contract-include: the installed omx-contract $have has no kernel files under $datadir (data/kernels, kernels, or omx-contract.json with python3 to cut it): ls says: $(ls "$datadir" 2>&1 | tr '\n' ' ')" >&2
   exit 1
 fi
 inc="$(pkg-config --variable=includedir omx-contract)"

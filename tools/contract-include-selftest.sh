@@ -14,7 +14,7 @@ mkdir -p "$S/lib/pkgconfig" "$S/include/omxcontract" "$S/share/omx-contract/data
 : > "$S/include/omxcontract/omx_contract_limits.h"
 echo '{}' > "$S/share/omx-contract/data/kernels/gate.json"
 render() {
-  printf 'prefix=%s\nincludedir=${prefix}/include\nName: omx-contract\nDescription: scratch\nVersion: %s\nCflags: -I${includedir}\n' \
+  printf 'prefix=%s\nincludedir=${prefix}/include\ndatadir=${prefix}/share/omx-contract\nName: omx-contract\nDescription: scratch\nVersion: %s\nCflags: -I${includedir}\n' \
     "$S" "$1" > "$S/lib/pkgconfig/omx-contract.pc"
 }
 run() { env -u OMX_CONTRACT_INC PKG_CONFIG_PATH="$S/lib/pkgconfig" PKG_CONFIG_LIBDIR="$S/lib/pkgconfig" \
@@ -28,6 +28,18 @@ for v in 2.6.0 2.6.1 2.10.1 2.99.9; do
   out="$(run --data 2>&1)" || { fail "--data refused at $v: $out"; continue; }
   [ "$out" = "$S/share/omx-contract/data/kernels" ] || fail "--data at $v printed '$out'"
 done
+# a package that ships its kernels only inside omx-contract.json: they are cut out of it
+render 2.10.1
+mv "$S/share/omx-contract/data" "$S/share/omx-contract/data.off"
+printf '{"kernels":{"gate":{"controls":[{"name":"keySource","kind":"choice"}]}}}\n' > "$S/share/omx-contract/omx-contract.json"
+if out="$(run --data 2>&1)"; then
+  grep -q '"name": "keySource"' "$out/gate.json" 2>/dev/null || fail "--data cut from omx-contract.json holds no gate control: $out"
+  grep -q '^  "controls": \[$' "$out/gate.json" 2>/dev/null || fail "--data cut file is not in the layout face-conformance.sh reads"
+else fail "--data refused a package with omx-contract.json: $out"; fi
+rm -f "$S/share/omx-contract/omx-contract.json"
+if out="$(run --data 2>&1)"; then fail "--data answered a package with no kernel files: $out"
+else case "$out" in *omx-contract*) ;; *) fail "the --data refusal names no package: $out" ;; esac; fi
+mv "$S/share/omx-contract/data.off" "$S/share/omx-contract/data"
 for v in 2.5.9 2.0.0 3.0.0 3.1.0; do
   render "$v"
   if out="$(run 2>&1)"; then fail "$v is out of range and was taken: $out"; continue; fi
