@@ -224,6 +224,7 @@ enum omx_analysis_refusal omx_room_impulse(const OmxRoomAccum *acc, double windo
   const double floor = peak * pow(10.0, floor_db / 20.0);
   const double sample_ms = 1000.0 / acc->sample_rate;
   double horizon = impulse_horizon(acc, window_ms);
+  if (!(horizon >= 0.0)) horizon = 0.0; /* a negative or NaN horizon names no sample */
   const double room = (double)(n - 1u - peak_idx);
   if (room < horizon) horizon = room;
   const uint32_t lobe = impulse_lobe(acc);
