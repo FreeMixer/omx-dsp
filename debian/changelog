@@ -1,6 +1,6 @@
 omx-dsp (0.16.0) unstable; urgency=medium
 
-  * Built against omx-contract 2.10.0, below 2.11: the detector oversampling
+  * Built against omx-contract 2.10.1, below 2.11: the detector oversampling
     ids are 4x, as the contract names them since 2.10.0, so
     omx_comp_instance.h compiles against the contract the package accepts
     (#100).

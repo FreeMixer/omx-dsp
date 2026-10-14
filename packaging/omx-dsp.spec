@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.10.0
+BuildRequires: omx-contract-devel >= 2.10.1
 BuildRequires: omx-contract-devel < 2.11
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
@@ -35,7 +35,7 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.10.0
+Requires: omx-contract-devel >= 2.10.1
 Requires: omx-contract-devel < 2.11
 
 %description devel
@@ -72,7 +72,7 @@ library exists.
 
 %changelog
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.16.0-1
-- Built against omx-contract 2.10.0, below 2.11: the detector oversampling
+- Built against omx-contract 2.10.1, below 2.11: the detector oversampling
   ids are 4x, as the contract names them since 2.10.0, so
   omx_comp_instance.h compiles against the contract the package accepts
   (#100).
