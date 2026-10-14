@@ -1,11 +1,10 @@
 omx-dsp (0.16.0) unstable; urgency=medium
 
-  * Built against omx-contract 2.10.1, below 2.11: the detector oversampling
-    ids are 4x, as the contract names them since 2.10.0, so
-    omx_comp_instance.h compiles against the contract the package accepts
-    (#100).
-  * The contract ceiling is the next minor: until the first public release a
-    breaking contract change ships as a minor.
+  * The contract range is what this release builds against: omx-contract
+    2.6.x, at least 2.6.0 and below 2.7. 0.15.0 claimed any 2.x, but
+    omx-contract 2.7.0 added the gate's key filter, 2.8.0 the drive's
+    oversample control and 2.10.0 renamed the detector oversampling ids, and
+    this release takes none of them yet (#100, #102, #103).
 
  -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 14:00:00 +0000
 

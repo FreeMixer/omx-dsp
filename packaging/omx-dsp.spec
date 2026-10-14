@@ -15,8 +15,8 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.10.1
-BuildRequires: omx-contract-devel < 2.11
+BuildRequires: omx-contract-devel >= 2.6.0
+BuildRequires: omx-contract-devel < 2.7
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -35,8 +35,8 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.10.1
-Requires: omx-contract-devel < 2.11
+Requires: omx-contract-devel >= 2.6.0
+Requires: omx-contract-devel < 2.7
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -72,12 +72,11 @@ library exists.
 
 %changelog
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.16.0-1
-- Built against omx-contract 2.10.1, below 2.11: the detector oversampling
-  ids are 4x, as the contract names them since 2.10.0, so
-  omx_comp_instance.h compiles against the contract the package accepts
-  (#100).
-- The contract ceiling is the next minor: until the first public release a
-  breaking contract change ships as a minor.
+- The contract range is what this release builds against: omx-contract
+  2.6.x, at least 2.6.0 and below 2.7. 0.15.0 claimed any 2.x, but
+  omx-contract 2.7.0 added the gate's key filter, 2.8.0 the drive's
+  oversample control and 2.10.0 renamed the detector oversampling ids, and
+  this release takes none of them yet (#100, #102, #103).
 
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.15.0-1
 - omx_wetdry_mix blends the delay and the reverb, which no longer restate the

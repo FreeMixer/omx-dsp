@@ -107,7 +107,7 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
   p->gc.makeup_lin = omx_db_to_lin(omx_clampf(makeup_db, OMX_COMP_MAKEUP_DB_MIN, OMX_COMP_MAKEUP_DB_MAX));
   p->dry = omx_dyn_dry_share(omx_clamp_or(mix_pct, OMX_COMP_MIX_PCT_MIN, OMX_COMP_MIX_PCT_MAX, OMX_COMP_MIX_PCT_DEFAULT));
   p->ovs_mode = detector_oversampling == OMX_DETECTOR_OVERSAMPLINGS_OFF ? OMX_DYN_OVS_OFF
-                : detector_oversampling == OMX_DETECTOR_OVERSAMPLINGS_4X ? OMX_DYN_OVS_X4
+                : detector_oversampling == OMX_DETECTOR_OVERSAMPLINGS_X4 ? OMX_DYN_OVS_X4
                                                                           : OMX_DYN_OVS_AUTO;
   p->topology = detector_topology == OMX_DETECTOR_TOPOLOGY_FEEDBACK ? OMX_DETECTOR_TOPOLOGY_FEEDBACK
                                                                      : OMX_DETECTOR_TOPOLOGY_FEEDFORWARD;
