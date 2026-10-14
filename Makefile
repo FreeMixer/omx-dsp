@@ -43,8 +43,8 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
 override CFLAGS += $(FPFLAGS)
-# The limits come from FreeMixer/omx-contract, the version .github/pins.txt names, resolved by
-# tools/contract-include.sh (installed omx-contract-devel, else the release tarball); this tree
+# The limits come from FreeMixer/omx-contract, the range .github/pins.txt names, resolved by
+# tools/contract-include.sh (the installed omx-contract-devel, nothing downloaded); this tree
 # commits no copy of them. Every sub-script that compiles gets the directory as CONTRACT_INC.
 ifeq ($(filter version clean docs,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
@@ -195,6 +195,7 @@ checks:
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
+	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
 	bash tools/face-conformance.sh
