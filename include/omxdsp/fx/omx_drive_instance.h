@@ -18,7 +18,7 @@
  * {@link omx_drive_instance_resolve} takes the drive kernel's contract controls in their declared
  * order and user units (`amount` dB, `character`, `band_freq` Hz, `mix` %, `trim` dB, then the
  * `curve` and `band` choice indices, the `auto_gain` and `stereo_link` switches, the
- * `hf_rolloff` corner in Hz and the `oversample` factor), {@link omx_drive_instance_run} runs the
+ * `hf_rolloff` id and the `oversample` factor), {@link omx_drive_instance_run} runs the
  * kernel and
  * {@link omx_drive_instance_latency} publishes its latency. A plugin binding generated from the
  * contract calls them with no hand-written map.
@@ -124,9 +124,9 @@ typedef struct {
  * `curve` and `band` are the DRIVE_CURVES and DRIVE_BANDS indices (`enum omx_drive_curve`,
  * `enum omx_drive_band`), any other value reading as the first; `auto_gain` and `stereo_link` are
  * the DRIVE_AUTO_GAINS and DRIVE_STEREO_LINKS indices (0 off, 1 on), any other value reading as the
- * declared default; `hf_rolloff` is a DRIVE_HF_ROLLOFFS id, the corner in Hz (0 none, 12000,
- * 16000), any other value reading as the declared default: a corner the low-pass design cannot
- * take is never designed; `oversample` is a DRIVE_OVERSAMPLES id, the factor (1, 2 or 4), any other
+ * declared default; `hf_rolloff` is a DRIVE_HF_ROLLOFFS id (`enum omx_drive_hf_rolloffs`: 0 off, 1, 2), any
+ * other value reading as the declared default; the corner in Hz comes from the contract's
+ * `omx_drive_hf_rolloffs_value`, so a corner the low-pass design cannot take is never designed; `oversample` is a DRIVE_OVERSAMPLES id, the factor (1, 2 or 4), any other
  * value reading as the declared default (4). The clamps are the row's, applied
  * for the same reason the console's controller applies them: the kernel's contract requires mix in
  * [0,1], and a host is free to write anything to a port.
@@ -159,11 +159,12 @@ static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, f
                                            OMX_DRIVE_INSTANCE_TRIM_DEFAULT));
   o->auto_gain = auto_gain == 0 || auto_gain == 1 ? auto_gain : OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT;
   o->stereo_link = stereo_link == 0 || stereo_link == 1 ? stereo_link : OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT;
-  const int hf = hf_rolloff == OMX_DRIVE_HF_ROLLOFFS_0 || hf_rolloff == OMX_DRIVE_HF_ROLLOFFS_12000 ||
+  const int hf = hf_rolloff == OMX_DRIVE_HF_ROLLOFFS_OFF || hf_rolloff == OMX_DRIVE_HF_ROLLOFFS_12000 ||
                          hf_rolloff == OMX_DRIVE_HF_ROLLOFFS_16000
                      ? hf_rolloff
                      : OMX_DRIVE_INSTANCE_HF_ROLLOFF_DEFAULT;
-  o->hf_on = hf > 0 ? 1 : 0;
+  float corner_hz = 0.0f;
+  o->hf_on = omx_drive_hf_rolloffs_value(hf, &corner_hz) ? 1 : 0;
   const int factor = oversample == OMX_DRIVE_OVERSAMPLES_1 || oversample == OMX_DRIVE_OVERSAMPLES_2 ||
                              oversample == OMX_DRIVE_OVERSAMPLES_4
                          ? oversample
@@ -172,7 +173,7 @@ static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, f
     o->os_factor = factor;
     omx_drive_state_init(&s->state, factor);
   }
-  const float hf_hz = hf > 0 ? (float)hf : OMX_DRIVE_INSTANCE_HF_OFF_DESIGN_HZ;
+  const float hf_hz = o->hf_on ? corner_hz : OMX_DRIVE_INSTANCE_HF_OFF_DESIGN_HZ;
   const float band_hz = omx_clamp_or(band_freq, (float)OMX_DRIVE_BAND_FREQ_RANGE_MIN,
                                      (float)OMX_DRIVE_BAND_FREQ_RANGE_MAX, OMX_DRIVE_INSTANCE_BAND_FREQ_DEFAULT);
   if (band_hz != s->designed_band_hz || hf_hz != s->designed_hf_hz) {
