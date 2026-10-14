@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-# What this repository is built against, one line per library: name, ">=", floor, "<", ceiling. An installed
-# package inside the range is what tools/contract-include.sh takes; it is the range packaging/omx-dsp.spec
-# and debian/control declare. No URL, tag or commit.
-omx-contract >= 2.10.1 < 2.11

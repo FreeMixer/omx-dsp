@@ -46,9 +46,10 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
 override CFLAGS += $(FPFLAGS)
-# The limits come from FreeMixer/omx-contract, the range .github/pins.txt names, resolved by
-# tools/contract-include.sh (the installed omx-contract-devel, nothing downloaded); this tree
-# commits no copy of them. Every sub-script that compiles gets the directory as CONTRACT_INC.
+# The limits come from FreeMixer/omx-contract: the installed omx-contract-devel / libomx-contract-dev
+# inside the range packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
+# (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
+# directory as CONTRACT_INC.
 ifeq ($(filter version clean docs public-sources,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
@@ -57,7 +58,10 @@ endif
 export CONTRACT_INC
 endif
 INC      = -Iinclude -isystem $(CONTRACT_INC)
-CONTRACT_VERSION := $(shell awk '$$1 == "omx-contract" { print $$3 }' .github/pins.txt)
+# The range the spec declares, rendered into omxdsp.pc's Requires.
+CONTRACT_RANGE   := $(shell sh tools/contract-include.sh --range)
+CONTRACT_FLOOR   := $(word 1,$(CONTRACT_RANGE))
+CONTRACT_CEILING := $(word 2,$(CONTRACT_RANGE))
 BUILD    = build
 LIB      = $(BUILD)/libomxdsp.a
 HEADERS  = $(wildcard include/omxdsp/*.h)
@@ -351,10 +355,10 @@ analysis-engine-identity: $(LIB)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/analysis-engine-identity.sh --self-test "$(OPENMIXER)"
 
 # core's TypeScript room analysis and alignment fit, run from an OpenMixer
-# checkout under node 22.6 or later with omx-contract's TypeScript render (the pinned release's, from
-# tools/contract-include.sh, or OMX_CONTRACT_TS), must write the committed parity table again, its
+# checkout under node 22.6 or later with omx-contract's TypeScript render (OMX_CONTRACT_TS, the dist/ts of
+# the installed release), must write the committed parity table again, its
 # provenance line aside: a desk check, not part of make test and not run in CI.
-OMX_CONTRACT_TS ?= $(BUILD)/omx-contract/$(CONTRACT_VERSION)/package/dist/ts
+OMX_CONTRACT_TS ?=
 room-ts-golden: | $(BUILD)
 	@test -n "$(OPENMIXER)" || { echo "make room-ts-golden OPENMIXER=<openmixer checkout>"; exit 2; }
 	@test -f "$(OMX_CONTRACT_TS)/omx-contract.js" || { echo "room-ts-golden: no omx-contract TypeScript render in $(OMX_CONTRACT_TS); set OMX_CONTRACT_TS"; exit 2; }
@@ -397,17 +401,17 @@ version:
 	@echo $(VERSION)
 
 PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
-	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTVERSION@|$(CONTRACT_VERSION)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
+	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTFLOOR@|$(CONTRACT_FLOOR)|' -e 's|@CONTRACTCEILING@|$(CONTRACT_CEILING)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
 
-$(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp|' -e 's|@FLAVOUR@|release, contracts compiled out|' \
 	    -e 's|@CFLAGS@||' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
 
-$(BUILD)/omxdsp-contracts.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp-contracts.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-contracts|' -e 's|@FLAVOUR@|contracts compiled in|' \
 	    -e 's|@CFLAGS@| $(CONTRACTS_CFLAGS)|' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
 
-$(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-tsan|' -e 's|@FLAVOUR@|contracts compiled in, under ThreadSanitizer|' \
 	    -e 's|@CFLAGS@| $(TSAN_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS)|' $< | sed 's/ *$$//' > $@
 

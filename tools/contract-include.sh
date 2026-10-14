@@ -3,35 +3,41 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # contract-include.sh — prints the directory whose omxcontract/ holds the omx-contract C header
-# this tree builds against (FreeMixer/omx-dsp#1, #9, #95). The header is never committed here.
+# this tree builds against (FreeMixer/omx-dsp#1, #9, #107). The header is never committed here.
 #
 #   1. $OMX_CONTRACT_INC, when set: a scratch render, used by the perturbation arms. Not
 #      version-checked: it is a deliberate other contract.
-#   2. the installed omx-contract-devel / libomx-contract-dev, when pkg-config finds a version
-#      inside the range .github/pins.txt names, as the spec and debian/control declare it (>= 2.6.0, < 3).
+#   2. the installed omx-contract-devel / libomx-contract-dev, found by pkg-config, when its version
+#      is inside the range packaging/omx-dsp.spec declares (BuildRequires: omx-contract-devel >= floor,
+#      < ceiling; debian/control carries the same range, tools/contract-include-selftest.sh holds it).
 #
-# Nothing is downloaded: no commit, no release tarball. When no installed omx-contract is in range
-# the script stops and names the package.
+# Nothing is downloaded. When the installed omx-contract is missing or outside the range the script
+# stops, naming the package, the range and the version installed.
 #
-# With --data it prints instead the directory holding the installed package's kernel files
-# (<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh reads; when the
-# package ships them only inside its omx-contract.json, they are cut out of that into build/.
+#   --range  prints "<floor> <ceiling>" as the spec declares them (the Makefile renders omxdsp.pc
+#            with them).
+#   --data   prints instead the directory holding the installed package's kernel files
+#            (<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh
+#            reads; when the package ships them only inside its omx-contract.json, they are cut
+#            out of that into build/omx-contract-kernels/<version>/.
 #
 # Prints one line on stdout and nothing else; the reason for a refusal goes to stderr, exit 1.
 set -eu
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-data=0
-[ "${1:-}" = --data ] && data=1
-if [ "$data" = 0 ] && [ -n "${OMX_CONTRACT_INC:-}" ]; then
+SPEC="$HERE/packaging/omx-dsp.spec"
+mode="${1:-}"
+floor="$(sed -n 's/^BuildRequires: *omx-contract-devel *>= *\([0-9][0-9.]*\) *$/\1/p' "$SPEC")"
+ceiling="$(sed -n 's/^BuildRequires: *omx-contract-devel *< *\([0-9][0-9.]*\) *$/\1/p' "$SPEC")"
+[ -n "$floor" ] && [ -n "$ceiling" ] || { echo "contract-include: $SPEC declares no 'BuildRequires: omx-contract-devel >= <floor>' and '< <ceiling>' pair" >&2; exit 1; }
+if [ "$mode" = --range ]; then printf '%s %s\n' "$floor" "$ceiling"; exit 0; fi
+if [ "$mode" != --data ] && [ -n "${OMX_CONTRACT_INC:-}" ]; then
   [ -f "$OMX_CONTRACT_INC/omxcontract/omx_contract_limits.h" ] || { echo "contract-include: OMX_CONTRACT_INC=$OMX_CONTRACT_INC has no omxcontract/omx_contract_limits.h" >&2; exit 1; }
   printf '%s\n' "$OMX_CONTRACT_INC"; exit 0
 fi
-# The range .github/pins.txt names, the one packaging/omx-dsp.spec and debian/control declare.
-floor="$(awk '$1 == "omx-contract" && $2 == ">=" { print $3 }' "$HERE/.github/pins.txt")"
-ceiling="$(awk '$1 == "omx-contract" && $4 == "<" { print $5 }' "$HERE/.github/pins.txt")"
-[ -n "$floor" ] && [ -n "$ceiling" ] || { echo "contract-include: .github/pins.txt has no 'omx-contract >= <floor> < <ceiling>' line" >&2; exit 1; }
-need="omx-contract-devel / libomx-contract-dev (>= $floor, < $ceiling)"
-command -v pkg-config >/dev/null 2>&1 || { echo "contract-include: pkg-config is missing, so the installed omx-contract cannot be found: install $need" >&2; exit 1; }
+data=0
+[ "$mode" = --data ] && data=1
+need="omx-contract >= $floor, < $ceiling (omx-contract-devel / libomx-contract-dev: dnf builddep packaging/omx-dsp.spec, apt-get build-dep ./)"
+command -v pkg-config >/dev/null 2>&1 || { echo "contract-include: pkg-config is missing, so the installed omx-contract cannot be found; this tree needs $need" >&2; exit 1; }
 if ! pkg-config --atleast-version="$floor" omx-contract 2>/dev/null; then
   have="$(pkg-config --modversion omx-contract 2>/dev/null || true)"
   if [ -n "$have" ]; then
