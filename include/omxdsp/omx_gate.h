@@ -61,7 +61,8 @@
  * ## RT contract
  *
  * `omx_gate_run` allocates nothing, takes no lock, does no I/O and calls no libc beyond
- * memcpy/memset/expf. Chunking the host's block through fixed scratch changes nothing observable:
+ * memcpy/memset/expf. The key filter's design (omx_eq_design's cos, sin, exp, sqrt) runs in
+ * `omx_gate_resolve`, and only for an edge that moved. Chunking the host's block through fixed scratch changes nothing observable:
  * the kernel's state is continuous across calls.
  *
  * Not in the omxdsp.h umbrella, as omx_dyn.h is not. Include it by name.
@@ -72,9 +73,11 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "omx_biquad.h"
 #include "omx_contract.h"
 #include <omxcontract/omx_contract_limits.h>
 #include "omx_dyn.h"
+#include "omx_eq_design.h"
 #include "omx_param.h"
 
 /** @brief Frames per pass through the scratch. Nothing observable depends on it (see above). */
@@ -89,19 +92,33 @@ struct omx_gate_controls {
   const float *range;        /**< the deepest attenuation the gate applies */
   const float *attack;       /**< the attack time */
   const float *release;      /**< the release time */
+  const float *hp_hz;        /**< the key filter's high-pass corner, Hz; 0 (and unconnected) is out */
+  const float *lp_hz;        /**< the key filter's low-pass corner, Hz; 0 (and unconnected) is out */
+};
+
+/** @brief The key filter: each edge's corner as resolved (0 is out), its section and its history. */
+struct omx_gate_key {
+  float hp_hz;    /**< the high-pass corner the section was designed at, Hz; 0 is out */
+  float lp_hz;    /**< the low-pass corner the section was designed at, Hz; 0 is out */
+  float hp_c[5];  /**< the high-pass section, `{b0, b1, b2, a1, a2}` */
+  float lp_c[5];  /**< the low-pass section, `{b0, b1, b2, a1, a2}` */
+  float hp_s[4];  /**< the high-pass history */
+  float lp_s[4];  /**< the low-pass history */
 };
 
 /** @brief One gate instance: its rate, the dynamics slot's state and the block scratch. */
 struct omx_gate {
   float rate;                 /**< the sample rate the gate is armed at */
   struct omx_dyn_state st;    /**< the dynamics slot's state */
+  struct omx_gate_key key;    /**< the detector's key filter */
   float sl[OMX_GATE_CHUNK];   /**< the left scratch */
   float sr[OMX_GATE_CHUNK];   /**< the right scratch */
   float sk[OMX_GATE_CHUNK];   /**< the key scratch */
 };
 
 /**
- * @brief Arm a gate at `rate` (instantiate) or re-arm it (activate): the slot's state cleared, base path.
+ * @brief Arm a gate at `rate` (instantiate) or re-arm it (activate): the slot's state cleared, base path,
+ *        the key filter out until a resolve designs it at this rate.
  * @param g The instance.
  * @param rate The host's sample rate, Hz.
  * @note Not RT-safe only in that it clears the whole instance's state; no allocation.
@@ -109,6 +126,7 @@ struct omx_gate {
 static inline void omx_gate_init(struct omx_gate *g, float rate) {
   g->rate = rate;
   omx_dyn_state_init(&g->st, 1u);
+  memset(&g->key, 0, sizeof g->key);
 }
 
 /**
@@ -126,16 +144,79 @@ static inline float omx_gate_clampf(const float *port, float lo, float hi, float
   return port ? omx_clampf(*port, lo, hi) : dflt;
 }
 
+#define OMX_CONTRACT_STAGE "keyed-gate/key-filter"
+/**
+ * @brief The key filter's edges designed for `rate`: each edge whose corner moved is redesigned,
+ *        the console's section (omx_eq_design at Q 1/sqrt 2, the cookbook high-pass and the
+ *        matched-Z low-pass); an edge at 0 is out. An edge that comes in, or goes out, starts its
+ *        history from silence; a corner that moves keeps it, as the console's pushed coefficients do.
+ * @param k The key filter.
+ * @param rate The gate's rate, Hz, positive while an edge is in.
+ * @param hp_hz The high-pass corner, Hz, inside GATE_KEY_LIMITS.hpHz; 0 is out.
+ * @param lp_hz The low-pass corner, Hz, inside GATE_KEY_LIMITS.lpHz; 0 is out.
+ * @post `edges-inside-the-travel`.
+ * @note RT-safe: `cos`, `sin`, `exp`, `sqrt` (omx_eq_design) only for an edge that moved.
+ *       Thread-safe on distinct filters.
+ */
+static inline void omx_gate_key_design(struct omx_gate_key *k, float rate, float hp_hz, float lp_hz) {
+  if (hp_hz != k->hp_hz) {
+    if (hp_hz > 0.0f) omx_eq_design_f(OMX_EQ_HIGHPASS, hp_hz, M_SQRT1_2, 0.0, rate, k->hp_c);
+    if (!(hp_hz > 0.0f) || !(k->hp_hz > 0.0f)) memset(k->hp_s, 0, sizeof k->hp_s);
+    k->hp_hz = hp_hz;
+  }
+  if (lp_hz != k->lp_hz) {
+    if (lp_hz > 0.0f) omx_eq_design_f(OMX_EQ_LOWPASS, lp_hz, M_SQRT1_2, 0.0, rate, k->lp_c);
+    if (!(lp_hz > 0.0f) || !(k->lp_hz > 0.0f)) memset(k->lp_s, 0, sizeof k->lp_s);
+    k->lp_hz = lp_hz;
+  }
+  OMX_POST(k->hp_hz >= OMX_GATE_KEY_HP_HZ_MIN && k->hp_hz <= OMX_GATE_KEY_HP_HZ_MAX &&
+               k->lp_hz >= OMX_GATE_KEY_LP_HZ_MIN && k->lp_hz <= OMX_GATE_KEY_LP_HZ_MAX,
+           "edges-inside-the-travel");
+}
+
+/**
+ * @brief Whether the key filter has an edge in.
+ * @param k The key filter.
+ * @return 1 while either corner is above 0, else 0.
+ * @note RT-safe. Thread-safe: pure.
+ */
+static inline int omx_gate_key_active(const struct omx_gate_key *k) {
+  return k->hp_hz > 0.0f || k->lp_hz > 0.0f;
+}
+
+/**
+ * @brief A key block through the filter IN PLACE: the high-pass, then the low-pass, each only
+ *        while it is in. With both out the block is untouched.
+ * @param k The key filter; its history advances.
+ * @param buf The key block, filtered in place.
+ * @param n Frames.
+ * @pre `finite-key`.
+ * @post `finite-filtered-key`.
+ * @note RT-safe: O(n), no allocation, no call but omx_biquad(). Thread-safe on distinct filters.
+ */
+static inline void omx_gate_key_run(struct omx_gate_key *k, float *buf, uint32_t n) {
+  OMX_PRE(omx_block_finite(buf, n), "finite-key");
+  if (k->hp_hz > 0.0f)
+    for (uint32_t i = 0; i < n; i++) buf[i] = omx_biquad(buf[i], k->hp_c, k->hp_s);
+  if (k->lp_hz > 0.0f)
+    for (uint32_t i = 0; i < n; i++) buf[i] = omx_biquad(buf[i], k->lp_c, k->lp_s);
+  OMX_POST(omx_block_finite(buf, n), "finite-filtered-key");
+}
+#undef OMX_CONTRACT_STAGE
+
 /**
  * @brief The console's gateStateToNativeDyn, restated as control reads — the ONE resolution a gate
  *        slot gets. The `threshold` control is the declared gate threshold travel; the knee is
- *        hard here, and {@link omx_gate_knee} sets the contract's knee range on the result.
- * @param g The instance (its rate).
+ *        hard here, and {@link omx_gate_knee} sets the contract's knee range on the result. The
+ *        key filter's edges, read inside GATE_KEY_LIMITS (unconnected or NaN is out, no come-up
+ *        value being declared), are designed into the instance by {@link omx_gate_key_design}.
+ * @param g The instance (its rate read, its key filter written).
  * @param c The controls.
  * @param p The atom, written whole.
- * @note RT-safe. Thread-safe: pure in `g` and `c`.
+ * @note RT-safe: the key filter is designed only when an edge moves. Thread-safe on distinct
+ *       instances.
  */
-static inline void omx_gate_resolve(const struct omx_gate *g, const struct omx_gate_controls *c, struct omx_dyn *p) {
+static inline void omx_gate_resolve(struct omx_gate *g, const struct omx_gate_controls *c, struct omx_dyn *p) {
   memset(p, 0, sizeof *p);
   p->enabled = omx_gate_clampf(c->enabled, 0.0f, 1.0f, 1.0f) >= 0.5f;
   p->gc.mode = OMX_DYN_BELOW;
@@ -151,6 +232,9 @@ static inline void omx_gate_resolve(const struct omx_gate *g, const struct omx_g
   p->attack_ms = a_ms;
   p->attack_coeff = omx_pole_from_time_ms(a_ms, g->rate);
   p->release_coeff = omx_pole_from_time_ms(r_ms, g->rate);
+  omx_gate_key_design(&g->key, g->rate,
+                      omx_gate_clampf(c->hp_hz, OMX_GATE_KEY_HP_HZ_MIN, OMX_GATE_KEY_HP_HZ_MAX, OMX_GATE_KEY_HP_HZ_MIN),
+                      omx_gate_clampf(c->lp_hz, OMX_GATE_KEY_LP_HZ_MIN, OMX_GATE_KEY_LP_HZ_MAX, OMX_GATE_KEY_LP_HZ_MIN));
 }
 
 #define OMX_CONTRACT_STAGE "keyed-gate/knee"
@@ -198,7 +282,9 @@ static inline float omx_gate_latency(const struct omx_dyn *p) {
 /**
  * @brief The core: the host's block through fixed scratch, the kernel over each chunk. The key is
  *        optional: a NULL key, or `key_external` choosing SELF, is the ordinary self-detecting
- *        gate — the kernel's NULL key, bit for bit.
+ *        gate — the kernel's NULL key, bit for bit, while the key filter is out. With an edge in,
+ *        the detector listens to the filtered key: the external one, or the self key `(l + r) / 2`.
+ *        A disabled gate leaves the key filter's history as it was, as it leaves the slot's.
  * @param g The instance.
  * @param p The resolved atom.
  * @param key The sidechain block, or NULL (unconnected).
@@ -215,12 +301,16 @@ static inline void omx_gate_run(struct omx_gate *g, const struct omx_dyn *p, con
                                 const float *key_external, const float *in_l, const float *in_r,
                                 float *out_l, float *out_r, uint32_t n) {
   const int keyed = key && omx_gate_clampf(key_external, 0.0f, 1.0f, 1.0f) >= 0.5f;
+  const int filtered = omx_gate_key_active(&g->key);
   for (uint32_t off = 0; off < n;) {
     uint32_t m = n - off < OMX_GATE_CHUNK ? n - off : OMX_GATE_CHUNK;
     memcpy(g->sl, in_l + off, m * sizeof(float));
     memcpy(g->sr, in_r + off, m * sizeof(float));
     if (keyed) memcpy(g->sk, key + off, m * sizeof(float));
-    omx_dynamics_keyed(g->sl, g->sr, keyed ? g->sk : NULL, m, p, &g->st);
+    else if (filtered)
+      for (uint32_t i = 0; i < m; i++) g->sk[i] = 0.5f * (g->sl[i] + g->sr[i]);
+    if (filtered && p->enabled) omx_gate_key_run(&g->key, g->sk, m);
+    omx_dynamics_keyed(g->sl, g->sr, keyed || filtered ? g->sk : NULL, m, p, &g->st);
     /* Disabled is the identity. Checked on the scratch against the input BEFORE the copy-out,
      * so it still means something when the host aliases an output onto its input. */
     OMX_POST(p->enabled || !memcmp(g->sl, in_l + off, m * sizeof(float)), "bypass-identity-l");
