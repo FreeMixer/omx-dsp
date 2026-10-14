@@ -66,7 +66,6 @@ jobs:
           fi
           sh tools/contract-include.sh
           sh tools/contract-include.sh --data
-          ls -R "$(pkg-config --variable=datadir omx-contract)"
 
       - name: The version agrees everywhere it is written
         id: handback-version
