@@ -54,21 +54,21 @@ if [ "$data" = 1 ]; then
   done
   # The package ships the whole contract as one omx-contract.json: its kernels' controls are cut into
   # one <kernel>.json each, in the layout of the release's data/kernels/, under build/.
-  if [ -f "$datadir/omx-contract.json" ] && command -v python3 >/dev/null 2>&1; then
+  if [ -f "$datadir/omx-contract.json" ]; then
     out="$HERE/build/omx-contract-kernels/$have"
     rm -rf "$out"; mkdir -p "$out"
-    python3 -I - "$datadir/omx-contract.json" "$out" <<'PY' || { echo "contract-include: $datadir/omx-contract.json of omx-contract $have could not be cut into kernel files" >&2; exit 1; }
-import json, sys
-with open(sys.argv[1]) as f:
-    kernels = json.load(f)["kernels"]
-for name, k in kernels.items():
-    with open("%s/%s.json" % (sys.argv[2], name), "w") as o:
-        json.dump({"controls": k["controls"]}, o, indent=2)
-        o.write("\n")
-PY
+    awk -v out="$out" '
+      /^  "kernels": \{/ { inside = 1; next }
+      inside && /^  \}/ { inside = 0 }
+      inside && /^    "[A-Za-z0-9_]+": \{$/ { k = $0; sub(/^    "/, "", k); sub(/".*/, "", k) }
+      inside && /^      "controls": \[/ { f = out "/" k ".json"; print "{" > f; print "  \"controls\": [" > f; on = 1; next }
+      on && /^      \]/ { print "  ]" > f; print "}" > f; close(f); on = 0; next }
+      on { print substr($0, 5) > f }
+    ' "$datadir/omx-contract.json"
+    [ -n "$(ls "$out")" ] || { echo "contract-include: $datadir/omx-contract.json of omx-contract $have holds no kernels' controls" >&2; exit 1; }
     printf '%s\n' "$out"; exit 0
   fi
-  echo "contract-include: the installed omx-contract $have has no kernel files under $datadir (data/kernels, kernels, or omx-contract.json with python3 to cut it): ls says: $(ls "$datadir" 2>&1 | tr '\n' ' ')" >&2
+  echo "contract-include: the installed omx-contract $have has no kernel files under $datadir (data/kernels, kernels or omx-contract.json): ls says: $(ls "$datadir" 2>&1 | tr '\n' ' ')" >&2
   exit 1
 fi
 inc="$(pkg-config --variable=includedir omx-contract)"

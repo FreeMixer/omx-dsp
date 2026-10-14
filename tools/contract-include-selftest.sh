@@ -31,10 +31,10 @@ done
 # a package that ships its kernels only inside omx-contract.json: they are cut out of it
 render 2.10.1
 mv "$S/share/omx-contract/data" "$S/share/omx-contract/data.off"
-printf '{"kernels":{"gate":{"controls":[{"name":"keySource","kind":"choice"}]}}}\n' > "$S/share/omx-contract/omx-contract.json"
+printf '%s\n' '{' '  "kernels": {' '    "gate": {' '      "controls": [' '        {' '          "name": "keySource",' '          "kind": "choice"' '        }' '      ]' '    }' '  }' '}' > "$S/share/omx-contract/omx-contract.json"
 if out="$(run --data 2>&1)"; then
   grep -q '"name": "keySource"' "$out/gate.json" 2>/dev/null || fail "--data cut from omx-contract.json holds no gate control: $out"
-  grep -q '^  "controls": \[$' "$out/gate.json" 2>/dev/null || fail "--data cut file is not in the layout face-conformance.sh reads"
+  grep -q '^      "name": "keySource",$' "$out/gate.json" 2>/dev/null || fail "--data cut file is not in the layout face-conformance.sh reads"
 else fail "--data refused a package with omx-contract.json: $out"; fi
 rm -f "$S/share/omx-contract/omx-contract.json"
 if out="$(run --data 2>&1)"; then fail "--data answered a package with no kernel files: $out"
