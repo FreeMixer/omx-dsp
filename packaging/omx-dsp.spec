@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.15.0
+Version: 0.16.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,7 +71,7 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
-* Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.15.0-1
+* Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.16.0-1
 - analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room
   analysis (H1 transfer and coherence, impulse response and early
   reflections, Schroeder RT60, mode finder, mode-EQ proposal), the Farina
