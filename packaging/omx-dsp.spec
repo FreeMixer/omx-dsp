@@ -15,8 +15,8 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.10.1
-BuildRequires: omx-contract-devel < 2.11
+BuildRequires: omx-contract-devel >= 2.11.0
+BuildRequires: omx-contract-devel < 2.12
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -35,8 +35,8 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.10.1
-Requires: omx-contract-devel < 2.11
+Requires: omx-contract-devel >= 2.11.0
+Requires: omx-contract-devel < 2.12
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -90,6 +90,9 @@ library exists.
 - omx-contract is an installed package taken by pkg-config inside the range
   the packaging declares; nothing is downloaded and there is no pins file
   (#95, #107)
+- The drive's hf_rolloff is a DRIVE_HF_ROLLOFFS id (0 off, 1, 2) and its
+  corner comes from the contract's omx_drive_hf_rolloffs_value; builds
+  against omx-contract >= 2.11.0, < 2.12 (#97)
 
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.17.0-1
 - The gate's key filter: hp_hz and lp_hz in omx_gate_controls and the
