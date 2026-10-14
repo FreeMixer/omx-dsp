@@ -94,11 +94,12 @@ else for word in omx-contract-devel libomx-contract-dev "$floor" 'not installed'
   case "$out" in *"$word"*) ;; *) fail "the refusal with nothing installed does not name '$word': $out" ;; esac
 done; fi
 
+# debian/changelog is rewritten from the commit subjects at build time, and history may name what it removed, so the scan leaves changelogs out.
 # The removed paths stay removed: no download, no exact version, no pins file anywhere in the tree.
 if grep -nE 'curl|wget|codeload|release\.tgz|exact-version' "$HERE/tools/contract-include.sh" | grep -v '^[0-9]*:#'; then
   fail "tools/contract-include.sh carries a download or exact-version path again"
 fi
-pins() { grep -rIl --exclude-dir=.git --exclude-dir=build --exclude=contract-include-selftest.sh -e 'pins\.txt' "$1" || true; }
+pins() { grep -rIl --exclude-dir=.git --exclude-dir=build --exclude=contract-include-selftest.sh --exclude=changelog -e 'pins\.txt' "$1" || true; }
 mkdir -p "$S/plant/.github"; cp "$HERE/Makefile" "$S/plant/"; echo "X := \$(shell cat .github/pins.txt)" >> "$S/plant/Makefile"
 [ -n "$(pins "$S/plant")" ] || fail "the pins-file scan does not see a planted line; it would prove nothing"
 found="$(pins "$HERE")"; [ -z "$found" ] || fail "these files name a pins file: $found"
