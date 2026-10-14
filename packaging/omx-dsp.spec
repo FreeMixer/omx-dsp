@@ -15,8 +15,8 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.6.0
-BuildRequires: omx-contract-devel < 3
+BuildRequires: omx-contract-devel >= 2.10.1
+BuildRequires: omx-contract-devel < 2.11
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -35,8 +35,8 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.6.0
-Requires: omx-contract-devel < 3
+Requires: omx-contract-devel >= 2.10.1
+Requires: omx-contract-devel < 2.11
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -184,7 +184,7 @@ library exists.
 - omx-dsp now builds against omx-contract 1.3.0 and no longer carries its own
   copy of the console's limits. Every limit, travel, default, list and choice
   the kernels read comes from the contract's header
-  (`omxcontract/omx_contract_limits.h`, pinned in `.github/pins.txt`); the
+  (`omxcontract/omx_contract_limits.h`, pinned by this tree); the
   library installs and requires `omx-contract-devel` (or
   `libomx-contract-dev`) at exactly that version, and `omxdsp.pc` requires it.
 - Breaking, while the library is 0.x: `omxdsp/omx_contract_limits.h` is gone.

@@ -8,7 +8,7 @@
 #   tools/contract-single-source.sh --self-test  a restored copy must be named
 #
 # omx-contract is the one home of every value more than one repository reads. A `#define` in include/,
-# src/, test/ or tools/ of a name the pinned release already defines is a second copy that can drift
+# src/, test/ or tools/ of a name the installed release already defines is a second copy that can drift
 # from it; the compiler only objects when the two spellings differ in text. Part of `make lint`.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"

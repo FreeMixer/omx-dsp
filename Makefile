@@ -43,9 +43,10 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
 override CFLAGS += $(FPFLAGS)
-# The limits come from FreeMixer/omx-contract, the version .github/pins.txt names, resolved by
-# tools/contract-include.sh (installed omx-contract-devel, else the release tarball); this tree
-# commits no copy of them. Every sub-script that compiles gets the directory as CONTRACT_INC.
+# The limits come from FreeMixer/omx-contract: the installed omx-contract-devel / libomx-contract-dev
+# inside the range packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
+# (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
+# directory as CONTRACT_INC.
 ifeq ($(filter version clean docs,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
@@ -54,7 +55,10 @@ endif
 export CONTRACT_INC
 endif
 INC      = -Iinclude -isystem $(CONTRACT_INC)
-CONTRACT_VERSION := $(shell awk '$$1 == "omx-contract" { print $$3 }' .github/pins.txt)
+# The range the spec declares, rendered into omxdsp.pc's Requires.
+CONTRACT_RANGE   := $(shell sh tools/contract-include.sh --range)
+CONTRACT_FLOOR   := $(word 1,$(CONTRACT_RANGE))
+CONTRACT_CEILING := $(word 2,$(CONTRACT_RANGE))
 BUILD    = build
 LIB      = $(BUILD)/libomxdsp.a
 HEADERS  = $(wildcard include/omxdsp/*.h)
@@ -195,6 +199,7 @@ checks:
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
+	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
 	bash tools/face-conformance.sh
@@ -364,17 +369,17 @@ version:
 	@echo $(VERSION)
 
 PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
-	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTVERSION@|$(CONTRACT_VERSION)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
+	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTFLOOR@|$(CONTRACT_FLOOR)|' -e 's|@CONTRACTCEILING@|$(CONTRACT_CEILING)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
 
-$(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp|' -e 's|@FLAVOUR@|release, contracts compiled out|' \
 	    -e 's|@CFLAGS@||' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
 
-$(BUILD)/omxdsp-contracts.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp-contracts.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-contracts|' -e 's|@FLAVOUR@|contracts compiled in|' \
 	    -e 's|@CFLAGS@| $(CONTRACTS_CFLAGS)|' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
 
-$(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile | $(BUILD)
+$(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-tsan|' -e 's|@FLAVOUR@|contracts compiled in, under ThreadSanitizer|' \
 	    -e 's|@CFLAGS@| $(TSAN_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS)|' $< | sed 's/ *$$//' > $@
 
