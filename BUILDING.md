@@ -183,7 +183,8 @@ here computes the same results, so the engine and the server can take them from 
 
 `test/kernels/fixtures/eq_design_ts.h` is what that TypeScript computes on fixed inputs at the nine
 RME rates, written by `tools/ts-golden.mjs design <openmixer> <contract-ts>` (Node 22.7 or later;
-`<contract-ts>` is omx-contract's TypeScript render, `dist/ts` of an unpacked omx-contract release). The `eq-design-ts` arm holds the C to it: a coefficient, a Q or
+`<contract-ts>` is omx-contract's TypeScript render, `omx-contract render --target ts --out <dir>`
+from a checkout of the installed release). The `eq-design-ts` arm holds the C to it: a coefficient, a Q or
 a frequency of the drawn grid within 4 ulp, a magnitude within 1e-9 dB, the bank's order, count and
 parked sections exactly. Two families of coefficient pass 4 ulp, both a cancellation that turns one
 ulp of V8's `exp` or `cos` into many (a matched bell or shelf at a low corner or a wide Q, and the
@@ -239,21 +240,31 @@ digest.
 ## The limits come from omx-contract
 
 omx-dsp commits no limits header. Every limit, travel, default, list and choice the kernels read
-is declared in FreeMixer/omx-contract and read through `<omxcontract/omx_contract_limits.h>`. The
-range is `omx-contract >= <floor> < <ceiling>` in `.github/pins.txt` (`>= 2.6.0 < 3`, the range
-`packaging/omx-dsp.spec` and `debian/control` declare). `tools/contract-include.sh` takes the installed
-`omx-contract-devel` / `libomx-contract-dev` whose `pkg-config --atleast-version` accepts the floor and
-which is below the ceiling, and the build stops, naming the package, when none is installed. Nothing is
-downloaded: no commit, no release tarball.
+is declared in FreeMixer/omx-contract and read through `<omxcontract/omx_contract_limits.h>`.
+The dependency is declared once, in the packaging: `packaging/omx-dsp.spec` (`BuildRequires`,
+`Requires`) and `debian/control` (`Build-Depends`, `Depends`) carry the same range, a floor and the
+next minor as the ceiling (`>= 2.10.1`, `< 2.11`), and `omxdsp.pc` requires the same range. Install
+it from the FreeMixer channel with the rest of the build dependencies:
+
+    dnf builddep packaging/omx-dsp.spec     # Fedora, with the FreeMixer repository added
+    apt-get build-dep ./                    # Debian, with the FreeMixer source list added
+
+`tools/contract-include.sh` finds the installed `omx-contract` with `pkg-config`: inside the range
+the spec declares, it prints the package's include directory; otherwise the build stops, naming the
+package, the range and the version installed. Nothing is downloaded and no version is pinned
+anywhere else. `tools/contract-include-selftest.sh` (`make checks`) holds the script to that range
+and `debian/control` to the spec's.
+
+With `--data` the script prints a directory of the kernels' controls, one `<kernel>.json` each,
+cut from the installed `omx-contract.json` into `build/omx-contract-kernels/<version>/`;
+`tools/face-conformance.sh` reads them.
 
 `OMX_CONTRACT_INC=<dir>` names another include directory (one that holds `omxcontract/`) and skips the
 version check. The perturbation arms use it, and so can you: render a contract with one value moved
 into a scratch directory, `make test`, and the kernel test that reads that value must go red.
-`tools/contract-include.sh --data` prints the directory of the installed package's kernel files, which
-`tools/face-conformance.sh` reads: the package's `data/kernels` or `kernels` when it ships them, else
-one `<kernel>.json` per kernel cut from the `omx-contract.json` it ships, written under `build/`.
-Raising the floor is one commit of its own, with the spec and `debian/control`. A name the kernels need that the contract lacks is added to
-the contract and released there first; it is never typed here.
+Moving the range is one commit of its own, in the spec and `debian/control` together. A name the
+kernels need that the contract lacks is added to the contract and released there first; it is never
+typed here.
 
 ## Packages
 
