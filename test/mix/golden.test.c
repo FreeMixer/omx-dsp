@@ -8,8 +8,9 @@
  *   build/mix_golden --write          print the lines the digest file holds
  *
  * The committed digests were written by this program compiled against the engine's own copies
- * (openmixer ae922d2e7d74, packages/pipewire-native/src: mix_dsp.h, mix_lcr.h, mix_bus.h) by
- * tools/mix-engine-identity.sh, so the moved code is held to the engine's output bit for bit
+ * (packages/pipewire-native/src: mix_dsp.h, mix_lcr.h, mix_bus.h, mix_gr_meter.h; openmixer
+ * ae922d2e7d74 for pan to clip, ca811a46c for hold and gr) by tools/mix-engine-identity.sh, so the
+ * moved code is held to the engine's output bit for bit
  * (openmixer docs/design/specs/2026-10-14-lane-output-path.md §6). -DOMX_GOLDEN_ENGINE is that
  * build: each kernel below names the library's call and the engine's.
  *
@@ -25,6 +26,10 @@
  *            between blocks: the bus, the cursors and the measured peaks
  *   peak     the block peak over one, two and aliased legs, and the per-leg peaks
  *   clip     the sustained-over run on blocks with runs of 0 to 5 full-scale samples
+ *   hold     the peak hold over a run of leg peaks, with equal, signed-zero and NaN peaks and a
+ *            cleared slot every 50 blocks
+ *   gr       the gain-reduction reading over runs of blocks of seven sizes, at seven release poles
+ *            (inside [0, 1) and outside it): the reading and its hold state after each block
  */
 #include <math.h>
 #include <stdint.h>
@@ -37,6 +42,7 @@
 #ifdef OMX_GOLDEN_ENGINE
 #include "mix_bus.h"
 #include "mix_dsp.h"
+#include "mix_gr_meter.h"
 #include "mix_lcr.h"
 #else
 #include <omxdsp/mix/omx_bus_out.h>
@@ -137,6 +143,30 @@ static int k_clip(const float *a, const float *b, uint32_t n, float scale) {
   return omx_sustained_over(a, b, n, scale, OMX_CLIP_LINEAR, OMX_CLIP_RUN);
 #else
   return omx_meter_clip_run(a, b, n, scale, OMX_METER_CLIP_LINEAR, OMX_METER_CLIP_RUN);
+#endif
+}
+
+static float k_hold(float held, float peak) {
+#ifdef OMX_GOLDEN_ENGINE
+  _Atomic float slot = held, other = 0.0f;
+  omx_meter_hold(&slot, &other, peak, 0.0f);
+  return slot;
+#else
+  return omx_meter_hold_peak(held, peak);
+#endif
+}
+
+#ifdef OMX_GOLDEN_ENGINE
+typedef struct omx_gr_meter golden_gr;
+#else
+typedef struct omx_meter_gr golden_gr;
+#endif
+
+static float k_gr(golden_gr *m, float block_db, uint32_t n, float sr, float pole) {
+#ifdef OMX_GOLDEN_ENGINE
+  return omx_gr_meter_step(m, block_db, n, sr, pole);
+#else
+  return omx_meter_gr_step(m, block_db, n, sr, pole);
 #endif
 }
 
@@ -257,6 +287,37 @@ static void render(const char *k, uint32_t rate) {
           put_u32((uint32_t)k_clip(g_a, NULL, m, scales[sc]));
           put_u32((uint32_t)k_clip(g_b, g_b, m, scales[sc]));
         }
+  } else if (strcmp(k, "hold") == 0) {
+    uint32_t s = rate ^ 0x401du;
+    float held_l = 0.0f, held_r = 0.0f;
+    for (uint32_t i = 0; i < m; i++) {
+      if (i % 50u == 0u) held_l = held_r = 0.0f; /* the reader's clear */
+      float pl = 0.5f * (lcg_noise(&s) + 1.0f) * (float)(i % 7u + 1u) / 7.0f;
+      float pr = 0.5f * (lcg_noise(&s) + 1.0f);
+      if (i % 97u == 3u) pl = NAN;
+      if (i % 89u == 5u) pr = held_r;
+      if (i % 83u == 0u) pl = -0.0f;
+      held_l = k_hold(held_l, pl);
+      held_r = k_hold(held_r, pr);
+      put_f(held_l);
+      put_f(held_r);
+    }
+  } else if (strcmp(k, "gr") == 0) {
+    static const float poles[] = {0.999f, 0.99995f, 0.5f, 0.0f, 1.0f, NAN, -0.25f};
+    const uint32_t sizes[] = {64u, m, 32u, 1u, 0u, 256u, rate / 1000u};
+    uint32_t s = rate ^ 0x6e0du;
+    for (uint32_t p = 0; p < 7u; p++) {
+      golden_gr g = {0.0f, 0.0f};
+      for (uint32_t b = 0; b < 3000u; b++) {
+        const float u = 0.5f * (lcg_noise(&s) + 1.0f);
+        float db = 0.0f;
+        if ((b / 400u) % 3u == 2u) db = -5.0f;
+        else if (u < 1.0f / 48.0f) db = -40.0f * 0.5f * (lcg_noise(&s) + 1.0f);
+        put_f(k_gr(&g, db, sizes[b % 7u], (float)rate, poles[p]));
+        put_f(g.db);
+        put_f(g.hold_left_s);
+      }
+    }
   }
 }
 
@@ -283,7 +344,7 @@ int main(int argc, char **argv) {
   const char *path = argc > 1 && !write ? argv[1] : "test/golden/mix.sha256";
   FILE *f = write ? NULL : fopen(path, "r");
   if (!write && !f) { fprintf(stderr, "mix_golden: cannot read %s\n", path); return 2; }
-  static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip"};
+  static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr"};
   const unsigned nk = sizeof kernels / sizeof kernels[0];
   int fail = 0, checked = 0;
   for (unsigned ki = 0; ki < nk; ki++)

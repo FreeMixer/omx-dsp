@@ -4,8 +4,8 @@
 #
 # mix-engine-identity.sh — the mix module (include/omxdsp/mix/) gives the same bits as the copies
 # OpenMixer's engine still carries in packages/pipewire-native/src (FreeMixer/omx-dsp#98): the pan
-# law, the LCR pan, the strip and fold coefficients, a bus's out stage, the block and leg peaks and
-# the clip run.
+# law, the LCR pan, the strip and fold coefficients, a bus's out stage, the block and leg peaks, the
+# clip run, the peak hold and the gain-reduction reading.
 #
 #   tools/mix-engine-identity.sh <openmixer>/packages/pipewire-native/src             the check
 #   tools/mix-engine-identity.sh --write <openmixer>/packages/pipewire-native/src     print the
@@ -16,13 +16,13 @@
 #                                                    kernel's digests
 #
 # test/mix/golden.test.c is compiled with -DOMX_GOLDEN_ENGINE, which calls the engine's mix_dsp.h,
-# mix_lcr.h and mix_bus.h instead of the library's mix headers, against the installed omx-contract
-# inside this tree's range (tools/contract-include.sh), or the include directory
-# ENGINE_IDENTITY_CONTRACT_INC names, whose header the engine's generated omx_console_limits.h
-# completes. Nothing is downloaded. Every primitive those headers include comes from a copy of this
+# mix_lcr.h, mix_bus.h and mix_gr_meter.h instead of the library's mix headers, against the
+# installed omx-contract inside this tree's range (tools/contract-include.sh), or the include
+# directory ENGINE_IDENTITY_CONTRACT_INC names, whose header the engine's generated
+# omx_console_limits.h completes. Nothing is downloaded. Every primitive those headers include comes from a copy of this
 # tree's include/ (ENGINE_IDENTITY_INCLUDE=<dir> takes them from another omx-dsp include directory)
 # in which omxdsp/omx_gen.h forwards to mix_dsp.h while the engine still carries its own generators,
-# so the two copies of their names never meet. The program must reach the three engine headers,
+# so the two copies of their names never meet. The program must reach the four engine headers,
 # then match the committed digests at every rate.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -30,7 +30,7 @@ PKG="$PWD"
 CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2}"
 INCLUDE="${ENGINE_IDENTITY_INCLUDE:-$PKG/include}"
-ENGINE_HEADERS="mix_dsp.h mix_lcr.h mix_bus.h"
+ENGINE_HEADERS="mix_dsp.h mix_lcr.h mix_bus.h mix_gr_meter.h"
 
 # engine_contract: the include directory of the omx-contract the engine's copies compile against: the
 # installed package inside this tree's range, or ENGINE_IDENTITY_CONTRACT_INC
@@ -115,6 +115,8 @@ fold|mix_bus.h|s/    float t = tgt \* fold_coef;/    float t = tgt * fold_coef *
 bus_out|mix_dsp.h|s/    busL\[i\] \*= omx_ramp_at(rl, i);/    busL[i] *= omx_ramp_at(rl, i) * 0.9999f;/
 peak|mix_dsp.h|s/      if (y > peak) peak = y;/      if (y > peak) peak = x;/
 clip|mix_dsp.h|s/      if (run_b >= need) return true;/      if (run_b > need) return true;/
+hold|mix_dsp.h|s/  if (l > atomic_load_explicit(slot_l, memory_order_relaxed))/  if (l < atomic_load_explicit(slot_l, memory_order_relaxed))/
+gr|mix_gr_meter.h|s/    m->hold_left_s = OMX_GR_HOLD_MS \* 0.001f;/    m->hold_left_s = OMX_GR_HOLD_MS * 0.0011f;/
 EOF
   # and a tree without the engine's headers compares nothing, so it must not pass either
   mkdir -p "$scratch/x/y/empty"

@@ -37,9 +37,10 @@
 #   make room-ts-golden OPENMIXER=<checkout>  core's room analysis and alignment fit, run under node from
 #               the checkout, against the committed parity table (tools/room-ts-golden.mjs)
 #   make test-mix  the mix module's golden digests (pan law, LCR, strip and fold coefficients, bus
-#               out stage, peak, clip) and a sabotage of each kernel against its oracle and digests
+#               out stage, peak, clip, peak hold, gain-reduction reading) and a sabotage of each
+#               kernel against its oracle and digests
 #   make mix-engine-identity OPENMIXER=<checkout>  the same digests rendered through the engine's own
-#               copies (mix_dsp.h, mix_lcr.h, mix_bus.h), and the check's sabotages
+#               copies (mix_dsp.h, mix_lcr.h, mix_bus.h, mix_gr_meter.h), and the check's sabotages
 #               (tools/mix-engine-identity.sh)
 
 CC      ?= cc
