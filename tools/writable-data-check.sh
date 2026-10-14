@@ -74,7 +74,7 @@ cd "$PKG"
 fail=0
 
 # ---- (a) symbols -----------------------------------------------------------------------------
-for h in include/omxdsp/*.h include/omxdsp/analysis/*.h; do
+for h in include/omxdsp/*.h include/omxdsp/analysis/*.h include/omxdsp/mix/*.h; do
   base="$(basename "$h" .h)"
   tu="$OUT/$base.c"
   printf '#include <%s>\nvoid omxdsp_wd_anchor_%s(void) {}\n' "${h#include/}" "$base" > "$tu"
@@ -104,7 +104,7 @@ $CC $CFLAGS -c -o "$OUT/probe.o" "$OUT/probe.c"
 if [ -z "$(writable "$OUT/probe.o")" ]; then echo "writable-data-check: FAIL the symbol probe cannot see a planted static"; fail=1; fi
 
 # ---- (b) source ------------------------------------------------------------------------------
-hits="$(scan include/omxdsp/*.h include/omxdsp/analysis/*.h src/*.c)"
+hits="$(scan include/omxdsp/*.h include/omxdsp/analysis/*.h include/omxdsp/mix/*.h src/*.c)"
 if [ -n "$hits" ]; then echo "writable-data-check: FAIL mutable static or thread-local state in the library:"; echo "$hits"; fail=1; fi
 printf 'static float g_last;\n' > "$OUT/probe_src.h"
 if [ -z "$(scan "$OUT/probe_src.h")" ]; then echo "writable-data-check: FAIL the source scan cannot see a planted static"; fail=1; fi
