@@ -85,4 +85,6 @@ run fold mix_coef omx_mix_coef.h 's|  float t = level \* fold_coef;|  float t = 
 run bus_out mix_bus_out omx_bus_out.h 's|    busL\[i\] \*= omx_ramp_at(rl, i);|    busL[i] *= omx_ramp_at(rl, i) * 0.9999f;|'
 run peak mix_meter omx_meter.h 's|      if (y > peak) peak = y;|      if (y > peak) peak = x;|'
 run clip mix_meter omx_meter.h 's|      if (run_b >= need) return true;|      if (run_b > need) return true;|'
+run hold mix_meter omx_meter.h 's|  return peak > held ? peak : held;|  return peak > held ? peak : held * 0.9999f;|'
+run gr mix_meter_gr omx_meter.h 's|    m->hold_left_s = OMX_METER_GR_HOLD_MS \* 0.001f;|    m->hold_left_s = OMX_METER_GR_HOLD_MS * 0.0011f;|'
 echo "mix-sabotage: every kernel's sabotage turns its oracle and its digests red"
