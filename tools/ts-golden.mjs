@@ -209,8 +209,7 @@ async function design() {
   out.push(' * for the EQ on fixed inputs at the nine RME rates — core\'s rbjCoeffs, complementSection,');
   out.push(' * eqBandIsIdentity, eqCoeffs, passFilterCoeffs and biquadMagnitudeDb, the');
   out.push(' * web surface\'s eqStateCurveDb, compositeCurveDb and magnitudeSumDb');
-  out.push(' * and the catalog\'s octavesToQ');
-  out.push(' * Do not edit; regenerate. */');
+  out.push(' * and the catalog\'s octavesToQ. Do not edit; regenerate. */');
   out.push('#ifndef OMXDSP_TEST_EQ_DESIGN_TS_H');
   out.push('#define OMXDSP_TEST_EQ_DESIGN_TS_H');
   out.push('');
