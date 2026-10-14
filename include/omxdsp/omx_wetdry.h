@@ -62,4 +62,23 @@ static inline void omx_wetdry_loop(float *l, float *r, float *fl, float *fr, flo
   omx_wetdry_mix(l, r, xl, xr, wl, wr, dry, mix);
 }
 
+/**
+ * @brief The one-block crossfade from `from` to `to`, constant-gain linear: at sample `i` the gains
+ *        are `1 − i/n` and `i/n`, which sum to 1.
+ *
+ * The sample is `from + (to − from)·(i/n)`, not `(1 − g)·from + g·to`: two identical bodies read
+ * back bit for bit, because `to − from` is exactly 0. The first sample is `from`; the block never
+ * reaches `to`, so the next block's first sample continues the fade or the steady copy.
+ * @param dst Receives the `n` crossfaded samples.
+ * @param from The outgoing body, `n` samples.
+ * @param to The incoming body, `n` samples.
+ * @param n Samples in the block; 0 writes nothing.
+ * @pre `dst` aliases neither `from` nor `to`.
+ * @note RT-safe: one multiply-add per sample, no state, no call. Reentrant.
+ */
+static inline void omx_wetdry_xfade_block(float *dst, const float *from, const float *to, uint32_t n) {
+  const float step = 1.0f / (float)n;
+  for (uint32_t i = 0; i < n; i++) dst[i] = from[i] + (to[i] - from[i]) * (step * (float)i);
+}
+
 #endif /* OMX_WETDRY_H */
