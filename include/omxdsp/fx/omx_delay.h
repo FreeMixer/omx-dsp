@@ -90,7 +90,7 @@ static inline float omx_bpm_division_ms(float bpm, float division_beats) {
  */
 static inline float omx_fxdelay_tone_pole(float tone, float sr) {
   /* A non-finite tone is no tone at all (pole 0, bright): a NaN carried into the damping state
-   * stays there for good (2026-09-25-native-fx-rt-review.md F5). */
+   * stays there for good. */
   const float p = omx_clamp_or(tone, 0.0f, 1.0f, 0.0f);
   /* pole 0 (bright) and pole 1 (frozen) are their own fixed points; so is the reference rate,
    * and an sr the caller could not supply leaves the knob exactly as it was. */
@@ -163,8 +163,8 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   uint32_t dl = omx_fxdelay_clamp(p->d_l, cap);
   uint32_t dr = omx_fxdelay_clamp(p->d_r, cap);
   /* A non-finite feedback is no feedback at all — the flanger's rule (omx_flanger_clamp_fb): one
-   * NaN written into the ring circulates until the insert is toggled
-   * (2026-09-25-native-fx-rt-review.md F5). The travel is the declared FX_DELAY_FEEDBACK_RANGE,
+   * NaN written into the ring circulates until the insert is toggled.
+   * The travel is the declared FX_DELAY_FEEDBACK_RANGE,
    * whose ceiling stays below 1: repeats never grow unbounded. A non-finite mix is dry. */
   float fb = omx_clamp_or(p->feedback, OMX_FX_DELAY_FEEDBACK_RANGE_MIN, OMX_FX_DELAY_FEEDBACK_RANGE_MAX, 0.0f);
   float mix = omx_clamp_or(p->mix, 0.0f, 1.0f, 0.0f);

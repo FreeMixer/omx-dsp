@@ -24,7 +24,7 @@
  *   make test-fx                     compare fx/omx_reverse_render.h with them
  *
  * The 32, 64 and 128 kHz lines were added later by fx/omx_reverse_render.h itself (`--write`), with
- * the six the engine wrote unchanged (#75).
+ * the six the engine wrote unchanged.
  */
 #include <stdint.h>
 #include <stdlib.h>

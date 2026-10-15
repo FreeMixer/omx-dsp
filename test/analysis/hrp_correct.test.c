@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * Standalone unit test for the SHARED correcting half (hrp_correct.h) —
- * the hrp polyphonic architecture spec §16/§23/§25/§26/§29/§30:
+ * Standalone unit test for the SHARED correcting half (hrp_correct.h):
  *   cc -Wall -Wextra -O2 -o build/hrp_correct_test src/hrp_correct.test.c -lm && ./build/hrp_correct_test
  * (also driven from `pnpm test` via the test:dsp script).
  *

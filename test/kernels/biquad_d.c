@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
-/* ---- the double-precision section and cascade (spec §1 row 2a) ------------------------------- */
+/* ---- the double-precision section and cascade ------------------------------- */
 
 /* The steady-state magnitude of a DOUBLE section at `hz`, by a sine through omx_biquad_d(). */
 static double section_d_mag_at(const double c[5], double hz, double sr, double secs) {

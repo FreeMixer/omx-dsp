@@ -94,7 +94,7 @@ static void arm_fdelay(void) {
   fdelay_moved_arms();
 }
 
-/* ---- tick_pair against two ticks (#57) --------------------------------------------------------
+/* ---- tick_pair against two ticks --------------------------------------------------------
  * omx_fdelay_tick_pair splits the delay once and computes one kernel for both lines; its reads
  * must be the bits two omx_fdelay_tick calls give. Orders 3 and 5, 20 000 samples each of a swept
  * fractional delay and of whole delays, the two legs fed different signals (one of them partly
@@ -144,18 +144,18 @@ static void fd_arm_tick_pair(void) {
 
 /* ---- the fractional delay line against a CLOSED-FORM oracle (moved from openmixer) -----------
  *
- * Spec: fractional delay line design §4, arms A-D; these lived in the engine's
+ * These lived in the engine's
  * mix_fdelay.test.c. The oracle is
  * ../fx/fdelay_oracle.h's omx_oracle_fdelay: the same unique interpolating polynomial built by
  * NEWTON'S DIVIDED DIFFERENCES over the complex-exponential samples, never forming a Lagrange
  * coefficient, so the kernel is never compared with itself. Nothing below is a recorded number
- * except the spec's own §2 figures, which the MEASURED worst cases are compared against.
+ * except the ruled figures, which the MEASURED worst cases are compared against.
  *
  *   A — EXACT COPY: orders 3 and 5, every integer delay 0..64, BOTH doors, input below the flush
  *       floor; plus the memcmp ruler's positive control.
  *   B — THE §2 TABLE at the nine RME rates: a 20 kHz tone (15 kHz at 32 kHz, whose Nyquist is
  *       16 kHz), 101 fractions, loss and GROUP DELAY measured by DFT against the closed form
- *       within 0.01 dB / 0.001 sample; the spec's figures at the six rates it quotes, 0.01 dB /
+ *       within 0.01 dB / 0.001 sample; the ruled figures at the six rates it quotes, 0.01 dB /
  *       0.01 µs; the band sweep 1-20 kHz; and the REFUSED linear row from the closed form.
  *   C — NO CLICK: a 1 kHz tone under a slewed delay steps no more than the derived bound, with a
  *       nearest-sample slew as the positive control, at the nine RME rates.
@@ -181,7 +181,7 @@ static double fd_oracle_gd(int order, double d, double w, double dw) {
   return -fd_wrap_pi(p2 - p1) / (2.0 * dw);
 }
 
-/** The arm-B tone at `sr`: 20 kHz (the spec's column) wherever it is below Nyquist; at 32 kHz
+/** The arm-B tone at `sr`: 20 kHz (the ruled column) wherever it is below Nyquist; at 32 kHz
  *  the band's next tone, 15 kHz — a 20 kHz tone there is a 12 kHz alias, not a 20 kHz point. */
 static double fd_b_tone(double sr) { return 20000.0 < 0.5 * sr ? 20000.0 : 15000.0; }
 
@@ -306,7 +306,7 @@ static void fd_measure(int order, double d, uint32_t win, int bi, double *mi, do
   fd_dft_bin(fd_bout, win, bi, mo, po);
 }
 
-/* The spec §2 table as the operator ruled it (2026-09-20), carried into the spec to two decimals:
+/* The loss table, ruled 2026-09-20, to two decimals:
  * worst loss (dB) and worst group-delay error (µs) at 20 kHz over 101 fractions, {order 3,
  * order 5}. It quotes the six declared rates only; 32, 64 and 128 kHz have no row and are held to
  * the closed form alone. ONE TOLERANCE FOR EVERY ROW — 0.01 dB, 0.01 µs: a looser row is a rate
@@ -384,8 +384,8 @@ static void fd_arm_b_the_table(double sr) {
              order);
     ok(worst_dgd <= 0.001, what, worst_dgd, 0.001);
     if (row >= 0) {
-      /* AND THE RULING'S OWN NUMBERS, to the hundredth the spec quotes them at. */
-      snprintf(what, sizeof what, "%.0f Hz, order %d: the worst loss IS the spec §2 figure", sr, order);
+      /* AND THE RULING'S OWN NUMBERS, to the hundredth the ruling quotes them at. */
+      snprintf(what, sizeof what, "%.0f Hz, order %d: the worst loss IS the ruled figure", sr, order);
       ok(fabs(worst_loss - FD_TABLE[row].loss[oi]) <= 0.01, what, worst_loss, FD_TABLE[row].loss[oi]);
       snprintf(what, sizeof what, "%.0f Hz, order %d: and so is the worst delay error", sr, order);
       ok(fabs(worst_err_us - FD_TABLE[row].err_us[oi]) <= 0.01, what, worst_err_us,
@@ -458,11 +458,11 @@ static void fd_arm_b_the_refused_row(double sr) {
   char what[200];
   /* §2's linear row: 96 kHz loss and delay error, 48 kHz loss (no delay-error cell there). */
   if (sr == 96000.0) {
-    ok(fabs(worst[0] - (-2.01)) <= 0.01, "96 kHz: linear's loss IS the spec §2 figure", worst[0], -2.01);
+    ok(fabs(worst[0] - (-2.01)) <= 0.01, "96 kHz: linear's loss IS the ruled figure", worst[0], -2.01);
     ok(fabs(err_us - 1.00) <= 0.01, "96 kHz: and so is its delay error", err_us, 1.00);
   }
   if (sr == 48000.0)
-    ok(fabs(worst[0] - (-11.74)) <= 0.01, "48 kHz: linear's loss IS the spec §2 figure", worst[0], -11.74);
+    ok(fabs(worst[0] - (-11.74)) <= 0.01, "48 kHz: linear's loss IS the ruled figure", worst[0], -11.74);
   /* THE ORDERING THE RULING TURNS ON: linear the worst row of the three and order 5 the best, in
    * loss AND in delay error (the engine asserted it at 96 and 48 kHz; here at every RME rate). */
   snprintf(what, sizeof what, "%.0f Hz: linear loses more than Lagrange-3, which loses more than Lagrange-5",
@@ -474,7 +474,7 @@ static void fd_arm_b_the_refused_row(double sr) {
 
 static void fd_arm_b(void) {
   g_arm = "fdelay B the table";
-  /* Every row the spec quotes is compared: a table rate that left the RME set would drop a row. */
+  /* Every row the ruling quotes is compared: a table rate that left the RME set would drop a row. */
   for (unsigned r = 0; r < FD_TABLE_ROWS; r++) {
     int found = 0;
     for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++)
@@ -697,7 +697,7 @@ static void fd_arm_d_the_ring(void) {
      0.0);
   ok(l.order == 0 && l.ring == 0, "and the line is left unarmed", 0.0, 0.0);
   ok(omx_fdelay_init(&l, ring, 64u, 1) == OMX_FDELAY_BAD_ORDER,
-     "order 1 — LINEAR interpolation — is refused by code (spec §1)", 0.0, 0.0);
+     "order 1 — LINEAR interpolation — is refused by code", 0.0, 0.0);
   ok(omx_fdelay_init(&l, ring, 64u, 7) == OMX_FDELAY_BAD_ORDER,
      "an order past the kernel's tap array is refused by code", 0.0, 0.0);
   ok(omx_fdelay_init(&l, ring, 3u, 5) == OMX_FDELAY_RING_TOO_SMALL,

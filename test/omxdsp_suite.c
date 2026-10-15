@@ -2,15 +2,14 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * omxdsp_suite.c — the library suite: every primitive's oracle at every declared rate, with
- * contracts ON, ending on an EMPTY ledger (the dsp primitives spec §8b).
+ * contracts ON, ending on an EMPTY ledger.
  * Pure C, -lm, no other package.
  *
  * Each primitive's arm lives in its own file under test/kernels/ (`static void arm_<name>(void)`,
  * filename `<name>.c`) instead of being appended here: two kernel lanes adding an arm each used
  * to both edit this file's main(), on the same lines. `tools/kernels-gen.sh` globs test/kernels/
  * sorted by filename and writes the include list + call array below into a build artefact this
- * file pulls in — never committed, never hand-edited
- * (the no stored derivations spec).
+ * file pulls in — never committed, never hand-edited.
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omxdsp.h>

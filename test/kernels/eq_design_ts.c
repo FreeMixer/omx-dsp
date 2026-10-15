@@ -14,7 +14,7 @@
  * grid frequency, 8.6e-13 dB for a magnitude, and every cookbook coefficient within 4 ulp. */
 #define EQ_TS_TOL_ULP 4
 #define EQ_TS_TOL_DB 1e-9
-/* The gap the spec asks to be named: two families of coefficient pass 4 ulp, both from a
+/* The gap the design asks to be named: two families of coefficient pass 4 ulp, both from a
  * cancellation that turns one libm ulp into many.
  *  - The matched bells and shelves at a low corner or a wide Q (20 Hz or 1 kHz at Q 0.3): the
  *    gain normalisation divides two pair values `dc = (1 − e·cos θ)² + (e·sin θ)²` that are each
@@ -41,7 +41,7 @@ static double eq_ts_ulps(double a, double b) {
 /* omx-dsp#105 moved the low-pass past the start of its hand-over band off the matched design the
  * TypeScript still runs: a row, run or composite holding such a section is counted and left out,
  * and every other row is held as before. openmixer's TypeScript follows when its EQ design reads
- * the C (#1601); this exception goes when the fixture is regenerated from that TypeScript. */
+ * the C; this exception goes when the fixture is regenerated from that TypeScript. */
 static int eq_ts_lp_moved(enum omx_eq_kind kind, double freq_hz, double q, double sr) {
   double band[2];
   omx_eq_lowpass_handover(q <= 0.0 ? 1e-3 : q, band);

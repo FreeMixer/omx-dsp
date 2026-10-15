@@ -3,10 +3,9 @@
  *
  * omx_hrp_lv2.h — HRP+ AS A LIVE INSERT: the third shell's core, with no LV2 in it.
  *
- * Spec: the recording vsc spec §0.5 ("one C core, three shells": the
- * console, a CLI, and an LV2 plugin for sound hosts) over
- * the hrp polyphonic architecture spec, whose laws bind here in FULL —
- * this is the live tier, so none of the three constraints §0.5 lifts for the offline render is
+ * The third shell of one C core ("one C core, three shells": the console, a CLI, and an LV2
+ * plugin for sound hosts), over the HRP design, whose laws bind here in FULL —
+ * this is the live tier, so none of the three constraints the offline render lifts is
  * lifted here, and the header says at each one why not.
  *
  * ## What this file is, and what hrp_lv2.c is

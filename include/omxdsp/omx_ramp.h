@@ -6,7 +6,6 @@
  *
  * `g(i) = cur + step·i`, `step = (tgt − cur)/n`; a non-finite end reads as 0, and closing the
  * ramp stores the target itself, never the accumulated sum. Design:
- * the dsp primitives spec §1 row 19.
  */
 #ifndef OMX_RAMP_H
 #define OMX_RAMP_H

@@ -6,8 +6,7 @@
  *        `4t(1−|t|)`, `t = 2u−1`, which is −sin(2πu) to within 0.0561.
  *
  * One oscillator is read at N fixed offsets rather than advanced N times, so an ensemble's
- * voices cannot drift apart. Design: the chorus and flanger spec §1 and
- * the dsp primitives spec §1 row 12.
+ * voices cannot drift apart.
  */
 #ifndef OMX_LFO_H
 #define OMX_LFO_H

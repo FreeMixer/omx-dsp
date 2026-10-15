@@ -22,7 +22,7 @@
  * Editing either implementation's arithmetic turns one of those red. Regenerating this file
  * to make a red go green is changing the contract, and is a decision, not a fix.
  *
- * THE DESIGN IS MATCHED, NOT BILINEAR (operator ruling, 2026-09-14), which is why this file
+ * THE DESIGN IS MATCHED, NOT BILINEAR, which is why this file
  * was regenerated and why it is no longer called `hrp_rbj_corpus.h`. The curve is the analogue
  * peaking prototype placed by the matched-Z map `z = exp(sT)`; the RBJ cookbook it replaced
  * was a bilinear image of the same prototype, 1.28 dB low at 20 kHz on a +12 dB bell at 16 kHz

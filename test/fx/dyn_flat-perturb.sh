@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# dyn_flat-perturb.sh — test/fx/dyn_flat.test.c sees each defect of the flat-gain path (#56). Each
+# dyn_flat-perturb.sh — test/fx/dyn_flat.test.c sees each defect of the flat-gain path. Each
 # sabotage is applied to a COPY of omx_dyn.h placed ahead of the real include directory, and the
 # oracle built against it must go red in the named arm:
 #   off    — the kernel runs the gain computer on every sample, as before #56: the calls arm;

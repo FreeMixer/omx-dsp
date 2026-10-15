@@ -7,8 +7,6 @@
  *
  * A whole-sample delay is an exact copy (the kernel is skipped), a zero tap is skipped rather
  * than multiplied, and the ring is sized for the longest delay plus the kernel's reach.
- * Design: the fractional delay line spec (RULED) and
- * the dsp primitives spec §1 row 13.
  */
 #ifndef OMX_FDELAY_H
 #define OMX_FDELAY_H

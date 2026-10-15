@@ -3,7 +3,6 @@
 /*
  * chorus.test.c — the chorus against the closed form of its own swept comb.
  *
- * Spec: the chorus and flanger spec §2 and §9, at the four basic rates
  * (44.1 / 48 / 96 / 192 kHz — the operator's 2026-09-20 ruling, memory
  * `feedback_dsp_oracles_measure_four_rates_minimum`).
  *
@@ -14,7 +13,7 @@
  * one run per phase, then a DFT at any frequency — no window, no leakage, no bin grid. The
  * oscillator is then let go for arm D, which is the only arm that needs it to move.
  *
- * The closed form is the spec's:  H(w) = (1 − mix) + (mix/N)·Σ_k R(w, d_k),  with R the LINE's
+ * The closed form is the design's:  H(w) = (1 − mix) + (mix/N)·Σ_k R(w, d_k),  with R the LINE's
  * own response (Newton divided differences, `test-support/fdelay_oracle.h`) and NOT the ideal
  * e^{-jwd} — so no arm compares the kernel with itself, and none of them is loosened to absorb
  * the interpolator's own 0.5 dB at 20 kHz.
@@ -144,7 +143,7 @@ static double complex closed_form(const struct omx_chorus *p, double phase, doub
   return (1.0 - (double)p->mix) + ((double)p->mix / (double)p->voices) * wet;
 }
 
-/** The delay voice 0 reads at `phase` — the spec's `base + depth·(1 + s(φ))/2`, in samples. */
+/** The delay voice 0 reads at `phase` — the design's `base + depth·(1 + s(φ))/2`, in samples. */
 static double voice0_delay(const struct omx_chorus *p, double phase) {
   struct omx_lfo lfo = {(float)phase, 0.0f, 0.0f};
   return (double)omx_chorus_voice_delay(p, &lfo, 0, p->voices);
@@ -156,7 +155,7 @@ static void arm_a_delay_follows(void) {
   double worst = 0.0, worst_control = 1e9;
   for (int ri = 0; ri < 4; ri++) {
     const double sr = RATES[ri];
-    /* The vocal template of spec §3a, wet only so the centroid is the WET path's alone. */
+    /* The vocal template ofWET path's alone. */
     const struct omx_chorus p = atom(sr, OMX_CHORUS_BASE_MS, 4.0, 1, 1.0);
     for (int i = 0; i < 16; i++) {
       const double phase = (double)i / 16.0;
@@ -351,7 +350,7 @@ static void arm_e_no_click(void) {
   for (int ri = 0; ri < 4; ri++) {
     const double sr = RATES[ri];
     const double wt = 2.0 * M_PI * f / sr;
-    /* The deepest, fastest modulation the row's travel allows (spec §3a) — the worst case for a
+    /* The deepest, fastest modulation the row's travel allows — the worst case for a
      * click by a long way. */
     struct omx_chorus p = atom(sr, OMX_CHORUS_BASE_MS, OMX_CHORUS_MAX_DEPTH_MS, 1, 1.0);
     struct omx_chorus_state s;

@@ -28,10 +28,10 @@
  * sit at distances `id + off + 1 − k` for k = 0..N, so their values under a complex exponential
  * are `e^{-jw·distance}`; Newton's divided differences through those N+1 points, evaluated at the
  * read point, IS the interpolated sample. The ideal answer would be `e^{-jwd}`, and the
- * difference between the two is what the fdelay spec's §2 table measures.
+ * difference between the two is what the design table measures.
  *
  * `d` is taken as the line's CLAMPED delay — the caller passes what `omx_fdelay_latency` would
- * answer, which for every control range in the modulation specs is the request itself.
+ * answer, which for every control range of the modulation stages is the request itself.
  */
 static inline double complex omx_oracle_fdelay(int order, double d, double w) {
   const int off = (order - 1) / 2;

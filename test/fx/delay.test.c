@@ -158,7 +158,7 @@ static void test_zero_delay_is_passthrough(void) {
 }
 
 
-/* The arms moved here from mix_fx_rt_review.test.c (2026-09-25-native-fx-rt-review.md) report a
+/* The arms moved here from mix_fx_rt_review.test.c report a
  * measurement beside the verdict. */
 static void review_ok(int cond, const char *what, double measured, double limit) {
   char b[320];

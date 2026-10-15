@@ -4,7 +4,7 @@
  * @file omx_limiter.h (formerly mix_limiter.h)
  * @brief The precision limiter: a look-ahead, true-peak, stereo-linked brickwall.
  *
- * Spec: the precision limiter spec §1. Composed from the library words only:
+ * Composed from the library words only:
  * {@link omx_truepeak_block} is the detector, {@link omx_gaincomp_db} the request (ABOVE, knee 0, at
  * the ratio travel's ceiling, scaled by `R/(R−1)`), {@link omx_lookahead_min_push} the hold,
  * {@link omx_env_step} the release on the gain depth, {@link omx_lookahead_tick} the attack box and the

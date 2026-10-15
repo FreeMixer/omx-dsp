@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * phaser.test.c — the phaser's oracle, the native phaser spec §7 arms
+ * phaser.test.c — the phaser's oracle, the design arms
  * B, B′, C, D, E, F, G, G′ and H at every declared rate (OMX_DECLARED_RATES). Arm A, the section,
  * is the library suite's `allpass1` arm. Every closed form is §2's, evaluated in double; every
  * measurement is a direct DTFT (Goertzel) of the kernel's own output. No arm compares the kernel

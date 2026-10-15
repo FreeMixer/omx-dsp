@@ -3,7 +3,7 @@
 /*
  * omx_chorus.h — the native CHORUS stage: N voices reading ONE modulated fractional delay line.
  *
- * Spec: the chorus and flanger design, chorus half. The primitives are
+ * The chorus half of the chorus and flanger pair. The primitives are
  * `mix_fdelay.h` at order 3 (the fdelay ruling's own row for this consumer) and `mix_lfo.h`;
  * nothing here is a kernel of its own.
  *
@@ -17,7 +17,7 @@
  *     y      = (1 − mix)·x + (mix/N)·Σ_k line(d_k(t))
  *
  * At N = 1 and mix = 0.5 that is a comb whose notches sit at f = (2m+1)/(2d) and whose peaks sit
- * at f = m/d, both MOVING with d(t) — the swept comb the spec's §2 measures against its closed
+ * at f = m/d, both MOVING with d(t) — the swept comb the oracle measures against its closed
  * form at four rates.
  *
  * ## The five things this file is careful about
@@ -30,11 +30,10 @@
  *  3. NO GAIN ELEMENT. The voices sum at 1/N and the wet/dry mix is convex; the one thing that
  *     is NOT convex is the Lagrange-3 read itself, whose taps overshoot by its ℓ1 norm Λ
  *     (`OMX_FDELAY_READ_L1_NORM`, 1.25 at the half sample). So |y| ≤ ((1−mix) + mix·Λ)·max|x|
- *     ≤ Λ·max|x| — the `no-gain-added` law as spec §6 states it, held by the shape of the
+ *     ≤ Λ·max|x| — the `no-gain-added` law, held by the shape of the
  *     arithmetic and not by a clamp, and published by `omx_chorus_gain_bound`.
  *  4. BOTH LEGS, ONE PHASE — unless the row asks. At `spread` 0 both legs read the same instant
- *     of the oscillator, so a mono source stays mono: width is the BUS's fact
- *     (2026-08-07-one-summing-bus.md). The one declared exception is the Dimension (spec §2):
+ *     of the oscillator, so a mono source stays mono: width is the BUS's fact. The one declared exception is the Dimension:
  *     the right leg's voice k reads the SAME oscillator at k/N + spread through `omx_lfo_at`'s
  *     offset — no second oscillator, no pan, and at spread 0 the right leg reuses the left leg's
  *     delay word, so the stage is the one-phase stage bit for bit.
@@ -62,10 +61,10 @@
  *  allocates nothing. */
 #define OMX_CHORUS_MAX_VOICES OMX_CHORUS_VOICES_RANGE_MAX
 
-/* The base delay (OMX_CHORUS_BASE_MS) is declared in omx-contract: the shortest delay any voice reads (spec §3a). */
-/** The deepest sweep the row may ask for, ms (spec §3a's `depth` ceiling). */
+/* The base delay (OMX_CHORUS_BASE_MS) is declared in omx-contract: the shortest delay any voice reads. */
+/** The deepest sweep the row may ask for, ms. */
 #define OMX_CHORUS_MAX_DEPTH_MS ((float)OMX_CHORUS_DEPTH_RANGE_MAX)
-/** The widest right-leg offset, turns: half a turn is the Dimension's opposed sweep (spec §3a),
+/** The widest right-leg offset, turns: half a turn is the Dimension's opposed sweep,
  *  and past it the offset only repeats the other side of the circle. The row's travel ceiling,
  *  generated from CHORUS_SPREAD_RANGE (dsp-primitives §7, the scalar door). */
 #define OMX_CHORUS_SPREAD_MAX OMX_CHORUS_SPREAD_RANGE_MAX
@@ -93,7 +92,7 @@ struct omx_chorus {
   float mix;           /* 0 = dry (bit-identical), 1 = wet only */
   /* The right leg's read offset, TURNS of the one oscillator, 0..OMX_CHORUS_SPREAD_MAX: voice k
    * of the right leg reads the LFO at k/N + spread. 0 = both legs one phase, bit-identical to the
-   * stage without the field (spec §2). Last, so a positional initialiser leaves it 0. */
+   * stage without the field. Last, so a positional initialiser leaves it 0. */
   float spread;
 };
 
@@ -155,7 +154,7 @@ static inline float omx_chorus_voice_delay(const struct omx_chorus *p, const str
 #define OMX_CONTRACT_STAGE "chorus/voice-delay-right"
 /**
  * @brief The delay the RIGHT leg's voice `k` of `n` reads: the left leg's sweep read `spread`
- *        turns further round the one oscillator (spec §2, `d_k^R`).
+ *        turns further round the one oscillator.
  * @param p The resolved atom; `p->spread` in [0, OMX_CHORUS_SPREAD_MAX].
  * @param lfo The stage's one oscillator, read and never moved.
  * @param k The voice, in [0, n).
@@ -175,11 +174,11 @@ static inline float omx_chorus_voice_delay_right(const struct omx_chorus *p,
 #undef OMX_CONTRACT_STAGE
 
 /** The stage's own effect time, in samples: the ends of the sweep. A READBACK for the row, never
- *  a latency term — the dry path is direct and nothing downstream waits (spec §5). */
+ *  a latency term — the dry path is direct and nothing downstream waits. */
 /**
  * The most this stage can exceed its input by, as a LINEAR factor: (1 − mix) + mix·Λ, Λ the read
  * kernel's ℓ1 norm read from the generated header — never above Λ. The `no-gain-added` law's
- * bound (spec §6): the 1/N voice sum is convex, each voice read is at most Λ·max|x|.
+ * bound: the 1/N voice sum is convex, each voice read is at most Λ·max|x|.
  */
 static inline float omx_chorus_gain_bound(const struct omx_chorus *p) {
   const float mix = omx_unit(p->mix);
@@ -205,7 +204,7 @@ static inline void omx_chorus_process(float *l, float *r, uint32_t n, const stru
   /* CONTRACT (omx_contract.h). A chorus is a CONVEX combination of the dry signal and the mean of
    * N fractional reads of its own past: there is no gain element in it, and the only overshoot is
    * the read kernel's own, so |y| ≤ omx_chorus_gain_bound·max|x| ≤ Λ·max|x| whatever the controls
-   * say — the `no-gain-added` law as spec §6 states it. The delays are
+   * say — the `no-gain-added` law. The delays are
    * inside the line's own reach (the resolve's clamp is the enforcement half, stated here because
    * here is where a bad one would be read), and mix == 0 leaves the block bit-identical. */
   OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
@@ -241,7 +240,7 @@ static inline void omx_chorus_process(float *l, float *r, uint32_t n, const stru
    * per-sample form made, so the delays it yields are the same bits. */
   float off[OMX_CHORUS_MAX_VOICES];
   for (int k = 0; k < voices; k++) off[k] = (float)k / (float)voices;
-  /* The right leg's places, `spread` turns further round the SAME oscillator (spec §2, d_k^R). */
+  /* The right leg's places, `spread` turns further round the SAME oscillator. */
   float off_r[OMX_CHORUS_MAX_VOICES];
   for (int k = 0; k < voices; k++) off_r[k] = split ? omx_lfo_wrap(off[k] + p->spread) : off[k];
   /* Both legs are armed over rings of one size at one order and written in lockstep, so a delay

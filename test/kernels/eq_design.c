@@ -18,7 +18,7 @@ static double section_mag_at(const float c[5], double hz, double sr) {
   return 20.0 * log10(2.0 * sqrt(re * re + im * im) / meas);
 }
 
-/* ---- the matched design against its ANALOGUE prototype (operator ruling, 2026-09-14) -------- */
+/* ---- the matched design against its ANALOGUE prototype -------- */
 
 /* The prototypes, transcribed from the filter definitions and not from the design under test: s is
  * normalised to w0, so s = i*x with x = f/f0, and A = 10^(g/40). Returned as |H(i*x)|^2 (power). */

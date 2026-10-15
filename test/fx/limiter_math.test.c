@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The precision limiter against its declared contracts (2026-09-27-precision-limiter.md §1), the
+ * The precision limiter against its declared contracts, the
  * limiter arm of the engine's rt_contracts.test.c moved with the kernel: random ceiling, look-ahead
  * and release inside LIMITER_LIMITS, every shape, every declared rate, four blocks in a row,
  * stereo-linked and mono. Engaged: finite, no contract violation, no sample past the ceiling.

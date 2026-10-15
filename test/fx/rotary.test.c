@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * mix_rotary.test.c — the rotary stage's oracle, the rotary speaker spec §5
+ * mix_rotary.test.c — the rotary stage's oracle, the design
  * arms A and H, at the nine RME rates (32 to 192 kHz), closed forms in double.
  *
  *   A  frozen rotors: `speed: stop` with both rotors settled at rate 0 at 8 phases each; the
@@ -40,7 +40,7 @@ static void drain_violations(const char *where, double sr) {
   ok(unexplained == 0u, where, sr, (double)unexplained, 0.0);
 }
 
-/* The spec's §3 default speeds, Hz — the row lane declares them as ROTARY_*_RANGE defaults. */
+/* The default speeds, Hz — the row lane declares them as ROTARY_*_RANGE defaults. */
 #define HORN_SLOW 0.8f
 #define HORN_FAST 6.8f
 #define DRUM_SLOW 0.7f

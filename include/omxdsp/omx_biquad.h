@@ -6,7 +6,6 @@
  *
  * Direct form I keeps the raw input and output history as its state, so a coefficient set
  * swapped live re-reads real samples with no rescaling. Design:
- * the dsp primitives spec §1 rows 1–2 and Appendix A.
  */
 #ifndef OMX_BIQUAD_H
 #define OMX_BIQUAD_H
@@ -59,11 +58,11 @@ static inline int omx_biquad_stable(const double c[5]) {
  *
  * The section a crossover runs: its identity `lo + hi = AP` holds to the double's rounding at a
  * corner whose poles sit within `2π·fc/sr` of the unit circle, where the float section loses it
- * (dsp-primitives spec Appendix A). Named distinctly from omx_biquad_d() (direct form I, double
+ * Named distinctly from omx_biquad_d() (direct form I, double
  * coefficients, `s[4]`): both forms are needed — DF1 for the float cascade's bit-identical
  * per-section history, TDF2 double for the all-pass/crossover's coefficient sensitivity at a
  * corner near the unit circle (ruling 2026-09-28: the primitive collision between
- * lane/cat-allpass-band and graphic-eq/dsp-primitives row 2a; dsp-primitives spec §1 row 2b).
+ * the all-pass band lane and the graphic EQ lane).
  * @param x The input sample.
  * @param c The normalised coefficients `{b0, b1, b2, a1, a2}`.
  * @param s The section's state `{s₁, s₂}`, updated in place.
@@ -90,7 +89,7 @@ static inline double omx_biquad_tdf2_d(double x, const double c[5], double s[2])
  * parked bands are dropped ONCE per block, then the live ones run TWO sections per pass over the
  * samples and BOTH legs in that pass, each section's state copied into locals for the pass and
  * written back once. A section's recurrence is latency-bound; four independent recurrences per
- * pass let them overlap instead of waiting on each other (dsp-primitives spec §1 row 2).
+ * pass let them overlap instead of waiting on each other.
  *
  * A parked section (`enabled[b] == 0`) is skipped and its state does not advance, so state slot
  * `b` always belongs to coefficient slot `b`.
@@ -200,7 +199,7 @@ static inline void omx_biquad_cascade(float *buf, uint32_t n, uint32_t nbands,
 
 /**
  * @brief One biquad section, direct form I, in DOUBLE: omx_biquad()'s law with double coefficients
- *        and double history, a float sample in and out (dsp-primitives spec §1 row 2a).
+ *        and double history, a float sample in and out.
  * A section whose poles sit within `ω/(2Q)` of the unit circle amplifies float32 round-off by
  * `1/|A(e^{jω})|`; in double the same section meets its closed form.
  * @param x The input sample.

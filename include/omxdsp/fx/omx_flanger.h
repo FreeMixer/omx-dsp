@@ -3,10 +3,10 @@
 /*
  * omx_flanger.h — the native FLANGER stage: one modulated fractional delay with FEEDBACK.
  *
- * Spec: the chorus and flanger design, flanger half. The primitives are
+ * The flanger half of the chorus and flanger pair. The primitives are
  * `mix_fdelay.h` at order 3 and `mix_lfo.h`, the same two the chorus takes; the difference is the
  * feedback path and the delay region, and those are the declared facts that make this a stage of
- * its own rather than a mode of the chorus (spec §1, answer 3).
+ * its own rather than a mode of the chorus.
  *
  * Same contract as omx_delay.h: NO PipeWire, NO napi, NO allocation. The rings are allocated by
  * the CALLER on insert; controls are a word-atomic snapshot resolved once per block.
@@ -29,7 +29,7 @@
  * in order to be causal at all, and every implementation of a feedback comb has it. It is stated
  * here, measured by the oracle against that exact closed form, and published through
  * `omx_flanger_loop_delay` so a row says the same number the kernel runs — rather than being a
- * quiet 2% error between a spec's formula and a desk's sound.
+ * quiet 2% error between a formula and a desk's sound.
  *
  * ## The four things this file is careful about
  *
@@ -43,7 +43,7 @@
  *     silence and make the desk slower the quieter it gets — the line's own read flushes, this
  *     closes the loop around it.
  *  4. BOTH LEGS, ONE PHASE, and no synthetic widening — the chorus's reason, unchanged: width is
- *     the BUS's fact (2026-08-07-one-summing-bus.md).
+ *     the BUS's fact.
  */
 #ifndef OMX_MIX_FLANGER_H
 #define OMX_MIX_FLANGER_H
@@ -60,8 +60,8 @@
 /** The Lagrange order this stage constructs — the fdelay ruling's §3 row. */
 #define OMX_FLANGER_ORDER OMX_FDELAY_MOD_READ_ORDER
 
-/* The base delay (OMX_FLANGER_BASE_MS) is declared in omx-contract: the shortest delay the sweep reaches (spec §3b). */
-/** The deepest sweep the row may ask for, ms (spec §3b's `depth` ceiling). */
+/* The base delay (OMX_FLANGER_BASE_MS) is declared in omx-contract: the shortest delay the sweep reaches. */
+/** The deepest sweep the row may ask for, ms. */
 #define OMX_FLANGER_MAX_DEPTH_MS ((float)OMX_FLANGER_DEPTH_RANGE_MAX)
 /** The feedback clamp. Strictly below one, so the loop decays; 0.95 is +26.0 dB of resonance at
  *  mix 1, which is as far as a flanger is musically asked to go. */
@@ -106,7 +106,7 @@ static inline float omx_flanger_clamp_fb(float fb) {
 
 /**
  * The most this stage can exceed its input by, as a LINEAR factor: (1 − mix) + mix·Λ/(1 − Λ|fb|),
- * Λ the read kernel's ℓ1 norm read from the generated header (spec §6). The feedback passes
+ * Λ the read kernel's ℓ1 norm read from the generated header. The feedback passes
  * through the read every round, so each round adds at most Λ·|fb| of the loop's own peak — a
  * geometric series, proven for ANY sweep of the fraction while Λ·|fb| < 1 (|fb| < 0.8).
  * The `output-le-input-plus` law's bound, DERIVED from the controls the operator set rather than
@@ -130,7 +130,7 @@ static inline float omx_flanger_gain_bound(const struct omx_flanger *p) {
 static inline float omx_flanger_loop_delay(float delay_samples) { return delay_samples + 1.0f; }
 
 /** The stage's own effect time, in samples: the ends of the sweep. A READBACK, never a latency
- *  term — the dry path is direct and nothing downstream waits (spec §5). */
+ *  term — the dry path is direct and nothing downstream waits. */
 static inline float omx_flanger_shortest_delay(const struct omx_flanger *p) {
   return p->base_samples;
 }

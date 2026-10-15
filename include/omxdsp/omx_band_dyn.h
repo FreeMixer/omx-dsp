@@ -5,7 +5,7 @@
  * @brief The band-dynamics word: a constant section `B` whose output the compressor's gain computer
  *        scales, `y = u + (g − 1)·B(u)` — the dynamic EQ band, and the de-esser's split form.
  *
- * Spec: the native dynamic eq spec §1–§5 (issue #917). Composed from the
+ * Composed from the
  * library words only: {@link omx_biquad} runs `B`, {@link omx_env_step} is the detector,
  * {@link omx_gaincomp_db} is the characteristic in either mode. `B` is designed on the control
  * thread and is power-complementary to `1 − B` (bell: the cookbook bandpass; shelves: `½(1 ± A₁)`),

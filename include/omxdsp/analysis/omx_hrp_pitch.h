@@ -42,7 +42,7 @@
 
 /* §7: an implementation limit, not a claim about music.
  *
- * EIGHT (operator sizing, 2026-09-01), raised from the spec's opening four once increment 9 made
+ * EIGHT, raised from the opening four once increment 9 made
  * the corrections real. The number is what the INSTRUMENTS on a desk carry: a guitar sounds six
  * strings, a piano or string-section voicing sits at eight, and a search that stops at four
  * cannot even represent the chord it is listening to. It costs what it says only on material that

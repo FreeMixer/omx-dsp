@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# sabotage.sh <dir> — a SABOTAGED COPY of the library headers for the negative suite's POST arm
-# (the dsp primitives spec §8b item 2): the fractional read's Lagrange
+# sabotage.sh <dir> — a SABOTAGED COPY of the library headers for the negative suite's POST arm:
+# the fractional read's Lagrange
 # kernel is broken so it no longer sums to one and the first-order all-pass's lattice so it is no
 # longer lossless, and the copy is placed ahead of the real include
 # directory when omxdsp_negative.c is compiled. The tree is never edited. A sed that matches

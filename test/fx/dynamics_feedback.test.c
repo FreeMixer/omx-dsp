@@ -8,7 +8,7 @@
  * Every arm runs at the nine RME rates (OMX_FX_RME_RATES), the dynamics tier's set, which holds
  * every declared rate; no rate is typed here.
  *
- * The stimulus for the static and timing rows is DC, not the spec's 1 kHz sine: a peak detector
+ * The stimulus for the static and timing rows is DC, not the design's 1 kHz sine: a peak detector
  * on DC hears the level exactly, so the oracle's tolerance is the float round trip rather than a
  * pinned sine-ripple offset — a stricter reading of O2/O3/O4. O10's two tones are 997 Hz and
  * 15013 Hz: at a 1 kHz grid every aliased product of 1 k + 15 k lands on a harmonic bin and

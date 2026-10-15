@@ -4,10 +4,8 @@
  * omx_deesser.h — the native DE-ESSER stage: a band-limited detector driving the COMPRESSOR's own
  * gain computer.
  *
- * Spec: the native deesser stage spec (issue #891).
- *
  * THIS FILE MINTS NO DSP MECHANISM, and that is its whole design. Its detect/gain/split step is
- * the band-dynamics word, mix_band_dyn.h (the native dynamic eq spec §2). The detector is
+ * the band-dynamics word, mix_band_dyn.h. The detector is
  * {@link omx_env_step} — the envelope cascade the gate and the comp already run. The gain computer
  * is {@link omx_gaincomp_db} in OMX_DYN_ABOVE mode — the same soft-knee characteristic the comp
  * slot runs, with ONE extra clamp (§4c: the reduction is floored at `range_db`). The band is ONE
@@ -24,7 +22,7 @@
  *   split     y = x + (g - 1)*B         = g*x + (1 - g)*N: at g = 1 this is x EXACTLY, sample for
  *                                       sample, and for g in (0, 1] it is a convex combination of
  *                                       two signals no louder than the input — no gain added at
- *                                       ANY frequency (spec §6; operator ruling, §1 gate line 3)
+ *                                       ANY frequency
  *   wideband  y = g*x                   the whole strip ducks while the "s" lasts
  *
  * ## Why the band is a bandpass SECTION and not a highpass·lowpass PAIR
@@ -52,7 +50,7 @@
  * ONE gain serves both legs by construction — the detector reads the two legs' band folded at 0.5
  * apiece, exactly as omx_dynamics links its own — so a stereo strip's image can never shift under
  * de-essing and there is no second thing to link. A look-ahead would put latency on EVERY vocal
- * channel (the operator's ask is a de-esser everywhere) and is refused in the spec's §5 rather than
+ * channel (the operator's ask is a de-esser everywhere) and is refused by the design rather than
  * left as an unbuilt option. An oversampler would buy nothing: this stage's non-linearity is a
  * GAIN, not a waveshaper, and a gain generates no harmonics to alias.
  *

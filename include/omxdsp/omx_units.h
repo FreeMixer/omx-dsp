@@ -3,8 +3,6 @@
 /**
  * @file omx_units.h
  * @brief Decibel and linear-amplitude conversions.
- *
- * Design: the dsp primitives spec §1 row 17.
  */
 #ifndef OMX_UNITS_H
 #define OMX_UNITS_H

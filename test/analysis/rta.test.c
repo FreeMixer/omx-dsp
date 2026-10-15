@@ -108,7 +108,7 @@ static void test_ring_oversized_write(void) {
   close_to(out[0], (float)(OMX_RTA_RING_SIZE + 100 - 4), "oversized write: only the tail survives");
 }
 
-/* ---- RTA: the first-frame gate (spec 2026-09-02-analyser-first-frame) ------------ */
+/* ---- RTA: the first-frame gate ------------ */
 
 static void test_ring_fill_count_saturates_and_resets(void) {
   static struct omx_ring ring;
@@ -309,7 +309,7 @@ static void test_fft_known_sinusoid(void) {
   for (uint32_t k = 0; k < n / 2; k++) close_to(smags[k], 0.0f, "silence FFTs to a silent spectrum");
 }
 
-/* ---- talkback / test-signal generators (issue #110) --------------------------- */
+/* ---- talkback / test-signal generators --------------------------- */
 
 int main(void) {
   test_ring_write_read_basic();

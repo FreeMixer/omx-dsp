@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * @file omx_allpass.h
- * @brief The all-pass sections: the first-order Gray–Markel lattice (RULED 2026-09-23,
- *        the native phaser spec §7) and the second-order design.
+ * @brief The all-pass sections: the first-order Gray–Markel lattice (RULED 2026-09-23)
+ *        and the second-order design.
  *
  * First order: `A(z) = (a + z⁻¹)/(1 + a·z⁻¹)` in the one-multiply lattice
  * `t = a·(x − s); y = s + t; s ← flush(x + t)`, coefficient bilinear-prewarped at `fc`,
@@ -14,7 +14,6 @@
  * the `_d` sibling below instead — the same formula, kept from losing the corner's precision on
  * the float round-trip a per-sample-swept caller (the phaser) does not need. Second order: the
  * cookbook section at `Q` whose numerator is its reversed denominator, −180° at `fc`. Design:
- * the dsp primitives spec §1 rows 4–5 and Appendix A.
  */
 #ifndef OMX_ALLPASS_H
 #define OMX_ALLPASS_H
@@ -167,7 +166,7 @@ static inline double omx_allpass_prewarp(double fc, double sr) {
  *        double-precision state (the crossover's `omx_biquad_tdf2_d()` cascade), rather than swept
  *        every sample the way the phaser sweeps `omx_allpass1_coef()`.
  *
- * Measured (the dsp primitives spec §1, allpass1_coef_d row): against the
+ * Measured: against the
  * crossover's own `bands-partition-unity` tolerance (`OMX_XOVER_PARTITION_TOLERANCE = 1e-5` relative),
  * this double coefficient leaves the worst residual at ~1.2e-7 across the declared rates and five
  * representative corners — three orders of margin. Narrowing through `omx_allpass1_coef()`'s float

@@ -11,7 +11,7 @@
  * moves the cursor with `omx_lookahead_fwd`. One cursor serves every leg's buffer and every tap.
  * `struct omx_lookahead` keeps one buffer and its cursor together for a kernel with one tap per
  * leg, and `omx_lookahead_tick` is the two words in one call. Never a fractional read: a
- * look-ahead never reads between samples. Design: the dsp primitives spec
+ * look-ahead never reads between samples.
  * §1 row 10.
  */
 #ifndef OMX_LOOKAHEAD_H

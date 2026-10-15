@@ -33,7 +33,7 @@
  * FIVE configurations over TWO kernels. REVERSE and GATED are the ROOM comb network handed an
  * OUTPUT STAGE — a windowed time mirror and a hold-and-cut envelope — never a third reverberator:
  * what is new is what happens to the wet after the network, which is why they are values of this
- * enum and not a second mechanism (spec 2026-07-15-native-delay-reverb.md, Amendment 2026-09-17).
+ * enum and not a second mechanism.
  */
 enum omx_reverb_algo {
   OMX_REVERB_ROOM = 0,
@@ -58,11 +58,11 @@ enum omx_reverb_algo {
 #define OMX_FV_NALLPASS 4
 /* Dattorro plate delay-line lengths (the classic figure-8, @29761 Hz in the paper — scaled here). */
 
-/* THE PLATE'S TANK IS MODULATED, as Dattorro's figure-8 is (spec 2026-07-15-native-delay-reverb.md).
+/* THE PLATE'S TANK IS MODULATED, as Dattorro's figure-8 is.
  * The tank's first allpass in each half recirculates at 0.7 with nothing to smear it, so a fixed
  * length made the late tail PERIODIC at that length: autocorrelation 0.709 at 22.6 ms on the left
  * leg and 0.53 at 30.5 ms on the right, against ROOM's 0.26 — the metallic ring a plate is
- * reached for in spite of (2026-09-17-reverb-math-review.md R-2, ruled 2026-09-17).
+ * reached for in spite of.
  *
  * The paper's own numbers: +-8 samples of excursion at its 29 761 Hz tuning rate, at about 1 Hz.
  * The excursion is scaled to the live rate with the same `sr / 29761` the tank LENGTHS are scaled
@@ -81,7 +81,7 @@ enum omx_reverb_algo {
 #define OMX_REVERB_PLATE_DECAY_SPAN 0.49f
 #define OMX_REVERB_PLATE_TANK_TUNINGS 672, 1800, 908, 2656, 1996, 3163
 /* THE DEPTH IS A FIELD, `plate_mod_depth`, in percent of the paper's excursion above
- * (2026-09-26-native-fx-catalogue.md §2, Reverb): 100 is the plate as it always ran, so the
+ * the paper's: 100 is the plate as it always ran, so the
  * come-up is bit-identical to the tank before the field; 0 is the unmodulated, ringing tank. The
  * row's travel is `REVERB_PLATE_MOD_DEPTH_RANGE`; this is its come-up, generated from that travel's
  * `default` (dsp-primitives §7), the value a fresh lane's atom holds before the row writes one. */
@@ -92,7 +92,7 @@ enum omx_reverb_algo {
  * mid-release multiplied the wet straight back up, and because the wet's own step shrinks with
  * the rate while a one-sample jump does not, the click grew with the clock — 1.65 / 4.84 / 9.84 /
  * 20.47 times the largest step the ROOM reference makes through the same input, at 44.1 / 48 /
- * 96 / 192 kHz (2026-09-17-reverb-math-review.md R-7, ruled 2026-09-17).
+ * 96 / 192 kHz.
  *
  * 1.5 ms is the LONGEST ramp inside the ruled 1-2 ms window that keeps the CLOSING's own law at
  * every declared rate — the gate adds no step the ROOM reference does not already carry.
@@ -100,7 +100,7 @@ enum omx_reverb_algo {
  * rates; at 2.0 ms it exceeds it by 0.4 % at 192 kHz, because the ramp is still climbing when the
  * wet's own largest step arrives. The longest passing ramp is taken because a longer one is the
  * gentler edge, and 1.5 ms is far inside a snare transient, so the Phil-Collins arm keeps its
- * bite. It is not a control: the control set is the spec's, and this is the shape of an edge
+ * bite. It is not a control: the control set is the design's, and this is the shape of an edge
  * inside it. */
 
 /* Pre-delay ring: up to 100 ms @ the declared rate roof (RT_HARD_TARGET_RATE, generated). */
@@ -181,15 +181,14 @@ struct omx_reverb_state {
   float gate_env; uint32_t gate_hold_left;
   /* The shared pre-delay ring — ONE ring, because the network is fed the mono sum of the legs
    * (`xin` in omx_reverb_process); a second ring would hold the same samples twice and read
-   * them never (2026-09-17-reverb-math-review.md R-3). Wet-path filter state follows. */
+   * them never. Wet-path filter state follows. */
   float *pre; uint32_t pre_cap; uint32_t pre_pos;
   float lc_l, lc_r, hc_l, hc_r; /* one-pole low/high-cut state per leg */
   uint32_t next_free;           /* pool cursor used during layout */
 };
 
 /*
- * THE DAMPING ONE-POLE — the ONE form a damping filter takes inside a reverb's feedback path
- * (spec 2026-07-15-native-delay-reverb.md, Amendment 2026-09-17 §A).
+ * THE DAMPING ONE-POLE — the ONE form a damping filter takes inside a reverb's feedback path.
  *
  * `y += (1 - p)(x - y)` with the POLE `p` = `damping`: DC gain is exactly 1 for every p < 1, so
  * damping shortens the HIGH end's decay and NEVER the tail's level. The pole is clamped to
@@ -199,7 +198,7 @@ struct omx_reverb_state {
  * ONE inline for the comb and the tank alike, because the other spelling is silent and wrong: a
  * one-pole whose COEFFICIENT is the damping (`y += damping * (x - y)`, pole `1 - damping`) has DC
  * gain `damping`, so at damping 0 its loop carries nothing — a plate with no tail — and the knob
- * runs backwards. That defect shipped here and cost a lane (spec Amendment 2026-09-17 §A).
+ * runs backwards. That defect shipped here and cost a lane.
  */
 #define OMX_REVERB_DAMP_POLE_MAX 0.98f
 
@@ -209,7 +208,7 @@ struct omx_reverb_state {
  * A one-pole's corner is `-ln(p) * sr / 2pi`, so a pole used RAW is a different filter at every
  * clock: damping 0.6 cornered at 3 585 Hz at 44.1 kHz and at 15 610 Hz at 192 kHz, and the same
  * knob therefore gave a ROOM HF decay 10.6 % longer and a HALL tail 8.3 % longer at 192 k than at
- * 44.1 k (2026-09-17-reverb-math-review.md R-1). A REAC box clocks its own segment, so a session
+ * 44.1 k. A REAC box clocks its own segment, so a session
  * carried between segments changed voice for no reason the operator could see.
  *
  * `p' = p^(REF/sr)` holds the CORNER, which is what the knob means. 96 000 Hz is the reference
@@ -257,7 +256,7 @@ static inline void omx_reverb_state_layout(struct omx_reverb_state *s, float *po
    * and every block that meets it is a passthrough. That is what lets the control thread re-lay
    * out an ENGAGED reverb after a live rate change (mixer_strip.c's setter): the RT is already
    * passing through (the live rate is not the old layout's), and it resumes on the new room only
-   * once every line below is cut (2026-09-25-native-fx-rt-review.md F1). */
+   * once every line below is cut. */
   s->sr = 0.0f;
   atomic_thread_fence(memory_order_release);
   s->_pool = pool; s->pool_len = pool_len; s->next_free = 0; s->_exhausted = 0;
@@ -588,12 +587,11 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
    * again on every block, from the rate the caller passes. Hand those two different numbers and
    * the operator gets a room of one size wearing another's times, with nothing said: laid out at
    * 48 kHz and run at 96, the first wet sample arrives at 12.656 ms where the 96 kHz layout puts
-   * it at 25.3 (2026-09-17-reverb-math-review.md R-5). The caller's job is to lay out at the
+   * it at 25.3. The caller's job is to lay out at the
    * graph's rate and re-lay out when it moves — and between a live rate change and that
    * re-layout (or while one is in progress, `s->sr == 0`) this stage is an ANNOUNCED
    * PASSTHROUGH, the guard below, never the other rate's room. That window is an expected state
-   * of a running console, not a caller's error, so it is a guard and not a precondition
-   * (2026-09-25-native-fx-rt-review.md F1). */
+   * of a running console, not a caller's error, so it is a guard and not a precondition. */
   OMX_PRE(p->width >= 0.0f && p->width <= 1.0f, "width-in-unit-range");
   OMX_PRE(p->size >= 0.0f && p->size <= 1.0f, "size-in-unit-range");
   OMX_PRE(p->damping >= 0.0f && p->damping <= 1.0f, "damping-in-unit-range");
@@ -629,8 +627,7 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
   float hall_damping = damping * 0.6f + 0.35f;
   float hall_damp_pole = omx_reverb_damp_pole(hall_damping, sr);
   float width = omx_unit(p->width);
-  /* Clamped in FLOAT before the cast: a negative/NaN/huge ms is UB as a uint32 conversion
-   * (omx_fxdelay_ms_to_samples's rule; 2026-09-25-native-fx-rt-review.md F14). */
+  /* Clamped in FLOAT before the cast: a negative/NaN/huge ms is UB as a uint32 conversion. */
   const float pre_f = (p->predelay_ms * 0.001f) * sr;
   uint32_t pre = pre_f > 0.0f ? (pre_f < (float)s->pre_cap ? (uint32_t)pre_f : s->pre_cap) : 0u;
   if (pre >= s->pre_cap) pre = s->pre_cap - 1;
@@ -781,7 +778,7 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
          * BACKWARD one sample per sample and jump forward at each hop boundary - which is what
          * makes the output the input reversed. The dry is NOT delayed: a live strip cannot carry
          * 2 x reverse_ms of latency to make a swell precede its hit, so the swell lands in the two
-         * windows AFTER it (spec Amendment 2026-09-17 SSB).
+         * windows AFTER it.
          */
         s->rev_l[rev_w] = omx_flush(wetL);
         s->rev_r[rev_w] = omx_flush(wetR);

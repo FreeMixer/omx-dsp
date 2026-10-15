@@ -15,7 +15,7 @@
  * the console's drive-design twin test parses the same file and runs
  * `driveStateToNativeDrive` over it. Editing either designer's arithmetic turns one red.
  *
- * THE DESIGN IS MATCHED, NOT BILINEAR (operator ruling 2026-09-14, eq.ts's `rbjSection` doc):
+ * THE DESIGN IS MATCHED, NOT BILINEAR:
  * the shelf is a matched-Z pole pair at `f0*sqrt(A)` over a zero pair at `f0/sqrt(A)`, both
  * damped `1/(2Q)`, unity at DC; the low-pass is matched-Z poles under a numerator FITTED to the
  * prototype's magnitude at DC, `f0` and Nyquist (Vicanek 2016), because its two zeros sit at

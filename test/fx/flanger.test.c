@@ -3,7 +3,6 @@
 /*
  * flanger.test.c — the flanger against the closed form of its RESONANT comb.
  *
- * Spec: the chorus and flanger spec §2 and §9, at the four basic rates
  * (44.1 / 48 / 96 / 192 kHz — the operator's 2026-09-20 ruling).
  *
  * Same method as `mix_chorus.test.c`: with its oscillator frozen the stage is LTI, so each arm
@@ -29,9 +28,9 @@
  *       fb = +0.6 and fb = −0.6 (which swaps peaks and notches — the hollow flange), against the
  *       closed form, at four rates. The peak height is also compared with the algebraic
  *       (1 − mix) + mix/(1 − fb), the IDEAL comb's tooth (the `output-le-input-plus` law's
- *       sample-peak bound carries the read kernel's Λ on top — spec §6, arm G).
+ *       sample-peak bound carries the read kernel's Λ on top —G).
  *   C — THE CLAMP. fb asked for ±1.5 is clamped to ±0.95, where `omx_flanger_gain_bound`
- *       claims NO finite bound (Λ·0.95 ≥ 1, spec §6) and the output stays finite; at fb 0.79,
+ *       claims NO finite bound and the output stays finite; at fb 0.79,
  *       inside the proven range, the output stays inside the published bound over a long run at
  *       full scale; and the clamped stage is identical to one asked for ±0.95 in the first place.
  *   D — TAIL DECAYS. The input stops; the output falls below −100 dBFS within the loop count the
@@ -41,7 +40,7 @@
  *       with the nearest-sample control that must break it.
  *   F — BYPASS IDENTITY: `enabled = 0` and `mix = 0`, memcmp-identical, below the flush floor.
  *   G — `chorus_flanger_stay_inside_their_bound` (F6 of docs/audits/2026-09-25-native-fx-rt-
- *       review.md, spec §6): a full-scale fs/4 pattern read half a sample off — the Lagrange-3
+ *       review.md): a full-scale fs/4 pattern read half a sample off — the Lagrange-3
  *       kernel's worst case, Σ|c| = Λ = OMX_FDELAY_READ_L1_NORM — stays inside
  *       `omx_chorus_gain_bound` and `omx_flanger_gain_bound`, four rates, with the whole-sample
  *       control; plus the evidence that the ruled Λ/(1 − |fb|) form is NOT a bound.
@@ -289,7 +288,7 @@ static void arm_c_clamp(void) {
   struct omx_flanger at = atom(sr, OMX_FLANGER_BASE_MS, 3.0, (double)OMX_FLANGER_FB_MAX, 1.0);
   const double bound = (double)omx_flanger_gain_bound(&over);
   ok(isinf(bound) && bound > 0.0,
-     "arm C: at |fb| 0.95 >= 1/Λ the published bound claims nothing (+inf, spec §6)", bound,
+     "arm C: at |fb| 0.95 >= 1/Λ the published bound claims nothing", bound,
      INFINITY);
   {
     const struct omx_flanger half = atom(sr, OMX_FLANGER_BASE_MS, 3.0, -0.5, 1.0);
@@ -544,13 +543,13 @@ static void arm_f_bypass(void) {
   drain_violations("arm F: no contract violation");
 }
 
-/* ---- G: the gain laws carry the read kernel's overshoot (F6, spec §6) ---------------------- */
+/* ---- G: the gain laws carry the read kernel's overshoot ---------------------- */
 
 /*
  * The Lagrange-3 read is not convex: at a half-sample fraction its taps are
  * [-1/16, 9/16, 9/16, -1/16], Σ|c| = Λ = 1.25, so a full-scale pattern whose signs line up with
  * the taps' — [-1, 1, 1, -1], a tone at fs/4 — reads back at Λ (+1.9 dB) from a stream that never
- * leaves ±1. The laws (spec §6) carry Λ, read from the generated header: the chorus's
+ * leaves ±1. The laws carry Λ, read from the generated header: the chorus's
  * (1 − mix) + mix·Λ and the flanger's (1 − mix) + mix·Λ/(1 − Λ|fb|). Setting Λ to 1.0 in the
  * header reds this arm (the sabotage the F6 lane ran).
  */

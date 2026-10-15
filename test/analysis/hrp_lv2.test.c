@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * Standalone unit test for the LIVE LV2 shell's core (hrp_lv2.h) —
- * the recording vsc spec §0.5's third shell, over
- * the hrp polyphonic architecture spec:
+ * Standalone unit test for the LIVE LV2 shell's core (hrp_lv2.h), the third shell over the HRP design:
  *   cc -Wall -Wextra -Werror -O2 -o build/hrp_lv2_test src/hrp_lv2.test.c -lm && ./build/hrp_lv2_test
  * (also driven from `pnpm test` via the test:dsp script).
  *

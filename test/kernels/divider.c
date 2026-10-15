@@ -14,12 +14,12 @@ static double line_at(const float *y, uint32_t n0, uint32_t N, double hz, double
   return 2.0 * sqrt(re * re + im * im) / (double)N;
 }
 
-/* The series of the sub-octaver spec §2: |D(A sin)| at (2j+1)f/2. */
+/* The series of the design: |D(A sin)| at (2j+1)f/2. */
 static double divider_series(int j, double a) {
   return j == 0 ? a * 8.0 / (3.0 * M_PI) : a * 8.0 / (M_PI * (2.0 * j + 3.0) * (2.0 * j - 1.0));
 }
 
-/* A Schmitt trigger that toggles AT +h: the form the spec refuses, the positive control of arm E. */
+/* A Schmitt trigger that toggles AT +h: the form the design refuses, the positive control of arm E. */
 static float schmitt_at_threshold(float *q, int *hi, float v, float h) {
   if (!*hi && v > h) { *q = -*q; *hi = 1; }
   if (v < -h) *hi = 0;

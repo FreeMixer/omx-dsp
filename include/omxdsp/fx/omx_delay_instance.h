@@ -31,7 +31,7 @@
  * dry path is frame-aligned with the input.
  *
  * Moved from omx-plugins' plugins/omx-delay/omx_delay_instance.h (the caller-ring form), into the
- * instance face's shape (spec 2026-10-09-plugin-from-contract §2).
+ * instance face's shape.
  */
 #ifndef OMX_DELAY_INSTANCE_H
 #define OMX_DELAY_INSTANCE_H
