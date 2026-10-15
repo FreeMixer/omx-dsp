@@ -155,8 +155,8 @@ struct omx_meter_gr {
  * shallower block spends the hold first; once it is spent the reading closes on the block as a
  * linear gain, by `release_pole^n` per block, the time constant the stage's own gain recovers
  * with, so the meter never lags the audio by more than the hold plus the release. It lands on the
- * block once within 0.001 dB, and never passes it. A pole outside [0, 1) (a 0 ms release, NaN)
- * lands at once.
+ * block once within 0.001 dB, and never passes it. A pole of 0 (a 0 ms release) lands at once,
+ * and so does a pole outside [0, 1) (1, negative, NaN).
  * @param m The reading's state, read and written.
  * @param block_db This block's minimum applied gain, dB, <= 0 (the kernel's `gr_min_db`).
  * @param n Frames in the block.
@@ -164,7 +164,7 @@ struct omx_meter_gr {
  * @param release_pole The stage's release pole per frame at `sr` (struct omx_dyn `release_coeff`).
  * @return The reading to publish, dB, <= 0.
  * @post `reading-not-positive`, `finite`.
- * @note RT-safe: at most two powf and one log10f, no allocation. Thread-safe on disjoint states.
+ * @note RT-safe: at most three powf and one log10f, no allocation. Thread-safe on disjoint states.
  */
 static inline float omx_meter_gr_step(struct omx_meter_gr *m, float block_db, uint32_t n, float sr,
                                       float release_pole) {
