@@ -37,9 +37,10 @@
 #   make room-ts-golden OPENMIXER=<checkout>  core's room analysis and alignment fit, run under node from
 #               the checkout, against the committed parity table (tools/room-ts-golden.mjs)
 #   make test-mix  the mix module's golden digests (pan law, LCR, strip and fold coefficients, bus
-#               out stage, peak, clip) and a sabotage of each kernel against its oracle and digests
+#               out stage, peak, clip, peak hold, gain-reduction reading, analyser tap, bus sum,
+#               real-time load meter) and a sabotage of each kernel against its oracle and digests
 #   make mix-engine-identity OPENMIXER=<checkout>  the same digests rendered through the engine's own
-#               copies (mix_dsp.h, mix_lcr.h, mix_bus.h), and the check's sabotages
+#               copies (mix_dsp.h, mix_lcr.h, mix_bus.h, mix_gr_meter.h), and the check's sabotages
 #               (tools/mix-engine-identity.sh)
 
 CC      ?= cc
@@ -396,12 +397,15 @@ engine-kernels-identity:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
 
 # ---- the mix module -------------------------------------------------------------------------
-# The pan law, the strip and fold coefficients of G, a bus's out stage, and the meters' measure half
+# The pan law, the strip and fold coefficients of G, a bus's out stage, the meters' measure half, one
+# analyser tap's reading, one source's contribution to a summing bus and the real-time load meter
 # (include/omxdsp/mix/, FreeMixer/omx-dsp#98): their oracles are suite arms (test/kernels/mix_*.c);
 # here are their golden digests at the nine RME rates, which the engine's own copies wrote
 # (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
-$(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) | $(BUILD)
-	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
+# Compiled with log10f replaced by the correctly rounded omx_log10f (test/support), as the FX goldens
+# are: the gain-reduction reading's log10f otherwise moves its digests on glibc 2.36 and 2.39.
+$(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) $(SUPPORT_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) $(GOLDEN_SUBST) -o $@ $< -lm
 
 test-mix: $(BUILD)/mix_golden $(LIB_CONTRACTS)
 	./$(BUILD)/mix_golden test/golden/mix.sha256

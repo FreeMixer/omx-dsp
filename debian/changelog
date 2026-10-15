@@ -1,3 +1,15 @@
+omx-dsp (0.19.0) unstable; urgency=medium
+
+  * The mix module grows by the rest of the console engine's mix maths,
+    moved unchanged and held to the engine's output bit for bit at the nine
+    rates: mix/omx_bus_sum.h (one source's contribution to a summing bus, as
+    entries of the mix matrix), mix/omx_rta_tap.h (one analyser tap's
+    reading: the mono sum, one spectrum and the low zoom), mix/omx_rt_load.h
+    (the real-time load meter's measure half), and in mix/omx_meter.h the
+    peak hold and the gain-reduction reading's hold and recovery.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 15 Oct 2026 12:00:00 +0000
+
 omx-dsp (0.18.1) unstable; urgency=medium
 
   * The EQ sabotage check for the 0.999 Nyquist hold no longer depends on
