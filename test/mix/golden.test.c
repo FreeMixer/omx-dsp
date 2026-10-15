@@ -9,7 +9,7 @@
  *
  * The committed digests were written by this program compiled against the engine's own copies
  * (OpenMixer's mix_dsp.h, mix_lcr.h, mix_bus.h and mix_gr_meter.h; engine commit ae922d2e7d74 for
- * pan to clip, ca811a46c for hold, gr and rta) by tools/mix-engine-identity.sh, so the moved code is
+ * pan to clip, ca811a46c for hold, gr, rta, bus_sum and rt_load) by tools/mix-engine-identity.sh, so the moved code is
  * held to the engine's output bit for bit. -DOMX_GOLDEN_ENGINE is that
  * build: each kernel below names the library's call and the engine's.
  *
@@ -31,6 +31,12 @@
  *            (inside [0, 1) and outside it): the reading and its hold state after each block
  *   rta      one analyser tap over two legs of noise: the rate's spectrum alone, then with the
  *            low zoom (the engine writes the legs into its rings and reads its snapshot back)
+ *   bus_sum  sends of noise into a stereo and a mono bus over a run of blocks, the level, the image
+ *            and the fold moving between blocks, NaN and infinite levels and cursors among them:
+ *            the bus, the cursors and whether each send wrote
+ *   rt_load  the load meter over a run of cycles of moving work, quantum and driver xrun total,
+ *            the peak cleared every 50 cycles: the smoothed reading, the peak, the overruns, the
+ *            cycles, the xrun events and the total
  */
 #include <math.h>
 #include <stdint.h>
@@ -46,6 +52,8 @@
 #include "mix_gr_meter.h"
 #include "mix_lcr.h"
 #else
+#include <omxdsp/mix/omx_bus_sum.h>
+#include <omxdsp/mix/omx_rt_load.h>
 #include <omxdsp/mix/omx_bus_out.h>
 #include <omxdsp/mix/omx_meter.h>
 #include <omxdsp/mix/omx_mix_coef.h>
@@ -199,6 +207,62 @@ static const float *k_rta(uint32_t n, int low, const float **low_mags) {
 #endif
   *low_mags = out.low;
   return out.mags;
+}
+
+static int k_bus_sum(const float *l, const float *r, float *bl, float *br, uint32_t n, float level,
+                     float il, float ir, float *cl, float *cr, int fold, float fold_coef) {
+#ifdef OMX_GOLDEN_ENGINE
+  return omx_bus_add_ramp(l, r, bl, br, n, level, il, ir, cl, cr, fold ? OMX_BUS_FOLD : OMX_BUS_FOLLOW,
+                          fold_coef);
+#else
+  return omx_bus_sum_add(l, r, bl, br, n, level, il, ir, cl, cr,
+                         fold ? OMX_BUS_SUM_FOLD : OMX_BUS_SUM_FOLLOW, fold_coef);
+#endif
+}
+
+/* The load meter's state as the reader sees it. The engine folds into its shared stats block;
+ * the library's pure steps are folded here the same way. */
+struct golden_load {
+  float ema, peak;
+  uint32_t overruns, cycles, xruns, seeded;
+  uint64_t xrun_ns;
+};
+
+#ifdef OMX_GOLDEN_ENGINE
+static struct omx_rt_load g_load;
+#endif
+
+static void k_rt_load_clear(struct golden_load *g) {
+#ifdef OMX_GOLDEN_ENGINE
+  memset(&g_load, 0, sizeof g_load);
+#endif
+  memset(g, 0, sizeof *g);
+}
+
+static void k_rt_load(struct golden_load *g, uint64_t busy_ns, uint32_t frames, float sr,
+                      uint64_t xrun_ns, int clear_peak) {
+#ifdef OMX_GOLDEN_ENGINE
+  if (clear_peak) atomic_store(&g_load.peak, 0.0f);
+  omx_rt_load_update(&g_load, omx_rt_busy_ratio(busy_ns, frames, sr));
+  omx_rt_xrun_update(&g_load, xrun_ns);
+  g->ema = g_load.ema;
+  g->peak = g_load.peak;
+  g->overruns = g_load.overruns;
+  g->cycles = g_load.cycles;
+  g->xruns = g_load.driver_xruns;
+  g->seeded = g_load.driver_xrun_seeded;
+  g->xrun_ns = g_load.driver_xrun_ns;
+#else
+  if (clear_peak) g->peak = 0.0f;
+  const float ratio = omx_rt_load_ratio(busy_ns, frames, sr);
+  g->ema = omx_rt_load_smooth(g->ema, g->cycles, ratio);
+  g->peak = omx_rt_load_peak(g->peak, ratio);
+  if (omx_rt_load_overrun(ratio)) g->overruns++;
+  g->cycles++;
+  g->xruns += omx_rt_load_xrun_events(g->seeded != 0u, g->xrun_ns, xrun_ns);
+  g->xrun_ns = xrun_ns;
+  g->seeded = 1u;
+#endif
 }
 
 /* ---- the record ---------------------------------------------------------------------------- */
@@ -362,6 +426,56 @@ static void render(const char *k, uint32_t rate) {
       put(mags, (n / 2u) * sizeof(float));
       if (low) put(lm, (OMX_RTA_LOW_FFT_SIZE / 2u) * sizeof(float));
     }
+  } else if (strcmp(k, "bus_sum") == 0) {
+    static float bl[BLOCK_MAX], br[BLOCK_MAX];
+    static const float levels[] = {1.0f, 0.5f, 0.0f, 0.0f, 3.1623f, NAN, 0.25f, INFINITY, 0.0f, 0.7f};
+    static const float images[][2] = {{1.0f, 1.0f}, {1.0f, 0.0f}, {0.70710678f, 0.70710678f}, {0.0f, 1.0f}, {-1.0f, 0.5f}};
+    static const float folds[] = {0.5f, 0.70710678f, 1.0f, NAN};
+    uint32_t s = rate ^ 0xb5u;
+    for (int fold = 0; fold <= 1; fold++) {
+      float cl = 0.0f, cr = 0.0f;
+      for (uint32_t blk = 0; blk < 30u; blk++) {
+        const uint32_t n = blk == 13u ? 0u : m - (blk % 5u);
+        for (uint32_t i = 0; i < n; i++) {
+          g_a[i] = lcg_noise(&s);
+          g_b[i] = 0.5f * lcg_noise(&s);
+          bl[i] = 0.25f * lcg_noise(&s);
+          br[i] = 0.25f * lcg_noise(&s);
+        }
+        if (blk == 21u) cl = NAN;
+        if (blk == 22u) cr = INFINITY;
+        const float *inr = (blk % 3u == 0u) ? g_a : g_b;
+        const int wrote = k_bus_sum(g_a, inr, bl, fold ? NULL : br, n, levels[blk % 10u],
+                                    images[blk % 5u][0], images[blk % 5u][1], &cl, &cr, fold,
+                                    folds[blk % 4u]);
+        put(bl, n * sizeof(float));
+        if (!fold) put(br, n * sizeof(float));
+        put_f(cl);
+        put_f(cr);
+        put_u32((uint32_t)wrote);
+      }
+    }
+  } else if (strcmp(k, "rt_load") == 0) {
+    struct golden_load g;
+    k_rt_load_clear(&g);
+    uint32_t s = rate ^ 0x10adu;
+    uint64_t xr = 777000u;
+    for (uint32_t c = 0; c < 400u; c++) {
+      const uint32_t frames = (c % 37u == 5u) ? 0u : (64u << (c % 4u));
+      const float budget = (float)frames / (float)rate * 1e9f;
+      const float u = 0.5f * (lcg_noise(&s) + 1.0f);
+      const uint64_t busy = (uint64_t)(budget * 1.3f * u);
+      if (c % 11u == 4u) xr += 1000u * (c % 7u);
+      if (c == 250u) xr = 40u;
+      k_rt_load(&g, busy, frames, (c == 77u) ? 0.0f : (float)rate, xr, c % 50u == 0u);
+      put_f(g.ema);
+      put_f(g.peak);
+      put_u32(g.overruns);
+      put_u32(g.cycles);
+      put_u32(g.xruns);
+      put_u32(g.seeded);
+      put(&g.xrun_ns, sizeof g.xrun_ns);
+    }
   }
 }
 
@@ -388,7 +502,7 @@ int main(int argc, char **argv) {
   const char *path = argc > 1 && !write ? argv[1] : "test/golden/mix.sha256";
   FILE *f = write ? NULL : fopen(path, "r");
   if (!write && !f) { fprintf(stderr, "mix_golden: cannot read %s\n", path); return 2; }
-  static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta"};
+  static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta", "bus_sum", "rt_load"};
   const unsigned nk = sizeof kernels / sizeof kernels[0];
   int fail = 0, checked = 0;
   for (unsigned ki = 0; ki < nk; ki++)
