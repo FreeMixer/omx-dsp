@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.18.0
+Version: 0.18.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,11 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Thu Oct 15 2026 Pau Aliagas <linuxnow@gmail.com> - 0.18.1-1
+- The EQ sabotage check for the 0.999 Nyquist hold no longer depends on the
+  libm: a peak just under Nyquist makes the held point differ by several dB,
+  where 0.18.0 saw a last-bit difference that aarch64 did not have.
+
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.18.0-1
 - analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room
   analysis (H1 transfer and coherence, impulse response and early
