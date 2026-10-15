@@ -72,6 +72,19 @@ static inline double omx_eq_lowpass_nyquist_handover(double q) {
 }
 
 /**
+ * @brief How far a low-Q low-pass raises its Nyquist target across the hand-over (omx-dsp#119): 0
+ *        at or above Q = 1/√2, 1 at or below OMX_EQ_LOWPASS_HANDOVER_Q_LO, linear between. At
+ *        the band's end the target is the prototype's Nyquist value times one plus this weight.
+ * @param q Quality factor, positive.
+ * @return The weight, in [0, 1].
+ * @note RT-safe and thread-safe: arithmetic only.
+ */
+static inline double omx_eq_lowpass_nyquist_raise(double q) {
+  const double u = (OMX_EQ_LOWPASS_HANDOVER_Q_HI - q) / (OMX_EQ_LOWPASS_HANDOVER_Q_HI - OMX_EQ_LOWPASS_HANDOVER_Q_LO);
+  return u <= 0.0 ? 0.0 : (u >= 1.0 ? 1.0 : u);
+}
+
+/**
  * @brief The low-pass hand-over band for a Q, as fractions of Nyquist.
  * @param q Quality factor, positive.
  * @param band `{start, end}`: the matched design below `start`, the bilinear poles from `end`.
@@ -192,13 +205,22 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
        * 19.7 kHz, 44.1 kHz, omx-dsp#116). So the Nyquist target is handed over too, along the
        * same smoothstep, weighted by omx_eq_lowpass_nyquist_handover: at the band's end and from
        * Q = 0.9 up the target is 0, and with the bilinear poles that fit is the cookbook section
-       * itself. */
+       * itself.
+       * Below Q = 1/√2 the prototype's own Nyquist value leaves the passband short of the
+       * prototype under the sliding poles, further from it than the cookbook section (0.15 dB at
+       * 19166 Hz, Q 0.465, 44.1 kHz, omx-dsp#119). So the target is raised, weighted by
+       * omx_eq_lowpass_nyquist_raise, along a smoothstep over the band's second half: doubled
+       * at the band's end from Q = 0.5412 down, the response's highest point unmoved. Below the
+       * band's middle the matched design is still flat and the target is the prototype's, so the
+       * low band stays the matched design's; Q = 1/√2 keeps the prototype's value throughout. */
       omx_eq_matched_pair(w0, 1.0 / (2.0 * qq), p);
       double band[2];
       omx_eq_lowpass_handover(qq, band);
       const double r = f0 / nyquist;
-      double t = (r - band[0]) / (band[1] - band[0]);
-      t = t <= 0.0 ? 0.0 : (t >= 1.0 ? 1.0 : t * t * (3.0 - 2.0 * t));
+      const double x = (r - band[0]) / (band[1] - band[0]);
+      const double t = x <= 0.0 ? 0.0 : (x >= 1.0 ? 1.0 : x * x * (3.0 - 2.0 * x));
+      const double h = 2.0 * x - 1.0;
+      const double v = h <= 0.0 ? 0.0 : (h >= 1.0 ? 1.0 : h * h * (3.0 - 2.0 * h));
       const double cw = cos(w0);
       double a1 = p[0], a2 = p[1], U = p[2] * p[2];
       if (t > 0.0) {
@@ -215,7 +237,8 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       const double dr = 1.0 + a1 * cw + a2 * cos(2.0 * w0);
       const double di = -(a1 * sin(w0) + a2 * sin(2.0 * w0));
       const double s0 = sin(w0 / 2.0) * sin(w0 / 2.0);
-      const double keep = 1.0 - t * omx_eq_lowpass_nyquist_handover(qq);
+      const double keep =
+          (1.0 - t * omx_eq_lowpass_nyquist_handover(qq)) * (1.0 + v * omx_eq_lowpass_nyquist_raise(qq));
       if (keep == 0.0) {
         /* Handed over completely: the bilinear poles under the Nyquist zero, the cookbook's
          * double zero at z = −1 scaled to unity at DC. The fit lands here in exact arithmetic

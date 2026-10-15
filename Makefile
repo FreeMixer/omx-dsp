@@ -53,7 +53,7 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 FPFLAGS  = -ffp-contract=off
 override CFLAGS += $(FPFLAGS)
 # The limits come from FreeMixer/omx-contract: the installed omx-contract-devel / libomx-contract-dev
-# inside the range packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
+# at or above the floor packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
 # (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
 # directory as CONTRACT_INC.
 ifeq ($(filter version clean docs public-sources,$(MAKECMDGOALS)),)
@@ -64,10 +64,8 @@ endif
 export CONTRACT_INC
 endif
 INC      = -Iinclude -isystem $(CONTRACT_INC)
-# The range the spec declares, rendered into omxdsp.pc's Requires.
-CONTRACT_RANGE   := $(shell sh tools/contract-include.sh --range)
-CONTRACT_FLOOR   := $(word 1,$(CONTRACT_RANGE))
-CONTRACT_CEILING := $(word 2,$(CONTRACT_RANGE))
+# The floor the spec declares, rendered into omxdsp.pc's Requires. There is no ceiling.
+CONTRACT_FLOOR   := $(shell sh tools/contract-include.sh --floor)
 BUILD    = build
 LIB      = $(BUILD)/libomxdsp.a
 HEADERS  = $(wildcard include/omxdsp/*.h)
@@ -433,7 +431,7 @@ version:
 	@echo $(VERSION)
 
 PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
-	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTFLOOR@|$(CONTRACT_FLOOR)|' -e 's|@CONTRACTCEILING@|$(CONTRACT_CEILING)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
+	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTFLOOR@|$(CONTRACT_FLOOR)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
 
 $(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp|' -e 's|@FLAVOUR@|release, contracts compiled out|' \

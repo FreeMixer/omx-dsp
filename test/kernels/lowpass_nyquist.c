@@ -30,6 +30,15 @@
  *             above −40 dB;
  *   null      the numerator has no zero on the unit circle short of Nyquist (a complex pair with
  *             b0 = b2 is one: what the clamped fit gave at Q 3, 19.7 kHz, 44.1 kHz).
+ *
+ * And below Q = 1/√2 (omx-dsp#119), at 44.1 and 48 kHz, at every corner from half Nyquist to the
+ * 0.999 hold in 1 % steps and every Q from OMX_EQ_Q_RANGE_MIN up to 1/√2 in 5 % steps, off the
+ * declared grid:
+ *
+ *   low Q     the low-pass is no further from its analogue prototype than the RBJ cookbook
+ *             section, measured as the `cookbook` arm measures it (the fitted Nyquist target lost
+ *             by up to 0.15 dB at 19166 Hz, Q 0.465, 44.1 kHz);
+ *   no lift   no point of the response is above +0.1 dB: the prototype has no peak below 1/√2.
  */
 
 #define LPN_PEAK_DB 0.1
@@ -141,6 +150,32 @@ static void lpn_declared_space(void) {
   }
 }
 
+static void lpn_low_q(void) {
+  static const double rates[2] = {44100.0, 48000.0};
+  for (uint32_t ri = 0; ri < 2u; ri++) {
+    const double sr = rates[ri], nyq = sr * 0.5;
+    uint32_t points = 0, further = 0;
+    double excess = -1e9, at_f0 = 0.0, at_q = 0.0, worst_peak = -1e9;
+    for (double f0 = 0.5 * nyq; f0 < 0.999 * nyq; f0 *= 1.01) {
+      for (double q = OMX_EQ_Q_RANGE_MIN_DOUBLE; q < OMX_EQ_LOWPASS_HANDOVER_Q_HI; q *= 1.05) {
+        double c[5], b[5];
+        omx_eq_design(OMX_EQ_LOWPASS, f0, q, 0.0, sr, c);
+        lpn_cookbook(f0, q, sr, b);
+        const double m = lpn_worst_vs_prototype(c, f0, q, sr), cb = lpn_worst_vs_prototype(b, f0, q, sr);
+        points++;
+        if (!(m <= cb + LPN_TIE_DB)) further++;
+        if (m - cb > excess) { excess = m - cb; at_f0 = f0; at_q = q; }
+        const double pk = lpn_peak_db(c, sr);
+        if (pk > worst_peak) worst_peak = pk;
+      }
+    }
+    printf("  lowpass_nyquist low Q %6.0f Hz: %u points, %u further than the cookbook, closest %+.4f dB (%.0f Hz, Q %.3f), peak %+.4f dB\n",
+           sr, points, further, excess, at_f0, at_q, worst_peak);
+    ok(further == 0u, "below Q 1/sqrt(2) no further from the prototype than the cookbook at any top corner", (double)further, 0.0);
+    ok(worst_peak <= LPN_PEAK_DB, "below Q 1/sqrt(2) no lift above +0.1 dB", worst_peak, LPN_PEAK_DB);
+  }
+}
+
 static void arm_lowpass_nyquist(void) {
   g_arm = "lowpass_nyquist";
   double r[128];
@@ -212,6 +247,7 @@ static void arm_lowpass_nyquist(void) {
     }
   }
   lpn_declared_space();
+  lpn_low_q();
   expect_clean();
 }
 

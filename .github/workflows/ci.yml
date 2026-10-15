@@ -4,7 +4,7 @@ name: ci
 
 # On every push and pull request: the whole suite on Fedora, both Debian releases and Ubuntu 24.04,
 # on both architectures; the packages built, their file lists checked and a consumer outside the tree built
-# against each; omx-contract installed from the FreeMixer channel inside the range the packaging
+# against each; omx-contract installed from the FreeMixer channel at the floor the packaging
 # declares, and refused below its floor; and the release workflow as a dry run. Nothing is signed or published here. Every job reads this
 # repository and other public ones, and runs on GitHub's runners.
 

@@ -8,14 +8,14 @@
 #   1. $OMX_CONTRACT_INC, when set: a scratch render, used by the perturbation arms. Not
 #      version-checked: it is a deliberate other contract.
 #   2. the installed omx-contract-devel / libomx-contract-dev, found by pkg-config, when its version
-#      is inside the range packaging/omx-dsp.spec declares (BuildRequires: omx-contract-devel >= floor,
-#      < ceiling; debian/control carries the same range, tools/contract-include-selftest.sh holds it).
+#      is at or above the floor packaging/omx-dsp.spec declares (BuildRequires: omx-contract-devel >= floor;
+#      debian/control and omxdsp.pc.in carry the same floor, tools/contract-include-selftest.sh holds it).
+#      There is no ceiling: a floor is what the tree needs, a ceiling would only forbid a newer contract.
 #
-# Nothing is downloaded. When the installed omx-contract is missing or outside the range the script
-# stops, naming the package, the range and the version installed.
+# Nothing is downloaded. When the installed omx-contract is missing or below the floor the script
+# stops, naming the package, the floor and the version installed.
 #
-#   --range  prints "<floor> <ceiling>" as the spec declares them (the Makefile renders omxdsp.pc
-#            with them).
+#   --floor  prints the floor as the spec declares it (the Makefile renders omxdsp.pc with it).
 #   --data   prints instead the directory holding the installed package's kernel files
 #            (<kernel>.json, each kernel's ordered `controls`), which tools/face-conformance.sh
 #            reads; when the package ships them only inside its omx-contract.json, they are cut
@@ -27,16 +27,15 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 SPEC="$HERE/packaging/omx-dsp.spec"
 mode="${1:-}"
 floor="$(sed -n 's/^BuildRequires: *omx-contract-devel *>= *\([0-9][0-9.]*\) *$/\1/p' "$SPEC")"
-ceiling="$(sed -n 's/^BuildRequires: *omx-contract-devel *< *\([0-9][0-9.]*\) *$/\1/p' "$SPEC")"
-[ -n "$floor" ] && [ -n "$ceiling" ] || { echo "contract-include: $SPEC declares no 'BuildRequires: omx-contract-devel >= <floor>' and '< <ceiling>' pair" >&2; exit 1; }
-if [ "$mode" = --range ]; then printf '%s %s\n' "$floor" "$ceiling"; exit 0; fi
+[ -n "$floor" ] || { echo "contract-include: $SPEC declares no 'BuildRequires: omx-contract-devel >= <floor>'" >&2; exit 1; }
+if [ "$mode" = --floor ]; then printf '%s\n' "$floor"; exit 0; fi
 if [ "$mode" != --data ] && [ -n "${OMX_CONTRACT_INC:-}" ]; then
   [ -f "$OMX_CONTRACT_INC/omxcontract/omx_contract_limits.h" ] || { echo "contract-include: OMX_CONTRACT_INC=$OMX_CONTRACT_INC has no omxcontract/omx_contract_limits.h" >&2; exit 1; }
   printf '%s\n' "$OMX_CONTRACT_INC"; exit 0
 fi
 data=0
 [ "$mode" = --data ] && data=1
-need="omx-contract >= $floor, < $ceiling (omx-contract-devel / libomx-contract-dev: dnf builddep packaging/omx-dsp.spec, apt-get build-dep ./)"
+need="omx-contract >= $floor (omx-contract-devel / libomx-contract-dev: dnf builddep packaging/omx-dsp.spec, apt-get build-dep ./)"
 command -v pkg-config >/dev/null 2>&1 || { echo "contract-include: pkg-config is missing, so the installed omx-contract cannot be found; this tree needs $need" >&2; exit 1; }
 if ! pkg-config --atleast-version="$floor" omx-contract 2>/dev/null; then
   have="$(pkg-config --modversion omx-contract 2>/dev/null || true)"
@@ -48,10 +47,6 @@ if ! pkg-config --atleast-version="$floor" omx-contract 2>/dev/null; then
   exit 1
 fi
 have="$(pkg-config --modversion omx-contract)"
-# The ceiling is a version comparison, not a prefix: with "< 2.12", 2.13.0 is refused too.
-if ! pkg-config --exists "omx-contract < $ceiling"; then
-  echo "contract-include: omx-contract $have is installed, at or above the ceiling $ceiling: install $need" >&2; exit 1
-fi
 prefix="$(pkg-config --variable=prefix omx-contract)"
 if [ "$data" = 1 ]; then
   datadir="$(pkg-config --variable=datadir omx-contract 2>/dev/null || true)"

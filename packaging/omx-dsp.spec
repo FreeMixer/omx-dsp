@@ -16,7 +16,6 @@ BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
 BuildRequires: omx-contract-devel >= 2.11.0
-BuildRequires: omx-contract-devel < 2.12
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -36,7 +35,6 @@ parts that are already tested against exact results at every sample rate.
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
 Requires: omx-contract-devel >= 2.11.0
-Requires: omx-contract-devel < 2.12
 
 %description devel
 Everything you need to build against libomxdsp: the headers under

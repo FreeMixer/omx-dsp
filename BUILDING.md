@@ -249,11 +249,12 @@ it from the FreeMixer channel with the rest of the build dependencies:
     dnf builddep packaging/omx-dsp.spec     # Fedora, with the FreeMixer repository added
     apt-get build-dep ./                    # Debian, with the FreeMixer source list added
 
-`tools/contract-include.sh` finds the installed `omx-contract` with `pkg-config`: inside the range
-the spec declares, it prints the package's include directory; otherwise the build stops, naming the
-package, the range and the version installed. Nothing is downloaded and no version is pinned
-anywhere else. `tools/contract-include-selftest.sh` (`make checks`) holds the script to that range
-and `debian/control` to the spec's.
+`tools/contract-include.sh` finds the installed `omx-contract` with `pkg-config`: at or above the
+floor the spec declares, it prints the package's include directory; otherwise the build stops, naming
+the package, the floor and the version installed. The dependency is a floor only, never a ceiling.
+Nothing is downloaded and no version is pinned anywhere else. `tools/contract-include-selftest.sh`
+(`make checks`) holds the script to that floor, `debian/control` and `omxdsp.pc.in` to the spec's, and
+refuses an upper bound in any of them.
 
 With `--data` the script prints a directory of the kernels' controls, one `<kernel>.json` each,
 cut from the installed `omx-contract.json` into `build/omx-contract-kernels/<version>/`;
