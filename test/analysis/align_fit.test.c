@@ -9,6 +9,9 @@
  * transfer, so the answer follows from the transfer:
  *
  *   1. a pure delay of d samples (fractional) reads d, polarity normal, coherence 1, residual 0;
+ *      a target identical to its reference reads a delay of exactly 0 and a residual of exactly 0,
+ *      both for noise bins and for Hann-windowed noise frames narrowed to float as the RTA
+ *      delivers them (FreeMixer/omx-dsp#117: the anchor read 5.8e-14 of a sample there);
  *   2. the same delay with the target inverted reads d and an inversion;
  *   3. a delay past half the window reads d − n on the near branch and d when the arrival is
  *      declared physical (the same peak, two names);
@@ -31,6 +34,7 @@
 #include <string.h>
 
 #include <omxdsp/analysis/omx_align_fit.h>
+#include <omxdsp/omx_fft.h>
 
 #include "analysis_rates.h"
 #include "fixtures/room_ts.h"
@@ -91,6 +95,26 @@ static void run(Bufs *b, OmxXspec *a, double rate, uint32_t frames, double d, do
   }
 }
 
+/* Fold `frames` identical pairs of real noise frames, each Hann-windowed (symmetric, denominator
+ * n − 1), transformed, scaled by 4/n and narrowed to float: the spectra the RTA hands the fit. */
+static void run_identical_frames(Bufs *b, OmxXspec *a, double rate, uint32_t frames, uint32_t seed) {
+  RoomRng rng = {seed};
+  const double n = (double)b->n;
+  omx_xspec_init(a, b->xr, b->xi, b->pxx, b->pyy, b->n, rate, 0.0);
+  for (uint32_t f = 0; f < frames; f++) {
+    for (uint32_t i = 0; i < b->n; i++) {
+      b->sr[i] = room_noise(&rng) * (0.5 * (1.0 - cos((2.0 * M_PI * (double)i) / (n - 1.0))));
+      b->si[i] = 0.0;
+    }
+    omx_fft_radix2_d(b->sr, b->si, b->n, 0);
+    for (uint32_t k = 0; k < b->bins; k++) {
+      b->rr[k] = b->tr[k] = (double)(float)(b->sr[k] * (4.0 / n));
+      b->ri[k] = b->ti[k] = (double)(float)(b->si[k] * (4.0 / n));
+    }
+    omx_xspec_add(a, b->tr, b->ti, b->rr, b->ri, b->bins, b->n, rate, 0.0);
+  }
+}
+
 static enum omx_analysis_refusal fit(Bufs *b, const OmxXspec *a, enum omx_align_arrival arrival, double lo, double hi,
                                      OmxAlignFit *out) {
   memset(out, 0, sizeof *out);
@@ -120,6 +144,27 @@ static void arm_rate(double rate) {
   check(fabs(f.coherence - 1.0) < 1e-12, "coherence 1", f.coherence, 1);
   check(f.residual_deg < 1e-6, "residual 0", f.residual_deg, 0);
   check(f.frames == 6u, "six frames", f.frames, 6);
+
+  g_arm = "identical";
+  {
+    uint32_t klo, khi;
+    omx_xspec_band(n, rate, lo, hi, &klo, &khi);
+    for (int frames_kind = 0; frames_kind < 2; frames_kind++) {
+      if (frames_kind == 0) run(&b, &a, rate, 8, 0.0, 1.0, PURE, 0.0, 11u);
+      else run_identical_frames(&b, &a, rate, 8, 12u);
+      int imag_zero = 1;
+      for (uint32_t k = 0; k < b.bins; k++) imag_zero &= a.xi[k] == 0.0;
+      check(imag_zero, "an identical pair's cross-spectrum is exactly real", imag_zero, 1);
+      OmxCoarseDelay c;
+      check(omx_align_coarse_delay(a.xr, a.xi, n, (int32_t)klo, (int32_t)khi, OMX_ALIGN_ARRIVAL_EITHER, b.sr, b.si, &c) == 1,
+            "an identical pair has a peak", 0, 0);
+      check(c.lag == 0.0 && c.samples == 0.0, "an identical pair's anchor is exactly lag 0", c.samples, 0.0);
+      check(fit(&b, &a, OMX_ALIGN_ARRIVAL_EITHER, lo, hi, &f) == OMX_ANALYSIS_OK, "an identical pair fits", 0, 0);
+      check(f.delay_ms == 0.0, "an identical pair reads a delay of exactly 0", delay_samples(&f, rate), 0.0);
+      check(f.residual_deg == 0.0, "an identical pair leaves a residual of exactly 0", f.residual_deg, 0.0);
+      check(f.invert == 0u, "an identical pair is not inverted", f.invert, 0);
+    }
+  }
 
   g_arm = "inverted";
   run(&b, &a, rate, 5, -d, -1.0, PURE, 0.0, 2u);

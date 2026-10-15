@@ -75,6 +75,9 @@ library exists.
 - The EQ sabotage check for the 0.999 Nyquist hold no longer depends on the
   libm: a peak just under Nyquist makes the held point differ by several dB,
   where 0.18.0 saw a last-bit difference that aarch64 did not have.
+- omx_align_fit reads an identical pair as a delay of exactly 0: the anchor's
+  three heights are read from the band's bins, not from the transform, whose
+  rounding put the peak 5.8e-14 of a sample off lag 0.
 
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.18.0-1
 - analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room

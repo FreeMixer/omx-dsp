@@ -12,7 +12,9 @@
  * The fit, as core computed it:
  *   - coherence is |Sxy|²/(Pxx·Pyy) per bin, weighted by sqrt(Pxx·Pyy) across the band;
  *   - the ANCHOR is the peak of the analytic cross-correlation (the inverse transform of the
- *     band's bins alone), parabolically interpolated ({@link omx_align_coarse_delay}); the circular
+ *     band's bins alone), parabolically interpolated through the heights at the peak's lag and its
+ *     two neighbours, read directly from the bins so that an exactly real cross-spectrum (an
+ *     identical pair) anchors at exactly 0 ({@link omx_align_coarse_delay}); the circular
  *     correlation names the peak on `[−n/2, n/2)` for `OMX_ALIGN_ARRIVAL_EITHER` and on `[0, n)`
  *     for `OMX_ALIGN_ARRIVAL_PHYSICAL`, a fact the caller declares;
  *   - the RESIDUAL is a magnitude-weighted line through `arg H` after de-ramping every bin by the
@@ -159,7 +161,8 @@ int omx_xspec_band(uint32_t fft_size, double sample_rate, double low_hz, double 
  * @param out Receives the peak.
  * @return 1 with `out` filled; 0 when the band is empty, carries no energy or `fft_size` is not a
  *         power of two (core's `null`).
- * @note Allocation-free, O(n log n). Thread-safe on distinct scratch.
+ * @note Allocation-free, O(n log n) for the transform that finds the peak, then one cos/sin pair
+ *       per band bin for the three heights. Thread-safe on distinct scratch.
  */
 int omx_align_coarse_delay(const double *cross_re, const double *cross_im, uint32_t fft_size, int32_t k_lo,
                            int32_t k_hi, enum omx_align_arrival arrival, double *scratch_re, double *scratch_im,
