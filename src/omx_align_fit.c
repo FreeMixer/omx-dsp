@@ -81,6 +81,33 @@ int omx_xspec_band(uint32_t fft_size, double sample_rate, double low_hz, double 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "analysis/align-fit"
 
+/* The analytic correlation's height at `lag − 1`, `lag` and `lag + 1`, `|(1/n) Σ X_k e^(2πik(lag+d)/n)|`
+ * over the band's bins, summed directly. Every bin is turned by `lag` first (its angle reduced to
+ * an integer step mod n), then read at `±2πk/n` with one cos and one sin, so the two sides are
+ * mirror images of each other term for term. */
+static void omx_align_peak_heights(const double *xr, const double *xi, uint32_t n, int32_t lo, int32_t hi,
+                                   uint32_t lag, double *y_lo, double *y0, double *y_hi) {
+  double s0r = 0.0, s0i = 0.0, spr = 0.0, spi = 0.0, smr = 0.0, smi = 0.0;
+  for (int32_t k = lo; k <= hi; k++) {
+    const uint32_t step = (uint32_t)(((uint64_t)(uint32_t)k * lag) % n);
+    const double turn = (2.0 * M_PI * (double)step) / (double)n;
+    const double tc = cos(turn), ts = sin(turn);
+    const double yr = xr[k] * tc - xi[k] * ts;
+    const double yi = xr[k] * ts + xi[k] * tc;
+    const double u = (2.0 * M_PI * (double)k) / (double)n;
+    const double c = cos(u), s = sin(u);
+    s0r += yr;
+    s0i += yi;
+    spr += yr * c - yi * s;
+    spi += yr * s + yi * c;
+    smr += yr * c + yi * s;
+    smi += yi * c - yr * s;
+  }
+  *y0 = hypot(s0r, s0i) / (double)n;
+  *y_hi = hypot(spr, spi) / (double)n;
+  *y_lo = hypot(smr, smi) / (double)n;
+}
+
 int omx_align_coarse_delay(const double *cross_re, const double *cross_im, uint32_t fft_size, int32_t k_lo,
                            int32_t k_hi, enum omx_align_arrival arrival, double *scratch_re, double *scratch_im,
                            OmxCoarseDelay *out) {
@@ -112,10 +139,14 @@ int omx_align_coarse_delay(const double *cross_re, const double *cross_im, uint3
       best_lag = l;
     }
   }
-  const uint32_t il = (best_lag + n - 1u) % n, ih = (best_lag + 1u) % n;
-  const double y_lo = hypot(re[il], im[il]);
-  const double y0 = hypot(re[best_lag], im[best_lag]);
-  const double y_hi = hypot(re[ih], im[ih]);
+  /* The transform only finds the peak. The three heights the parabola is drawn through are read
+   * again, directly, from the band's bins: the butterflies round the two sides of a peak
+   * differently, so an exactly real cross-spectrum (an identical pair) read a peak 5.8e-14 of a
+   * sample off lag 0 from them. Here both sides are the same products of the same bins, each bin
+   * first turned by the peak's own lag, so a real spectrum peaking at lag 0 reads two equal sides
+   * and an anchor of exactly 0. */
+  double y_lo, y0, y_hi;
+  omx_align_peak_heights(cross_re, cross_im, n, lo, hi, best_lag, &y_lo, &y0, &y_hi);
   const double curve = y_lo - 2.0 * y0 + y_hi;
   /* A peak has NEGATIVE curvature; anything else is a flat or degenerate top and the sample index
    * is already the best statement available. */

@@ -19,6 +19,17 @@
  *   sweep   a corner swept from 0.55 to 0.95·Nyquist in 0.0004·Nyquist steps moves no grid frequency
  *           under the corner by more in one step than LPN_STEP_RATIO times the matched design's
  *           own worst step for the same corner step below the hand-over.
+ *
+ * And over the declared space (omx-dsp#116), at every corner of the declared EQ grid
+ * (OMX_EQ_FREQ_RANGE_MIN·1.5^k up to OMX_EQ_FREQ_RANGE_MAX, and the maximum itself) above half
+ * Nyquist and under the 0.999 hold, at every Q from OMX_EQ_Q_RANGE_MIN to OMX_EQ_Q_RANGE_MAX in
+ * 1 % steps:
+ *
+ *   cookbook  the low-pass is no further from its analogue prototype than the RBJ cookbook
+ *             section, 20 Hz to 20 kHz (Nyquist where lower) on a 5 Hz grid where the prototype is
+ *             above −40 dB;
+ *   null      the numerator has no zero on the unit circle short of Nyquist (a complex pair with
+ *             b0 = b2 is one: what the clamped fit gave at Q 3, 19.7 kHz, 44.1 kHz).
  */
 
 #define LPN_PEAK_DB 0.1
@@ -26,6 +37,10 @@
 #define LPN_LOW_TOL_DB 0.05
 #define LPN_STEP_RATIO 2.5
 #define LPN_GRID 1200u
+/* Where the hand-over is complete the low-pass IS the cookbook section in exact arithmetic (the
+ * bilinear poles under a numerator fitted to DC, the corner and a Nyquist zero), reached by other
+ * operations: measured 2.8e-14 dB apart at most. A tie within this is a tie. */
+#define LPN_TIE_DB 1e-9
 
 static const float LPN_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
 static const double LPN_Q[2] = {0.70710678118654752, 0.54119610014619698};
@@ -70,6 +85,60 @@ static uint32_t lpn_corners(double r[128]) {
   r[n++] = 1.2;
   r[n++] = 2.0;
   return n;
+}
+
+/* The RBJ cookbook low-pass, transcribed (the design the matched one replaced): the bar. */
+static void lpn_cookbook(double f0, double q, double sr, double c[5]) {
+  const double w0 = 2.0 * M_PI * f0 / sr, cw = cos(w0), al = sin(w0) / (2.0 * q), a0 = 1.0 + al;
+  c[0] = (1.0 - cw) / 2.0 / a0; c[1] = (1.0 - cw) / a0; c[2] = (1.0 - cw) / 2.0 / a0;
+  c[3] = -2.0 * cw / a0; c[4] = (1.0 - al) / a0;
+}
+
+/* The worst |section − prototype| in dB, 20 Hz to 20 kHz (Nyquist where lower) every 5 Hz, where
+ * the prototype 1/(s² + s/Q + 1) is above −40 dB. Prototype transcribed, not the design's. */
+static double lpn_worst_vs_prototype(const double c[5], double f0, double q, double sr) {
+  const double top = sr * 0.5 < 20000.0 ? sr * 0.5 : 20000.0;
+  double worst = 0.0;
+  for (double f = 20.0; f <= top; f += 5.0) {
+    const double x = f / f0, u = 1.0 - x * x;
+    const double proto = -10.0 * log10(u * u + (x / q) * (x / q));
+    if (proto < -40.0) continue;
+    const double e = fabs(omx_biquad_magnitude_db_d(c, f, sr, -300.0) - proto);
+    if (!(e <= worst)) worst = e;
+  }
+  return worst;
+}
+
+static void lpn_declared_space(void) {
+  double corners[40];
+  uint32_t nc = 0;
+  for (double f = OMX_EQ_FREQ_RANGE_MIN; f <= OMX_EQ_FREQ_RANGE_MAX; f *= 1.5) corners[nc++] = f;
+  corners[nc++] = OMX_EQ_FREQ_RANGE_MAX;
+  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+    const double sr = LPN_RATES[ri], nyq = sr * 0.5;
+    uint32_t points = 0, further = 0, nulls = 0;
+    double worst_ratio = 0.0, at_f0 = 0.0, at_q = 0.0, excess = 0.0;
+    for (uint32_t k = 0; k < nc; k++) {
+      const double f0 = corners[k];
+      if (f0 <= 0.5 * nyq || f0 >= 0.999 * nyq) continue;
+      for (double q = OMX_EQ_Q_RANGE_MIN_DOUBLE; q <= OMX_EQ_Q_RANGE_MAX * 1.000001; q *= 1.01) {
+        double c[5], b[5];
+        omx_eq_design(OMX_EQ_LOWPASS, f0, q, 0.0, sr, c);
+        lpn_cookbook(f0, q, sr, b);
+        const double m = lpn_worst_vs_prototype(c, f0, q, sr), cb = lpn_worst_vs_prototype(b, f0, q, sr);
+        points++;
+        if (!(m <= cb + LPN_TIE_DB)) further++;
+        if (m - cb > excess) excess = m - cb;
+        if (m / cb > worst_ratio) { worst_ratio = m / cb; at_f0 = f0; at_q = q; }
+        if (c[1] * c[1] < 4.0 * c[0] * c[2] && fabs(c[2] - c[0]) <= 1e-9 * fabs(c[0])) nulls++;
+      }
+    }
+    if (points == 0u) continue;
+    printf("  lowpass_nyquist declared space %6.0f Hz: %u points, worst against the cookbook %.4f (%.0f Hz, Q %.3f), most over it %.2e dB\n",
+           sr, points, worst_ratio, at_f0, at_q, excess);
+    ok(further == 0u, "no further from the prototype than the cookbook at any declared top corner and Q", (double)further, 0.0);
+    ok(nulls == 0u, "no numerator zero on the unit circle short of Nyquist", (double)nulls, 0.0);
+  }
 }
 
 static void arm_lowpass_nyquist(void) {
@@ -142,5 +211,7 @@ static void arm_lowpass_nyquist(void) {
          worst_step, LPN_STEP_RATIO * ref_step);
     }
   }
+  lpn_declared_space();
   expect_clean();
 }
+
