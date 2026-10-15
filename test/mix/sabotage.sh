@@ -38,7 +38,7 @@ build() { # $1 = dir (its omxdsp/ copy goes ahead of include/)
   $CC $CFLAGS -Wno-unused-function -ffp-contract=off -I"$1" -I"$PKG/include" -isystem "$CONTRACT_INC" -DOMX_CONTRACTS -I"$OUT/gen" \
     -o "$1/suite" "$PKG/test/omxdsp_suite.c" "$LIBC" -lm
   $CC $CFLAGS -ffp-contract=off -I"$1" -I"$PKG/include" -isystem "$CONTRACT_INC" \
-    -o "$1/golden" "$PKG/test/mix/golden.test.c" -lm
+    -include "$PKG/test/support/log10f_subst.h" -o "$1/golden" "$PKG/test/mix/golden.test.c" -lm
 }
 
 # the control: the mix arms pass and the digests hold (the suite's contract floor is the whole
@@ -85,4 +85,12 @@ run fold mix_coef omx_mix_coef.h 's|  float t = level \* fold_coef;|  float t = 
 run bus_out mix_bus_out omx_bus_out.h 's|    busL\[i\] \*= omx_ramp_at(rl, i);|    busL[i] *= omx_ramp_at(rl, i) * 0.9999f;|'
 run peak mix_meter omx_meter.h 's|      if (y > peak) peak = y;|      if (y > peak) peak = x;|'
 run clip mix_meter omx_meter.h 's|      if (run_b >= need) return true;|      if (run_b > need) return true;|'
+run hold mix_meter omx_meter.h 's|  return peak > held ? peak : held;|  return peak > held ? peak : held * 0.9999f;|'
+run gr mix_meter_gr omx_meter.h 's|    m->hold_left_s = OMX_METER_GR_HOLD_MS \* 0.001f;|    m->hold_left_s = OMX_METER_GR_HOLD_MS * 0.0011f;|'
+run rta mix_rta_tap omx_rta_tap.h 's|  for (uint32_t i = 0; i < n; i++) out\[i\] = 0.5f \* (l\[i\] + r\[i\]);|  for (uint32_t i = 0; i < n; i++) out[i] = 0.5001f * (l[i] + r[i]);|'
+run rta mix_rta_tap omx_rta_tap.h 's|  omx_decimate_halfband(scr->stage2, OMX_RTA_LOW_WINDOW / 4, scr->low_block);|  omx_decimate_halfband(scr->stage1, OMX_RTA_LOW_WINDOW / 4, scr->low_block);|'
+run bus_sum mix_bus_sum omx_bus_sum.h 's|  for (uint32_t i = 0; i < n; i++) y\[i\] += x\[i\] \* (g0 + step \* (float)i);|  for (uint32_t i = 0; i < n; i++) y[i] += x[i] * (g0 + step * (float)i) * 0.9999f;|'
+run bus_sum mix_bus_sum omx_bus_sum.h 's|  for (uint32_t i = 0; i < n; i++) y\[i\] += (a\[i\] + b\[i\]) \* (g0 + step \* (float)i);|  for (uint32_t i = 0; i < n; i++) y[i] += (a[i] + 0.5f * b[i]) * (g0 + step * (float)i);|'
+run rt_load mix_rt_load omx_rt_load.h 's|#define OMX_RT_LOAD_SMOOTHING 0.9f|#define OMX_RT_LOAD_SMOOTHING 0.8f|'
+run rt_load mix_rt_load omx_rt_load.h 's|  return (seeded \&\& xrun_ns > seen_ns) ? 1u : 0u;|  return (seeded \&\& xrun_ns >= seen_ns) ? 1u : 0u;|'
 echo "mix-sabotage: every kernel's sabotage turns its oracle and its digests red"
