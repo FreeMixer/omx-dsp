@@ -398,8 +398,10 @@ engine-kernels-identity:
 # (include/omxdsp/mix/, FreeMixer/omx-dsp#98): their oracles are suite arms (test/kernels/mix_*.c);
 # here are their golden digests at the nine RME rates, which the engine's own copies wrote
 # (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
-$(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) | $(BUILD)
-	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
+# Compiled with log10f replaced by the correctly rounded omx_log10f (test/support), as the FX goldens
+# are: the gain-reduction reading's log10f otherwise moves its digests on glibc 2.36 and 2.39.
+$(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) $(SUPPORT_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) $(GOLDEN_SUBST) -o $@ $< -lm
 
 test-mix: $(BUILD)/mix_golden $(LIB_CONTRACTS)
 	./$(BUILD)/mix_golden test/golden/mix.sha256

@@ -38,7 +38,7 @@ build() { # $1 = dir (its omxdsp/ copy goes ahead of include/)
   $CC $CFLAGS -Wno-unused-function -ffp-contract=off -I"$1" -I"$PKG/include" -isystem "$CONTRACT_INC" -DOMX_CONTRACTS -I"$OUT/gen" \
     -o "$1/suite" "$PKG/test/omxdsp_suite.c" "$LIBC" -lm
   $CC $CFLAGS -ffp-contract=off -I"$1" -I"$PKG/include" -isystem "$CONTRACT_INC" \
-    -o "$1/golden" "$PKG/test/mix/golden.test.c" -lm
+    -include "$PKG/test/support/log10f_subst.h" -o "$1/golden" "$PKG/test/mix/golden.test.c" -lm
 }
 
 # the control: the mix arms pass and the digests hold (the suite's contract floor is the whole

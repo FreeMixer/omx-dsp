@@ -57,7 +57,7 @@ build() {
   fi
   # shellcheck disable=SC2086
   if ! $CC $CFLAGS -ffp-contract=off -DOMX_GOLDEN_ENGINE -H -I"$shim" -isystem "$eci" -I"$src" \
-      -o "$out/golden" "$PKG/test/mix/golden.test.c" -lm 2>"$out/trace"; then
+      -include "$PKG/test/support/log10f_subst.h" -o "$out/golden" "$PKG/test/mix/golden.test.c" -lm 2>"$out/trace"; then
     echo "mix-engine-identity: FAIL — the golden program does not compile against the engine's copies:"
     grep -E 'error' "$out/trace" | head -5
     return 1

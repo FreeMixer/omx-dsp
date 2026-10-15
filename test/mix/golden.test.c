@@ -14,7 +14,9 @@
  * build: each kernel below names the library's call and the engine's.
  *
  * The stimulus makes no libm call (an integer generator, rational pan sweeps); the kernels call
- * cosf, sinf and sqrtf, the engine's own arithmetic.
+ * cosf, sinf, sqrtf, powf and log10f, the engine's own arithmetic. This program is compiled with
+ * test/support/log10f_subst.h, so its log10f is the correctly rounded omx_log10f and the
+ * gain-reduction digests read the same on glibc 2.36, 2.39 and 2.43.
  *
  *   pan      the stereo pan law over a pan sweep past both ends
  *   lcr      the LCR layout at four divergences over the same sweep
