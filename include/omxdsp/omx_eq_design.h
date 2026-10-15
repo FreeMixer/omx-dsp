@@ -38,8 +38,9 @@ enum omx_eq_kind {
  *         It depends on Q, because the matched design lifts the passband sooner the higher its Q:
  *         at Q = 1/√2 (the 12 dB Butterworth) it starts at 0.6 and ends at 0.85; at Q = 0.5412
  *         (the low-Q half of the 24 dB Butterworth) at 0.8 and 0.9; between them it moves
- *         linearly, and past either end it holds that end's band. Below the band the low-pass is
- *         the matched design unchanged. */
+ *         linearly, and below Q = 0.5412 it holds that band. Above 1/√2 the prototype peaks and
+ *         the band's end moves down to 0.8 by Q = 0.9 (omx-dsp#116), held above it. Below the band
+ *         the low-pass is the matched design unchanged. */
 #define OMX_EQ_LOWPASS_HANDOVER_Q_HI 0.70710678118654752
 /** @brief The low Q end of the hand-over table: Q = 0.5412, the low-Q half of the 24 dB Butterworth. */
 #define OMX_EQ_LOWPASS_HANDOVER_Q_LO 0.54119610014619698
@@ -51,6 +52,24 @@ enum omx_eq_kind {
 #define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_LO 0.8
 /** @brief Where the hand-over ends at the low Q end, as a fraction of Nyquist. */
 #define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_LO 0.9
+/** @brief The peaked end of the hand-over table (omx-dsp#116): from 1/√2 to this Q the band's end
+ *         moves from 0.85 to OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_PEAK and the fitted Nyquist target is
+ *         handed over to the cookbook's Nyquist zero (omx_eq_lowpass_nyquist_handover). */
+#define OMX_EQ_LOWPASS_HANDOVER_Q_PEAK 0.9
+/** @brief Where the hand-over ends at the peaked end, as a fraction of Nyquist. */
+#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_PEAK 0.8
+
+/**
+ * @brief How far a peaked low-pass hands its Nyquist target over: 0 at or below Q = 1/√2, 1 at or
+ *        above OMX_EQ_LOWPASS_HANDOVER_Q_PEAK, linear between.
+ * @param q Quality factor, positive.
+ * @return The weight, in [0, 1].
+ * @note RT-safe and thread-safe: arithmetic only.
+ */
+static inline double omx_eq_lowpass_nyquist_handover(double q) {
+  const double v = (q - OMX_EQ_LOWPASS_HANDOVER_Q_HI) / (OMX_EQ_LOWPASS_HANDOVER_Q_PEAK - OMX_EQ_LOWPASS_HANDOVER_Q_HI);
+  return v <= 0.0 ? 0.0 : (v >= 1.0 ? 1.0 : v);
+}
 
 /**
  * @brief The low-pass hand-over band for a Q, as fractions of Nyquist.
@@ -63,6 +82,7 @@ static inline void omx_eq_lowpass_handover(double q, double band[2]) {
   u = u < 0.0 ? 0.0 : (u > 1.0 ? 1.0 : u);
   band[0] = OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_HI + (OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_LO - OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_HI) * u;
   band[1] = OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI + (OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_LO - OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI) * u;
+  band[1] += (OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_PEAK - OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI) * omx_eq_lowpass_nyquist_handover(q);
 }
 
 #undef OMX_CONTRACT_STAGE
@@ -166,7 +186,13 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
        * moves the response continuously. The numerator is fitted to the same three points
        * throughout, so DC stays 1 and the corner stays at the prototype's |H| = Q. A convex mix
        * of two stable pole pairs is stable (the stability triangle is convex). Below the
-       * hand-over the section is the matched design, bit for bit. */
+       * hand-over the section is the matched design, bit for bit.
+       * Above Q = 1/√2 the prototype peaks, and near Nyquist the Nyquist value cannot be met as
+       * well: the fit put both zeros on the unit circle inside the passband (72 dB off at Q 3,
+       * 19.7 kHz, 44.1 kHz, omx-dsp#116). So the Nyquist target is handed over too, along the
+       * same smoothstep, weighted by omx_eq_lowpass_nyquist_handover: at the band's end and from
+       * Q = 0.9 up the target is 0, and with the bilinear poles that fit is the cookbook section
+       * itself. */
       omx_eq_matched_pair(w0, 1.0 / (2.0 * qq), p);
       double band[2];
       omx_eq_lowpass_handover(qq, band);
@@ -189,8 +215,9 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       const double dr = 1.0 + a1 * cw + a2 * cos(2.0 * w0);
       const double di = -(a1 * sin(w0) + a2 * sin(2.0 * w0));
       const double s0 = sin(w0 / 2.0) * sin(w0 / 2.0);
+      const double keep = 1.0 - t * omx_eq_lowpass_nyquist_handover(qq);
       const OmxMatchedNumerator n =
-          omx_matched_fit_numerator(U, tPi * dPi * dPi, qq * qq * (dr * dr + di * di), s0);
+          omx_matched_fit_numerator(U, tPi * dPi * dPi * keep, qq * qq * (dr * dr + di * di), s0);
       c[0] = n.b0; c[1] = n.b1; c[2] = n.b2; c[3] = a1; c[4] = a2;
       break;
     }

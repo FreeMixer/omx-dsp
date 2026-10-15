@@ -78,6 +78,10 @@ library exists.
 - omx_align_fit reads an identical pair as a delay of exactly 0: the anchor's
   three heights are read from the band's bins, not from the transform, whose
   rounding put the peak 5.8e-14 of a sample off lag 0.
+- The EQ low-pass near Nyquist above Q 1/sqrt(2) no longer puts a null in its
+  passband: the hand-over ends sooner and hands the Nyquist target over to
+  the cookbook's zero, so at every top corner and Q of the declared space it
+  is no further from the prototype than the cookbook.
 
 * Wed Oct 14 2026 Pau Aliagas <linuxnow@gmail.com> - 0.18.0-1
 - analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room
