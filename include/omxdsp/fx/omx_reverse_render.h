@@ -4,10 +4,8 @@
  * @file omx_reverse_render.h (formerly the console's mix_reverse_render.h)
  * @brief The PRE-HIT reverse swell, offline, over a whole region.
  *
- * Spec: the native delay reverb spec, Amendment 2026-09-17 §G (the
- * operator's 04:05 ruling: "queue the pre-hit reverse as an offline render lane. It must not
- * affect anything if not enabled"). §B of the same amendment REFUSED this gesture on the live
- * strip and named the arithmetic that refuses it: a swell landing BEFORE the hit needs the dry
+ * The pre-hit reverse is an offline render lane: it must not affect anything if not enabled. The
+ * live strip REFUSES this gesture, for this arithmetic: a swell landing BEFORE the hit needs the dry
  * delayed by the span the mirror covers — 600 ms at the 300 ms default — which no live desk can
  * carry and which delay compensation would then push onto the whole strip.
  *
@@ -106,7 +104,7 @@ static inline uint32_t omx_reverse_render_window(float reverse_ms, float sr) {
 
 /**
  * @brief Which NETWORK an algorithm names. `reverse` and `gated` are ROOM's comb network handed an
- *        output stage (spec §B/§C), and the output stage is what offline replaces — so they render
+ *        output stage, and the output stage is what offline replaces — so they render
  *        as ROOM, and the other two render as themselves.
  * @param algorithm The row's algorithm.
  * @return OMX_REVERB_PLATE, OMX_REVERB_HALL or OMX_REVERB_ROOM.

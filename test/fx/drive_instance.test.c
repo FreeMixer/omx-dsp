@@ -319,7 +319,7 @@ static void arm_no_allocation(void) {
 
 /* The factors the contract offers (DRIVE_OVERSAMPLES) and the round trip each one costs, in
  * base-rate samples: nothing at 1x; at 2x the up stage's 24 plus the down stage's 48 at twice the
- * rate; at 4x 72 (drive-stage spec §3b). Written as numbers, not read from the oversampler, so the
+ * rate; at 4x 72. Written as numbers, not read from the oversampler, so the
  * latency the face publishes is checked against the closed form and not against itself. */
 static const int FACTORS[3] = {OMX_DRIVE_OVERSAMPLES_1, OMX_DRIVE_OVERSAMPLES_2, OMX_DRIVE_OVERSAMPLES_4};
 static const uint32_t FACTOR_LATENCY[3] = {0u, 48u, 72u};

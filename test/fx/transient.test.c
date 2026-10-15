@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
-// The transient designer's oracle (omx_transient.h), the transient designer spec
+// The transient designer's oracle (omx_transient.h), the design
 // §5, arms A–E, G, H at every declared rate (arm F and the RT rows are the row lane's, §8 item 4).
 // Closed forms in double; the step closed form is the cascade's negative-binomial CDF on the
 // float32 per-stage poles the kernel runs. `--cost` prints the kernel's ns/sample per rate instead.
@@ -128,7 +128,7 @@ static void arm_steps(float sr) {
         if (st.gain_db > peak) peak = st.gain_db;
       }
       ok(worst <= bound, rise ? "g_dB on the onset is attackDb·min(1, ΔA/REF) of the closed form" : "g_dB on the decay is sustainDb·min(1, ΔS/REF) of the closed form", worst, bound);
-      /* B: a 20 dB step's contrast passes REF (spec §2 table), so the knob reaches its full value exactly. */
+      /* B: a 20 dB step's contrast passes REF, so the knob reaches its full value exactly. */
       g_arm = "B: full knob";
       ok(peak == knob, "a 20 dB step reaches the knob's full value exactly", peak, knob);
       g_arm = "A: steps";

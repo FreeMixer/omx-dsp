@@ -4,8 +4,6 @@
  * Oracle for the native DRIVE stage (omx_drive.h), every arm at every rate in OMX_DECLARED_RATES:
  *   make test-fx
  *
- * Spec: the native drive stage spec §4.
- *
  * WHAT THIS FILE IS FOR. A saturator's whole job is the harmonics it adds, so a test that only
  * proves "the numbers changed" proves nothing — it would pass over a stage that added noise.
  * Every claim here is a claim about a SPECTRUM, measured bin by bin with the fundamental on an
@@ -75,7 +73,7 @@ static double g_sr = 96000.0;
 /*
  * Two claims are measured at every rate and ASSERTED only at base rates of 88.2 kHz and above:
  * the 4x alias floor (-110 dBc) and the stage's reconstruction-ripple bound (1.15). The engine's
- * oracle stated both at the rate the rig runs (96 kHz) and the drive spec calls them claims at
+ * oracle stated both at the rate the rig runs (96 kHz) and the design calls them claims at
  * that rate; at 44.1 and 48 kHz the 4x shaper measures -100.8 and -83.1 dBc and a stage peak of
  * 1.165 and 1.163, printed on every run and not asserted. The no-oversampling CONTROL is asserted
  * wherever a product of order 9 folds into the audio band; above 96 kHz none does, and the line
@@ -364,7 +362,7 @@ static void test_thd_per_curve(void) {
 /* ---- 5. character: -1 is pure ODD, +1 is EVEN-DOMINANT, and BOTH ends are bounded ------ */
 
 /*
- * Spec §4b as amended 2026-09-15: `character` is a BIAS on the shaper's input,
+ * as amended 2026-09-15: `character` is a BIAS on the shaper's input,
  * out = (F(u + b) - F(b)) / (1 + F(b)) with b = w/sqrt(2). What that changes here:
  *
  *   - `character -1` is unchanged and still EXACT: b = 0 makes the shaper odd, so H2 sits at the
@@ -384,7 +382,7 @@ static void test_character_even_odd(void) {
   const double chs[3] = { -1.0, 0.0, 1.0 };
   double h2[3][3], h3[3][3];
 
-  printf("  character at +12 dB drive, 1 kHz @ -6 dBFS, x4 — the spec §4b table:\n");
+  printf("  character at +12 dB drive, 1 kHz @ -6 dBFS, x4 — the §4b table:\n");
   for (int c = 0; c < 3; c++) {
     for (int i = 0; i < 3; i++) {
       struct omx_drive p = atom(curves[c], 12.0, chs[i], 1.0, 4);
@@ -419,9 +417,9 @@ static void test_character_even_odd(void) {
    * WHERE EVEN-DOMINANCE ENDS, measured rather than asserted away. A hard-clipped wave's EVEN
    * harmonics come from a duty-cycle asymmetry, and a FIXED bias is a shrinking fraction of a
    * growing swing — so past the knee the clipping's odd harmonics take over whatever the bias
-   * is. The spec says the crossover is near 15 dB; this prints the sweep that says so, and the
+   * is. The design puts the crossover near 15 dB; this prints the sweep that says so, and the
    * two checks pin the ends. (The alternative, a bias that grows with the drive, keeps evens at
-   * every drive and GATES any input below -3 dBFS — measured, and refused in §4b.)
+   * every drive and GATES any input below -3 dBFS — measured, and refused by the design.)
    */
   printf("  character +1, soft: H2 - H3 vs drive —");
   double lead_lo = 0.0, lead_hi = 0.0;
@@ -733,10 +731,10 @@ static void test_exciter(void) {
   free(s2);
 }
 
-/* ---- 9b. the Enhancer presets: closed form at every declared rate (drive spec §4c) ------ */
+/* ---- 9b. the Enhancer presets: closed form at every declared rate ------ */
 
-/* The three exciter seeds of drive spec §4c (filed as /stagePresets/drive rows by the presets
- * spec's increment 5). `band_hz`/`hf_hz` are the corners; hf_hz 0 is `hfRolloff: off`. */
+/* The three exciter seeds of the design (filed as /stagePresets/drive rows by the presets).
+ * `band_hz`/`hf_hz` are the corners; hf_hz 0 is `hfRolloff: off`. */
 struct exciter_preset {
   const char *id;
   int band;

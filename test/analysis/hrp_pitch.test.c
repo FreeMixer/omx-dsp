@@ -10,7 +10,7 @@
  * should give is known exactly, and a wrong answer is wrong against arithmetic rather than
  * against a recording somebody has to trust.
  *
- * Covers the list the spec names — §37 (sine, harmonic series, missing fundamental, strong H2,
+ * Covers the list the design names — (sine, harmonic series, missing fundamental, strong H2,
  * strong H3, low notes, noise, amplitude variation), §38 (simultaneous voices up to the budget —
  * §7's four, raised to eight by the operator's polyphony sizing of 2026-09-01 — overlap,
  * competing fundamentals, octave ambiguity) and §55 (the octave errors that are "especially

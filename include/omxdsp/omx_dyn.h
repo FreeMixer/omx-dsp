@@ -49,7 +49,7 @@
 /** @brief `4x`: always oversample, even at an attack slow enough not to need it. */
 #define OMX_DYN_OVS_X4 2
 
-/** @brief Where `auto` engages. 0.5 ms, operator ruling 2026-09-14: the measured defect is a
+/** @brief Where `auto` engages. 0.5 ms: the measured defect is a
  * FAST-attack defect, and by 0.5 ms the control path is already band-limited enough that the
  * fold has nothing loud to fold. */
 #define OMX_DYN_OVS_AUTO_MS 0.5f
@@ -494,7 +494,7 @@ static inline float omx_gr_block_db(float min_gain) {
  * `l` is always driven; `r` may be NULL (mono — one leg) or a second leg (stereo). ONE gain is
  * applied to both legs, so a stereo strip's image never shifts under gain reduction.
  *
- * THE KEY (the keyed gates spec). `key` is the MONO signal the detector
+ * THE KEY. `key` is the MONO signal the detector
  * measures, already filtered by whatever the key filter is set to — the caller's copy, never a
  * leg of the audio. `key == NULL` is the ordinary self-detecting slot and is the ONLY shape the
  * comp slot and an un-keyed gate ever take: the detector then tracks the max across the provided
@@ -537,8 +537,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   OMX_PRE(omx_block_finite(l, n), "finite-in-l");
   OMX_PRE(omx_block_finite(r, n), "finite-in-r");
   /* The KEY is a third input block and it was the one with no precondition until 2026-09-17: it
-   * is the caller's own filtered copy of somebody ELSE's audio (the keyed
-   * gates spec), so it arrives from a different strip's scratch through a biquad
+   * is the caller's own filtered copy of somebody ELSE's audio (the keyed gate's key), so it arrives from a different strip's scratch through a biquad
    * pair this stage does not own. A NaN there is permanent — it enters the envelope cascade,
    * which is recursive. `omx_block_finite` answers 1 for the NULL an un-keyed slot passes. */
   OMX_PRE(omx_block_finite(key, n), "finite-in-key");
@@ -600,7 +599,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
                                 : p->release_coeff;
 
   /* A BELOW slot without the gate's state machine: its gain is flat wherever the gate is open
-   * or on its floor, and only the levels between take the dB path (#56). */
+   * or on its floor, and only the levels between take the dB path. */
   const int flat = p->gc.mode == OMX_DYN_BELOW && !gate_state;
   struct omx_dyn_flat fl = {NAN, NAN, 0.0f, 0.0f};
   if (flat) omx_dyn_flat_bounds(p, &fl);

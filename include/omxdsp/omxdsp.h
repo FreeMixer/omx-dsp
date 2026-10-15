@@ -5,7 +5,7 @@
  * @brief libomxdsp: the umbrella header, the version and the state-layout export.
  *
  * Every primitive is a `static inline` function over caller-owned state in its own header;
- * this header includes them all. Design: the dsp primitives spec.
+ * this header includes them all.
  */
 #ifndef OMXDSP_H
 #define OMXDSP_H

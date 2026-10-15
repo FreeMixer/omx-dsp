@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * omxdsp_threads.c — N threads, each over its own state, contracts ON, every output byte-identical
- * to the single-threaded reference, the ledger empty (the dsp primitives spec
+ * to the single-threaded reference, the ledger empty (the design
  * §4.3 (c)). Built with -pthread; `make test-tsan` runs it under ThreadSanitizer (§4.3 (e)), and
  * again with OMXDSP_THREADS_SABOTAGE_SHARED_STATE — every worker handed ONE fractional line — which
  * TSan must report as a race.

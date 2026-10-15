@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The dual-tap pitch shifter (omx_pitch.h) against the closed forms of its own splice — the
- * the native pitch shift spec §3, §7 and §11, at EVERY
+ * the design, at EVERY
  * declared rate (OMX_DECLARED_RATES, the generated header — never this file's own list). Every
- * number the stage declares is read from OMX_PITCH_*; the oracle's formulas are the spec's, in
+ * number the stage declares is read from OMX_PITCH_*; the oracle's formulas are the design's, in
  * double, and never call the kernel's own delay or weight words. Contracts are compiled in and
  * every arm drains the ledger empty.
  *
@@ -60,9 +60,9 @@ static void drain_violations(const char *where) {
   omx_contract_log.count = 0u;
 }
 
-/* ---- the oracle's own closed forms (spec §1, §3), in double ------------------------------ */
+/* ---- the oracle's own closed forms, in double ------------------------------ */
 
-/** The kernel's reach at order 3 (the fdelay spec): the shortest delay a tap reads. */
+/** The kernel's reach at order 3: the shortest delay a tap reads. */
 #define O_DMIN 1.0
 
 static double o_window(double sr) { return (double)OMX_PITCH_WINDOW_MS * 1e-3 * sr; }

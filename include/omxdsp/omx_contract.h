@@ -7,7 +7,6 @@
  * Compiled only under `OMX_CONTRACTS` (test and bench builds); the release build compiles every
  * contract to nothing. A violation never aborts, allocates or prints: it is counted and, for the
  * first `OMX_CONTRACT_MAX` violations, recorded in one process-wide ledger a test reads afterwards.
- * Design: the dsp primitives spec §7 (the law) and §4 F1 (the ledger).
  */
 #ifndef OMX_CONTRACT_H
 #define OMX_CONTRACT_H

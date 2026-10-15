@@ -3,10 +3,10 @@
  *
  * omx_hrp_render.h — HRP over a WHOLE RECORDED TRACK: the offline render kernel.
  *
- * Spec: the recording vsc spec §0.5 (HRP+ renders offline, beside the
+ * HRP+ renders offline, beside the
  * originals — "whole-file analysis with the same C engine, no live budget: polyphonic,
- * iterative, look-ahead"), over the hrp polyphonic architecture spec,
- * whose laws this obeys unchanged except where §0.5 lifts a LIVE constraint and this header
+ * iterative, look-ahead"), over the HRP design,
+ * whose laws this obeys unchanged except where the offline render lifts a LIVE constraint and this header
  * names the line that lifts it.
  *
  * THE SAME ENGINE, NOT A SECOND ONE. Every measurement below is made by the modules the live
@@ -23,19 +23,19 @@
  *      new note is, by construction, uncorrected live. Offline the whole file exists before one
  *      sample is written, so {@link omx_hrp_render_feed} is run TWICE: pass one teaches the
  *      per-note model from the entire performance, pass two measures every window — the first
- *      one included — against the model the whole file taught. §0.5: "whole-file analysis".
+ *      one included — against the model the whole file taught. The offline claim: "whole-file analysis".
  *
  *   2. LOOK-AHEAD, AND A CORRECTION IN FORCE FROM SAMPLE ZERO. §2's "HRP adds ZERO intentional
  *      audio latency" governs the RT path, and §4 puts this library off it entirely. With no
  *      callback to be late for, a correction may be decided from evidence that extends PAST the
  *      sample it is applied to — which is what makes the render's first chorus correctable from
- *      the second chorus's evidence. §0.5: "look-ahead". The cost live pays for this is
+ *      the second chorus's evidence. The offline claim: "look-ahead". The cost live pays for this is
  *      latency; offline the cost is a second read of the file, which is free.
  *
  *   3. THE PER-FRAME BUDGET. §57 measures HRP's cost so it never interferes with the RT
  *      callback. There is no callback here, so the search runs at the full {@link
  *      OMX_HRP_MAX_VOICES} ceiling with the caller's own sweep step rather than the one a live
- *      tick can afford. §0.5: "no live budget: polyphonic, iterative".
+ *      tick can afford. The offline claim: "no live budget: polyphonic, iterative".
  *
  * ## What still binds, and is not negotiable offline
  *
@@ -96,7 +96,7 @@
  * The offline shell reads the file TWICE, so it can afford to keep teaching and measuring
  * apart: {@link OMX_HRP_RENDER_LEARN} over the whole take builds the model, and
  * {@link OMX_HRP_RENDER_MEASURE} over the whole take reads every window — the opening
- * included — against the model the ending helped teach. That separation IS §0.5's whole-file
+ * included — against the model the ending helped teach. That separation IS the whole-file
  * privilege.
  *
  * A LIVE SHELL READS THE AUDIO ONCE. It has no second pass to measure in, so
@@ -120,7 +120,7 @@
 
 /* The most one accepted measurement may move the learned level offline, in dB.
  *
- * A FIFTH of the live default, and the fourth thing §0.5's "no live budget" buys. §22 asks for a
+ * A FIFTH of the live default, and the fourth thing the "no live budget" claim buys. §22 asks for a
  * robust estimator; live sizes its step (0.5 dB) so a model becomes useful inside one song,
  * because a model that has not converged by the second chorus is no use at a show. Offline the
  * number of accepted updates is the whole take's, so the step can be small enough that a

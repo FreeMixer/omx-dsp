@@ -24,7 +24,7 @@
  *   make test-fx                     compare omx_idelay.h with them
  *
  * The 32, 64 and 128 kHz lines were added later by omx_idelay.h itself (`--write`), with the six
- * the engine wrote unchanged (#81).
+ * the engine wrote unchanged.
  */
 #include <math.h>
 #include <stdint.h>

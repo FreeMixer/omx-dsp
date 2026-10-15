@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * @file band_dyn.test.c
- * @brief The band-dynamics word's oracle, the native dynamic eq spec §5
+ * @brief The band-dynamics word's oracle, the design
  *        O1–O9, at the nine RME rates (OMX_FX_RME_RATES, fx_rates.h: the six declared plus 32, 64 and
  *        128 kHz), so O9's rate spread spans all nine (O10 is the de-esser's own battery, out of scope here).
  */
@@ -20,7 +20,7 @@
 
 #include "fx_rates.h"
 
-/** @brief The shared band-dynamics knee, dB — `BAND_DYN_KNEE_DB`, spec §3b. */
+/** @brief The shared band-dynamics knee, dB — `BAND_DYN_KNEE_DB`. */
 #define KNEE_DB 6.0f
 /** @brief Where the 4-stage peak cascade settles on a 1 kHz sine, dB under its peak (measured −0.742 at the nine RME rates). */
 #define PEAK_SETTLE_DB (-0.742)

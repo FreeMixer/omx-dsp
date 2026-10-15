@@ -11,7 +11,7 @@
  * {@link omx_eq_lv2_set_controls}, so a shell carries ports across its host boundary and nothing
  * more. The `omx_eq_lv2_*` names are kept, as omx-plugins' omx_delay_instance.h keeps `omx_delay_lv2_*`.
  *
- * Ruling (ops briefs/2026-09-23-lane-omx-lv2-pack-scoping.md, "EQ RULED"): LV2 has no variable
+ * Ruling: LV2 has no variable
  * port count, so the EQ ships as THREE bundles — omx-eq8, omx-eq16, omx-eq32 — from this one
  * file, `-DOMX_EQ_LV2_BANDS=8|16|32` at the three `cc` lines in package.json. There are no three
  * copies of the code; there are three numbers.
@@ -193,7 +193,7 @@ static inline void omx_eq_lv2_reset_state(struct omx_eq_lv2 *e) {
  * (`clampEqFreq`/`clampEqGain`/`clampEqQFor`) and redesigns the section only if something
  * moved. Returns 1 when the bank must be rebuilt. A foreign host may write NaN or ±Inf: freq
  * and Q read a NaN as the floor (omx_clampf), the gain reads any non-finite word as 0 dB
- * (omx_clamp_or) — primitives spec §1 row 23. */
+ * (omx_clamp_or) — primitives row 23. */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "eq-lv2/set-band"
 static inline int omx_eq_lv2_set_band(struct omx_eq_lv2 *e, uint32_t i, int type, float freq_hz,
@@ -416,7 +416,7 @@ static inline void omx_eq_lv2_set_controls(struct omx_eq_lv2 *e, const struct om
 /* ---- the instance face: init, resolve, run, latency -------------------------------------------- */
 
 /*
- * The EQ as every instance face is shaped (spec 2026-10-09-plugin-from-contract §2): a STEREO
+ * The EQ as every instance face is shaped: a STEREO
  * instance of two of the mono cores above, fed the same controls, so a plugin binding generated
  * from the contract calls it with no hand-written map. {@link omx_eq_instance_resolve} takes the eq
  * kernel's contract controls in their declared order and user units: the HPF's switch, corner (Hz)

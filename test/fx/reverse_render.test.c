@@ -4,14 +4,14 @@
  * The OFFLINE pre-hit reverse render's oracle (fx/omx_reverse_render.h; formerly the console's
  * mix_reverse_render.test.c). `make test-fx` runs it.
  *
- * Spec: 2026-07-15-native-delay-reverb.md, Amendment 2026-09-17 §G. The claim under test is a
+ * The claim under test is a
  * PLACEMENT, so every arm here is about WHERE energy is, never about how much of it there is —
  * and the two facts the design makes sample-exact (zero at and after the hit, zero more than one
  * window before it) are asserted as exact zeros, because "small" and "absent" are different
  * answers and only one of them is the ruling.
  *
  * The live `reverse` voice is the control arm on the SAME click: it must put its energy on the
- * other side of the hit. One kernel, two placements — that is what the amendment decided.
+ * other side of the hit. One kernel, two placements — that is the design.
  *
  * Every arm runs at the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz) over a 2 s region with
  * the click at 1 s.

@@ -4,10 +4,8 @@
  * omx_drive_instance.h (formerly mix_drive_lv2.h) — the DRIVE stage as a live insert for other
  * hosts: the shell's core, with no format in it.
  *
- * Plan: the omx lv2 pack scope notes §7 lane A, under the HRP shells
- * rule (the recording vsc spec §0.5: one C core, several shells — what
- * differs is who calls it) and the drive stage's own law
- * (native drive stage design, §4). §3 of that design rules drive NATIVE
+ * Under the HRP shells rule (one C core, several shells — what
+ * differs is who calls it) and the drive stage's own law: drive is NATIVE
  * inside the console; this shell does not reopen that — it is the same kernel offered to a
  * host that is not openmixer.
  *
@@ -55,7 +53,7 @@
  * ## LATENCY IS PUBLISHED, and it is the ELEMENT's number
  *
  * {@link omx_drive_instance_latency} is `omx_drive_latency`: the shared oversampler's round-trip
- * at the face's factor (72 base samples at 4x — drive-stage spec §3b, "declared by the element,
+ * at the face's factor (72 base samples at 4x — "declared by the element,
  * derived by everyone else"; 48 at 2x, 0 at 1x), and 0 while bypassed, exactly as the console's `latencySamples`
  * row derives it. A plugin publishes it every cycle, so a host can compensate the dry paths
  * beside it.

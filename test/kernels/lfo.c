@@ -56,7 +56,7 @@ static void arm_lfo(void) {
   for (int i = 0; i < 1000; i++) omx_lfo_advance(&frozen);
   ok(frozen.phase == 0.25f, "a frozen oscillator does not move", frozen.phase, 0.25);
   ok(omx_lfo_state_size() == sizeof(struct omx_lfo) && omx_lfo_state_align() == _Alignof(struct omx_lfo), "the state layout is exported", (double)omx_lfo_state_size(), sizeof(struct omx_lfo));
-  /* ---- moved from openmixer's mix_lfo.test.c (#1603), arm by arm ---- */
+  /* ---- moved from openmixer's mix_lfo.test.c, arm by arm ---- */
 
   /* THE SHAPE (engine arm A), on 10001 points of the closed turn [0, 1]: the range is [-1, 1],
    * the shape is odd about the half turn, s(0.5 + v) = -s(0.5 - v), and the deviation from

@@ -47,7 +47,7 @@ static void arm_biquad(void) {
     ok(memcmp(d, e, sizeof d) == 0, "a unity cascade is the identity", 0.0, 0.0);
   }
   {
-    /* THE COST DOOR'S ORACLE (spec §1 row 2): omx_biquad_cascade_stereo — parked bands dropped
+    /* THE COST DOOR'S ORACLE: omx_biquad_cascade_stereo — parked bands dropped
      * once, two sections and both legs per pass, state in locals — is the band-outer loop of
      * omx_biquad over the live bands, BIT FOR BIT, output and state, for every band count to the
      * cap, odd and even live counts, one and two legs, and block lengths 1, 7, 64 and 513. */
@@ -85,7 +85,7 @@ static void arm_biquad(void) {
     ok(bad == 0 && cases == (OMX_EQ_MAX_BANDS + 1) * 4 * 4 * 2,
        "the fused two-leg cascade is the band-outer omx_biquad loop, bit for bit (output and state)", bad, 0.0);
   }
-  /* The joint EQ band budget (operator reserve + FBS + HRP auto bands <= OMX_EQ_MAX_BANDS) is
+  /* The joint EQ band budget (reserved bands + FBS + HRP auto bands <= OMX_EQ_MAX_BANDS) is
    * omx-contract's own validation rule, not restated here. */
   expect_clean();
 }

@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # gate_keyfilter-perturb.sh — test/fx/gate_keyfilter.test.c sees each defect of the gate's key
-# filter (#103). Each sabotage is applied to a COPY of omx_gate.h placed ahead of the real include
+# filter. Each sabotage is applied to a COPY of omx_gate.h placed ahead of the real include
 # directory, and the oracle built against it must go red in the named arm:
 #   q        — the high-pass designed at Q 1, not the Butterworth's 1/sqrt 2: the closed-form arm;
 #   lp       — the low-pass never runs: the closed-form and live arms;

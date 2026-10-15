@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
-/* ---- port_int: a control word as an integer (spec §1 row 23) -------------------------------- */
+/* ---- port_int: a control word as an integer -------------------------------- */
 
 static void arm_port_int(void) {
   g_arm = "port_int";

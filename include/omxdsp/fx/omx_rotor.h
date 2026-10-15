@@ -6,7 +6,7 @@
  *        and an amplitude swing a quarter-turn apart, its rate a one-pole state moving toward a
  *        target — the word the rotary-speaker stage runs twice.
  *
- * Spec: the rotary speaker spec §1-§2. Composed of `omx_fdelay.h` at order
+ * Composed of `omx_fdelay.h` at order
  * 3, `omx_lfo.h` and `omx_onepole.h`; the constants are `OMX_ROTARY_*` from the generated
  * `omx_contract_limits.h`. No allocation: the lines are the caller's.
  */

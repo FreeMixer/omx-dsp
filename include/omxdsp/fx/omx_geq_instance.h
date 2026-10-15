@@ -9,8 +9,8 @@
  * runs — and this file adds no sample arithmetic to it. What it adds is what a host's port model
  * needs and the kernel's atom does not carry:
  *
- *   1. DESIGN. The kernel reads designed sections, never a centre, a Q or a gain (graphic-eq-31
- *      spec §4 L4): on the desk the sections are designed on the control thread. A plugin's
+ *   1. DESIGN. The kernel reads designed sections, never a centre, a Q or a gain (the design of the 31-band graphic EQ):
+ *     on the desk the sections are designed on the control thread. A plugin's
  *      controls arrive on its ports, so the instance designs them itself, with the same words the
  *      desk uses: `omx_eq_design` (the channel EQ's matched bell, kept in double), OMX_EQ_PEAKING,
  *      at the ISO 266 nominal third-octave centres ({@link OMX_GEQ_INSTANCE_CENTRES_HZ}, core's

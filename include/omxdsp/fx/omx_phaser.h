@@ -11,7 +11,6 @@
  * Glue over libomxdsp's `omx_allpass1` (dsp-primitives §1 row 4), `omx_lfo` (row 12) and
  * `omx_flush` (row 16); it mints no primitive. The state is caller-owned and fixed-size; nothing
  * here allocates, locks or calls libm per sample: `tan` and `exp2f` run once per control point.
- * Design: the native phaser spec §2–§4.
  */
 #ifndef OMX_MIX_PHASER_H
 #define OMX_MIX_PHASER_H
@@ -27,10 +26,10 @@
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_wetdry.h>
 
-/** @brief The most sections one leg runs (spec §3 `stages` travel, {2, 4, …, 12}). */
+/** @brief The most sections one leg runs. */
 #define OMX_PHASER_MAX_STAGES OMX_PHASER_STAGES_RANGE_MAX
-/* The highest centre frequency the sweep reaches, Hz (OMX_PHASER_F_TOP_HZ), is declared in omx-contract (spec §2 `F_TOP`). */
-/** @brief The feedback clamp, the kernel's enforcement half of the row's ±0.9 travel (spec §3). */
+/* The highest centre frequency the sweep reaches, Hz (OMX_PHASER_F_TOP_HZ), is declared in omx-contract. */
+/** @brief The feedback clamp, the kernel's enforcement half of the row's ±0.9 travel. */
 #define OMX_PHASER_FB_MAX OMX_PHASER_FEEDBACK_RANGE_MAX
 /** @brief Control points per second: the coefficient is recomputed every `sr/6000` samples (§4). */
 #define OMX_PHASER_CONTROL_HZ 6000.0f
@@ -82,7 +81,7 @@ static inline int omx_phaser_stages_legal(int n) {
  * @param n The asked count.
  * @return `n` clamped to [2, OMX_PHASER_MAX_STAGES], an odd count rounded down to even.
  * @note RT-safe and thread-safe: pure. The row's travel refuses an illegal count; this is the
- *       enforcement half, so an odd count never reaches the chain (spec §2).
+ *       enforcement half, so an odd count never reaches the chain.
  */
 static inline int omx_phaser_stages_run(int n) {
   const int c = n < 2 ? 2 : n > OMX_PHASER_MAX_STAGES ? OMX_PHASER_MAX_STAGES : n;
@@ -104,7 +103,7 @@ static inline uint32_t omx_phaser_control_interval(float sr) {
  * @brief The feedback, clamped to ±OMX_PHASER_FB_MAX; a non-finite feedback is no feedback (0).
  * @param fb The asked feedback.
  * @return The feedback the kernel runs.
- * @note RT-safe and thread-safe: omx_clamp_or (primitives spec §1 row 23).
+ * @note RT-safe and thread-safe: omx_clamp_or.
  */
 static inline float omx_phaser_clamp_fb(float fb) {
   return omx_clamp_or(fb, -OMX_PHASER_FB_MAX, OMX_PHASER_FB_MAX, 0.0f);
@@ -167,7 +166,7 @@ static inline float omx_phaser_level_bound(const struct omx_phaser *p) {
  * @post `finite-out`, per sample, by omx_wetdry_mix().
  * @note RT-safe: no allocation, lock or per-sample libm call. Thread-safe on distinct state.
  *       `enabled == 0` or `mix == 0` returns before a sample or a state word is touched. A
- *       `stages` change zeroes every section from the smaller count up (spec §3: it can click).
+ *       `stages` change zeroes every section from the smaller count up.
  */
 static inline void omx_phaser_process(float *l, float *r, uint32_t n, const struct omx_phaser *p,
                                       struct omx_phaser_state *s, float sr) {

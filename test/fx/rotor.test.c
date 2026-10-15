@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The rotor word's oracle (omx_rotor.h, formerly openmixer's mix_rotor.test.c),
- * the rotary speaker spec §5 arms B, C, D, E, at the nine RME rates (32 to
+ * the design, at the nine RME rates (32 to
  * 192 kHz), closed forms in double.
  *
  *   B  Doppler: a 1 kHz tone through a rotor settled at the horn's fast speed, 2 s; every sample
@@ -48,7 +48,7 @@ static void drain_violations(const char *where, double sr) {
   ok(unexplained == 0u, where, sr, (double)unexplained, 0.0);
 }
 
-/* The spec's §3 default speeds, Hz — the row lane declares them as ROTARY_*_RANGE defaults. */
+/* The default speeds, Hz — the row lane declares them as ROTARY_*_RANGE defaults. */
 #define HORN_SLOW 0.8f
 #define HORN_FAST 6.8f
 #define DRUM_SLOW 0.7f

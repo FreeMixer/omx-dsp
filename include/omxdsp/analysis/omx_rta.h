@@ -33,9 +33,9 @@
 #include <omxdsp/omx_oversampler.h>
 
 /** The spectrum RESOLUTION the console commits to — the one number every analysis consumer
- * shares (operator ruling 2026-08-18: ONE spectrum stream per tap, sized to the most
+ * shares (ONE spectrum stream per tap, sized to the most
  * demanding operation, never parallel tiers). ~5.9 Hz/bin is both the display requirement
- * (operator req 2026-07-09, 4× the original 2048-point window) and the measured knee for
+ * and the measured knee for
  * harmonic detection (trombone corpus, 2026-08-18): twice as coarse mis-fits the comb below
  * C3 and detection drowns in sub-octave phantoms; finer needs a window so long that fast
  * passages smear away (1.46 Hz/bin ⇒ 683 ms ⇒ 34 of 236 note events survive). The FFT
@@ -43,7 +43,7 @@
  * the length instead was how moving the rig to 96 kHz silently halved the resolution.
  * OMX_RTA_TARGET_BIN_HZ comes from the generated omx_contract_limits.h (declared once, in core). */
 
-/** The largest FFT the buffers hold: 192 kHz — the console's declared rate ceiling (#111)
+/** The largest FFT the buffers hold: 192 kHz — the console's declared rate ceiling
  * — at the target resolution. A power of two. OMX_RTA_FFT_SIZE_MAX comes from the generated
  * omx_contract_limits.h (declared once, in core). */
 
@@ -97,8 +97,7 @@ struct omx_ring {
    * (the seqlock writer's "odd first", per ring), so a reader that copied any sample of a write
    * sees that write's claim once it fences after the copy. {@link omx_ring_latch4} latches it
    * beside `pos`; {@link omx_ring_window_intact} re-reads it after the copy — the check that the
-   * window the latch proved was not LAPPED while the reader was copying it (spec
-   * 2026-09-02-analyser-first-frame, "the copy is inside the proof"). */
+   * window the latch proved was not LAPPED while the reader was copying it ("the copy is inside the proof"). */
   _Atomic uint32_t head;
 };
 
@@ -122,7 +121,7 @@ static inline uint32_t omx_ring_filled(const struct omx_ring *ring) {
 }
 
 /** Whether a window of `n` samples read off this ring is entirely audio written since the reset
- * — the fact a reader gates a frame on (spec 2026-09-02-analyser-first-frame §2). */
+ * — the fact a reader gates a frame on. */
 static inline bool omx_ring_has(const struct omx_ring *ring, uint32_t n) {
   return omx_ring_filled(ring) >= n;
 }
@@ -144,8 +143,7 @@ static inline void omx_ring_write(struct omx_ring *ring, const float *in, uint32
                         memory_order_relaxed);
   atomic_thread_fence(memory_order_release);
   /* THE SAMPLES FIRST — `buf` is plain memory, no atomic touches it, so nothing here
-   * synchronises with a reader unless the counters published AFTER it say so (spec
-   * 2026-09-02-analyser-first-frame §3). A reader that trusts `pos`/`filled` before the
+   * synchronises with a reader unless the counters published AFTER it say so. A reader that trusts `pos`/`filled` before the
    * memcpy they describe has landed would read whatever `buf` held from the PREVIOUS write —
    * the ordering the fix corrects, not a cosmetic tear. */
   uint32_t filled = atomic_load_explicit(&ring->filled, memory_order_relaxed);
@@ -188,7 +186,7 @@ static inline void omx_ring_write(struct omx_ring *ring, const float *in, uint32
  * never from on_process. A silent (never-written) ring reads back all zero, which FFTs to a
  * silent spectrum.
  *
- * WHY A READER WOULD WANT THE PAST (spec 2026-08-31-smart-alignment §6). Two lanes measured
+ * WHY A READER WOULD WANT THE PAST. Two lanes measured
  * against each other are snapshotted at the same instant, so a signal that reaches one of
  * them LATE puts only `n - delay` samples of shared content in the two windows — and the
  * coherence a perfect measurement can reach is capped by that overlap alone, to 0.5 at a

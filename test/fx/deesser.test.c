@@ -5,8 +5,6 @@
  *   cc -Wall -Wextra -Werror -O2 -o build/mix_deesser_test src/mix_deesser.test.c -lm \
  *     && ./build/mix_deesser_test
  *
- * Spec: the native deesser stage spec §10 (issue #891).
- *
  * WHAT THIS FILE IS FOR. A de-esser's whole claim is DISCRIMINATION: it must move the band and
  * leave everything else alone. A test that only measures "the level went down" would pass over a
  * plain compressor, which is exactly the defect this stage exists to avoid — so every arm here
@@ -28,7 +26,7 @@
  *
  * THE BAND IS THE COOKBOOK BANDPASS, whose complement is the cookbook notch with |N| <= 1 at every
  * frequency — so split's `|g + (1 - g) N|` is <= 1 for every g in (0, 1], which is the stage's
- * `no-gain-added` law in split mode (spec §6; operator ruling, §1 gate line 3). The highpass·lowpass
+ * `no-gain-added` law in split mode. The highpass·lowpass
  * pair this stage first shipped with has no such bound: |1 - (1 - g) H| > 1 wherever Re(H) < 0.
  * `test_split_never_exceeds_input` sweeps a probe over the audio band to MEASURE the bound, with
  * the sibilant hot enough to hold the stage at its floor so `g` is a constant and the measurement
@@ -64,7 +62,7 @@
  *   - the two MODES swapped   -> 46 checks red; split ducks the vowel by the same 8.935 dB as the
  *                             sibilant, which is the one thing a split de-esser must never do;
  *   - the BAND restored to the highpass·lowpass pair the stage first shipped with (the operator's
- *     2026-09-22 ruling, spec §1 gate line 3) -> 205 checks red, all of them in
+ *     2026-09-22 ruling) -> 205 checks red, all of them in
  *     `test_split_never_exceeds_input`: the probe comes out LOUDER than it went in at 76 of the
  *     129 probes (worst +1.050 dB at 2 602 Hz at 44.1 k, +1.040 at 48 k, +0.993 at 96 k, +0.981
  *     at 192 k — the closed form |1 - (1 - g) H| tracks every one of them to 0.0000 dB, so the
@@ -169,7 +167,7 @@ static double band_mag(const struct omx_deess *p, double fn) {
 
 /* ---- the stage's defaults, as the controller pushes them ------------------------------- */
 
-/* Spec §4a/§4d: the row's defaults for a vocal, plus the three constants the controller holds
+/* the row's defaults for a vocal, plus the three constants the controller holds
  * (knee 6 dB, PEAK detection, no make-up). `range_db` is overridden per arm. */
 static struct omx_deess atom(double sr, double centre_hz, double width_oct, double thresh_db,
                              double ratio, double range_db, int mode) {
@@ -411,7 +409,7 @@ static void test_never_adds_gain(double sr) {
 }
 
 /*
- * THE `no-gain-added` LAW IN SPLIT MODE, MEASURED AT EVERY FREQUENCY (spec §6; the operator's
+ * THE `no-gain-added` LAW IN SPLIT MODE, MEASURED AT EVERY FREQUENCY (; the operator's
  * ruling, §1 gate line 3). A 7 kHz sibilant hot enough to hold the stage at its -24 dB floor —
  * so g is a CONSTANT and the stage is, for the length of the measurement, a linear filter — and
  * a small probe tone swept over the audio band. The probe must never come out louder than it went

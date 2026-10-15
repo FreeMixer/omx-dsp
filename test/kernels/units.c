@@ -43,7 +43,7 @@ static void arm_units(void) {
     ok(fabs(omx_lin_to_db_d(x, 1e-12) - 20.0 * lg) < 1e-9, "lin_to_db_d is 20*log10 over the travel", omx_lin_to_db_d(x, 1e-12), 20.0 * lg);
   }
   /* The per-sample pair against the libm pair, dense over the declared travel (row 17's oracle).
-   * The worst error is PRINTED, so the tolerance the spec declares is read from a run. */
+   * The worst error is PRINTED, so the tolerance the design declares is read from a run. */
   double worst_db = 0.0, worst_rel = 0.0;
   for (double lg = -9.0; lg <= 4.0; lg += 1.0 / 4096.0) {
     const float x = (float)pow(10.0, lg);

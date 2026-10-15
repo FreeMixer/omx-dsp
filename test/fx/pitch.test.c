@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The dual-tap pitch shifter's oracle (omx_pitch.h): bypass, finite/flush and thread arms, at
- * EVERY declared rate (OMX_DECLARED_RATES) — the engine's spec
- * the native pitch shift spec. Contracts are compiled in and every arm
+ * EVERY declared rate (OMX_DECLARED_RATES) — the engine's own claims.
+ * Contracts are compiled in and every arm
  * drains the ledger empty.
  *
  *   E  — bypass identity: enabled = 0 and mix = 0 are memcmp-identical, subnormal words included.
@@ -55,7 +55,7 @@ static void drain_violations(const char *where) {
   omx_contract_log.count = 0u;
 }
 
-/** The window W in samples at `sr`, the oracle's own closed form (spec §1). */
+/** The window W in samples at `sr`, the oracle's own closed form. */
 static double o_window(double sr) { return (double)OMX_PITCH_WINDOW_MS * 1e-3 * sr; }
 
 /* ---- the stage, driven the way the walk will drive it ----------------------------------- */

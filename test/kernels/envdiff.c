@@ -18,7 +18,7 @@ static double cascade_step_ct(double t_ms, double tau_ms) {
   return 1.0 - exp(-u) * sum;
 }
 
-/* The transient spec §2 table's peak contrast, dB, DERIVED from the declared time defaults: the
+/* The the design table's peak contrast, dB, DERIVED from the declared time defaults: the
  * 0.1 -> 1.0 step (rise, ΔA: FAST_ATTACK against the attackTime default) or 1.0 -> 0.1 (ΔS:
  * FAST_RELEASE against the sustainTime default) through the continuous cascade — rate-free, so
  * each rate's discrete closed form is held to it (L9). A grid, then a golden-section refinement. */
@@ -100,7 +100,7 @@ static void arm_envdiff(void) {
       const double tol_from = 1.0 + r.bound / r.slope_from, tol_to = 1.0 + r.bound / r.slope_to;
       ok(fabs((double)r.from_w - r.from_c) <= tol_from, "the ≥ REF window opens within 1 + bound/slope samples of the closed form", fabs((double)r.from_w - r.from_c), tol_from);
       ok(fabs((double)r.to_w - r.to_c) <= tol_to, "the ≥ REF window closes within 1 + bound/slope samples of the closed form", fabs((double)r.to_w - r.to_c), tol_to);
-      ok(fabs(r.peak_c - peak_ct[rise]) <= 0.001, "the closed-form peak is the spec §2 table's, at every rate", r.peak_c, peak_ct[rise]);
+      ok(fabs(r.peak_c - peak_ct[rise]) <= 0.001, "the closed-form peak is the ruled table's, at every rate", r.peak_c, peak_ct[rise]);
       tabled++;
     }
     /* L2 and L3 over gated noise: both contrasts non-negative at every sample; identical at every

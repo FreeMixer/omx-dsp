@@ -12,8 +12,6 @@
  *    (a symmetric feedback travel's floor is its deepest negative feedback, an EQ gain's floor its
  *    deepest cut: "a non-finite feedback is no feedback", "a non-finite gain is no gain").
  * omx_unit() is omx_clampf() over [0, 1]. A finite value inside the travel passes bit for bit.
- *
- * Design: the dsp primitives spec §1 row 23.
  */
 #ifndef OMX_PARAM_H
 #define OMX_PARAM_H

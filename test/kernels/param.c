@@ -3,7 +3,7 @@
 
 #include <float.h>
 
-/* ---- param: the clamp family and its NaN law (spec §1 row 23) ------------------------------- */
+/* ---- param: the clamp family and its NaN law ------------------------------- */
 
 static void arm_param(void) {
   g_arm = "param";

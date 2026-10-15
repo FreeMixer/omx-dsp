@@ -6,7 +6,7 @@
 
 #include "../fx/fx_rates.h"
 
-/* ---- one-pole: the convention oracle, moved from openmixer's mix_onepole.test.c (#1603) -------
+/* ---- one-pole: the convention oracle, moved from openmixer's mix_onepole.test.c -------
  * The parameter is the POLE: `y = x(1-p) + yp`. The arms below are the engine's convention oracle,
  * closed forms and tolerances unchanged; the rate-dependent ones run at the nine RME rates
  * (OMX_FX_RME_RATES), each rate's ledger drained by omx_fx_drain_ledger (a `rate-is-declared` PRE at

@@ -161,7 +161,7 @@ static double declared_rt60_ms(struct omx_reverb_state *s, int algo, float size,
   return loop * log(0.001) / log(g);
 }
 
-/* The tail's length is the longest loop's, by the closed form the spec states. ROOM measures 4.5 %
+/* The tail's length is the longest loop's, by the closed form the design states. ROOM measures 4.5 %
  * short of it (the seven shorter combs pull the fitted slope down). PLATE measured 19.4 % LONG of
  * it until R-2 modulated the tank — and that excess WAS the ring: an unmodulated allpass
  * recirculating at 0.7 kept re-feeding the tank past its own loop gain, which is the same energy
@@ -278,8 +278,8 @@ static void test_the_reference_rate_response_is_unchanged(void) {
  * damping 0.6 cornered at 3 585 Hz at 44.1 kHz and at 15 610 Hz at 192 kHz, which measured as a
  * ROOM HF decay 10.6 % longer and a HALL tail 8.3 % longer at 192 k than at 44.1 k (note R-1).
  * Ruling 2026-09-17: the pole is raised to REF/sr, so the corner is the one the 96 kHz reference
- * has at every rate. The tail below the corner was always rate-invariant — the unity-DC law of
- * Amendment 2026-09-17 SSA — and stays so; what this arm now demands is that the HF decay and
+ * has at every rate. The tail below the corner was always rate-invariant — the unity-DC law —
+ * and stays so; what this arm now demands is that the HF decay and
  * HALL's own tail match their 96 kHz figures within 1 %. */
 static void test_damped_decay_matches_the_reference_rate_within_1_percent(void) {
   double hf[NRATES], lf[NRATES], hall[NRATES];
@@ -388,7 +388,7 @@ static void test_late_tail_periodicity(void) {
 }
 
 /* ---- 5b. plateModDepth: the depth is a field ---------------------------------------------------
- * 2026-09-26-native-fx-catalogue.md §2 (Reverb), SMALL EXTENSION. Three claims:
+ * A SMALL EXTENSION of the reverb. Three claims:
  *   IDENTITY: at the declared come-up (100 %) the plate renders EXACTLY what it rendered before
  *   the field existed. The four hashes are FNV-1a over both legs of a 1 s impulse through
  *   params(PLATE, 0.5, 0.2), 256-frame blocks, taken from the kernel at 1947986df, before the
@@ -753,7 +753,7 @@ static void test_a_relayout_hands_back_silent_lines(void) {
   }
 }
 
-/* ---- 14. the declared seeds, measured (spec 2026-07-15 SSD, arms A and B) ------------------- */
+/* ---- 14. the declared seeds, measured ------------------- */
 
 /* The stage exactly as a seed sets it: every field from the GENERATED header, `mix` wet-only so
  * the tail is the measurement and not the dry. */

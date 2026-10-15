@@ -7,16 +7,15 @@
  * `OMX_DYN_ENV_STAGES` one-poles in series, each stage taking the attack pole while its input
  * rises past it and the release pole while it falls. The input arrives rectified into the
  * detector's domain (`|x|` for peak, `x²` for RMS); the level is the last stage, its square root
- * in RMS. Design: the dsp primitives spec §1 row 7 and Appendix A.
+ * in RMS.
  *
  * The rate-of-change detector omx_envdiff_step() is row 8: two cascades over one input differing
- * in one pole, their ratio in dB (the transient designer spec §2).
+ * in one pole, their ratio in dB.
  *
  * The program-dependent release follows the gain computer's reduction, in dB: a fast and a slow
  * component, each taking a deeper target on the same sample and releasing toward a shallower one
  * through its own pole, the slow pole's time constant growing with a memory of how long reduction
- * was active. Design: the dsp primitives spec §1 row 7a and
- * the compressor models spec §2, §3b.
+ * was active.
  */
 #ifndef OMX_ENVELOPE_H
 #define OMX_ENVELOPE_H

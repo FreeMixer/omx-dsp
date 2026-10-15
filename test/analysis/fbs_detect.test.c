@@ -186,7 +186,7 @@ static void case_decay(double rate) {
   rig_close(&g);
 }
 
-/* An attack: flat, then one +10 dB hop, then flat. One hop carries the whole rise (#106). */
+/* An attack: flat, then one +10 dB hop, then flat. One hop carries the whole rise. */
 static void case_attack(double rate) {
   struct rig g;
   OmxFbsThresholds t = omx_fbs_thresholds_default();

@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # fdelay-sabotage.sh <dir> — the fractional delay line's suite arm, proven able to SEE its own
-# defects (fractional delay line design §4, moved from the engine's
+# defects (fractional delay line design, moved from the engine's
 # fractional-delay sabotage harness). Each sabotage is applied
 # to a COPY of omx_fdelay.h placed ahead of the real include directory, the suite is built against
 # it and must go red on its fdelay arm:

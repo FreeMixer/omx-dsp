@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # transient-perturb.sh — omx_transient.h reads its travels from the generated
-# omx_contract_limits.h, never a copy (R-094; transient spec §3). A PERTURBED header (the slow
+# omx_contract_limits.h, never a copy (R-094; the design). A PERTURBED header (the slow
 # attack's floor moved from its declared value to 20 ms) is written into a copy of the include
 # directory, and test/fx/transient.test.c is built against it: its declared-travel arm must now
 # RECORD a 10 ms slow attack and clamp it to 20 ms. The same source against the real header is the

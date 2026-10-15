@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-/* The precision limiter's oracle (omx_limiter.h, formerly mix_limiter.test.c) at the nine RME rates — the precision limiter spec §3.
+/* The precision limiter's oracle (omx_limiter.h, formerly mix_limiter.test.c) at the nine RME rates — the design.
  * Contracts on; after each rate no violation the rate does not explain (fx_rates.h). */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omx_contract.h>

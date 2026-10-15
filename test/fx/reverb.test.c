@@ -95,7 +95,7 @@ static void test_hall_tail_outlasts_plate(void) {
   free(lh); free(rh); free(lp); free(rp);
 }
 
-/* ---- THE DAMPING LAW (spec 2026-07-15-native-delay-reverb.md, Amendment 2026-09-17 §A) --------
+/* ---- THE DAMPING LAW --------
  *
  * Damping attenuates HIGHS IN THE FEEDBACK PATH and NEVER the tail's level: a damping one-pole in
  * a reverb loop has UNITY DC GAIN at every damping value. So the LOW band of an impulse response
@@ -186,7 +186,7 @@ static void test_plate_damping_shortens_the_hf_decay(void) {
   free(lb); free(rb); free(ld); free(rd);
 }
 
-/* ---- REVERSE and GATED (spec 2026-07-15-native-delay-reverb.md, Amendment 2026-09-17 SSB/C) ---
+/* ---- REVERSE and GATED ---
  *
  * Both are the ROOM comb network handed an OUTPUT STAGE, so ROOM at the same settings is the
  * control arm in every test below: a mirror that did not mirror, or a gate that did not gate,
@@ -481,7 +481,7 @@ static void test_exhausted_pool_is_inert_not_a_crash(void) {
 }
 
 
-/* The arms moved here from mix_fx_rt_review.test.c (2026-09-25-native-fx-rt-review.md) report a
+/* The arms moved here from mix_fx_rt_review.test.c report a
  * measurement beside the verdict. */
 static void review_ok(int cond, const char *what, double measured, double limit) {
   char b[320];

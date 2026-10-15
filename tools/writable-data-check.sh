@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # writable-data-check.sh — libomxdsp carries no mutable global or function-static state
-# (the dsp primitives spec §4.3 (a) and (b)).
+# (the design (a) and (b)).
 #
 #  (a) SYMBOLS. Every public header (the top level and analysis/) compiled into its own object (a translation unit that
 #      includes it and defines one anchor function so the object is not empty), plus the one

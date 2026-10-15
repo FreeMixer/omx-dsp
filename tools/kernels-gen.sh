@@ -9,8 +9,7 @@
 #   test/kernels/<name>.c          — one suite arm: `static void arm_<name>(void)`.
 #   test/kernels/<name>.perturb.c  — one perturbation case: `static int perturb_<name>(int failed)`.
 # A kernel lane adds ONE file of either shape and touches omxdsp_suite.c, omxdsp_perturb.c or
-# this script NEVER. Output is a build artefact, never committed
-# (the no stored derivations spec).
+# this script NEVER. Output is a build artefact, never committed.
 #
 # Usage: tools/kernels-gen.sh <out-dir>
 #   writes <out-dir>/kernels-suite.inc.c and <out-dir>/kernels-perturb.inc.c

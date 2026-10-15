@@ -7,7 +7,7 @@
  *
  * Composed from
  * libomxdsp words only: `omx_fdelay.h` at order 3, `omx_lfo.h` (its parabola is the crossfade;
- * the ramp is a fixed-point turn counter, spec §11), `omx_eq_design.h`'s low-pass and `omx_biquad.h` (the pre-filter),
+ * the ramp is a fixed-point turn counter), `omx_eq_design.h`'s low-pass and `omx_biquad.h` (the pre-filter),
  * `omx_denormal.h`. Every declared number is read from `OMX_PITCH_*` (the console's pitch kernel declaration).
  *
  *     d_A = d_min + W·p          (down)      d_A = d_min + W·(1 − p)          (up)
@@ -30,7 +30,7 @@
 #include <omxdsp/omx_lfo.h>
 #include <omxdsp/omx_param.h>
 
-/** The Lagrange order the shifter's lines are armed at (spec §1). */
+/** The Lagrange order the shifter's lines are armed at. */
 #define OMX_PITCH_ORDER OMX_FDELAY_MOD_READ_ORDER
 
 /**
@@ -119,7 +119,7 @@ static inline float omx_pitch_ratio(float semitones, float cents) {
  * @param sr Sample rate, Hz, positive.
  * @pre `a-ratio-is-positive`.
  * @post `an-increment-is-inside-half-a-turn`.
- * @note The increment is fixed-point (spec §11), so the ramp adds and wraps exactly.
+ * @note The increment is fixed-point, so the ramp adds and wraps exactly.
  *       Resolve-time, once per block: omx_eq_design_f's libm calls, no allocation.
  */
 static inline void omx_pitch_resolve_ratio(struct omx_pitch *p, int enabled, float r, float mix,

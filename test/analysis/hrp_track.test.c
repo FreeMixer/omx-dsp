@@ -154,7 +154,7 @@ static void test_persistent_octave_is_a_real_leap(void) {
 }
 
 static void test_simultaneous_octaves_are_two_voices(void) {
-  /* Polyphonic reality (operator ruling: every instrument, pianos and guitars included): a
+  /* Polyphonic reality: a
      piano's C3+C4, a guitar's octave double — two REAL voices an octave apart, in the SAME
      frame. Folding must never merge them: continuity applies to alternation, not to company. */
   OmxHrpTracker t;

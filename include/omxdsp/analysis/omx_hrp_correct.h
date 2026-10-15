@@ -175,7 +175,7 @@ static inline OmxHrpConfig omx_hrp_family_search(int family) {
  * The MATCHED PEAKING section, normalised to the `{b0,b1,b2,a1,a2}` tuple `omx_biquad`
  * consumes — the C twin of `@freemixer/core`'s `rbjCoeffs('peaking', …)`.
  *
- * MATCHED, NOT BILINEAR (operator ruling, 2026-09-14). The console's graph runs at 96 kHz and
+ * MATCHED, NOT BILINEAR. The console's graph runs at 96 kHz and
  * its EQ must match the analogue prototype to Nyquist by coefficient design; the RBJ cookbook
  * this replaced, being a bilinear image, was 1.28 dB low at 20 kHz on a +12 dB bell at 16 kHz
  * Q 2. Both of the prototype's pole pairs are finite, so the matched-Z map `z = exp(sT)` places

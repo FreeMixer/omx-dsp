@@ -9,8 +9,6 @@
  * `8A/(3π)` at `f/2`, `8A/(π(2j+3)(2j−1))` above it, and exactly zero at `f`. The toggle lands on
  * the first sample at or after the continuous crossing, so the sampled product is the sampled
  * ideal product and its largest step never exceeds the input's own. Design:
- * the dsp primitives spec §1 row 14 and
- * the sub octaver spec §1–§2, L2–L4.
  */
 #ifndef OMX_DIVIDER_H
 #define OMX_DIVIDER_H

@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# doc-check.sh — every public symbol of libomxdsp carries its structured doc comment
-# (the dsp primitives spec §6), checked without doxygen: pure awk.
+# doc-check.sh — every public symbol of libomxdsp carries its structured doc comment,
+# checked without doxygen: pure awk.
 #
 # For every `include/omxdsp/*.h` and `include/omxdsp/mix/*.h` (or the files given as arguments), at file scope:
 #   - a function (`static inline` definition or a non-static declaration) named omx_*/omxdsp_*,

@@ -9,8 +9,6 @@
  * its FILTER is filed as a measured recommendation rather than as a second implementation
  * (the oversampler filter quality notes).
  *
- * Spec: the native drive stage spec §4.
- *
  * Same contract as the primitives and omx_delay.h: NO PipeWire, NO napi, NO allocation on the RT
  * thread, NO libc beyond <math.h>/<string.h>. Controls (`struct omx_drive`) are a word-atomic
  * snapshot the RT reads once per block; the working state (`struct omx_drive_state`) is ONE
@@ -25,7 +23,7 @@
  *
  * ## ONE mechanism for even harmonics, and it is `character` — a BIAS, not a residue blend
  *
- * (Spec §4b as amended 2026-09-15. The form this file ran until then, `u + (1-w)*(F(u)-u) +
+ * (as amended 2026-09-15. The form this file ran until then, `u + (1-w)*(F(u)-u) +
  * w*(|F(u)|-|u|)`, kept the FUNDAMENTAL linear and had slope -2 with no floor on the negative
  * half at w > 0 -- at 36 dB of drive a full-scale sample computed to about -125 linear. It was
  * replaced, not patched.)
@@ -191,7 +189,7 @@ struct omx_drive_state {
 
 /** Build (or rebuild for a new factor) the state. Fixed work — a memset and two oversampler
  * inits, no allocation — so it runs on the AUDIO thread too: `omx_drive_process` is the only
- * caller that rebuilds a state the RT may be walking (2026-09-25-native-fx-rt-review.md F3). */
+ * caller that rebuilds a state the RT may be walking. */
 #define OMX_CONTRACT_STAGE "drive/state-init"
 static inline void omx_drive_state_init(struct omx_drive_state *s, int factor) {
   /* CONTRACT (omx_contract.h). Whatever factor is asked for, the state is built for one the
@@ -275,7 +273,7 @@ static inline float omx_drive_shape(int curve, float u) {
 
 /*
  * The bias at `character = +1`, in the SHAPER's own input units — ONE normalised value for all
- * three knees (spec §4b).
+ * three knees.
  *
  * DERIVED, not chosen. In the saturating limit every knee tends to sgn(), the output becomes a
  * rectangular wave of duty d = 1/2 + asin(b)/pi, and a rectangular wave's nth harmonic goes as
@@ -568,7 +566,7 @@ static inline void omx_drive_process(float *l, float *r, uint32_t n, const struc
    * change or a re-enable used to re-init the state from the CONTROL thread, in place, under the
    * block in flight: the kernel checked the factor once, the setter then memset the history the
    * chunk loop was walking, and the block came out neither processed nor dry — up to 1.42 away
-   * from both on a 0.5 sine (2026-09-25-native-fx-rt-review.md F3). Now the control thread only
+   * from both on a 0.5 sine. Now the control thread only
    * publishes the factor and a reset generation on the atom, and the ONE writer of the state —
    * this function — rebuilds it before its first chunk when either differs. A block that started
    * before the publication runs to its end on the history it began with. */

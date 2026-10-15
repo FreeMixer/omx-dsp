@@ -8,7 +8,6 @@
  * expander): unity above, slope `ratio − 1` below, floored at `range_db`. A quadratic knee of
  * width `knee_db` centred on the threshold joins the two segments C¹; in BELOW mode the knee may
  * also sit off centre, spanning a gate's start and end points (omx_gaincomp_db_shifted). Stateless. Design:
- * the dsp primitives spec §1 row 9 and Appendix A.
  */
 #ifndef OMX_GAINCOMP_H
 #define OMX_GAINCOMP_H

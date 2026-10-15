@@ -6,8 +6,7 @@
  * (32 / 44.1 / 48 / 64 / 88.2 / 96 / 128 / 176.4 / 192 kHz, OMX_FX_RME_RATES): 64 and 128 kHz
  * sit either side of OMX_ALIGN_FRACTION_MIN_RATE, and 32 kHz is where the ring is least used.
  *
- * Law: the smart alignment spec §7 (#863), on the RULED
- * 2026-09-20-fractional-delay-line.md. The primitive's own oracle is test/kernels/fdelay.c; this file
+ * The primitive's own oracle is test/kernels/fdelay.c; this file
  * holds what the STAGE adds on top of it — the ms → samples target, where it settles, the slew —
  * and measures each against a number derived here, never one recorded from a run.
  *
@@ -210,7 +209,7 @@ static void arm_c_lands_exactly(void) {
     omx_align_apply(&a, buf, NULL, 1, 40.0f);
     moved++;
   }
-  /* The duration is the spec's slew, 1/32 sample per sample (smart-alignment §7), written here as
+  /* The duration is the design's slew, 1/32 sample per sample (smart-alignment §7), written here as
    * a number: read through OMX_ALIGN_SLEW it would follow a moved slew and stay green. */
   snprintf(what, sizeof what, "a 10 -> 40 move lands exactly after %u samples (960 declared)",
            moved);
