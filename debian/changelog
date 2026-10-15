@@ -1,3 +1,15 @@
+omx-dsp (0.20.1) unstable; urgency=medium
+
+  * omx-contract is a dependency floor only: libomx-contract-dev (>= 2.11.0)
+    and omx-contract-devel >= 2.11.0, and omxdsp.pc requires omx-contract >=
+    2.11.0, with no upper bound. 0.20.0 declared "< 2.12", which refused any
+    later contract.
+  * A low-pass with Q below 1/sqrt(2) near Nyquist no longer sits further
+    from the analogue prototype than the RBJ cookbook at 44.1 and 48 kHz (up
+    to 0.18 dB); no golden digest moves (#119).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 15 Oct 2026 15:00:00 +0000
+
 omx-dsp (0.20.0) unstable; urgency=medium
 
   * The live HRP shell (analysis/omx_hrp_lv2.h), the feedback suppressor's

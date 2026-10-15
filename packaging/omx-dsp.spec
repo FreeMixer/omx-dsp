@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.20.0
+Version: 0.20.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -69,6 +69,14 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Thu Oct 15 2026 Pau Aliagas <linuxnow@gmail.com> - 0.20.1-1
+- omx-contract is a dependency floor only: omx-contract-devel >= 2.11.0 and
+  omxdsp.pc requires omx-contract >= 2.11.0, with no upper bound. 0.20.0
+  declared "< 2.12", which refused any later contract.
+- A low-pass with Q below 1/sqrt(2) near Nyquist no longer sits further from
+  the analogue prototype than the RBJ cookbook at 44.1 and 48 kHz (up to
+  0.18 dB); no golden digest moves (#119)
+
 * Thu Oct 15 2026 Pau Aliagas <linuxnow@gmail.com> - 0.20.0-1
 - The live HRP shell (analysis/omx_hrp_lv2.h), the feedback suppressor's
   LV2 face, is now held at every rate the console runs, 32 to 192 kHz, not
