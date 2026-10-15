@@ -216,6 +216,15 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
       const double di = -(a1 * sin(w0) + a2 * sin(2.0 * w0));
       const double s0 = sin(w0 / 2.0) * sin(w0 / 2.0);
       const double keep = 1.0 - t * omx_eq_lowpass_nyquist_handover(qq);
+      if (keep == 0.0) {
+        /* Handed over completely: the bilinear poles under the Nyquist zero, the cookbook's
+         * double zero at z = −1 scaled to unity at DC. The fit lands here in exact arithmetic
+         * but through the square root of a discriminant that is then exactly 0, so its rounding
+         * would move b0 and b2 apart by 1e-8. */
+        const double g = (1.0 + a1 + a2) / 4.0;
+        c[0] = g; c[1] = 2.0 * g; c[2] = g; c[3] = a1; c[4] = a2;
+        break;
+      }
       const OmxMatchedNumerator n =
           omx_matched_fit_numerator(U, tPi * dPi * dPi * keep, qq * qq * (dr * dr + di * di), s0);
       c[0] = n.b0; c[1] = n.b1; c[2] = n.b2; c[3] = a1; c[4] = a2;

@@ -39,7 +39,7 @@
 #define LPN_GRID 1200u
 /* Where the hand-over is complete the low-pass IS the cookbook section in exact arithmetic (the
  * bilinear poles under a numerator fitted to DC, the corner and a Nyquist zero), reached by other
- * operations: measured 4.9e-13 dB apart at most. A tie within this is a tie. */
+ * operations: measured 2.8e-14 dB apart at most. A tie within this is a tie. */
 #define LPN_TIE_DB 1e-9
 
 static const float LPN_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
