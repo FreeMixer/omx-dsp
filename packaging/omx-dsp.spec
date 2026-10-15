@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.19.0
+Version: 0.20.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,16 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Thu Oct 15 2026 Pau Aliagas <linuxnow@gmail.com> - 0.20.0-1
+- The live HRP shell (analysis/omx_hrp_lv2.h), the feedback suppressor's
+  LV2 face, is now held at every rate the console runs, 32 to 192 kHz, not
+  only at 48 kHz: when it asks its worker for analysis, which hop it reads,
+  that an idle shell passes audio untouched, that an adopted band cuts
+  exactly what it reports, and that bypass walks every band out in even
+  steps. Each check has a deliberately broken copy that must fail at all nine
+  rates. With this the console engine keeps no HRP or FBS tests of its own:
+  they all live here. No API change.
+
 * Thu Oct 15 2026 Pau Aliagas <linuxnow@gmail.com> - 0.19.0-1
 - The mix module grows by the rest of the console engine's mix maths, moved
   unchanged and held to the engine's output bit for bit at the nine rates:
