@@ -6,12 +6,11 @@
  *        rate's window and, when the zoom is asked for, three half-band decimations and the low
  *        zoom's spectrum.
  *
- * The entry point over analysis/omx_rta.h (openmixer docs/design/specs/2026-10-14-lane-output-path.md
- * §4). The engine keeps the handover between threads: it reads the tap's rings, passes the legs to
- * omx_rta_tap_mono_sum() into a window it owns, and runs omx_rta_tap_read() on whichever thread it
+ * The entry point over analysis/omx_rta.h. The engine keeps the handover between threads: it reads
+ * the tap's rings, passes the legs to omx_rta_tap_mono_sum() into a window it owns, and runs omx_rta_tap_read() on whichever thread it
  * chooses. Both are pure arithmetic over caller-owned buffers: no ring, no atomic, no allocation.
  * Moved from the engine's `omx_rta_tap_snapshot_from` (its sum) and `omx_rta_tap_compute`
- * (openmixer packages/pipewire-native/src/mix_dsp.h), bit for bit.
+ * (OpenMixer's mix_dsp.h), bit for bit.
  *
  * Header-only. Not in omxdsp.h: include <omxdsp/mix/omx_rta_tap.h>.
  */
