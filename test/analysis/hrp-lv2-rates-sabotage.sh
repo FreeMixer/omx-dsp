@@ -45,7 +45,7 @@ sabotage() {
     exit 1
   fi
   local hit
-  hit="$(grep -F "$want" "$dir/log" | sed 's/: .*//' | sort -u | wc -l)"
+  hit="$({ grep -F "$want" "$dir/log" || true; } | sed 's/: .*//' | sort -u | wc -l)"
   if [ "$hit" != "$nrates" ]; then
     echo "hrp-lv2-rates-sabotage.sh: FAIL — $arm: '$want' failed at $hit of $nrates rates"
     cat "$dir/log"

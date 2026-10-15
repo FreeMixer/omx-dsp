@@ -7,7 +7,7 @@
  * HRP chain beneath it at every rate. This holds what the shell itself decides, at every rate, to
  * answers that follow from the rate alone:
  *
- *   1. the hop is a quarter of the RTA window for the rate (omx_rta_fft_size_for(rate) / 4), and
+ *   1. the hop is a quarter of the RTA window for the rate (analysis_rates.h's rule, / 4), and
  *      the shell asks for its worker exactly when a whole hop is unconsumed: not at hop - 1 frames,
  *      at hop frames; and a bypassed shell with nothing to walk out asks for nothing;
  *   2. an idle shell is a wire: a second of audio in uneven blocks comes out byte for byte;
@@ -22,6 +22,7 @@
  *      reported depth at its centre; adopting the empty set parks the cascade and the output is the
  *      input again, byte for byte.
  */
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -107,8 +108,8 @@ static double db(double x) { return 20.0 * log10(x); }
 
 static void arm_hop_and_due(uint32_t rate) {
   check(fresh(rate), "init accepts the rate", rate);
-  const uint32_t hop = omx_rta_fft_size_for(rate) / 4u;
-  check(omx_hrp_lv2_hop(&g_s) == hop, "hop = omx_rta_fft_size_for(rate) / 4", rate);
+  const uint32_t hop = omx_analysis_fft_for_rate(rate) / 4u;
+  check(omx_hrp_lv2_hop(&g_s) == hop, "hop = a quarter of the RTA window for the rate", rate);
   check(!omx_hrp_lv2_due(&g_s, 0), "nothing written: not due", rate);
   run_silence(hop - 1u);
   check(!omx_hrp_lv2_due(&g_s, 0), "hop - 1 frames: not due", rate);
@@ -176,7 +177,7 @@ static void arm_band(uint32_t rate) {
   set.cut_db[0] = cut;
   omx_hrp_peaking_coeffs(set.freq_hz[0], OMX_HRP_BAND_Q, -cut, rate, set.coeffs[0]);
 
-  close_to(db(section_mag(set.coeffs[0], 2.0 * M_PI / pc)), -cut, 0.05, "|H| at the centre is the cut", rate);
+  close_to(db(section_mag(set.coeffs[0], 2.0 * M_PI / pc)), -cut, 1e-3, "|H| at the centre is the cut", rate);
 
   fresh(rate);
   omx_hrp_lv2_adopt(&g_s, &set);
@@ -206,8 +207,8 @@ static void arm_walk_out(uint32_t rate) {
     omx_hrp_lv2_analyse(&g_s, 1, &set);
     if (want[k] > 0.0f) {
       check(set.count == 1u, "a walking band is still published", rate);
-      close_to(set.cut_db[0], want[k], 0.0, "the walk moves one step per pass", rate);
-      close_to(db(section_mag(set.coeffs[0], 2.0 * M_PI / pc)), -want[k], 0.05,
+      close_to(set.cut_db[0], want[k], 4.0 * FLT_EPSILON * want[k], "the walk moves one step per pass", rate);
+      close_to(db(section_mag(set.coeffs[0], 2.0 * M_PI / pc)), -want[k], 1e-3,
                "the published section cuts its reported depth at its centre", rate);
     } else {
       check(set.count == 0u, "at 0 dB the band is gone", rate);
