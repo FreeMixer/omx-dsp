@@ -4,8 +4,9 @@
 #
 # mix-engine-identity.sh — the mix module (include/omxdsp/mix/) gives the same bits as the copies
 # OpenMixer's engine still carries in its native sources (FreeMixer/omx-dsp#98): the pan
-# law, the LCR pan, the strip and fold coefficients, a bus's out stage, the block and leg peaks and
-# the clip run.
+# law, the LCR pan, the strip and fold coefficients, a bus's out stage, the block and leg peaks, the
+# clip run, the peak hold, the gain-reduction reading, one analyser tap's reading, one source's
+# contribution to a summing bus and the real-time load meter.
 #
 #   tools/mix-engine-identity.sh <engine-src>             the check
 #   tools/mix-engine-identity.sh --write <engine-src>     print the
@@ -16,48 +17,47 @@
 #                                                    kernel's digests
 #
 # test/mix/golden.test.c is compiled with -DOMX_GOLDEN_ENGINE, which calls the engine's mix_dsp.h,
-# mix_lcr.h and mix_bus.h instead of the library's mix headers, against the omx-contract release
-# the engine pins, whose header the engine's generated
-# omx_console_limits.h completes. Every primitive those headers include comes from this tree's
-# include/ (ENGINE_IDENTITY_INCLUDE=<dir> takes them from another omx-dsp include directory). The
-# program must reach the three engine headers, then match the committed digests at every rate.
+# mix_lcr.h, mix_bus.h and mix_gr_meter.h instead of the library's mix headers, against the
+# installed omx-contract inside this tree's range (tools/contract-include.sh), or the include
+# directory ENGINE_IDENTITY_CONTRACT_INC names, whose header the engine's generated
+# omx_console_limits.h completes. Nothing is downloaded. Every primitive those headers include comes from a copy of this
+# tree's include/ (ENGINE_IDENTITY_INCLUDE=<dir> takes them from another omx-dsp include directory)
+# in which omxdsp/omx_gen.h forwards to mix_dsp.h while the engine still carries its own generators,
+# so the two copies of their names never meet. The program must reach the four engine headers,
+# then match the committed digests at every rate.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PKG="$PWD"
 CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2}"
 INCLUDE="${ENGINE_IDENTITY_INCLUDE:-$PKG/include}"
-ENGINE_HEADERS="mix_dsp.h mix_lcr.h mix_bus.h"
+ENGINE_HEADERS="mix_dsp.h mix_lcr.h mix_bus.h mix_gr_meter.h"
 
-# engine_contract <src>: the include directory of the omx-contract release the engine pins
+# engine_contract: the include directory of the omx-contract the engine's copies compile against: the
+# installed package inside this tree's range, or ENGINE_IDENTITY_CONTRACT_INC
 engine_contract() {
-  local core v dir
-  core="$1/../../core/package.json"
-  v="$(sed -n 's/.*"@openmixer\/omx-contract": "\([0-9][0-9.]*\)".*/\1/p' "$core" 2>/dev/null | head -1)"
-  [ -n "$v" ] || { echo "mix-engine-identity: FAIL — no @openmixer/omx-contract pin in $core" >&2; return 1; }
-  dir="$PKG/build/omx-contract/$v"
-  if [ ! -f "$dir/package/include/omxcontract/omx_contract_limits.h" ]; then
-    rm -rf "$dir"; mkdir -p "$dir"
-    curl -fsSL "https://github.com/FreeMixer/omx-contract/releases/download/v$v/openmixer-omx-contract-$v.tgz" -o "$dir/release.tgz" \
-      || { echo "mix-engine-identity: FAIL — omx-contract v$v could not be fetched" >&2; rm -rf "$dir"; return 1; }
-    tar xzf "$dir/release.tgz" -C "$dir"
-  fi
-  printf '%s\n' "$dir/package/include"
+  if [ -n "${ENGINE_IDENTITY_CONTRACT_INC:-}" ]; then printf '%s\n' "$ENGINE_IDENTITY_CONTRACT_INC"; return 0; fi
+  sh "$PKG/tools/contract-include.sh" || { echo "mix-engine-identity: FAIL — no installed omx-contract in range (or set ENGINE_IDENTITY_CONTRACT_INC)" >&2; return 1; }
 }
 
 # build <engine src dir> <scratch dir>: the golden program through the engine's copies
 build() {
-  local src out eci
+  local src out eci shim
   src="$(cd "$1" && pwd)"
   out="$2"
   for h in $ENGINE_HEADERS; do
     [ -f "$src/$h" ] || { echo "mix-engine-identity: FAIL — $src has no $h"; return 1; }
   done
-  eci="$(engine_contract "$src")" || return 1
+  eci="$(engine_contract)" || return 1
   rm -rf "$out" && mkdir -p "$out"
+  shim="$out/include"
+  cp -r "$INCLUDE" "$shim"
+  if grep -qE '^#define OMX_GEN_OSC ' "$src/mix_dsp.h"; then
+    printf '#include "mix_dsp.h"\n' > "$shim/omxdsp/omx_gen.h"
+  fi
   # shellcheck disable=SC2086
-  if ! $CC $CFLAGS -ffp-contract=off -DOMX_GOLDEN_ENGINE -H -I"$INCLUDE" -isystem "$eci" -I"$src" \
-      -o "$out/golden" "$PKG/test/mix/golden.test.c" -lm 2>"$out/trace"; then
+  if ! $CC $CFLAGS -ffp-contract=off -DOMX_GOLDEN_ENGINE -H -I"$shim" -isystem "$eci" -I"$src" \
+      -include "$PKG/test/support/log10f_subst.h" -o "$out/golden" "$PKG/test/mix/golden.test.c" -lm 2>"$out/trace"; then
     echo "mix-engine-identity: FAIL — the golden program does not compile against the engine's copies:"
     grep -E 'error' "$out/trace" | head -5
     return 1
@@ -95,10 +95,8 @@ if [ "${1:-}" = --self-test ]; then
   # kernel | file | sed expression: each one moves the arithmetic of one kernel's engine copy, and
   # that kernel's digests must move
   while IFS='|' read -r name file expr; do
-    # the copy keeps the checkout's shape, so its ../../core/package.json names the same contract
-    rm -rf "$scratch/x" && mkdir -p "$scratch/x/y" "$scratch/x/core"
+    rm -rf "$scratch/x" && mkdir -p "$scratch/x/y"
     cp -r "$src" "$scratch/x/y/src"
-    cp "$src/../../core/package.json" "$scratch/x/core/"
     sed -i "$expr" "$scratch/x/y/src/$file"
     if cmp -s "$src/$file" "$scratch/x/y/src/$file"; then
       echo "SABOTAGE $name: the edit changed nothing in $file"; fail=1; continue
@@ -118,6 +116,12 @@ fold|mix_bus.h|s/    float t = tgt \* fold_coef;/    float t = tgt * fold_coef *
 bus_out|mix_dsp.h|s/    busL\[i\] \*= omx_ramp_at(rl, i);/    busL[i] *= omx_ramp_at(rl, i) * 0.9999f;/
 peak|mix_dsp.h|s/      if (y > peak) peak = y;/      if (y > peak) peak = x;/
 clip|mix_dsp.h|s/      if (run_b >= need) return true;/      if (run_b > need) return true;/
+hold|mix_dsp.h|s/  if (l > atomic_load_explicit(slot_l, memory_order_relaxed))/  if (l < atomic_load_explicit(slot_l, memory_order_relaxed))/
+gr|mix_gr_meter.h|s/    m->hold_left_s = OMX_GR_HOLD_MS \* 0.001f;/    m->hold_left_s = OMX_GR_HOLD_MS * 0.0011f;/
+rta|mix_dsp.h|s/    snap->block\[i\] = 0.5f \* (snap->block\[i\] + leg_scratch\[i\]);/    snap->block[i] = 0.5001f * (snap->block[i] + leg_scratch[i]);/
+rta|mix_dsp.h|s/  omx_decimate_halfband(scr->stage2, OMX_RTA_LOW_WINDOW \/ 4, scr->low_block);/  omx_decimate_halfband(scr->stage1, OMX_RTA_LOW_WINDOW \/ 4, scr->low_block);/
+bus_sum|mix_bus.h|s/    for (uint32_t i = 0; i < n; i++) busL\[i\] += (inL\[i\] + inR\[i\]) \* (c + step \* (float)i);/    for (uint32_t i = 0; i < n; i++) busL[i] += (inL[i] + inL[i]) * (c + step * (float)i);/
+rt_load|mix_dsp.h|s/#define OMX_RT_LOAD_EMA_COEFF 0.9f/#define OMX_RT_LOAD_EMA_COEFF 0.8f/
 EOF
   # and a tree without the engine's headers compares nothing, so it must not pass either
   mkdir -p "$scratch/x/y/empty"
