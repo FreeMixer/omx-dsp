@@ -13,5 +13,17 @@ static void arm_denormal(void) {
 #if defined(__x86_64__) || defined(__i386__)
   ok((_mm_getcsr() & 0x8040u) == 0x8040u, "FTZ and DAZ are set for this thread", (double)(_mm_getcsr() & 0x8040u), 0x8040);
 #endif
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || (defined(__arm__) && defined(__ARM_FP))
+  /* the mode's effect, not its bit: a subnormal operand reads as zero and a subnormal result is
+   * zero (1e-40f and 2e-45f are below FLT_MIN, 1.17549435e-38f). volatile keeps the compiler from
+   * folding the products at build time, where no flush-to-zero mode applies. */
+  {
+    volatile float sub = 1e-40f, one = 1.0f, half = 0.5f, flt_min = 1.17549435e-38f;
+    const float in_zero = sub * one;
+    const float out_zero = flt_min * half;
+    ok(in_zero == 0.0f, "a subnormal operand reads as zero once denormals are off", in_zero, 0.0);
+    ok(out_zero == 0.0f, "a subnormal result is exactly zero once denormals are off", out_zero, 0.0);
+  }
+#endif
   expect_clean();
 }
