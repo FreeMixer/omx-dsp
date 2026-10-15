@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.18.1
+Version: 0.19.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -71,6 +71,15 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Thu Oct 15 2026 Pau Aliagas <linuxnow@gmail.com> - 0.19.0-1
+- The mix module grows by the rest of the console engine's mix maths, moved
+  unchanged and held to the engine's output bit for bit at the nine rates:
+  mix/omx_bus_sum.h (one source's contribution to a summing bus, as entries
+  of the mix matrix), mix/omx_rta_tap.h (one analyser tap's reading: the mono
+  sum, one spectrum and the low zoom), mix/omx_rt_load.h (the real-time load
+  meter's measure half), and in mix/omx_meter.h the peak hold and the
+  gain-reduction reading's hold and recovery.
+
 * Thu Oct 15 2026 Pau Aliagas <linuxnow@gmail.com> - 0.18.1-1
 - The EQ sabotage check for the 0.999 Nyquist hold no longer depends on the
   libm: a peak just under Nyquist makes the held point differ by several dB,
