@@ -27,6 +27,7 @@
 #   make delay-taps-sabotage  the FX delay's read-tap oracle fails against six sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
+#   make public-sources-messages  the same over the commit messages of origin/main..HEAD (RANGE=a..b to choose)
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
@@ -44,9 +45,12 @@
 #               the checkout, against the committed parity table (tools/room-ts-golden.mjs)
 #   make test-mix  the mix module's golden digests (pan law, LCR, strip and fold coefficients, bus
 #               out stage, peak, clip, peak hold, gain-reduction reading, analyser tap, bus sum,
-#               real-time load meter) and a sabotage of each kernel against its oracle and digests
+#               real-time load meter, factored strip coefficient, route gain stages, strip meter
+#               reading, settled silence, LCR fold level) and a sabotage of each kernel against its
+#               oracle and digests
 #   make mix-engine-identity OPENMIXER=<checkout>  the same digests rendered through the engine's own
-#               copies (mix_dsp.h, mix_lcr.h, mix_bus.h, mix_gr_meter.h), and the check's sabotages
+#               copies, each set the checkout carries (mix_dsp.h, mix_lcr.h, mix_bus.h,
+#               mix_gr_meter.h; mix_dsp.h, mix_sum.h), and the check's sabotages
 #               (tools/mix-engine-identity.sh)
 
 CC      ?= cc
@@ -62,7 +66,7 @@ override CFLAGS += $(FPFLAGS)
 # at or above the floor packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
 # (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
 # directory as CONTRACT_INC.
-ifeq ($(filter version clean docs public-sources,$(MAKECMDGOALS)),)
+ifeq ($(filter version clean docs public-sources public-sources-messages,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
 $(error tools/contract-include.sh found no omx-contract: see its message above)
@@ -256,6 +260,11 @@ public-sources:
 	bash tools/public-sources-check.sh
 	bash tools/public-sources-check.sh --self-test
 
+RANGE ?=
+.PHONY: public-sources-messages
+public-sources-messages:
+	bash tools/public-sources-check.sh --messages $(RANGE)
+
 # omx_log10f() (test/support) against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
 # where the libm's log10f is correctly rounded (glibc 2.43), so not part of make test.
 check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
@@ -433,8 +442,9 @@ engine-kernels-identity:
 
 # ---- the mix module -------------------------------------------------------------------------
 # The pan law, the strip and fold coefficients of G, a bus's out stage, the meters' measure half, one
-# analyser tap's reading, one source's contribution to a summing bus and the real-time load meter
-# (include/omxdsp/mix/, FreeMixer/omx-dsp#98): their oracles are suite arms (test/kernels/mix_*.c);
+# analyser tap's reading, one source's contribution to a summing bus, the real-time load meter, the
+# factored strip coefficient, an output route's gain stages, the settled-silence test and the LCR
+# fold's centre level (include/omxdsp/mix/, FreeMixer/omx-dsp#98 and #140): their oracles are suite arms (test/kernels/mix_*.c);
 # here are their golden digests at the nine RME rates, which the engine's own copies wrote
 # (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
 # Compiled with log10f replaced by the correctly rounded omx_log10f (test/support), as the FX goldens
