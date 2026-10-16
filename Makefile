@@ -24,6 +24,7 @@
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against six sabotages
+#   make delay-taps-sabotage  the FX delay's read-tap oracle fails against six sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
 #   make docs   the API reference by doxygen (build-time only)
@@ -108,7 +109,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table room-ts-golden public-sources
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table room-ts-golden public-sources
 
 all: lib
 
@@ -202,6 +203,11 @@ perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 # its named arm (test/fx/geq-true-sabotage.sh); the real oracle in test-fx is the control.
 geq-true-sabotage: test/fx/geq_true.test.c test/fx/geq-true-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/geq-true-sabotage.sh $(BUILD)/geq-true-sabotage $(LIB_CONTRACTS)
+
+# The FX delay's read-tap oracle against six sabotaged copies of omx_delay.h, each red on its named
+# arm (test/fx/delay-taps-sabotage.sh); the real oracle in test-fx is the control.
+delay-taps-sabotage: test/fx/delay_taps.test.c test/fx/delay-taps-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/delay-taps-sabotage.sh $(BUILD)/delay-taps-sabotage $(LIB_CONTRACTS)
 
 # The fractional delay line's suite arm against four sabotaged copies of omx_fdelay.h: each must
 # go red on that arm (test/fdelay-sabotage.sh). The tree is never edited.
@@ -429,7 +435,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
