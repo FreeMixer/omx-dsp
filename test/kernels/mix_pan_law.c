@@ -9,7 +9,8 @@
  * gains' power sums to 1 at every position of every layout; no gain is inverted; only the
  * adjacent pair (and the centre) carry the source. Stereo: −3 dB per leg at centre, the hard legs,
  * and (pan + 1)·π/4 bit for bit. LCR at divergence 1 is stereo exactly; at divergence 0 the centre
- * takes the whole source at pan 0. --------------------------------------------------------------- */
+ * takes the whole source at pan 0. The LCR fold's centre level is the float nearest 1/√2, −3.01 dB,
+ * and a centre folded onto a pair at it carries half its power into each leg. ------------------------ */
 
 static const float MIX_PAN_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
 
@@ -108,6 +109,22 @@ static void arm_mix_pan_law(void) {
     ok(stray == 0, "only the adjacent pair carries the source on the axis", stray, 0);
     ok(stereo_bits == 0, "stereo is (pan + 1)·π/4, cos and sin, bit for bit", stereo_bits, 0);
     ok(lcr_div1_bits == 0, "LCR at divergence 1 is the stereo law bit for bit", lcr_div1_bits, 0);
+
+    /* the LCR fold's centre level: one second of a 997 Hz centre, folded onto a pair */
+    const float clev = OMX_PAN_LCR_FOLD_CLEV;
+    double pc = 0.0, pl = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+      const float c = 0.5f * sinf((float)(2.0 * M_PI * 997.0 * (double)i / sr));
+      const float lo = clev * c;
+      pc += (double)c * c;
+      pl += (double)lo * lo;
+    }
+    ok(fabs(pl / pc - 0.5) < 1e-7, "a centre folded at clev carries half its power into each leg", pl / pc, 0.5);
+  }
+  {
+    const float clev = OMX_PAN_LCR_FOLD_CLEV, want = (float)M_SQRT1_2;
+    ok(memcmp(&clev, &want, sizeof clev) == 0, "clev is the float nearest 1/sqrt(2)", clev, M_SQRT1_2);
+    ok(fabs(20.0 * log10((double)clev) + 3.0103) < 1e-4, "clev is -3.01 dB", 20.0 * log10((double)clev), -3.0103);
   }
   expect_clean();
 }
