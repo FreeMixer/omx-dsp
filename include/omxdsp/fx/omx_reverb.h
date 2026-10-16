@@ -230,8 +230,7 @@ struct omx_reverb_state {
  * low-pass in this file already is. */
 static inline float omx_reverb_damp_pole(float damping, float sr) {
   float p = omx_clampf(damping, 0.0f, OMX_REVERB_DAMP_POLE_MAX); /* NaN: no damping */
-  if (p <= 0.0f || sr == OMX_REVERB_DAMP_REFERENCE_RATE) return p; /* the reference rate is untouched */
-  return powf(p, OMX_REVERB_DAMP_REFERENCE_RATE / sr);
+  return omx_pole_rescale(p, OMX_REVERB_DAMP_REFERENCE_RATE, sr); /* the reference rate is untouched */
 }
 
 /* Carve `len` floats out of the pool; returns the sub-buffer base (or NULL if the pool is

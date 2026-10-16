@@ -58,6 +58,9 @@ struct omx_band_dyn_state {
 _Static_assert(sizeof(struct omx_band_dyn_state) == sizeof(float) * (OMX_DYN_ENV_STAGES + 9u),
                "band-dynamics state must stay plain inline floats - nothing to allocate");
 
+/** @brief The samples omx_band_dyn_run() computes the gain for at once. */
+#define OMX_BAND_DYN_CHUNK 64u
+
 /** @brief Per-block resolved detector: the cascade parameters and its per-stage poles. */
 struct omx_band_dyn_block {
   struct omx_env_params ep; /**< The detector parameters, from the atom. */
@@ -107,22 +110,65 @@ static inline struct omx_band_dyn_block omx_band_dyn_begin(const struct omx_dyn 
  * @brief The signed offset `d`, dB, at detector level `level` (linear, the detector's domain).
  * @param gc The characteristic; `range_db` signed.
  * @param level The detector level, linear, not negative.
+ * The level is read in dB by omx_lin_to_db_poly(), no libm call: within 1e-4 dB of
+ * omx_lin_to_db() up to +480 dB, so `d` is within `s·1e-4` dB of the libm form, `s` the
+ * characteristic's steepest slope (`1 − 1/ratio` above, `ratio − 1` below).
  * @return `d ∈ [min(0, range_db), max(0, range_db)]`.
  * @post `offset-within-range` (§4 L5), `finite`.
- * @note RT-safe and pure. The meter re-runs this on the level the last sample used, so the
- *       reading and the stage are one computation.
+ * @note RT-safe and pure, no libm call. The meter re-runs this on the level the last sample
+ *       used, so the reading and the stage are one computation.
  */
 static inline float omx_band_dyn_offset_db(const struct omx_gaincomp_params *gc, float level) {
   struct omx_gaincomp_params c = *gc;
   const float span = -fabsf(gc->range_db);
   c.range_db = span;
-  float gr = omx_gaincomp_db(&c, omx_lin_to_db(level));
+  float gr = omx_gaincomp_db(&c, omx_lin_to_db_poly(level));
   gr = gr < span ? span : gr;
   gr = gr > 0.0f ? 0.0f : gr;
   const float d = gc->range_db > 0.0f ? -gr : gr;
   OMX_POST(d >= fminf(0.0f, gc->range_db) && d <= fmaxf(0.0f, gc->range_db), "offset-within-range");
   OMX_POST(d - d == 0.0f, "finite");
   return d;
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "band-dyn/gain"
+/**
+ * @brief The linear gain `g = 10^(d/20)` at detector level `level`, no libm call.
+ * @param gc The characteristic.
+ * @param level The detector level, linear, not negative.
+ * @return `g`; exactly 1 where `d` is 0.
+ * @post `gain-positive-finite`.
+ * @note RT-safe and pure: omx_band_dyn_offset_db() and omx_db_to_lin_poly(), no libm call.
+ */
+static inline float omx_band_dyn_gain(const struct omx_gaincomp_params *gc, float level) {
+  const float g = omx_db_to_lin_poly(omx_band_dyn_offset_db(gc, level));
+  OMX_POST(g > 0.0f && g - g == 0.0f, "gain-positive-finite");
+  return g;
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "band-dyn/level"
+/**
+ * @brief One sample through `B` and the detector: the band's output per leg and the detector level.
+ * @param c `B`'s coefficients.
+ * @param st The state.
+ * @param bk The block's detector.
+ * @param xl The left sample.
+ * @param xr The right sample (ignored when `stereo` is 0).
+ * @param stereo Non-zero for two legs, folded 0.5/0.5 into ONE detector.
+ * @param bl Out: `B(xl)`.
+ * @param br Out: `B(xr)`, 0 in mono.
+ * @return The detector level, linear (omx_env_level() of the cascade).
+ * @note RT-safe: two biquads, one cascade step.
+ */
+static inline float omx_band_dyn_level(const float c[5], struct omx_band_dyn_state *st,
+                                       const struct omx_band_dyn_block *bk, float xl, float xr, int stereo,
+                                       float *bl, float *br) {
+  *bl = omx_biquad(xl, c, st->b_l);
+  *br = stereo ? omx_biquad(xr, c, st->b_r) : 0.0f;
+  const float k = stereo ? 0.5f * (fabsf(*bl) + fabsf(*br)) : fabsf(*bl);
+  return omx_env_step(&st->env, &bk->ep, k, bk->ac, bk->rc);
 }
 #undef OMX_CONTRACT_STAGE
 
@@ -138,21 +184,15 @@ static inline float omx_band_dyn_offset_db(const struct omx_gaincomp_params *gc,
  * @param stereo Non-zero for two legs, folded 0.5/0.5 into ONE detector.
  * @param bl Out: `B(xl)`.
  * @param br Out: `B(xr)`, 0 in mono.
- * @return `g = 10^(d/20)`.
- * @post `gain-positive-finite`.
- * @note RT-safe: two biquads, one cascade step, one gain-computer call.
+ * @return `g = 10^(d/20)`: omx_band_dyn_gain() of omx_band_dyn_level(), bit for bit what
+ *         omx_band_dyn_run() applies to that sample.
+ * @note RT-safe: two biquads, one cascade step, one gain-computer call, no libm call.
  */
 static inline float omx_band_dyn_detect(const float c[5], struct omx_band_dyn_state *st,
                                         const struct omx_gaincomp_params *gc,
                                         const struct omx_band_dyn_block *bk, float xl, float xr,
                                         int stereo, float *bl, float *br) {
-  *bl = omx_biquad(xl, c, st->b_l);
-  *br = stereo ? omx_biquad(xr, c, st->b_r) : 0.0f;
-  const float k = stereo ? 0.5f * (fabsf(*bl) + fabsf(*br)) : fabsf(*bl);
-  const float level = omx_env_step(&st->env, &bk->ep, k, bk->ac, bk->rc);
-  const float g = omx_db_to_lin(omx_band_dyn_offset_db(gc, level));
-  OMX_POST(g > 0.0f && g - g == 0.0f, "gain-positive-finite");
-  return g;
+  return omx_band_dyn_gain(gc, omx_band_dyn_level(c, st, bk, xl, xr, stereo, bl, br));
 }
 #undef OMX_CONTRACT_STAGE
 
@@ -195,6 +235,13 @@ static inline void omx_band_dyn_flush(struct omx_band_dyn_state *st) {
 #define OMX_CONTRACT_STAGE "band-dyn"
 /**
  * @brief The engaged loop: detect, compute, apply — split (`u + (g − 1)·b`) or wideband (`g·u`).
+ *
+ * In chunks of OMX_BAND_DYN_CHUNK samples: the band and the detector sample by sample (the only
+ * serial part), then the gain of the whole chunk on the libm-free unit pair, then the
+ * application. Every sample takes the gain omx_band_dyn_detect() gives it, bit for bit,
+ * whatever the block size. Against the libm pair (omx_lin_to_db(), omx_db_to_lin()) the state
+ * is byte-identical — the detector never reads `g` — and `g` is within `s·1e-4 + 2e-5` dB, `s`
+ * the characteristic's steepest slope: for the de-esser (above, ratio ≤ 20) within 1.2e-4 dB.
  * @param l The left (or mono) leg.
  * @param r The right leg, or NULL for mono.
  * @param n Frames, at least 1.
@@ -206,7 +253,8 @@ static inline void omx_band_dyn_flush(struct omx_band_dyn_state *st) {
  * @pre `finite-in-l`, `finite-in-r`; behind the enable gate: `ratio-at-least-one`,
  *      `knee-not-negative`, `peak-detector`, `no-make-up`.
  * @post `finite-out-l`, `finite-out-r`; `st->gr_min_db` holds the run's deepest `g` in dB.
- * @note RT-safe: O(n), no allocation, no lock, no IO.
+ * @note RT-safe: O(n), no allocation (four chunk arrays on the stack), no lock, no IO, no libm call
+ *       per sample.
  */
 static inline void omx_band_dyn_run(float *l, float *r, uint32_t n, const struct omx_dyn *dyn, const float c[5],
                                     struct omx_band_dyn_state *st, int wideband, int enabled) {
@@ -220,12 +268,17 @@ static inline void omx_band_dyn_run(float *l, float *r, uint32_t n, const struct
   const struct omx_band_dyn_block bk = omx_band_dyn_begin(dyn);
   const int stereo = r != NULL;
   float gmin = 1.0f;
-  for (uint32_t i = 0; i < n; i++) {
-    float bl, br;
-    const float g = omx_band_dyn_detect(c, st, &dyn->gc, &bk, l[i], stereo ? r[i] : 0.0f, stereo, &bl, &br);
-    gmin = g < gmin ? g : gmin;
-    l[i] = wideband ? l[i] * g : omx_band_dyn_split(l[i], g, bl);
-    if (stereo) r[i] = wideband ? r[i] * g : omx_band_dyn_split(r[i], g, br);
+  for (uint32_t o = 0; o < n; o += OMX_BAND_DYN_CHUNK) {
+    const uint32_t m = n - o < OMX_BAND_DYN_CHUNK ? n - o : OMX_BAND_DYN_CHUNK;
+    float lv[OMX_BAND_DYN_CHUNK], bl[OMX_BAND_DYN_CHUNK], br[OMX_BAND_DYN_CHUNK], g[OMX_BAND_DYN_CHUNK];
+    for (uint32_t i = 0; i < m; i++)
+      lv[i] = omx_band_dyn_level(c, st, &bk, l[o + i], stereo ? r[o + i] : 0.0f, stereo, &bl[i], &br[i]);
+    for (uint32_t i = 0; i < m; i++) g[i] = omx_band_dyn_gain(&dyn->gc, lv[i]);
+    for (uint32_t i = 0; i < m; i++) {
+      gmin = g[i] < gmin ? g[i] : gmin;
+      l[o + i] = wideband ? l[o + i] * g[i] : omx_band_dyn_split(l[o + i], g[i], bl[i]);
+      if (stereo) r[o + i] = wideband ? r[o + i] * g[i] : omx_band_dyn_split(r[o + i], g[i], br[i]);
+    }
   }
   st->gr_min_db = omx_gr_block_db(gmin);
   omx_band_dyn_flush(st);

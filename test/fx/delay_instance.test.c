@@ -126,7 +126,7 @@ static void arm_is_the_kernel(void) {
     memset(rr, 0, OMX_FXDELAY_CAP * sizeof(float));
     struct omx_fx_delay_state ks = {rl, rr, (uint32_t)OMX_FXDELAY_CAP, 0u, 0.0f, 0.0f};
     struct omx_fx_delay a = {1, omx_fxdelay_ms_to_samples(K[k].time, g_sr), omx_fxdelay_ms_to_samples(K[k].time, g_sr),
-                             K[k].feedback, K[k].mix, K[k].tone, K[k].pingpong};
+                             K[k].feedback, K[k].mix, K[k].tone, K[k].pingpong, 0, {0}, {0}, {0}};
     float l[BLK], r[BLK], ol[BLK], or_[BLK], l0[BLK];
     int same = 1, wet = 0;
     for (int b = 0; b < NBLK; b++) {
