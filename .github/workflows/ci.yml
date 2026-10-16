@@ -17,6 +17,22 @@ permissions:
   contents: read
 
 jobs:
+  # A commit message is published like a file. A pull request's own commits must name no private
+  # repository, path or issue; what is already on main is not read.
+  commit-messages:
+    name: commit messages name nothing private
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Scan origin/main..head
+        id: handback-commit-messages
+        run: make public-sources-messages RANGE=origin/${{ github.event.pull_request.base.ref }}..HEAD
+
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ubuntu-latest
@@ -86,7 +102,7 @@ jobs:
 
       - name: The release workflow builds arm on every tag
         id: handback-release-arm-gate
-        run: tools/release-arm-gate-selftest.sh
+        run: tools/release-arm-gate-selftest.sh && tools/release-arm-gate-selftest.sh --sabotage
 
       - name: make test
         id: handback-test

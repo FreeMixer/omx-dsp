@@ -10,7 +10,10 @@
  * one-second 997 Hz tone goes through omx_mixmatrix_sparse() over the entries the fillers write:
  * a mono strip lands on each speaker as gain × x exactly, and a correlated stereo source folded at
  * 0.5 lands on the mono output at unity, bit for bit. The silent-source test reads the block
- * peak against the floor. ------------------------------------------------------------------- */
+ * peak against the floor. The factored split's level × image is the product's gain bit for bit
+ * (zero signs included) over a grid of layouts, channel counts, assigns, mutes, faders, pans and
+ * divergences, and an unassigned strip's image is zero; the settled-silence test holds only when
+ * both targets and both cursors are 0. --------------------------------------------------------- */
 
 static const float MIX_COEF_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
 
@@ -39,6 +42,50 @@ static void arm_mix_coef(void) {
   ok(omx_mix_fill_entries(e, rows, outs, zero, zero, 3) == 0u, "settled zeros write no entry", 0, 0);
   ok(omx_mix_fill_entries(e, rows, outs, falling, half, 3) == 2u, "an entry still ramping to 0 stays in", 2, 2);
   ok(omx_mix_fill_fold(e, 0, 1, 0, 0.0f, 0.0f) == 0u, "a settled-silent fold writes no entry", 0, 0);
+
+  /* the factored split: coef × img[k] is omx_mix_strip_gains()'s g[k], bit for bit */
+  {
+    static const float faders[] = {0.0f, 0.03125f, 0.25f, 0.5f, 0.70794578f, 1.0f, 1.9952623f, 3.1622777f};
+    static const float pans[] = {-1.25f, -1.0f, -0.75f, -0.5f, -0.25f, -0.0f, 0.0f, 0.1f, 0.25f, 0.5f, 0.75f, 1.0f, 1.25f};
+    static const float divs[] = {0.0f, 0.4f, 1.0f};
+    const struct omx_pan_layout *lay[2] = {&st, &lcr};
+    uint32_t recompose_bits = 0, unassigned_img = 0, checked = 0;
+    for (int li = 0; li < 2; li++)
+      for (int ch = 1; ch <= 2; ch++)
+        for (int act = 0; act <= 1; act++)
+          for (int mute = 0; mute <= 1; mute++)
+            for (uint32_t fi = 0; fi < sizeof faders / sizeof faders[0]; fi++)
+              for (uint32_t pi = 0; pi < sizeof pans / sizeof pans[0]; pi++)
+                for (uint32_t di = 0; di < 3; di++) {
+                  float prod[OMX_PAN_SPEAKERS_MAX], img[OMX_PAN_SPEAKERS_MAX], coef;
+                  omx_mix_strip_gains(lay[li], ch, act, 0.9f, faders[fi], mute, pans[pi], divs[di], prod);
+                  omx_mix_strip_split(lay[li], ch, act, 0.9f, faders[fi], mute, pans[pi], divs[di], &coef, img);
+                  for (uint32_t k = 0; k < omx_pan_layout_speakers(lay[li]); k++) {
+                    const float re = coef * img[k];
+                    if (memcmp(&re, &prod[k], sizeof re) != 0) recompose_bits++;
+                    if (!act && (img[k] != 0.0f || signbit(img[k]))) unassigned_img++;
+                    checked++;
+                  }
+                }
+    ok(recompose_bits == 0, "split: level × image is the product's gain, bit for bit", recompose_bits, 0);
+    ok(unassigned_img == 0, "split: an unassigned strip's image is +0 everywhere", unassigned_img, 0);
+    ok(checked == 2u * 2u * 2u * 8u * 13u * 3u * 2u + 2u * 2u * 2u * 8u * 13u * 3u * 3u,
+       "split: the whole grid was compared", checked, 0);
+    float coef, img[3];
+    omx_mix_strip_split(&st, 1, 1, 1.0f, 1.0f, 1, 0.0f, 0.0f, &coef, img);
+    ok(coef == 0.0f && img[0] > 0.7f, "split: a muted strip keeps its image and has level 0", coef, 0.0);
+    omx_mix_strip_split(&lcr, 1, 1, 1.0f, 0.5f, 0, 0.0f, 0.0f, &coef, img);
+    ok(coef == 0.5f && img[2] == 1.0f && img[0] == 0.0f && img[1] == 0.0f,
+       "split: a centred mono strip at divergence 0 images onto the discrete centre alone", img[2], 1.0);
+  }
+
+  /* the settled-silence test */
+  ok(omx_mix_settled_silent(0.0f, 0.0f, 0.0f, 0.0f), "settled: all four 0 is silent", 1, 1);
+  ok(omx_mix_settled_silent(-0.0f, 0.0f, 0.0f, -0.0f), "settled: a signed zero is 0", 1, 1);
+  ok(!omx_mix_settled_silent(0.0f, 0.0f, 0.1f, 0.0f), "settled: a ramp down still owed is not silent", 0, 0);
+  ok(!omx_mix_settled_silent(0.0f, 0.0f, 0.0f, 1e-30f), "settled: however small", 0, 0);
+  ok(!omx_mix_settled_silent(0.3f, 0.0f, 0.0f, 0.0f), "settled: a live target is not silent", 0, 0);
+  ok(!omx_mix_settled_silent(0.0f, NAN, 0.0f, 0.0f), "settled: a NaN target is not silent", 0, 0);
 
   for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
     const float sr = MIX_COEF_RATES[ri];

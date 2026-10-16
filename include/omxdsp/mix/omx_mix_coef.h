@@ -3,8 +3,8 @@
 /**
  * @file omx_mix_coef.h
  * @brief The coefficients of the summing matrix G: a strip's gains per speaker (level × pan or
- *        balance), the mono fold's gain, the fillers that turn them into omx_mixmatrix_sparse()
- *        entries, and the silent-source test.
+ *        balance, or the two factors apart), the mono fold's gain, the fillers that turn them into
+ *        omx_mixmatrix_sparse() entries, the silent-source test and the settled-silence test.
  *
  * Strip coefficients (gain × fader × mute × pan) are the function that fills G, the mono fold is entries in G and not
  * a code path, and a silent source has its entries left out of the sparse list for the block (the
@@ -12,8 +12,9 @@
  * is routing, and stays the engine's.
  *
  * The gains are the engine's own arithmetic bit for bit: `omx_strip_eff`, `omx_strip_coefs` and
- * `omx_strip_main_coefs` (mix_dsp.h), `omx_strip_main_coefs_lcr` (mix_lcr.h), and the fold's
- * `tgt × fold_coef` (mix_bus.h, mixer_rt.c).
+ * `omx_strip_main_coefs` (mix_dsp.h), `omx_strip_main_coefs_lcr` (mix_lcr.h), the factored
+ * `omx_sum_main_split` (mix_sum.h), the fold's `tgt × fold_coef` (mix_bus.h, mixer_rt.c) and the
+ * settled-silence test `omx_strip_silent` (mix_dsp.h).
  *
  * Stateless, pure, header-only. Not in omxdsp.h: include <omxdsp/mix/omx_mix_coef.h>.
  */
@@ -86,6 +87,66 @@ static inline void omx_mix_strip_gains(const struct omx_pan_layout *l, int chann
   }
   omx_pan_gains(l, pan, divergence, g);
   for (uint32_t i = 0; i < ns; i++) g[i] = eff * g[i];
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "mix/strip-split"
+/**
+ * @brief A strip's gains into a bus as two factors: its level and its image, one gain per speaker,
+ *        so that `coef × img[k]` is omx_mix_strip_gains()'s `g[k]` bit for bit.
+ *
+ * The image is the pan law (a mono source) or the balance law (a stereo source) alone; the level
+ * is omx_mix_strip_level(). A bus that keeps its level and its picture apart (a bus sum that ramps
+ * the level and holds the image) takes these instead of the product. `coef × img[k]` is the same
+ * float multiplication, in the same order and on the same operands, as omx_mix_strip_gains().
+ * `active == 0` gives a zero level AND a zero image: gating only the level would make an unassigned
+ * hard-right mono strip's left gain `+0 × −4.4e-08 = −0`, where the product is `+0`. Moved from the
+ * engine's `omx_sum_main_split` (OpenMixer's mix_sum.h), bit for bit, and widened to any layout.
+ * @param l The bus's layout.
+ * @param channels The strip's channel count: 1 mono, 2 or more stereo.
+ * @param active Non-zero: the strip is assigned to this bus.
+ * @param gain The head gain, linear.
+ * @param fader The fader, linear.
+ * @param mute Non-zero: muted.
+ * @param pan The pan (mono) or balance (stereo) position, [-1, +1].
+ * @param divergence The centre's divergence (omx_pan_gains()); ignored without a centre.
+ * @param coef Out: the level; 0 when unassigned or muted.
+ * @param img Out: omx_pan_layout_speakers(l) gains, in the layout's speaker order.
+ * @pre `outs-present`; `finite-controls`: the gain and the fader are finite;
+ *      `stereo-source-on-a-pair`: a stereo source's layout has two axis speakers.
+ * @post `image-is-a-gain`: every image gain in [−1e-6, 1] (a far end reads −4.4e-08, a rounding of
+ *       zero); `a-muted-channel-is-silent`: a muted strip's level is 0; `an-unassigned-channel-is-silent`.
+ * @note RT-safe: at most one cosf, one sinf and one sqrtf. Thread-safe: pure.
+ */
+static inline void omx_mix_strip_split(const struct omx_pan_layout *l, int channels, int active,
+                                       float gain, float fader, int mute, float pan,
+                                       float divergence, float *coef, float *img) {
+  OMX_PRE(coef != NULL && img != NULL, "outs-present");
+  OMX_PRE(gain - gain == 0.0f && fader - fader == 0.0f, "finite-controls");
+  const uint32_t ns = omx_pan_layout_speakers(l);
+  if (!active) {
+    *coef = 0.0f;
+    for (uint32_t i = 0; i < ns; i++) img[i] = 0.0f;
+    OMX_POST(*coef == 0.0f, "an-unassigned-channel-is-silent");
+    return;
+  }
+  if (channels >= 2) {
+    OMX_PRE(l->n_axis == 2u, "stereo-source-on-a-pair");
+    float a, b;
+    omx_balance_law(pan, &a, &b);
+    for (uint32_t i = 0; i < ns; i++) img[i] = 0.0f;
+    img[0] = a;
+    img[l->n_axis - 1u] = b;
+  } else {
+    omx_pan_gains(l, pan, divergence, img);
+  }
+  *coef = omx_mix_strip_level(gain, fader, mute);
+#ifdef OMX_CONTRACTS
+  int in_range = 1;
+  for (uint32_t i = 0; i < ns; i++) in_range &= img[i] >= -1e-6f && img[i] <= 1.0f;
+  OMX_POST(in_range, "image-is-a-gain");
+#endif
+  OMX_POST(mute == 0 || *coef == 0.0f, "a-muted-channel-is-silent");
 }
 #undef OMX_CONTRACT_STAGE
 
@@ -197,6 +258,24 @@ static inline uint32_t omx_mix_fill_fold(struct omx_mixmatrix_entry *e, uint32_t
  */
 static inline bool omx_mix_source_silent(const float *a, const float *b, uint32_t n, float floor_lin) {
   return omx_meter_block_peak(a, b, n) < floor_lin;
+}
+
+/**
+ * @brief Whether a strip has settled into silence: both ramp targets AND both current ramp values
+ *        are exactly 0.
+ *
+ * Only then may a caller skip the strip for the block: a target of 0 with a current value that is
+ * not is a ramp down still owed, and skipping it would drop it (a click). Moved from the engine's
+ * `omx_strip_silent` (OpenMixer's mix_dsp.h), bit for bit.
+ * @param tgtL The left target.
+ * @param tgtR The right target.
+ * @param curL The left ramp's current value.
+ * @param curR The right ramp's current value.
+ * @return true when all four are 0 (either sign).
+ * @note RT-safe: four compares. Thread-safe: pure.
+ */
+static inline bool omx_mix_settled_silent(float tgtL, float tgtR, float curL, float curR) {
+  return tgtL == 0.0f && tgtR == 0.0f && curL == 0.0f && curR == 0.0f;
 }
 
 #endif /* OMX_MIX_COEF_H */

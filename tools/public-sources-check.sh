@@ -11,8 +11,14 @@
 # State the fact itself and cite a public repository (omx-dsp#N, omx-contract, omx-plugins).
 #
 #   tools/public-sources-check.sh              the check
+#   tools/public-sources-check.sh --messages [RANGE]
+#                                              the same patterns over the commit messages of RANGE
+#                                              (default origin/main..HEAD): messages are published too
 #   tools/public-sources-check.sh --self-test  a private name in a header comment, a .md and a .sh
 #                                              must be found; an allowlisted line must not be
+#
+# Only the messages a change adds are checked, never the history already on main: a commit that
+# is on main is published and is not rewritten by this check.
 #
 # The allowlist is functional code only (a value, not prose): the make recipes and scripts that
 # take an OpenMixer checkout and read its sources. Each entry is "path<TAB>text the line contains".
@@ -42,6 +48,32 @@ scan() {
   done
 }
 
+# messages <range>: "sha: line" for each commit-message line in the range that names a private thing.
+# PS_REPO names the repository to read (default: this one); the self-test points it at a scratch one.
+messages() {
+  local range="$1" sha line g="${PS_REPO:-.}"
+  git -c safe.directory="$g" -C "$g" rev-list "$range" | while IFS= read -r sha; do
+    git -c safe.directory="$g" -C "$g" log -1 --format=%B "$sha" | grep -nE -- "$PATTERN" | while IFS= read -r line; do
+      printf '%s: %s\n' "${sha:0:12}" "$line"
+    done || true
+  done
+}
+
+if [ "${1:-}" = --messages ]; then
+  range="${2:-origin/main..HEAD}"
+  g="${PS_REPO:-.}"
+  git -c safe.directory="$g" -C "$g" rev-parse --verify -q "${range%%..*}" >/dev/null ||
+    { echo "public-sources-check: $range does not name a commit range here (is the base fetched?)" >&2; exit 2; }
+  found="$(messages "$range")"
+  if [ -n "$found" ]; then
+    echo "public-sources-check: these commit messages point at private repositories or paths; state the fact itself:" >&2
+    printf '%s\n' "$found" >&2
+    exit 1
+  fi
+  echo "public-sources-check: no commit message in $range points into a private repository"
+  exit 0
+fi
+
 if [ "${1:-}" = --self-test ]; then
   d="$(mktemp -d)"; trap 'rm -rf "$d"' EXIT
   mkdir -p "$d/include" "$d/tools"
@@ -61,6 +93,20 @@ if [ "${1:-}" = --self-test ]; then
   done
   if grep -qE '^(Makefile|clean\.md):' <<<"$found"; then
     echo "public-sources-check self-test: an allowlisted or clean line was reported" >&2; exit 1
+  fi
+  # commit messages: a private name in a body is found; a clean message is not, even with a private one before the range
+  g="$d/repo"; mkdir -p "$g"; self="$PWD/tools/public-sources-check.sh"
+  git -C "$g" init -q
+  gc() { git -C "$g" -c user.name=t -c user.email=t@example.org -c commit.gpgsign=false commit -q --allow-empty "$@"; }
+  gc -m "base cites FreeMixer/openmixer#1"
+  base="$(git -C "$g" rev-parse HEAD)"
+  gc -m "clean subject" -m "A body about the product."
+  clean="$(git -C "$g" rev-parse HEAD)"
+  gc -m "subject" -m "Tracked in openmixer #1602."
+  PS_REPO="$g" "$self" --messages "$base..$clean" >/dev/null 2>&1 ||
+    { echo "public-sources-check self-test: a clean message was reported" >&2; exit 1; }
+  if PS_REPO="$g" "$self" --messages "$base..HEAD" >/dev/null 2>&1; then
+    echo "public-sources-check self-test: a private name in a commit message was NOT found" >&2; exit 1
   fi
   echo "public-sources-check self-test: a header comment, a .md, a .sh and a .c are found; the allowlist and a clean file are not"
   exit 0
