@@ -20,7 +20,7 @@ static void render(float sr, float *out) {
   float *rl = calloc(OMX_FXDELAY_CAP, sizeof(float)), *rr = calloc(OMX_FXDELAY_CAP, sizeof(float));
   struct omx_fx_delay_state s = {rl, rr, OMX_FXDELAY_CAP, 0u, 0.0f, 0.0f};
   struct omx_fx_delay p = {1, omx_fxdelay_ms_to_samples(23.5f, sr), omx_fxdelay_ms_to_samples(31.0f, sr),
-                           0.6f, 0.5f, 0.6f, 1};
+                           0.6f, 0.5f, 0.6f, 1, 0, {0}, {0}, {0}};
   uint32_t lcg = 0x1234567u;
   float l[BLOCK], r[BLOCK];
   for (int o = 0; o < OMX_FX_GOLDEN_FRAMES; o += BLOCK) {

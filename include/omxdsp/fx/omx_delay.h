@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <omxdsp/omx_balance_law.h>
 #include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_lookahead.h>
 #include <omxdsp/omx_param.h>
@@ -33,6 +34,10 @@
 #define OMX_FXDELAY_MAX_RATE OMX_RT_HARD_TARGET_RATE
 /** Per-leg ring capacity, samples: MAX_MS at MAX_RATE, +1 so the full max delay is usable. */
 #define OMX_FXDELAY_CAP (((OMX_FXDELAY_MAX_RATE / 1000) * OMX_FXDELAY_MAX_MS) + 1)
+/** Read-tap ceiling of the one ring per leg: the tap-delay variants' `taps` travel 1..4. omx-contract
+ * does not declare that travel yet (FX_DELAY_TAPS_RANGE, to be rendered as OMX_DELAY_TAPS_MAX); when
+ * it does, this reads it, as OMX_FXDELAY_MAX_MS reads the time travel. */
+#define OMX_FXDELAY_MAX_TAPS 4
 
 /** Control atom (word-atomic snapshot). `d_l`/`d_r` are per-leg delays in SAMPLES (caller converts
  * ms/tempo -> samples via omx_bpm_division_ms + rate). `feedback`/`mix`/`tone` in [0,1]. */
@@ -44,6 +49,10 @@ struct omx_fx_delay {
   float mix;        /* 0 = dry (bit-identical), 1 = wet-only (FX send/return default) */
   float tone;       /* feedback-path one-pole damping 0..1 (0 = bright, ->1 = dark repeats) */
   int pingpong;     /* non-zero -> cross-feed the legs (echoes bounce L<->R) */
+  uint32_t ntaps;   /* engaged read taps 1..OMX_FXDELAY_MAX_TAPS; 0 is the one-tap delay at unity, centre */
+  uint32_t tap_d[OMX_FXDELAY_MAX_TAPS]; /* tap k >= 1: delay, samples, both legs; [0] unused (tap 0 is d_l/d_r) */
+  float tap_gl[OMX_FXDELAY_MAX_TAPS];   /* tap k's left-leg gain, gain_k x balance-law bL(pan_k), 0..1 */
+  float tap_gr[OMX_FXDELAY_MAX_TAPS];   /* tap k's right-leg gain, gain_k x balance-law bR(pan_k), 0..1 */
 };
 
 /** Caller-owned rings + RT-owned state. `ring_l`/`ring_r` are `cap` floats each (allocated on insert). */
@@ -138,8 +147,70 @@ static inline uint32_t omx_fxdelay_clamp(uint32_t d, uint32_t cap) {
 #undef OMX_CONTRACT_STAGE
 
 /**
+ * A tap's per-leg gain from its gain and pan: `gain x omx_balance_law(pan)`, the stereo-strip law that
+ * attenuates the far leg and never boosts. The control thread's resolve, one call per tap.
+ *
+ * @param gain the tap's gain, 0..1; a non-finite gain is 0
+ * @param pan the tap's pan, -1..+1 (omx_clamp_pan's travel)
+ * @param gl out: the left leg's gain, in [0, 1]
+ * @param gr out: the right leg's gain, in [0, 1]
+ */
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "fx-delay/tap-gains"
+static inline void omx_fxdelay_tap_gains(float gain, float pan, float *gl, float *gr) {
+  const float g = omx_clamp_or(gain, 0.0f, 1.0f, 0.0f);
+  float bl, br;
+  omx_balance_law(pan, &bl, &br);
+  *gl = g * bl;
+  *gr = g * br;
+  OMX_POST(*gl >= 0.0f && *gl <= 1.0f && *gr >= 0.0f && *gr <= 1.0f, "a-tap-gain-is-inside-unity");
+}
+#undef OMX_CONTRACT_STAGE
+
+/**
+ * A tap's per-leg gain as the kernel reads it: finite and inside [0, 1].
+ *
+ * @param g the control thread's `gain_k x b_k,leg`
+ * @return `g` clamped to [0, 1]; a non-finite gain is 0
+ */
+#define OMX_CONTRACT_STAGE "fx-delay/tap-gain"
+static inline float omx_fxdelay_tap_gain(float g) {
+  const float c = omx_clamp_or(g, 0.0f, 1.0f, 0.0f);
+  OMX_POST(c >= 0.0f && c <= 1.0f, "a-tap-gain-is-inside-unity");
+  return c;
+}
+#undef OMX_CONTRACT_STAGE
+
+/**
+ * The index of the LONGEST engaged tap on one leg, the one the feedback regenerates from, so a
+ * pattern repeats as a whole.
+ *
+ * @param d0 tap 0's delay on this leg (samples, clamped)
+ * @param d the clamped taps, `d[k]` for `k = 1 .. nt-1`
+ * @param nt engaged taps, 1..OMX_FXDELAY_MAX_TAPS
+ * @return k of the largest delay; the first on a tie, so one tap is tap 0
+ */
+#define OMX_CONTRACT_STAGE "fx-delay/longest-tap"
+static inline uint32_t omx_fxdelay_longest_tap(uint32_t d0, const uint32_t *d, uint32_t nt) {
+  OMX_PRE(nt >= 1u && nt <= (uint32_t)OMX_FXDELAY_MAX_TAPS, "tap-count-inside-the-array");
+  uint32_t kf = 0, best = d0;
+  for (uint32_t k = 1; k < nt; k++) {
+    if (d[k] > best) { best = d[k]; kf = k; }
+  }
+  OMX_POST(kf < nt, "the-feedback-tap-is-engaged");
+  return kf;
+}
+#undef OMX_CONTRACT_STAGE
+
+/**
  * Process one block IN PLACE. `l`/`r` are the strip's two legs (distinct buffers). A disabled atom /
  * NULL ring is a passthrough. RT-safe: fixed work per sample, no allocation.
+ *
+ * Read taps: `ntaps` 1..OMX_FXDELAY_MAX_TAPS integer reads of the SAME ring, tap 0 at d_l/d_r and
+ * tap k >= 1 at tap_d[k] on both legs, each with its own per-leg gain; the wet sum is
+ * `sum_k g_k,leg x tap_k` and the feedback regenerates from the longest engaged tap. `ntaps` 0 is
+ * the one-tap delay at unity and centre, bit for bit the kernel before taps. A tap asked past the
+ * ring is refused (PRE taps-inside-the-ring) and read at cap-1.
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay"
@@ -157,6 +228,11 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   OMX_PRE(p->mix >= 0.0f && p->mix <= 1.0f, "mix-in-unit-range");
   OMX_PRE(p->tone >= 0.0f && p->tone <= 1.0f, "tone-in-unit-range");
   OMX_PRE(s->cap == 0u || (p->d_l < s->cap && p->d_r < s->cap), "taps-inside-the-ring");
+  OMX_PRE(p->ntaps <= (uint32_t)OMX_FXDELAY_MAX_TAPS, "tap-count-inside-the-array");
+#ifdef OMX_CONTRACTS
+  for (uint32_t k = 1; s->cap != 0u && k < p->ntaps && k < (uint32_t)OMX_FXDELAY_MAX_TAPS; k++)
+    OMX_PRE(p->tap_d[k] < s->cap, "taps-inside-the-ring");
+#endif
   OMX_PRE(sr <= 0.0f || OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
   if (!p->enabled || n == 0 || s->ring_l == NULL || s->ring_r == NULL || s->cap == 0) return;
   uint32_t cap = s->cap;
@@ -172,6 +248,22 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   /* R-058: the tone knob is quoted at 96 kHz and raised to REF/sr HERE, once per block, so the
    * repeats darken by the same filter at every clock. */
   float tone = omx_fxdelay_tone_pole(p->tone, sr);
+  /* The taps, resolved once per block. ntaps 0 is the one-tap delay at unity and centre, so an
+   * atom that never heard of taps plays as it always did; tap 0 is d_l/d_r. */
+  const uint32_t nt = p->ntaps == 0u ? 1u
+                    : (p->ntaps > (uint32_t)OMX_FXDELAY_MAX_TAPS ? (uint32_t)OMX_FXDELAY_MAX_TAPS : p->ntaps);
+  uint32_t td[OMX_FXDELAY_MAX_TAPS];
+  float gl[OMX_FXDELAY_MAX_TAPS], gr[OMX_FXDELAY_MAX_TAPS];
+  gl[0] = p->ntaps == 0u ? 1.0f : omx_fxdelay_tap_gain(p->tap_gl[0]);
+  gr[0] = p->ntaps == 0u ? 1.0f : omx_fxdelay_tap_gain(p->tap_gr[0]);
+  td[0] = 0u;
+  for (uint32_t k = 1; k < nt; k++) {
+    td[k] = omx_fxdelay_clamp(p->tap_d[k], cap);
+    gl[k] = omx_fxdelay_tap_gain(p->tap_gl[k]);
+    gr[k] = omx_fxdelay_tap_gain(p->tap_gr[k]);
+  }
+  const uint32_t kfl = omx_fxdelay_longest_tap(dl, td, nt);
+  const uint32_t kfr = omx_fxdelay_longest_tap(dr, td, nt);
   uint32_t w = s->wpos;
   float dampL = s->damp_l, dampR = s->damp_r;
   for (uint32_t i = 0; i < n; i++) {
@@ -183,16 +275,30 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
      * 0 ms delay an exact passthrough, matching omx_delay_apply's write-then-read at tgt=0. */
     float tapL = dl == 0 ? xl : s->ring_l[rl];
     float tapR = dr == 0 ? xr : s->ring_r[rr];
+    /* The wet sum starts AT tap 0's term (never 0 + term, which turns a -0 into +0): one tap at
+     * unity is the tap, bit for bit. */
+    float wetL = gl[0] * tapL, wetR = gr[0] * tapR;
+    float srcL = tapL, srcR = tapR;
+    for (uint32_t k = 1; k < nt; k++) {
+      const uint32_t rk = omx_lookahead_back(w, td[k], cap);
+      const float tl = td[k] == 0 ? xl : s->ring_l[rk];
+      const float tr = td[k] == 0 ? xr : s->ring_r[rk];
+      wetL += gl[k] * tl;
+      wetR += gr[k] * tr;
+      if (k == kfl) srcL = tl;
+      if (k == kfr) srcR = tr;
+    }
     /* one-pole low-pass in the feedback path (tone, Freeverb-style damping): tone=0 passes the tap
-     * through (bright), tone->1 freezes it toward its running average (dark repeats). */
-    dampL = tapL * (1.0f - tone) + dampL * tone;
-    dampR = tapR * (1.0f - tone) + dampR * tone;
+     * through (bright), tone->1 freezes it toward its running average (dark repeats). The feedback
+     * regenerates from the LONGEST engaged tap, so a pattern repeats as a whole. */
+    dampL = srcL * (1.0f - tone) + dampL * tone;
+    dampR = srcR * (1.0f - tone) + dampR * tone;
     /* ping-pong: each leg's feedback comes from the OTHER leg's damped tap */
     float fbL = p->pingpong ? dampR : dampL;
     float fbR = p->pingpong ? dampL : dampR;
     s->ring_l[w] = xl + fb * fbL;
     s->ring_r[w] = xr + fb * fbR;
-    omx_wetdry_mix(&l[i], &r[i], xl, xr, tapL, tapR, dry, mix);
+    omx_wetdry_mix(&l[i], &r[i], xl, xr, wetL, wetR, dry, mix);
     w = omx_lookahead_fwd(w, 1u, cap);
   }
   s->wpos = w;
