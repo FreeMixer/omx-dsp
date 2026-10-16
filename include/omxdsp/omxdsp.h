@@ -62,6 +62,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_magnitude.h"
 #include "omx_matched_pair.h"
 #include "omx_mixmatrix.h"
+#include "omx_note_map.h"
 #include "omx_onepole.h"
 #include "omx_ramp.h"
 #include "omx_oversampler.h"
