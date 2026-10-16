@@ -109,7 +109,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table room-ts-golden public-sources
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table room-ts-golden public-sources
 
 all: lib
 
@@ -214,11 +214,19 @@ delay-taps-sabotage: test/fx/delay_taps.test.c test/fx/delay-taps-sabotage.sh $(
 fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fdelay-sabotage.sh $(BUILD)/fdelay-sabotage
 
+# omx_pole_rescale's checks in the onepole arm against four sabotaged copies of the include tree (the
+# law, its rate <= 0 fixed point, the delay's and the reverb's call): each must go red on that arm
+# (test/onepole-sabotage.sh). The tree is never edited.
+onepole-sabotage: $(HEADERS) $(FX_HEADERS) $(KERNELS) $(SRC) test/onepole-sabotage.sh tools/kernels-gen.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/onepole-sabotage.sh $(BUILD)/onepole-sabotage
+
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
+	bash tools/pole-rescale-guard.sh include src
+	bash tools/pole-rescale-guard.sh --self-test
 	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
@@ -242,7 +250,7 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 # ---- the effect kernels ------------------------------------------------------------------------
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if
 # 44.1, 48, 96 or 192 kHz is missing; the golden digests hold the kernel's output bit for bit.
-# The dynamics, balance, rotor, limiter and loudness oracles and digests, and the fractional delay
+# The dynamics, balance, rotor, limiter, loudness and multiband oracles and digests, and the fractional delay
 # line's exact-copy and tone arms, run at the nine RME rates instead
 # (OMX_FX_RME_RATES in test/fx/fx_rates.h), 32, 64 and 128 kHz included.
 
@@ -252,9 +260,9 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness mbcomp
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness geq_true $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
 FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
@@ -294,6 +302,7 @@ FX_LDFLAGS_gate_knee = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_gate_keyfilter = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_trim_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_loudness = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_mbcomp = $(FX_NO_ALLOC_LDFLAGS)
 
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm $(FX_LDFLAGS_$*),$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm $(FX_LDFLAGS_$*))
@@ -435,7 +444,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------

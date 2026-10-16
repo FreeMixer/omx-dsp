@@ -23,6 +23,7 @@
 #include <omxdsp/omx_balance_law.h>
 #include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_lookahead.h>
+#include <omxdsp/omx_onepole.h>
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_wetdry.h>
 
@@ -101,10 +102,9 @@ static inline float omx_fxdelay_tone_pole(float tone, float sr) {
   /* A non-finite tone is no tone at all (pole 0, bright): a NaN carried into the damping state
    * stays there for good. */
   const float p = omx_clamp_or(tone, 0.0f, 1.0f, 0.0f);
-  /* pole 0 (bright) and pole 1 (frozen) are their own fixed points; so is the reference rate,
-   * and an sr the caller could not supply leaves the knob exactly as it was. */
-  if (p <= 0.0f || p >= 1.0f || sr <= 0.0f || sr == OMX_FXDELAY_TONE_REFERENCE_RATE) return p;
-  return powf(p, OMX_FXDELAY_TONE_REFERENCE_RATE / sr);
+  /* the tier's one reference-rate law: pole 0 (bright), pole 1 (frozen), the reference rate and an
+   * sr the caller could not supply leave the knob exactly as it was. */
+  return omx_pole_rescale(p, OMX_FXDELAY_TONE_REFERENCE_RATE, sr);
 }
 
 /**
