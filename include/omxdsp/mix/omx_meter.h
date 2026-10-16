@@ -10,7 +10,7 @@
  * is here: pure functions over the block a lane hands in, and over a state struct the engine owns
  * and passes in. Publish (the tap point, the atomic slots, the stores into them, the cadence, the
  * clip latch, the watched test) stays in the engine. Moved unchanged from the engine's
- * `omx_block_peak`, `omx_strip_meter_legs`, `omx_sustained_over` and the comparison inside
+ * `omx_block_peak`, `omx_strip_meter`, `omx_strip_meter_legs`, `omx_sustained_over` and the comparison inside
  * `omx_meter_hold` (OpenMixer's mix_dsp.h), and `omx_gr_meter_step` (its mix_gr_meter.h).
  *
  * Pure, header-only. Not in omxdsp.h: include <omxdsp/mix/omx_meter.h>.
@@ -56,6 +56,23 @@ static inline float omx_meter_block_peak(const float *a, const float *b, uint32_
     }
   }
   return peak;
+}
+
+/**
+ * @brief A strip's post-fader meter reading: the block peak across its legs times its level.
+ *
+ * The level is omx_mix_strip_level() (gain × fader × mute), so the reading follows the gain, the
+ * fader and the mute; the pan is left out (a pan sweep does not move a channel meter). Moved from
+ * the engine's `omx_strip_meter` (OpenMixer's mix_dsp.h), bit for bit.
+ * @param inL The first leg, `n` samples.
+ * @param inR The second leg; `inR == inL` for a mono strip, or NULL (one leg).
+ * @param n Samples per leg.
+ * @param level The strip's level, linear.
+ * @return omx_meter_block_peak() × `level`; 0 at level 0.
+ * @note RT-safe: one pass, no allocation. Thread-safe: reads only.
+ */
+static inline float omx_meter_strip_peak(const float *inL, const float *inR, uint32_t n, float level) {
+  return omx_meter_block_peak(inL, inR, n) * level;
 }
 
 /**

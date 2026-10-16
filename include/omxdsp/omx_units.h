@@ -66,8 +66,8 @@ static inline double omx_lin_to_db_d(double lin, double floor_lin) {
  *
  * The float splits into `2^e · m` with `m` in [√½, √2); `ln m = 2·atanh(t)`, `t = (m−1)/(m+1)`,
  * `|t| ≤ 0.1716`, summed to `t⁹/9` (the first term left out is below 4e-10). Unity is exactly
- * 0 dB. Against omx_lin_to_db(): within 1e-4 dB over [1e-9, 1e4] (the omxdsp suite's units arm
- * measures it).
+ * 0 dB. Against omx_lin_to_db(): within 1e-4 dB over [1e-9, 1e24] (−180 to +480 dB), and within
+ * 4 ulp of the result over every float above the floor (the omxdsp suite's units arm measures both).
  * @param lin Amplitude, linear, finite; values below 1e-9 read as 1e-9.
  * @return `20·log10(max(lin, 1e-9))` to the declared tolerance: silence is −180 dB.
  * @post `finite`.
