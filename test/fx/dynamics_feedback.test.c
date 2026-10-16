@@ -357,6 +357,33 @@ static void fft(double *re, double *im, uint32_t n) {
   }
 }
 
+/* O11 — entering the loop does not read y[n-1] from whenever the loop last ran (omx-dsp#78). The
+ * slot runs the loop uncompressed (threshold at 0 dB) on a loud signal, so y[n-1] is 0.9, switches to
+ * feed-forward on a quieter one until the cascade has settled at 0.2, and switches back with the
+ * threshold at -20 dB: the first output sample is the one the settled level's gain makes, as if the
+ * loop had never been left. A stale y[n-1] would be heard as the loud signal and pull the envelope,
+ * and so the first gain, away from it. */
+static void o11_entry_seeds_the_previous_output(float sr) {
+  static const int modes[] = {OMX_DETECT_PEAK, OMX_DETECT_RMS};
+  for (unsigned m = 0; m < 2; m++) {
+    struct omx_dyn p = fb_comp(sr, -20.0f, 4.0f, 0.0f, 1.0f, 100.0f);
+    struct omx_dyn open = fb_comp(sr, 0.0f, 4.0f, 0.0f, 1.0f, 100.0f);
+    p.detect = open.detect = modes[m];
+    struct omx_dyn_state st;
+    omx_dyn_state_init(&st, 1u);
+    float g;
+    run_dc(&open, &st, 0.9f, (uint32_t)(0.2f * sr), &g, NULL);
+    struct omx_dyn ff = p;
+    ff.topology = OMX_DETECTOR_TOPOLOGY_FEEDFORWARD;
+    const float x = 0.2f;
+    run_dc(&ff, &st, x, (uint32_t)(3.0f * sr), &g, NULL);
+    float one = x;
+    omx_dynamics(&one, NULL, 1, &p, &st);
+    const float want = x * omx_db_to_lin(omx_gaincomp_db_fb(&p.gc, omx_lin_to_db(x)));
+    check(fabsf(one - want) <= 1e-2f * want, "O11 the first sample after re-entering the loop is the settled level's gain", sr);
+  }
+}
+
 /* The largest spectral line in 20 Hz … 20 kHz that no in-band product a·f1 + b·f2 explains,
  * relative to the f1 line, dBc: what the loop's rectifier folded back from above Nyquist. */
 static double o10_worst_alias_dbc(float sr) {
@@ -411,6 +438,7 @@ int main(void) {
     o5_no_oscillation(sr);
     o7_zero_latency(sr);
     o8_no_denormal_state(sr);
+    o11_entry_seeds_the_previous_output(sr);
     const double al = o10_worst_alias_dbc(sr);
     printf("  O10 @ %6.0f Hz: worst aliased product %.2f dBc (pinned %.2f)\n", (double)sr, al, O10_PINNED_DBC[k]);
     check(fabs(al - O10_PINNED_DBC[k]) <= 1.0, "O10 the worst aliased product stays at its pinned figure +-1 dB", sr);
