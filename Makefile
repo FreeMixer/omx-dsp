@@ -249,6 +249,8 @@ checks:
 	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
+	bash tools/umbrella-check.sh
+	bash tools/umbrella-check.sh --self-test
 	bash tools/face-conformance.sh
 	bash tools/face-conformance.sh --self-test
 
