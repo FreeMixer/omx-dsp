@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.20.1
+Version: 0.20.2
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -69,6 +69,11 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 16 2026 Pau Aliagas <linuxnow@gmail.com> - 0.20.2-1
+- The header documentation states its design notes as plain facts, readable
+  without any other document. No code changes: the library and its output
+  are the same as 0.20.1's
+
 * Thu Oct 15 2026 Pau Aliagas <linuxnow@gmail.com> - 0.20.1-1
 - omx-contract is a dependency floor only: omx-contract-devel >= 2.11.0 and
   omxdsp.pc requires omx-contract >= 2.11.0, with no upper bound. 0.20.0
