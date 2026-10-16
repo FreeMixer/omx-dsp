@@ -11,6 +11,7 @@
 #   silent       the ceiling clamps but the design does not say so                       (C)
 #   no-proto     a band whose first-pass gain is 0 keeps a zero column, not the prototype (F)
 #   no-apply     apply publishes nothing to the kernel                                   (S, A)
+#   no-sign      the ceiling clamps every gain to +OMX_GEQ_DESIGN_GAIN_MAX_DB, a cut included (C)
 # The builds run in parallel. The tree is never edited; a sed that matches nothing is a failure, not
 # a skip. The real oracle, run by `make test-fx`, is the control.
 # Usage: CC=… CFLAGS=… CONTRACT_INC=… geq-true-sabotage.sh <scratch-dir> <libomxdsp-contracts.a>
@@ -58,10 +59,11 @@ run no-ceiling "C" 's|    if (fabs(g) > ceiling) {|    if (0) {|' & pids+=($!)
 run silent "C" 's|      over = 1;|      over = 0;|' & pids+=($!)
 run no-proto "F" 's|at_db\[k\] == 0.0 ? (double)OMX_GEQ_PROTO_DB : at_db\[k\]|at_db[k]|' & pids+=($!)
 run no-apply "S A" 's|  if (d->ok) {|  if (0) {|' & pids+=($!)
+run no-sign "C" 's|      g = copysign(ceiling, g);|      g = ceiling;|' & pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 if [ "$failed" -ne 0 ]; then
   echo "geq-true-sabotage: FAIL"
   exit 1
 fi
-echo "geq-true-sabotage: all six sabotages are caught"
+echo "geq-true-sabotage: all seven sabotages are caught"
