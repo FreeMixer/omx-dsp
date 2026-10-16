@@ -1,0 +1,10 @@
+# Public headers that omxdsp.h deliberately does not include, relative to include/omxdsp.
+# A name ending in / stands for the whole directory. tools/umbrella-check.sh reads this list.
+analysis/
+fx/
+mix/
+omx_band_dyn.h
+omx_dyn.h
+omx_gate.h
+omx_idelay.h
+omx_loudness.h

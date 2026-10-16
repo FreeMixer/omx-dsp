@@ -36,7 +36,9 @@ jobs:
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The suite takes 20 to 30 minutes on a hosted runner (median 25 min); 30 cut it off on a quarter
+    # of the jobs, so the slowest runs are not known. 60 is twice the old limit and well above the tail.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -102,7 +104,7 @@ jobs:
 
       - name: The release workflow builds arm on every tag
         id: handback-release-arm-gate
-        run: tools/release-arm-gate-selftest.sh
+        run: tools/release-arm-gate-selftest.sh && tools/release-arm-gate-selftest.sh --sabotage
 
       - name: make test
         id: handback-test

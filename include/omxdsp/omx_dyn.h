@@ -612,7 +612,13 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   const int fb = p->topology == OMX_DETECTOR_TOPOLOGY_FEEDBACK && key == NULL;
   const float fb_pa = fb ? omx_dyn_fb_attack_pole(p->attack_coeff, p->gc.ratio) : 0.0f;
   const float fb_pr = p->release_coeff;
-  if (fb && !st->fb_ran) st->fb_env = st->env.stage[OMX_DYN_ENV_STAGES - 1];
+  if (fb && !st->fb_ran) {
+    st->fb_env = st->env.stage[OMX_DYN_ENV_STAGES - 1];
+    /* y[n-1] is seeded with the output the seeded envelope stands for (its level, the root of its
+     * power when the detector is RMS), so the first sample detects this signal's level and not the
+     * output of whenever the loop last ran. */
+    st->fb_yl = st->fb_yr = omx_flush(rms ? sqrtf(st->fb_env) : st->fb_env);
+  }
   if (!fb && st->fb_ran)
     for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) st->env.stage[s] = st->fb_env;
   st->fb_ran = fb;
