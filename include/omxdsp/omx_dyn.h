@@ -210,6 +210,7 @@ _Static_assert(OMX_DYN_FB_LOOP_DELAY_SAMPLES == 1u, "fb_yl/fb_yr hold exactly on
  * @pre `ratio-at-least-one`, `pole-in-declared-range`.
  * @post `loop-pole-not-negative`: `p − (1 − p)(R − 1) ≥ 0` up to float rounding.
  * @note RT-safe: a divide and a select. Thread-safe: pure.
+ * @twin effectiveAttackMsOf
  */
 static inline float omx_dyn_fb_attack_pole(float attack_pole, float ratio) {
   OMX_PRE(ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");

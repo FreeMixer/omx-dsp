@@ -200,6 +200,7 @@ static inline OmxHrpConfig omx_hrp_family_search(int family) {
  * only on success; a NULL out or a non-positive rate leaves the caller's memory alone.
  *
  * Held equal to `rbjCoeffs` by the corpus in `hrp_peaking_corpus.h`, which BOTH sides check.
+ * @twin rbjCoeffs
  */
 
 static inline void omx_hrp_peaking_coeffs(float freq_hz, float q, float gain_db, uint32_t rate,
@@ -306,6 +307,7 @@ static inline void omx_hrp_cascade_apply(OmxHrpCascade *c, const float *in, floa
  * "no band", never as "a band of zero dB".
  *
  * §25 lives in the sign: this returns a magnitude to CUT. There is no path here that boosts.
+ * @twin harmonicDeviationGainsDb
  */
 static inline float omx_hrp_cut_db(float excess_db, float amount, float max_cut_db) {
   if (!(excess_db > OMX_HRP_EXCESS_THRESHOLD_DB)) return 0.0f;
@@ -324,6 +326,7 @@ static inline float omx_hrp_cut_db(float excess_db, float amount, float max_cut_
  * binary (§13 — only a stable voice produces a candidate at all) and an ambiguous attribution
  * is unmeasurable (§11/§54 — it never becomes a deviation, so it never scores). Any unusable
  * input scores zero, because a NaN weight would poison every comparison it met.
+ * @twin hrpResonanceScore
  */
 static inline float omx_hrp_resonance_score(float cut_db, float voice_confidence,
                                             float partial_confidence) {

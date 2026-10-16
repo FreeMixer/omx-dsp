@@ -150,7 +150,9 @@ struct omx_eq_lv2 {
   float state[OMX_EQ_LV2_SECTIONS][4];
 };
 
-/** `clampEqQFor`: a notch may go ultra-narrow; every other shape keeps `EQ_Q_RANGE`. */
+/** `clampEqQFor`: a notch may go ultra-narrow; every other shape keeps `EQ_Q_RANGE`.
+ * @twin clampEqQFor
+ */
 static inline float omx_eq_lv2_clamp_q(int type, float q) {
   return type == OMX_EQ_LV2_NOTCH ? omx_clampf(q, OMX_EQ_NOTCH_Q_RANGE_MIN, OMX_EQ_NOTCH_Q_RANGE_MAX)
                                   : omx_clampf(q, OMX_EQ_Q_RANGE_MIN, OMX_EQ_Q_RANGE_MAX);
