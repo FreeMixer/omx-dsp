@@ -67,6 +67,8 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp.pc
 %{_libdir}/pkgconfig/omxdsp-contracts.pc
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
+%{_bindir}/omx-dsp-copy-check
+%{_datadir}/omxdsp/
 
 %changelog
 * Fri Oct 16 2026 Pau Aliagas <linuxnow@gmail.com> - 0.20.2-1
