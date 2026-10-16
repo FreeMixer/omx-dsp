@@ -39,6 +39,25 @@
  *   rt_load  the load meter over a run of cycles of moving work, quantum and driver xrun total,
  *            the peak cleared every 50 cycles: the smoothed reading, the peak, the overruns, the
  *            cycles, the xrun events and the total
+ *
+ * The rest of the mix maths has its own engine build, -DOMX_GOLDEN_ENGINE_REST: the engine copies of
+ * these kernels outlived the ones above (OpenMixer's mix_dsp.h and mix_sum.h at engine commit
+ * e4c7e00a4, where the kernels above already call this library), so that build renders only these,
+ * and the kernels above through the library:
+ *
+ *   split        a strip's level and image apart over a stereo bus: mono and stereo strips,
+ *                assigned or not, muted or not, at four levels, over the pan sweep
+ *   route_fill   a run of blocks of noise copied at a ramped gain, the target moving between blocks
+ *                (a polarity invert, NaN and infinite targets, an empty block), in place every
+ *                third block: the output and the cursor
+ *   route_fold   the same run folded L + R into one buffer: the output and the cursor
+ *   fold_fill    the same run folded in place onto both legs, the two cursors apart at the start:
+ *                both legs and both cursors
+ *   strip_meter  a strip's post-fader reading over blocks of noise on one, two and aliased legs at
+ *                levels from 0 to +10 dB
+ *   settled      the settled-silence test over every combination of five values (0, −0, 1e-30,
+ *                0.5, NaN) in its four arguments
+ *   lcr_clev     the LCR fold's centre level, and a level times the cue's fold switch times it
  */
 #include <math.h>
 #include <stdint.h>
@@ -48,12 +67,22 @@
 
 #include <omxcontract/omx_contract_limits.h>
 
+#if defined(OMX_GOLDEN_ENGINE) && defined(OMX_GOLDEN_ENGINE_REST)
+#error "one engine build at a time: OMX_GOLDEN_ENGINE (the first kernels) or OMX_GOLDEN_ENGINE_REST"
+#endif
+
 #ifdef OMX_GOLDEN_ENGINE
 #include "mix_bus.h"
 #include "mix_dsp.h"
 #include "mix_gr_meter.h"
 #include "mix_lcr.h"
 #else
+#ifdef OMX_GOLDEN_ENGINE_REST
+#include "mix_dsp.h"
+#include "mix_sum.h"
+#else
+#include <omxdsp/mix/omx_route_gain.h>
+#endif
 #include <omxdsp/mix/omx_bus_sum.h>
 #include <omxdsp/mix/omx_rt_load.h>
 #include <omxdsp/mix/omx_bus_out.h>
@@ -266,6 +295,71 @@ static void k_rt_load(struct golden_load *g, uint64_t busy_ns, uint32_t frames, 
   g->seeded = 1u;
 #endif
 }
+
+/* ---- the rest of the mix maths, the library's or the engine's (OMX_GOLDEN_ENGINE_REST); the first
+ * kernels' engine build carries none of it ---------------------------------------------------- */
+#ifndef OMX_GOLDEN_ENGINE
+
+static void k_split(int channels, int active, float gain, float fader, int mute, float pan, float *coef,
+                    float img[2]) {
+#ifdef OMX_GOLDEN_ENGINE_REST
+  omx_sum_main_split(channels, active, gain, fader, mute, pan, coef, &img[0], &img[1]);
+#else
+  struct omx_pan_layout l;
+  omx_pan_layout_stereo(&l);
+  omx_mix_strip_split(&l, channels, active, gain, fader, mute, pan, 0.0f, coef, img);
+#endif
+}
+
+static void k_route_fill(const float *in, float *out, uint32_t n, float tgt, float *cur) {
+#ifdef OMX_GOLDEN_ENGINE_REST
+  omx_fill_gain(in, out, n, tgt, cur);
+#else
+  omx_route_fill_gain(in, out, n, tgt, cur);
+#endif
+}
+
+static void k_route_fold(const float *l, const float *r, float *out, uint32_t n, float tgt, float *cur) {
+#ifdef OMX_GOLDEN_ENGINE_REST
+  omx_fold_gain(l, r, out, n, tgt, cur);
+#else
+  omx_route_fold_gain(l, r, out, n, tgt, cur);
+#endif
+}
+
+static void k_fold_fill(float *l, float *r, uint32_t n, float tgt, float *cl, float *cr) {
+#ifdef OMX_GOLDEN_ENGINE_REST
+  omx_fold_fill(l, r, n, tgt, cl, cr);
+#else
+  omx_route_fold_fill(l, r, n, tgt, cl, cr);
+#endif
+}
+
+static float k_strip_meter(const float *l, const float *r, uint32_t n, float level) {
+#ifdef OMX_GOLDEN_ENGINE_REST
+  return omx_strip_meter(l, r, n, level);
+#else
+  return omx_meter_strip_peak(l, r, n, level);
+#endif
+}
+
+static int k_settled(float tl, float tr, float cl, float cr) {
+#ifdef OMX_GOLDEN_ENGINE_REST
+  return omx_strip_silent(tl, tr, cl, cr);
+#else
+  return omx_mix_settled_silent(tl, tr, cl, cr);
+#endif
+}
+
+static float k_clev(void) {
+#ifdef OMX_GOLDEN_ENGINE_REST
+  return OMX_CUE_FOLD_CLEV;
+#else
+  return OMX_PAN_LCR_FOLD_CLEV;
+#endif
+}
+
+#endif /* !OMX_GOLDEN_ENGINE */
 
 /* ---- the record ---------------------------------------------------------------------------- */
 
@@ -481,10 +575,104 @@ static void render(const char *k, uint32_t rate) {
   }
 }
 
+#ifndef OMX_GOLDEN_ENGINE
+/* A run of route blocks: noise, a moving target, an empty block, non-finite targets among them.
+ * `what` 0 = fill, 1 = fold, 2 = fold-fill. */
+static void render_route(int what, uint32_t rate, uint32_t m) {
+  static float bl[BLOCK_MAX], br[BLOCK_MAX], out[BLOCK_MAX];
+  static const float tgts[] = {1.0f, 0.5f, 0.5f, -0.5f, 0.0f, 3.1623f, NAN, 0.25f, INFINITY, 0.70710678f, 0.0f, 1.0f};
+  uint32_t s = rate ^ (0x7a11u + (uint32_t)what);
+  float c1 = 0.0f, c2 = 0.3f;
+  for (uint32_t blk = 0; blk < 36u; blk++) {
+    const uint32_t n = blk == 17u ? 0u : m - (blk % 7u);
+    for (uint32_t i = 0; i < n; i++) {
+      bl[i] = lcg_noise(&s);
+      br[i] = (blk % 4u == 1u) ? bl[i] : 0.5f * lcg_noise(&s);
+    }
+    float t = tgts[blk % 12u];
+    if (what == 2 && !isfinite(t)) t = 0.125f; /* the in-place fold reads its target as given */
+    if (what == 0) {
+      if (blk % 3u == 2u) {
+        k_route_fill(bl, bl, n, t, &c1);
+        put(bl, n * sizeof(float));
+      } else {
+        k_route_fill(bl, out, n, t, &c1);
+        put(out, n * sizeof(float));
+      }
+      put_f(c1);
+    } else if (what == 1) {
+      k_route_fold(bl, br, out, n, t, &c1);
+      put(out, n * sizeof(float));
+      put_f(c1);
+    } else {
+      k_fold_fill(bl, br, n, t, &c1, &c2);
+      put(bl, n * sizeof(float));
+      put(br, n * sizeof(float));
+      put_f(c1);
+      put_f(c2);
+    }
+  }
+}
+
+static void render_rest(const char *k, uint32_t rate) {
+  const uint32_t m = rate / 100u;
+  if (strcmp(k, "split") == 0) {
+    static const float levels[][2] = {{1.0f, 1.0f}, {0.5f, 0.7f}, {2.0f, 3.1623f}, {0.001f, 1.0f}};
+    for (int ch = 1; ch <= 2; ch++)
+      for (int act = 0; act <= 1; act++)
+        for (int mute = 0; mute <= 1; mute++)
+          for (uint32_t v = 0; v < 4; v++)
+            for (uint32_t i = 0; i < m; i += 7u) {
+              float coef, img[2];
+              k_split(ch, act, levels[v][0], levels[v][1], mute, sweep(i, m), &coef, img);
+              put_f(coef);
+              put(img, sizeof img);
+            }
+  } else if (strcmp(k, "route_fill") == 0) {
+    render_route(0, rate, m);
+  } else if (strcmp(k, "route_fold") == 0) {
+    render_route(1, rate, m);
+  } else if (strcmp(k, "fold_fill") == 0) {
+    render_route(2, rate, m);
+  } else if (strcmp(k, "strip_meter") == 0) {
+    static const float levels[] = {0.0f, 0.001f, 0.5f, 0.70794578f, 1.0f, 3.1622777f};
+    uint32_t s = rate ^ 0x3e7eu;
+    for (uint32_t blk = 0; blk < 12u; blk++) {
+      const uint32_t n = blk == 0 ? 0u : m - blk;
+      for (uint32_t i = 0; i < n; i++) {
+        g_a[i] = lcg_noise(&s) * (float)(blk + 1u) / 12.0f;
+        g_b[i] = lcg_noise(&s);
+      }
+      for (uint32_t v = 0; v < 6u; v++) {
+        put_f(k_strip_meter(g_a, NULL, n, levels[v]));
+        put_f(k_strip_meter(g_a, g_a, n, levels[v]));
+        put_f(k_strip_meter(g_a, g_b, n, levels[v]));
+      }
+    }
+  } else if (strcmp(k, "settled") == 0) {
+    const float v[5] = {0.0f, -0.0f, 1e-30f, 0.5f, NAN};
+    for (uint32_t a = 0; a < 5u; a++)
+      for (uint32_t b = 0; b < 5u; b++)
+        for (uint32_t c = 0; c < 5u; c++)
+          for (uint32_t d = 0; d < 5u; d++) put_u32((uint32_t)k_settled(v[a], v[b], v[c], v[d]));
+  } else if (strcmp(k, "lcr_clev") == 0) {
+    put_f(k_clev());
+    for (uint32_t i = 0; i < m; i++) {
+      const float eff = 4.0f * (float)i / (float)m;
+      for (int on = 0; on <= 1; on++) put_f(eff * (on ? 1.0f : 0.0f) * k_clev());
+    }
+  }
+}
+
+#endif /* !OMX_GOLDEN_ENGINE */
+
 static int digest(const char *k, uint32_t rate, char hex[65]) {
   g_len = 0;
   g_overflow = 0;
   render(k, rate);
+#ifndef OMX_GOLDEN_ENGINE
+  render_rest(k, rate);
+#endif
   if (g_overflow) {
     fprintf(stderr, "mix_golden: the %s record at %u Hz overflows\n", k, rate);
     return 1;
@@ -504,7 +692,15 @@ int main(int argc, char **argv) {
   const char *path = argc > 1 && !write ? argv[1] : "test/golden/mix.sha256";
   FILE *f = write ? NULL : fopen(path, "r");
   if (!write && !f) { fprintf(stderr, "mix_golden: cannot read %s\n", path); return 2; }
+  /* An engine build compares only the kernels its engine copies render. */
+#if defined(OMX_GOLDEN_ENGINE)
   static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta", "bus_sum", "rt_load"};
+#elif defined(OMX_GOLDEN_ENGINE_REST)
+  static const char *const kernels[] = {"split", "route_fill", "route_fold", "fold_fill", "strip_meter", "settled", "lcr_clev"};
+#else
+  static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta", "bus_sum", "rt_load",
+                                        "split", "route_fill", "route_fold", "fold_fill", "strip_meter", "settled", "lcr_clev"};
+#endif
   const unsigned nk = sizeof kernels / sizeof kernels[0];
   int fail = 0, checked = 0;
   for (unsigned ki = 0; ki < nk; ki++)
