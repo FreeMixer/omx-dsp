@@ -32,6 +32,8 @@
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
 #               1024 frames
+#   make bench-gate  omx_dynamics as a gate, ns/sample/lane at every declared rate (open, slope, floor);
+#               tools/gate-cost-ab.sh <rev> compares a revision's kernel with this tree's, interleaved
 #   make strip-input-identity OMX_PLUGINS=<checkout>  the trim and eq faces against omx-plugins'
 #               omx_strip.h input stage, and the check's sabotage (tools/strip-input-identity.sh)
 #   make analysis-engine-identity OPENMIXER=<checkout>  the RTA, HRP render and HRP live core against
@@ -109,7 +111,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table room-ts-golden public-sources
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table room-ts-golden public-sources
 
 all: lib
 
@@ -176,6 +178,17 @@ consumer: $(CONSUMER_BINS)
 
 threads: $(BUILD)/omxdsp_threads
 	./$(BUILD)/omxdsp_threads
+
+# The thread arm's gate against a gate whose state is carried between runs: the arm must go red,
+# naming a worker whose output differs from the reference (test/omxdsp_threads.c).
+threads-sabotage: test/omxdsp_threads.c $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
+	$(CC) $(TESTFLAGS) -pthread -DOMXDSP_THREADS_SABOTAGE_GATE_CARRIES_STATE -o $(BUILD)/omxdsp_threads_sabotage \
+	  test/omxdsp_threads.c $(LIB_CONTRACTS) -lm
+	@if ./$(BUILD)/omxdsp_threads_sabotage > $(BUILD)/omxdsp_threads_sabotage.log 2>&1; then \
+	  echo "threads-sabotage: FAIL — a gate carrying state between runs left the thread arm green"; exit 1; fi
+	@grep -q "output differs from the single-threaded reference" $(BUILD)/omxdsp_threads_sabotage.log || \
+	  { echo "threads-sabotage: FAIL — red, but not on an output that differs"; tail -3 $(BUILD)/omxdsp_threads_sabotage.log; exit 1; }
+	@echo "threads-sabotage: the thread arm sees a gate that carries state between runs ($$(grep -c 'output differs' $(BUILD)/omxdsp_threads_sabotage.log) worker outputs differ)"
 
 # The magnitude arms fail against a sabotaged evaluator (test/magnitude-sabotage.sh); the real
 # suite above is the control.
@@ -444,7 +457,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
@@ -497,3 +510,7 @@ cost-prel: tools/prel-cost.c $(HEADERS) | $(BUILD)
 bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/bench-mixmatrix tools/bench-mixmatrix.c -lm
 	./$(BUILD)/bench-mixmatrix
+
+bench-gate: tools/gate-cost-bench.c $(LIB) $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/gate-cost-bench tools/gate-cost-bench.c $(LIB) -lm
+	./$(BUILD)/gate-cost-bench

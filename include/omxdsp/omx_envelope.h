@@ -131,7 +131,15 @@ static inline float omx_env_step(struct omx_env *env, const struct omx_env_param
     hi = fmaxf(hi, env->stage[s]);
   }
 #endif
-  for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) d = omx_onepole(&env->stage[s], d, d > env->stage[s] ? ac : rc);
+  /* BOTH candidates, then the pick: the float omx_onepole(&stage, d, d > stage ? ac : rc) gives, but
+   * the compare no longer sits between the state and its multiply, so the recursion's critical path
+   * is one multiply-add and the pick is a select, not a branch the waveform keeps flipping. */
+  for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) {
+    float ya = env->stage[s], yr = env->stage[s];
+    omx_onepole(&ya, d, ac);
+    omx_onepole(&yr, d, rc);
+    d = env->stage[s] = (d > env->stage[s]) ? ya : yr;
+  }
   const float y = (e->detect == OMX_DETECT_RMS) ? sqrtf(d < 0.0f ? 0.0f : d) : d;
   OMX_POST(y - y == 0.0f, "finite");
   OMX_INVARIANT(omx_block_finite(env->stage, (uint32_t)OMX_DYN_ENV_STAGES), "envelope-finite");
