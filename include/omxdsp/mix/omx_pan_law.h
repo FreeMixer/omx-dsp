@@ -38,6 +38,16 @@
 #define OMX_PAN_HALF_PI 1.57079632679489661923f
 
 /**
+ * @brief The LCR downmix's centre level, linear: an LCR bus's discrete centre folds onto a stereo
+ *        pair as `Lo = L + clev·C`, `Ro = R + clev·C`, at −3.01 dB.
+ *
+ * The float nearest 1/√2 (0.70710677), the standard downmix default for the centre (`clev`), the
+ * same value as the surround level (`slev`). Applied where an LCR bus feeds a stereo destination
+ * (a monitor, the cue crossfade); never a per-leg coefficient of its own.
+ */
+#define OMX_PAN_LCR_FOLD_CLEV 0.70710678f
+
+/**
  * @brief A speaker layout for the pan law.
  *
  * Gains are numbered axis speakers first, left to right (`0 .. n_axis-1`), then the discrete

@@ -13,9 +13,10 @@ static void arm_denormal(void) {
 #if defined(__x86_64__) || defined(__i386__)
   ok((_mm_getcsr() & 0x8040u) == 0x8040u, "FTZ and DAZ are set for this thread", (double)(_mm_getcsr() & 0x8040u), 0x8040);
 #endif
-#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || (defined(__arm__) && defined(__ARM_FP))
-  /* the mode's effect, not its bit: a subnormal operand reads as zero and a subnormal result is
-   * zero (1e-40f and 2e-45f are below FLT_MIN, 1.17549435e-38f). volatile keeps the compiler from
+#if defined(__SSE_MATH__) || defined(__aarch64__) || (defined(__arm__) && defined(__ARM_FP))
+  /* guarded on SSE float maths, not on the architecture: a 32-bit x86 build on the x87 is not
+   * controlled by MXCSR. The mode's effect, not its bit: a subnormal operand reads as zero and a
+   * subnormal result is zero (1e-40f and 2e-45f are below FLT_MIN, 1.17549435e-38f). volatile keeps the compiler from
    * folding the products at build time, where no flush-to-zero mode applies. */
   {
     volatile float sub = 1e-40f, one = 1.0f, half = 0.5f, flt_min = 1.17549435e-38f;
