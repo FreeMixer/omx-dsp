@@ -228,6 +228,56 @@ static void onepole_folded_sites(void) {
   ok(flush_seen, "and the decay actually REACHED the flush threshold (the arm observes the flush)", flush_seen, 1.0);
 }
 
+/* A POLE QUOTED AT A REFERENCE RATE KEEPS ITS TIME AND ITS CORNER AT EVERY RATE (omx_pole_rescale). The
+ * reference is the knob's own (OMX_DSP_KNOB_REFERENCE_RATE). Closed forms, in double: the time constant
+ * recovered from the rescaled pole, -1/(sr·ln q), is the one the reference pole names, -1/(ref·ln p), to the
+ * float's own bound 2·2^-24/(1-q) + 2·2^-24/(1-p) — for a 5 ms and a 250 ms time; the corner -ln(q)·sr/2π
+ * is the 1 kHz the reference pole was made from, to 0.1 Hz; and the MEASURED settled response at that
+ * corner is -3 dB at every rate where the corner sits below sr/20. Then the four fixed points, bit for
+ * bit: 0, 1, the reference rate itself and a rate <= 0. */
+static void onepole_rescale_rme(void) {
+  const float REF = (float)OMX_DSP_KNOB_REFERENCE_RATE;
+  const float MS[2] = { 5.0f, 250.0f };
+  const float SWEEP[5] = { 0.0f, 0.25f, 0.6f, 0.98f, 1.0f };
+  const double ULP = 5.96046448e-8; /* 2^-24, the ULP of a float in [0.5, 1) */
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_RME_RATES[ri];
+    for (int m = 0; m < 2; m++) {
+      const float p = omx_pole_from_time_ms(MS[m], REF);
+      const float q = omx_pole_rescale(p, REF, sr);
+      const double tau_q = -1.0 / ((double)sr * log((double)q)), tau_p = -1.0 / ((double)REF * log((double)p));
+      /* the bound is the float's, in closed form: a pole near 1 stores ln(p) ≈ p - 1 to an ulp of p, so each
+       * pole read back as a time carries up to 2·2^-24/(1-p) of relative error (its rounding and powf's) */
+      const double tol = 1e-6 + 2.0 * ULP / (1.0 - (double)q) + 2.0 * ULP / (1.0 - (double)p);
+      ok(fabs(tau_q / tau_p - 1.0) <= tol, "a rescaled pole keeps its time constant in seconds",
+         tau_q / tau_p - 1.0, tol);
+    }
+    const float pc = omx_pole_from_cutoff_hz(1000.0f, REF);
+    const float qc = omx_pole_rescale(pc, REF, sr);
+    const double fc = -log((double)qc) * sr / (2.0 * M_PI);
+    ok(fabs(fc - 1000.0) <= 0.1, "a rescaled pole keeps its corner in Hz", fc, 1000.0);
+    if (1000.0f / sr <= 0.05f) {
+      const double db = 20.0 * log10(onepole_settled_gain(1000.0f, qc, sr));
+      ok(fabs(db + 3.0) <= 0.12, "the measured response of the rescaled pole at that corner is -3 dB", db, -3.0);
+    }
+    int stable = 1;
+    for (int k = 0; k < 5; k++) {
+      const float q = omx_pole_rescale(SWEEP[k], REF, sr);
+      if (!(q >= 0.0f && q <= 1.0f)) stable = 0;
+    }
+    ok(stable, "every pole in [0, 1] stays in [0, 1]", stable, 1.0);
+    ok(onepole_same_bits(omx_pole_rescale(0.0f, REF, sr), 0.0f) &&
+           onepole_same_bits(omx_pole_rescale(1.0f, REF, sr), 1.0f),
+       "0 and 1 are fixed points", omx_pole_rescale(1.0f, REF, sr), 1.0);
+    ok(onepole_same_bits(omx_pole_rescale(0.6f, sr, sr), 0.6f), "the reference rate is a fixed point, bit for bit",
+       omx_pole_rescale(0.6f, sr, sr), 0.6);
+    ok(onepole_same_bits(omx_pole_rescale(0.6f, REF, 0.0f), 0.6f) &&
+           onepole_same_bits(omx_pole_rescale(0.6f, REF, -sr), 0.6f),
+       "a rate <= 0 leaves the pole as it is", omx_pole_rescale(0.6f, REF, 0.0f), 0.6);
+    onepole_drain(sr);
+  }
+}
+
 /* THE ONE SITE THE FOLD DID NOT TOUCH: the drive's DC blocker takes its pole as the first-order
  * approximation `1 - 2π·5/sr` rather than exp(-2π·5/sr) — same CONVENTION, different VALUE. Its corner,
  * -ln(p)·sr/2π, is within 0.01 Hz of 5 Hz at every rate; the approximation is what
@@ -340,6 +390,7 @@ static void arm_onepole(void) {
   onepole_corner_rme();
   onepole_fixed_point();
   onepole_folded_sites();
+  onepole_rescale_rme();
   onepole_dc_blocker();
   expect_clean();
 }
