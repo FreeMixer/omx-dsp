@@ -49,6 +49,10 @@
 #               1024 frames
 #   make bench-gate  omx_dynamics as a gate, ns/sample/lane at every declared rate (open, slope, floor);
 #               tools/gate-cost-ab.sh <rev> compares a revision's kernel with this tree's, interleaved
+#   make bench-drive  omx_drive_process at the come-up atom, and its oversampler and shaper halves, ns/sample
+#               at every declared rate;  make bench-flanger  omx_flanger_process, default and max
+#               tools/kernel-cost-ab.sh <bench> <rev> [rounds] [quantum] [blocks] is the same
+#               interleaved before/after for any of the three benches (gate-cost-bench, drive-cost, flanger-cost)
 #   make strip-input-identity OMX_PLUGINS=<checkout>  the trim and eq faces against omx-plugins'
 #               omx_strip.h input stage, and the check's sabotage (tools/strip-input-identity.sh)
 #   make analysis-engine-identity OPENMIXER=<checkout>  the RTA, HRP render and HRP live core against
@@ -139,7 +143,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -618,3 +622,11 @@ bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
 bench-gate: tools/gate-cost-bench.c $(LIB) $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/gate-cost-bench tools/gate-cost-bench.c $(LIB) -lm
 	./$(BUILD)/gate-cost-bench
+
+bench-drive: tools/drive-cost.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/drive-cost tools/drive-cost.c $(LIB) -lm
+	./$(BUILD)/drive-cost
+
+bench-flanger: tools/flanger-cost.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/flanger-cost tools/flanger-cost.c $(LIB) -lm
+	./$(BUILD)/flanger-cost
