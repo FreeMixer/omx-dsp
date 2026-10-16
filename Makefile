@@ -117,6 +117,7 @@ LIBDIR     ?= $(PREFIX)/lib
 INCLUDEDIR ?= $(PREFIX)/include
 BINDIR     ?= $(PREFIX)/bin
 DATADIR    ?= $(PREFIX)/share
+MANDIR     ?= $(DATADIR)/man
 DESTDIR    ?=
 VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\) \([0-9]*\)$$/\2/p' include/omxdsp/omxdsp.h | paste -sd.)
 
@@ -514,7 +515,7 @@ $(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging
 
 install: $(LIBS_ALL) $(PC_ALL) $(EXPORTS)
 	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis $(DESTDIR)$(INCLUDEDIR)/omxdsp/mix $(DESTDIR)$(LIBDIR)/pkgconfig \
-	  $(DESTDIR)$(BINDIR) $(DESTDIR)$(DATADIR)/omxdsp
+	  $(DESTDIR)$(BINDIR) $(DESTDIR)$(DATADIR)/omxdsp $(DESTDIR)$(MANDIR)/man1
 	install -m 0644 include/omxdsp/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/
 	install -m 0644 include/omxdsp/fx/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx/
 	install -m 0644 include/omxdsp/analysis/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis/
@@ -523,6 +524,7 @@ install: $(LIBS_ALL) $(PC_ALL) $(EXPORTS)
 	install -m 0644 $(PC_ALL) $(DESTDIR)$(LIBDIR)/pkgconfig/
 	install -m 0644 $(EXPORTS) $(DESTDIR)$(DATADIR)/omxdsp/
 	install -m 0755 tools/omx-dsp-copy-check.sh $(DESTDIR)$(BINDIR)/omx-dsp-copy-check
+	install -m 0644 omx-dsp-copy-check.1 $(DESTDIR)$(MANDIR)/man1/
 
 # §4.3 (e): UNJUDGED (exit 0, never a pass) where the toolchain has no TSan; where it has, the
 # thread arm must be report-free and its shared-state sabotage must race. The gate's own report
