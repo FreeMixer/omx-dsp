@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.20.2
+Version: 0.21.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -69,6 +69,24 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
 
 %changelog
+* Fri Oct 16 2026 Pau Aliagas <linuxnow@gmail.com> - 0.21.0-1
+- The mix maths the engine used to carry now lives here: the pan laws and
+  the LCR downmix centre level (omx_pan_law), a strip's coefficients, its
+  split and settled-silence test (omx_mix_coef), the strip's post-fader peak
+  reading (omx_meter) and an output route's fill, fold and fold-fill gains
+  (omx_route_gain), each with goldens written by the engine's own copies.
+- New kernels: omx_mbcomp, a multiband compressor over an LR4 crossover
+  tree, and omx_pole_rescale, one home for the reference-rate pole law that
+  the delay tone and reverb damping now call.
+- The delay has up to four integer read taps on its one ring. The band
+  dynamics gain path runs on the libm-free unit pair in 64-sample chunks.
+- omxdsp.h includes omx_align.h, and a check proves every public header is
+  reached from it or listed. omx_dyn seeds y[n-1] when its slot enters the
+  feedback loop.
+- The oracles carry more sabotage arms: the tap oracle sees six broken
+  kernels, the pole-rescale checks see four broken copies, the multiband
+  oracle five, the geq oracle a seventh.
+
 * Fri Oct 16 2026 Pau Aliagas <linuxnow@gmail.com> - 0.20.2-1
 - The header documentation states its design notes as plain facts, readable
   without any other document. No code changes: the library and its output
