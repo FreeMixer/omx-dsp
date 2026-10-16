@@ -164,7 +164,8 @@ static void arm_rest(float sr, uint32_t bands, int ovs_mode) {
     for (uint32_t i = 0; i < len; i++) {
       double y = i == 0 ? 1.0 : 0.0;
       for (uint32_t j = 0; j + 1u < bands; j++) y = omx_biquad_tdf2_d(y, m.xo[j].ap, s[j]);
-      perr = fmax(perr, fabs((double)h[i] / amp - y));
+      const double e = fabs((double)h[i] / amp - y);
+      if (!(e <= perr)) perr = e;
     }
     ok(perr <= 1e-5, "O2", "the rest response is the product of the crossovers' allpasses (1e-5)", perr, 1e-5, sr, bands);
   }
@@ -288,7 +289,8 @@ static void arm_static(float sr, uint32_t bands) {
       }
       const float gr = omx_mbcomp_band_gr_db(&m, &st, k);
       const float want = omx_gaincomp_db(&m.band[k].gc, omx_lin_to_db((float)(a * band_mag(&m, k, w) / sqrt(2.0))));
-      worst = fmax(worst, fabs((double)gr - want));
+      const double e = fabs((double)gr - want);
+      if (!(e <= worst)) worst = e;
       drain(sr);
       for (uint32_t j = 0; j < bands; j++) {
         const double jlo = j == 0 ? 0.0 : fc[j - 1], jhi = j + 1u == bands ? 1e9 : fc[j];
