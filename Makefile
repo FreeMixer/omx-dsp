@@ -26,6 +26,7 @@
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
+#   make public-sources-messages  the same over the commit messages of origin/main..HEAD (RANGE=a..b to choose)
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
@@ -57,7 +58,7 @@ override CFLAGS += $(FPFLAGS)
 # at or above the floor packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
 # (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
 # directory as CONTRACT_INC.
-ifeq ($(filter version clean docs public-sources,$(MAKECMDGOALS)),)
+ifeq ($(filter version clean docs public-sources public-sources-messages,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
 $(error tools/contract-include.sh found no omx-contract: see its message above)
@@ -108,7 +109,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table room-ts-golden public-sources
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table room-ts-golden public-sources public-sources-messages
 
 all: lib
 
@@ -234,6 +235,10 @@ lint: checks
 public-sources:
 	bash tools/public-sources-check.sh
 	bash tools/public-sources-check.sh --self-test
+
+RANGE ?=
+public-sources-messages:
+	bash tools/public-sources-check.sh --messages $(RANGE)
 
 # omx_log10f() (test/support) against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
 # where the libm's log10f is correctly rounded (glibc 2.43), so not part of make test.
