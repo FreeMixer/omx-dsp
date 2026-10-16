@@ -29,6 +29,8 @@
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
+#   make cost-deesser  the de-esser's ns/frame at every declared rate, default and stereo, by the
+#               plugin cost method (1 kHz sine at -6 dBFS, 512-frame blocks, 64 discarded, p50/p95)
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
 #               1024 frames
 #   make strip-input-identity OMX_PLUGINS=<checkout>  the trim and eq faces against omx-plugins'
@@ -108,7 +110,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table room-ts-golden public-sources
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix cost-deesser check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table room-ts-golden public-sources
 
 all: lib
 
@@ -479,6 +481,10 @@ clean:
 cost-prel: tools/prel-cost.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/prel-cost tools/prel-cost.c -lm
 	./$(BUILD)/prel-cost
+
+cost-deesser: tools/deesser-cost.c $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/deesser-cost tools/deesser-cost.c -lm
+	./$(BUILD)/deesser-cost
 
 bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/bench-mixmatrix tools/bench-mixmatrix.c -lm
