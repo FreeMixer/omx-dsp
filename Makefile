@@ -108,7 +108,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table room-ts-golden public-sources
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table room-ts-golden public-sources
 
 all: lib
 
@@ -207,6 +207,12 @@ geq-true-sabotage: test/fx/geq_true.test.c test/fx/geq-true-sabotage.sh $(LIB_CO
 # go red on that arm (test/fdelay-sabotage.sh). The tree is never edited.
 fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fdelay-sabotage.sh $(BUILD)/fdelay-sabotage
+
+# omx_pole_rescale's checks in the onepole arm against four sabotaged copies of the include tree (the
+# law, its rate <= 0 fixed point, the delay's and the reverb's call): each must go red on that arm
+# (test/onepole-sabotage.sh). The tree is never edited.
+onepole-sabotage: $(HEADERS) $(FX_HEADERS) $(KERNELS) $(SRC) test/onepole-sabotage.sh tools/kernels-gen.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/onepole-sabotage.sh $(BUILD)/onepole-sabotage
 
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
@@ -429,7 +435,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage threads test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
