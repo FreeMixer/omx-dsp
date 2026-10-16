@@ -219,6 +219,8 @@ checks:
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
+	bash tools/pole-rescale-guard.sh include src
+	bash tools/pole-rescale-guard.sh --self-test
 	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
