@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
+#include <omxdsp/fx/omx_delay.h>
 #include <omxdsp/fx/omx_drive.h>
 #include <omxdsp/fx/omx_reverb.h>
 
@@ -163,7 +164,7 @@ static void onepole_fixed_point(void) {
 /* THE 2026-09-17 FOLD MOVED NO COEFFICIENT. Each folded site's PRE-FOLD expression, re-spelled verbatim,
  * against what the tier's kernel computes now: BIT equality at every RME rate. */
 static void onepole_folded_sites(void) {
-  int env_ok = 1, ag_ok = 1, dyn_ok = 1, agp_ok = 1, cut_ok = 1, rev_ok = 1, flush_seen = 0;
+  int env_ok = 1, ag_ok = 1, dyn_ok = 1, agp_ok = 1, cut_ok = 1, rev_ok = 1, flush_seen = 0, tone_ok = 1, damp_ok = 1;
   const float MS[5] = { 0.1f, 1.0f, 12.5f, 100.0f, 1000.0f };
   const float FC[5] = { 20.0f, 200.0f, 1000.0f, 8000.0f, 16000.0f };
   for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
@@ -217,8 +218,22 @@ static void onepole_folded_sites(void) {
       if (!onepole_same_bits(rw, rn)) rev_ok = 0;
       if (rw == 0.0f && k > 64) flush_seen = 1;
     }
+    /* (g) the delay's tone pole and the reverb's damping pole, folded into omx_pole_rescale: each
+     * PRE-FOLD expression, after its own clamp, over the knob's travel (0 .. 1 by 1/64, and 0.98) */
+    for (int k = 0; k <= 65; k++) {
+      const float knob = k == 65 ? 0.98f : (float)k / 64.0f;
+      const float REF = (float)OMX_DSP_KNOB_REFERENCE_RATE;
+      const float t = knob; /* inside [0, 1]: the delay's clamp is the identity */
+      const float tone_was = (t <= 0.0f || t >= 1.0f || sr <= 0.0f || sr == REF) ? t : powf(t, REF / sr); /* FORMER */
+      if (!onepole_same_bits(tone_was, omx_fxdelay_tone_pole(knob, sr))) tone_ok = 0;
+      const float d = knob > OMX_REVERB_DAMP_POLE_MAX ? OMX_REVERB_DAMP_POLE_MAX : knob;
+      const float damp_was = (d <= 0.0f || sr == REF) ? d : powf(d, REF / sr); /* THE FORMER SPELLING */
+      if (!onepole_same_bits(damp_was, omx_reverb_damp_pole(knob, sr))) damp_ok = 0;
+    }
     onepole_drain(sr);
   }
+  ok(tone_ok, "the delay's tone pole is bit-identical to its pre-fold spelling", tone_ok, 1.0);
+  ok(damp_ok, "the reverb's damping pole is bit-identical to its pre-fold spelling", damp_ok, 1.0);
   ok(env_ok, "the dynamics detector's envelope is bit-identical to its pre-fold spelling", env_ok, 1.0);
   ok(ag_ok, "the drive's auto-gain detectors are bit-identical to their pre-fold spelling", ag_ok, 1.0);
   ok(dyn_ok, "attack/release poles are bit-identical to resolve_dyn's pre-fold expression", dyn_ok, 1.0);
@@ -226,6 +241,57 @@ static void onepole_folded_sites(void) {
   ok(cut_ok, "the reverb's low/high-cut poles are bit-identical to their pre-fold expression", cut_ok, 1.0);
   ok(rev_ok, "omx_onepole_flush is bit-identical to its pre-fold spelling, flush included", rev_ok, 1.0);
   ok(flush_seen, "and the decay actually REACHED the flush threshold (the arm observes the flush)", flush_seen, 1.0);
+}
+
+/* A POLE QUOTED AT A REFERENCE RATE KEEPS ITS TIME AND ITS CORNER AT EVERY RATE (omx_pole_rescale). The
+ * reference is the knob's own (OMX_DSP_KNOB_REFERENCE_RATE). Closed forms, in double: the time constant
+ * recovered from the rescaled pole, -1/(sr·ln q), is the one the reference pole names, -1/(ref·ln p), to the
+ * float's own bound 2·2^-24/(1-q) + 2·2^-24/(1-p) — for a 5 ms and a 250 ms time; the corner -ln(q)·sr/2π
+ * is the 1 kHz the reference pole was made from, to 0.1 Hz; and the MEASURED settled response at that
+ * corner is -3 dB at every rate where the corner sits below sr/20. Then the four fixed points, bit for
+ * bit: 0, 1, the reference rate itself and a rate not above 0 (0, negative, NaN). */
+static void onepole_rescale_rme(void) {
+  const float REF = (float)OMX_DSP_KNOB_REFERENCE_RATE;
+  const float MS[2] = { 5.0f, 250.0f };
+  const float SWEEP[5] = { 0.0f, 0.25f, 0.6f, 0.98f, 1.0f };
+  const double ULP = 5.96046448e-8; /* 2^-24, the ULP of a float in [0.5, 1) */
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_RME_RATES[ri];
+    for (int m = 0; m < 2; m++) {
+      const float p = omx_pole_from_time_ms(MS[m], REF);
+      const float q = omx_pole_rescale(p, REF, sr);
+      const double tau_q = -1.0 / ((double)sr * log((double)q)), tau_p = -1.0 / ((double)REF * log((double)p));
+      /* the bound is the float's, in closed form: a pole near 1 stores ln(p) ≈ p - 1 to an ulp of p, so each
+       * pole read back as a time carries up to 2·2^-24/(1-p) of relative error (its rounding and powf's) */
+      const double tol = 1e-6 + 2.0 * ULP / (1.0 - (double)q) + 2.0 * ULP / (1.0 - (double)p);
+      ok(fabs(tau_q / tau_p - 1.0) <= tol, "a rescaled pole keeps its time constant in seconds",
+         tau_q / tau_p - 1.0, tol);
+    }
+    const float pc = omx_pole_from_cutoff_hz(1000.0f, REF);
+    const float qc = omx_pole_rescale(pc, REF, sr);
+    const double fc = -log((double)qc) * sr / (2.0 * M_PI);
+    ok(fabs(fc - 1000.0) <= 0.1, "a rescaled pole keeps its corner in Hz", fc, 1000.0);
+    if (1000.0f / sr <= 0.05f) {
+      const double db = 20.0 * log10(onepole_settled_gain(1000.0f, qc, sr));
+      ok(fabs(db + 3.0) <= 0.12, "the measured response of the rescaled pole at that corner is -3 dB", db, -3.0);
+    }
+    int stable = 1;
+    for (int k = 0; k < 5; k++) {
+      const float q = omx_pole_rescale(SWEEP[k], REF, sr);
+      if (!(q >= 0.0f && q <= 1.0f)) stable = 0;
+    }
+    ok(stable, "every pole in [0, 1] stays in [0, 1]", stable, 1.0);
+    ok(onepole_same_bits(omx_pole_rescale(0.0f, REF, sr), 0.0f) &&
+           onepole_same_bits(omx_pole_rescale(1.0f, REF, sr), 1.0f),
+       "0 and 1 are fixed points", omx_pole_rescale(1.0f, REF, sr), 1.0);
+    ok(onepole_same_bits(omx_pole_rescale(0.6f, sr, sr), 0.6f), "the reference rate is a fixed point, bit for bit",
+       omx_pole_rescale(0.6f, sr, sr), 0.6);
+    ok(onepole_same_bits(omx_pole_rescale(0.6f, REF, 0.0f), 0.6f) &&
+           onepole_same_bits(omx_pole_rescale(0.6f, REF, -sr), 0.6f) &&
+           onepole_same_bits(omx_pole_rescale(0.6f, REF, NAN), 0.6f),
+       "a rate not above 0 (0, negative, NaN) leaves the pole as it is", omx_pole_rescale(0.6f, REF, 0.0f), 0.6);
+    onepole_drain(sr);
+  }
 }
 
 /* THE ONE SITE THE FOLD DID NOT TOUCH: the drive's DC blocker takes its pole as the first-order
@@ -340,6 +406,7 @@ static void arm_onepole(void) {
   onepole_corner_rme();
   onepole_fixed_point();
   onepole_folded_sites();
+  onepole_rescale_rme();
   onepole_dc_blocker();
   expect_clean();
 }

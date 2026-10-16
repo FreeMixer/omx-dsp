@@ -55,8 +55,25 @@ static void arm_units(void) {
     const double rel = fabs((double)omx_db_to_lin_poly((float)db) - ref) / ref;
     if (rel > worst_rel) worst_rel = rel;
   }
-  printf("  units: lin_to_db_poly worst %.3g dB over [1e-9, 1e4]; db_to_lin_poly worst %.3g relative over [-300, +80] dB\n",
-         worst_db, worst_rel);
+  /* Every level a float holds above the floor (the band-dynamics gain word reads any detector
+   * level a finite input can reach), strided through the bit patterns: within 1e-4 dB up to
+   * +480 dB (1e24), and within 4 ulp of the result over the whole range, where the float spacing
+   * of the result itself passes 1e-4 dB. */
+  double worst_480 = 0.0, worst_ulp = 0.0;
+  for (uint32_t u = 0x3089705fu /* 1e-9f */; u < 0x7f800000u; u += 257u) {
+    float x;
+    memcpy(&x, &u, sizeof x);
+    const float ref = omx_lin_to_db(x);
+    const double d = fabs((double)omx_lin_to_db_poly(x) - (double)ref);
+    if (ref < 480.0f && d > worst_480) worst_480 = d;
+    const double ulp = (double)nextafterf(fabsf(ref), INFINITY) - (double)fabsf(ref);
+    if (ref != 0.0f && d / ulp > worst_ulp) worst_ulp = d / ulp;
+  }
+  printf("  units: lin_to_db_poly worst %.3g dB over [1e-9, 1e4], %.3g dB over [1e-9, 1e24], %.3g ulp over every "
+         "float above 1e-9; db_to_lin_poly worst %.3g relative over [-300, +80] dB\n",
+         worst_db, worst_480, worst_ulp, worst_rel);
+  ok(worst_480 <= 1e-4, "lin_to_db_poly within 1e-4 dB of lin_to_db up to +480 dB", worst_480, 1e-4);
+  ok(worst_ulp <= 4.0, "lin_to_db_poly within 4 ulp of lin_to_db over every float above the floor", worst_ulp, 4.0);
   ok(worst_db <= 1e-4, "lin_to_db_poly within 1e-4 dB of lin_to_db", worst_db, 1e-4);
   ok(worst_rel <= 2e-6, "db_to_lin_poly within 2e-6 relative of db_to_lin", worst_rel, 2e-6);
   ok(omx_db_to_lin_poly(0.0f) == 1.0f, "db_to_lin_poly: 0 dB is EXACTLY 1", omx_db_to_lin_poly(0.0f), 1.0);
