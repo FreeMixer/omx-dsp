@@ -9,13 +9,28 @@
 # This checks the gate release.yml carries, not a copy of it: each job's arch-matrix line must be the
 # `(github.event_name != '<event>' && inputs.arm == false) && '<no-arm matrix>' || '<arm matrix>'` shape,
 # the arm matrix must carry the job's arm architecture and the no-arm one must not, and the five
-# contexts a real run can pass it — a tag push (no inputs at all), workflow_dispatch's default,
-# workflow_dispatch opting in, the ci.yml dry run (workflow_call, arm: false) and a plain
-# pull_request — must each resolve to the matrix this gate is meant to produce.
+# contexts a real run can pass it — a tag push (no inputs at all), workflow_dispatch's default
+# (it declares no `arm` input, so inputs.arm is null), the ci.yml dry run (workflow_call, arm: false),
+# a plain pull_request and a dispatch that somehow carries arm=false — must each resolve to the
+# matrix this gate is meant to produce.
+# gate() evaluates the pieces extracted from release.yml (the event literal and the `== <literal>`
+# comparison), so changing either in release.yml moves the table. `--sabotage` proves it: it rewrites
+# the event literal in a copy of release.yml (the shape check still matches) and requires the table to
+# go red on a resolved-row line, not only the literal check.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-REL=.github/workflows/release.yml
+REL="${RELEASE_YML:-.github/workflows/release.yml}"
 fails=0
+
+if [ "${1:-}" = --sabotage ]; then
+  tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+  sed "s/github.event_name != 'push'/github.event_name != 'workflow_dispatch'/" .github/workflows/release.yml > "$tmp/release.yml"
+  cmp -s .github/workflows/release.yml "$tmp/release.yml" && { echo "release-arm-gate-selftest: FAIL — sabotage sed changed nothing"; exit 1; }
+  out="$(RELEASE_YML="$tmp/release.yml" "$0" 2>&1)" && { echo "release-arm-gate-selftest: FAIL — a changed event literal left the selftest green"; exit 1; }
+  grep -q 'resolved' <<< "$out" || { echo "release-arm-gate-selftest: FAIL — the changed event literal did not move the table"; echo "$out"; exit 1; }
+  echo "release-arm-gate-selftest: sabotage ok — a changed event literal turns the table red"
+  exit 0
+fi
 
 extract() { # <job> -> sets EVENT_LIT, ARM_ARR, NOARM_ARR; fails if the line is not the gate shape
   local line
@@ -26,16 +41,17 @@ extract() { # <job> -> sets EVENT_LIT, ARM_ARR, NOARM_ARR; fails if the line is 
   ' "$REL")"
   if [[ "$line" =~ \(github\.event_name\ !=\ \'([^\']*)\'\ \&\&\ inputs\.arm\ ==\ false\)\ \&\&\ \'([^\']*)\'\ \|\|\ \'([^\']*)\' ]]; then
     EVENT_LIT="${BASH_REMATCH[1]}"; NOARM_ARR="${BASH_REMATCH[2]}"; ARM_ARR="${BASH_REMATCH[3]}"
+    ARM_LIT=false
     return 0
   fi
-  EVENT_LIT=""; ARM_ARR=""; NOARM_ARR=""
+  EVENT_LIT=""; ARM_ARR=""; NOARM_ARR=""; ARM_LIT=""
   return 1
 }
 
-gate() { # <event> <inputs.arm: true|false|null> -> "arm" or "noarm", same rule the expression encodes
-  [ "$1" = push ] && { echo arm; return; }
-  [ "$2" = true ] && { echo arm; return; }
-  echo noarm
+gate() { # <event> <inputs.arm: true|false|null> -> "arm" or "noarm": the expression, evaluated with the extracted literals
+  local arm="$2"
+  [ "$arm" = null ] && arm=false   # GitHub expressions: null == false is true (both coerce to 0)
+  if [ "$1" != "$EVENT_LIT" ] && [ "$arm" = "$ARM_LIT" ]; then echo noarm; else echo arm; fi
 }
 
 check_job() { # <job> <arm architecture name>
@@ -65,8 +81,8 @@ check_job() { # <job> <arm architecture name>
     fi
   done << 'EOF'
 push null arm
+workflow_dispatch null noarm
 workflow_dispatch false noarm
-workflow_dispatch true arm
 workflow_call false noarm
 pull_request null noarm
 EOF
