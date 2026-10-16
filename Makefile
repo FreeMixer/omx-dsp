@@ -23,7 +23,8 @@
 #   make lint   the doc check and the source scan only
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
-#   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against six sabotages
+#   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
+#   make delay-taps-sabotage  the FX delay's read-tap oracle fails against six sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
 #   make docs   the API reference by doxygen (build-time only)
@@ -110,7 +111,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table room-ts-golden public-sources
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table room-ts-golden public-sources
 
 all: lib
 
@@ -211,21 +212,34 @@ bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
 
-# The graphic EQ's true-mode oracle against six sabotaged copies of omx_geq_instance.h, each red on
+# The graphic EQ's true-mode oracle against seven sabotaged copies of omx_geq_instance.h, each red on
 # its named arm (test/fx/geq-true-sabotage.sh); the real oracle in test-fx is the control.
 geq-true-sabotage: test/fx/geq_true.test.c test/fx/geq-true-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/geq-true-sabotage.sh $(BUILD)/geq-true-sabotage $(LIB_CONTRACTS)
+
+# The FX delay's read-tap oracle against six sabotaged copies of omx_delay.h, each red on its named
+# arm (test/fx/delay-taps-sabotage.sh); the real oracle in test-fx is the control.
+delay-taps-sabotage: test/fx/delay_taps.test.c test/fx/delay-taps-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/delay-taps-sabotage.sh $(BUILD)/delay-taps-sabotage $(LIB_CONTRACTS)
 
 # The fractional delay line's suite arm against four sabotaged copies of omx_fdelay.h: each must
 # go red on that arm (test/fdelay-sabotage.sh). The tree is never edited.
 fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fdelay-sabotage.sh $(BUILD)/fdelay-sabotage
 
+# omx_pole_rescale's checks in the onepole arm against four sabotaged copies of the include tree (the
+# law, its rate <= 0 fixed point, the delay's and the reverb's call): each must go red on that arm
+# (test/onepole-sabotage.sh). The tree is never edited.
+onepole-sabotage: $(HEADERS) $(FX_HEADERS) $(KERNELS) $(SRC) test/onepole-sabotage.sh tools/kernels-gen.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/onepole-sabotage.sh $(BUILD)/onepole-sabotage
+
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
 	bash tools/doc-check.sh
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
+	bash tools/pole-rescale-guard.sh include src
+	bash tools/pole-rescale-guard.sh --self-test
 	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
@@ -261,9 +275,9 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
 FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness mbcomp
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
-FX_ORACLES = align_fdelay dyn_flat geq_true
+FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
@@ -443,7 +457,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage bandwidth-q-table consumer perturb fdelay-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
