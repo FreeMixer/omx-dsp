@@ -23,7 +23,7 @@
 #   make lint   the doc check and the source scan only
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
-#   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against six sabotages
+#   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
 #   make docs   the API reference by doxygen (build-time only)
@@ -198,7 +198,7 @@ bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
 
-# The graphic EQ's true-mode oracle against six sabotaged copies of omx_geq_instance.h, each red on
+# The graphic EQ's true-mode oracle against seven sabotaged copies of omx_geq_instance.h, each red on
 # its named arm (test/fx/geq-true-sabotage.sh); the real oracle in test-fx is the control.
 geq-true-sabotage: test/fx/geq_true.test.c test/fx/geq-true-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/geq-true-sabotage.sh $(BUILD)/geq-true-sabotage $(LIB_CONTRACTS)
