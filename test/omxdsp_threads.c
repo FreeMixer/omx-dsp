@@ -6,12 +6,20 @@
  * §4.3 (c)). Built with -pthread; `make test-tsan` runs it under ThreadSanitizer (§4.3 (e)), and
  * again with OMXDSP_THREADS_SABOTAGE_SHARED_STATE — every worker handed ONE fractional line — which
  * TSan must report as a race.
+ *
+ * The gate (omx_dynamics in BELOW mode: knee 0, peak, oversampling auto) runs in the same chain on
+ * its own state, its threshold inside the signal's travel so the open, slope and floor regions are
+ * all taken. Built with OMXDSP_THREADS_SABOTAGE_GATE_CARRIES_STATE its state is seeded from a
+ * process-wide counter instead — state carried between runs — and the arm must go red
+ * (`make threads-sabotage`).
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omxdsp.h>
+#include <omxdsp/omx_dyn.h>
 
 #include <math.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +37,10 @@ struct worker {
 };
 
 static const uint32_t BLOCK_SIZES[] = {64u, 37u, 128u, 1u, 256u, 100u, 64u, 9u};
+
+#ifdef OMXDSP_THREADS_SABOTAGE_GATE_CARRIES_STATE
+static atomic_uint g_gate_runs;
+#endif
 
 #ifdef OMXDSP_THREADS_SABOTAGE_SHARED_STATE
 static struct omx_fdelay g_shared_line;
@@ -91,6 +103,26 @@ static void run_chain(struct worker *w) {
   memset(&prel, 0, sizeof prel);
   struct omx_env_program_release_params pp;
   omx_env_program_release_opto(&pp, sr, 1u);
+  struct omx_dyn gate;
+  memset(&gate, 0, sizeof gate);
+  gate.enabled = 1;
+  gate.gc.mode = OMX_DYN_BELOW;
+  gate.gc.thresh_db = -18.0f;
+  gate.gc.ratio = 16.0f;
+  gate.gc.knee_db = 0.0f;
+  gate.gc.range_db = -30.0f;
+  gate.gc.makeup_lin = 1.0f;
+  gate.detect = OMX_DETECT_PEAK;
+  gate.attack_ms = 1.0f;
+  gate.attack_coeff = omx_pole_from_time_ms(1.0f, sr);
+  gate.release_coeff = omx_pole_from_time_ms(100.0f, sr);
+  gate.ovs_mode = OMX_DYN_OVS_AUTO;
+  struct omx_dyn_state gst;
+  omx_dyn_state_init(&gst, omx_dyn_oversample_factor(&gate));
+#ifdef OMXDSP_THREADS_SABOTAGE_GATE_CARRIES_STATE
+  gst.env.stage[0] = 1e-3f * (float)atomic_fetch_add(&g_gate_runs, 1u);
+#endif
+  float gated[MAXN];
   uint32_t seed = 0x9e3779b9u ^ w->rate_index;
   uint32_t written = 0u;
   float block[MAXN], side[MAXN], up[MAXN * 4], down[MAXN];
@@ -112,6 +144,8 @@ static void run_chain(struct worker *w) {
     for (uint32_t i = 0; i < n; i++) block[i] = block[i] - 0.5f * side[i];
     omx_oversampler_up(&ovs, block, n, up);
     omx_oversampler_down(&ovs, up, n, down);
+    memcpy(gated, down, n * sizeof(float));
+    omx_dynamics(gated, NULL, n, &gate, &gst);
     for (uint32_t i = 0; i < n; i++) {
       const float d = omx_lfo_sweep(8.0f, 4.0f, omx_lfo_at(&lfo, 0.0f));
       omx_lfo_advance(&lfo);
@@ -122,7 +156,7 @@ static void run_chain(struct worker *w) {
       const float t = omx_gaincomp_db(&gc, omx_lin_to_db(omx_env_step(&det, &ep, y * y, ac, rc)));
       const float g = omx_db_to_lin(omx_env_program_release(&prel, &pp, t < 0.0f ? t : 0.0f)) * omx_db_to_lin_poly(0.5f * onset);
       const float sub = omx_divider_step(&div, y, 0.05f);
-      w->out[written + i] = omx_flush(g * (y + 0.5f * sub) * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
+      w->out[written + i] = omx_flush(g * (y + 0.5f * sub + 0.25f * gated[i]) * omx_db_to_lin(omx_lin_to_db(1.0f + env) - omx_lin_to_db(1.0f + env)));
     }
     written += n;
   }
