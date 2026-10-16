@@ -14,7 +14,8 @@
 //   F  flat is exact zeros in both modes, and the output is the input byte for byte;
 //   C  the clamped case: a target past what the ceiling reaches (alternating ±22 dB, beyond the
 //      travel, through omx_geq_true_gains) reports clamped, every gain sits inside ±30 dB and the
-//      bands it clamped sit ON it; the travel's own worst set (alternating ±15) is unclamped;
+//      bands it clamped sit ON it, every gain and the cascade they make keep the target's sign;
+//      the travel's own worst set (alternating ±15) is unclamped;
 //   A  audio: a sine at three centres through the instance applied in `true` mode comes out at the
 //      fader's gain within 0.5 dB;
 //   H  design, apply and run allocate nothing (malloc, calloc, realloc and free wrapped at link time).
@@ -217,6 +218,17 @@ static void arm_clamped(void) {
   }
   ok(inside, "every gain inside the ceiling", 0, 0);
   ok(on > 0, "the clamped bands sit on the ceiling", on, 1);
+  /* The clamped design still cuts where the target cuts and boosts where it boosts: every section
+   * keeps its target's sign, and the cascade they make reads the target's sign at every centre. */
+  int signs = 1, cascade_signs = 1;
+  double c[OMX_GEQ_BANDS][5];
+  for (int k = 0; k < OMX_GEQ_BANDS; k++) {
+    signs &= (x[k] > 0.0) == (t[k] > 0.0);
+    omx_eq_design(OMX_EQ_PEAKING, centres[k], OMX_GEQ_BAND_Q_DOUBLE, x[k], g_sr, c[k]);
+  }
+  ok(signs, "every clamped gain keeps its target's sign", 0, 0);
+  for (int i = 0; i < OMX_GEQ_BANDS; i++) cascade_signs &= (cascade_db(c, x, centres[i], g_sr) > 0.0) == (t[i] > 0.0);
+  ok(cascade_signs, "the clamped cascade reads the target's sign at every centre", 0, 0);
   for (int k = 0; k < OMX_GEQ_BANDS; k++) t[k] = (k % 2 == 0) ? 15.0 : -15.0;
   clamped = -1;
   ok(omx_geq_true_gains(t, g_sr, x, &clamped) == 1 && clamped == 0, "the travel's worst set is unclamped", clamped, 0);

@@ -249,7 +249,7 @@ static void onepole_folded_sites(void) {
  * float's own bound 2·2^-24/(1-q) + 2·2^-24/(1-p) — for a 5 ms and a 250 ms time; the corner -ln(q)·sr/2π
  * is the 1 kHz the reference pole was made from, to 0.1 Hz; and the MEASURED settled response at that
  * corner is -3 dB at every rate where the corner sits below sr/20. Then the four fixed points, bit for
- * bit: 0, 1, the reference rate itself and a rate <= 0. */
+ * bit: 0, 1, the reference rate itself and a rate not above 0 (0, negative, NaN). */
 static void onepole_rescale_rme(void) {
   const float REF = (float)OMX_DSP_KNOB_REFERENCE_RATE;
   const float MS[2] = { 5.0f, 250.0f };
@@ -287,8 +287,9 @@ static void onepole_rescale_rme(void) {
     ok(onepole_same_bits(omx_pole_rescale(0.6f, sr, sr), 0.6f), "the reference rate is a fixed point, bit for bit",
        omx_pole_rescale(0.6f, sr, sr), 0.6);
     ok(onepole_same_bits(omx_pole_rescale(0.6f, REF, 0.0f), 0.6f) &&
-           onepole_same_bits(omx_pole_rescale(0.6f, REF, -sr), 0.6f),
-       "a rate <= 0 leaves the pole as it is", omx_pole_rescale(0.6f, REF, 0.0f), 0.6);
+           onepole_same_bits(omx_pole_rescale(0.6f, REF, -sr), 0.6f) &&
+           onepole_same_bits(omx_pole_rescale(0.6f, REF, NAN), 0.6f),
+       "a rate not above 0 (0, negative, NaN) leaves the pole as it is", omx_pole_rescale(0.6f, REF, 0.0f), 0.6);
     onepole_drain(sr);
   }
 }

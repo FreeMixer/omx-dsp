@@ -7,7 +7,8 @@
 # of the real one, the suite is built against it and must go red on its onepole arm:
 #   exponent  — the law inverted, p^(sr/ref): the time-constant and corner checks at every rate but the
 #               reference;
-#   zerorate  — the `sr <= 0` fixed point dropped: powf(p, ref/0) is 0, the fixed-point check;
+#   zerorate  — the fixed point of a rate not above 0 dropped: powf(p, ref/0) is 0 and
+#               powf(p, ref/NaN) is NaN, the fixed-point check;
 #   tone      — the delay's tone pole hands the knob on unrescaled: the fold check;
 #   damp      — the reverb's damping pole spells the law with the exponent inverted: the fold check.
 # The tree is never edited. A sed that matches nothing is a failure, not a skip, and a red that
@@ -52,7 +53,7 @@ sabotage() { # name header (relative to include/omxdsp) sed-expression
 }
 
 sabotage exponent omx_onepole.h 's|? p : powf(p, ref / sr);|? p : powf(p, sr / ref);|'
-sabotage zerorate omx_onepole.h 's#(p <= 0.0f || p >= 1.0f || sr <= 0.0f || sr == ref)#(p <= 0.0f || p >= 1.0f || sr == ref)#'
+sabotage zerorate omx_onepole.h 's#(p <= 0.0f || p >= 1.0f || !(sr > 0.0f) || sr == ref)#(p <= 0.0f || p >= 1.0f || sr == ref)#'
 sabotage tone fx/omx_delay.h 's|  return omx_pole_rescale(p, OMX_FXDELAY_TONE_REFERENCE_RATE, sr);|  return (void)sr, p;|'
 sabotage damp fx/omx_reverb.h 's|  return omx_pole_rescale(p, OMX_REVERB_DAMP_REFERENCE_RATE, sr);|  return omx_pole_rescale(p, sr, OMX_REVERB_DAMP_REFERENCE_RATE);|'
 echo "onepole-sabotage.sh: the onepole arm sees all four sabotages"
