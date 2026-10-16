@@ -93,4 +93,11 @@ run bus_sum mix_bus_sum omx_bus_sum.h 's|  for (uint32_t i = 0; i < n; i++) y\[i
 run bus_sum mix_bus_sum omx_bus_sum.h 's|  for (uint32_t i = 0; i < n; i++) y\[i\] += (a\[i\] + b\[i\]) \* (g0 + step \* (float)i);|  for (uint32_t i = 0; i < n; i++) y[i] += (a[i] + 0.5f * b[i]) * (g0 + step * (float)i);|'
 run rt_load mix_rt_load omx_rt_load.h 's|#define OMX_RT_LOAD_SMOOTHING 0.9f|#define OMX_RT_LOAD_SMOOTHING 0.8f|'
 run rt_load mix_rt_load omx_rt_load.h 's|  return (seeded \&\& xrun_ns > seen_ns) ? 1u : 0u;|  return (seeded \&\& xrun_ns >= seen_ns) ? 1u : 0u;|'
+run split mix_coef omx_mix_coef.h 's|    omx_pan_gains(l, pan, divergence, img);|    omx_pan_gains(l, -pan, divergence, img);|'
+run route_fill mix_route_gain omx_route_gain.h 's|  for (uint32_t i = 0; i < n; i++) out\[i\] = in\[i\] \* omx_ramp_at(r, i);|  for (uint32_t i = 0; i + 1 < n; i++) out[i] = in[i] * omx_ramp_at(r, i);|'
+run route_fold mix_route_gain omx_route_gain.h 's|  for (uint32_t i = 0; i < n; i++) out\[i\] = (inL\[i\] + inR\[i\]) \* omx_ramp_at(r, i);|  for (uint32_t i = 0; i < n; i++) out[i] = (inL[i] - inR[i]) * omx_ramp_at(r, i);|'
+run fold_fill mix_route_gain omx_route_gain.h 's|    cr += stepR;|    cr += stepR * 0.5f;|'
+run strip_meter mix_meter omx_meter.h 's|  return omx_meter_block_peak(inL, inR, n) \* level;|  return omx_meter_block_peak(inL, inR, n) * level * 0.9999f;|'
+run settled mix_coef omx_mix_coef.h 's|  return tgtL == 0.0f \&\& tgtR == 0.0f \&\& curL == 0.0f \&\& curR == 0.0f;|  return tgtL == 0.0f \&\& tgtR == 0.0f \&\& curL == 0.0f \&\& curR < 1.0f;|'
+run lcr_clev mix_pan_law omx_pan_law.h 's|#define OMX_PAN_LCR_FOLD_CLEV 0.70710678f|#define OMX_PAN_LCR_FOLD_CLEV 0.7071068f|'
 echo "mix-sabotage: every kernel's sabotage turns its oracle and its digests red"

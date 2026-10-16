@@ -30,6 +30,8 @@
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
+#   make cost-deesser  the de-esser's ns/frame at every declared rate, default and stereo, by the
+#               plugin cost method (1 kHz sine at -6 dBFS, 512-frame blocks, 64 discarded, p50/p95)
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
 #               1024 frames
 #   make bench-gate  omx_dynamics as a gate, ns/sample/lane at every declared rate (open, slope, floor);
@@ -42,9 +44,12 @@
 #               the checkout, against the committed parity table (tools/room-ts-golden.mjs)
 #   make test-mix  the mix module's golden digests (pan law, LCR, strip and fold coefficients, bus
 #               out stage, peak, clip, peak hold, gain-reduction reading, analyser tap, bus sum,
-#               real-time load meter) and a sabotage of each kernel against its oracle and digests
+#               real-time load meter, factored strip coefficient, route gain stages, strip meter
+#               reading, settled silence, LCR fold level) and a sabotage of each kernel against its
+#               oracle and digests
 #   make mix-engine-identity OPENMIXER=<checkout>  the same digests rendered through the engine's own
-#               copies (mix_dsp.h, mix_lcr.h, mix_bus.h, mix_gr_meter.h), and the check's sabotages
+#               copies, each set the checkout carries (mix_dsp.h, mix_lcr.h, mix_bus.h,
+#               mix_gr_meter.h; mix_dsp.h, mix_sum.h), and the check's sabotages
 #               (tools/mix-engine-identity.sh)
 
 CC      ?= cc
@@ -111,7 +116,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table room-ts-golden public-sources
+.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser
 
 all: lib
 
@@ -277,7 +282,7 @@ FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremol
 # Oracles that read the contract ledger themselves build with contracts and threads.
 FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
-FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true
+FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true band_dyn_poly
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
@@ -431,8 +436,9 @@ engine-kernels-identity:
 
 # ---- the mix module -------------------------------------------------------------------------
 # The pan law, the strip and fold coefficients of G, a bus's out stage, the meters' measure half, one
-# analyser tap's reading, one source's contribution to a summing bus and the real-time load meter
-# (include/omxdsp/mix/, FreeMixer/omx-dsp#98): their oracles are suite arms (test/kernels/mix_*.c);
+# analyser tap's reading, one source's contribution to a summing bus, the real-time load meter, the
+# factored strip coefficient, an output route's gain stages, the settled-silence test and the LCR
+# fold's centre level (include/omxdsp/mix/, FreeMixer/omx-dsp#98 and #140): their oracles are suite arms (test/kernels/mix_*.c);
 # here are their golden digests at the nine RME rates, which the engine's own copies wrote
 # (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
 # Compiled with log10f replaced by the correctly rounded omx_log10f (test/support), as the FX goldens
@@ -506,6 +512,10 @@ clean:
 cost-prel: tools/prel-cost.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/prel-cost tools/prel-cost.c -lm
 	./$(BUILD)/prel-cost
+
+cost-deesser: tools/deesser-cost.c $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/deesser-cost tools/deesser-cost.c -lm
+	./$(BUILD)/deesser-cost
 
 bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/bench-mixmatrix tools/bench-mixmatrix.c -lm

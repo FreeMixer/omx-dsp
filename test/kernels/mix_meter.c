@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
 #include <omxdsp/mix/omx_meter.h>
+#include <omxdsp/mix/omx_mix_coef.h>
 
 /* ---- the meters' measure half (mix/omx_meter.h, FreeMixer/omx-dsp#98). At each of the nine RME
  * rates, one second of a 0.7 sine at 1 kHz with one placed sample of −0.95: the block peak is
@@ -9,7 +10,9 @@
  * leg's own peak times its own coefficient; a run of two full-scale samples is no clip, a run of
  * three is, on either leg, and a scale that lifts the tone to full scale for three samples
  * running trips it. The peak hold, fed the tone's 10 ms block peaks, ends on the whole second's
- * peak; a smaller, an equal (+0 against −0) or a NaN peak leaves the slot as it is. ----------- */
+ * peak; a smaller, an equal (+0 against −0) or a NaN peak leaves the slot as it is. The strip's
+ * post-fader reading is the block peak times its level, bit for bit, and follows gain, fader and
+ * mute. ---------------------------------------------------------------------------------------- */
 
 static const float MIX_METER_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
 
@@ -59,6 +62,23 @@ static void arm_mix_meter(void) {
     ok(omx_meter_hold_peak(0.25f, 0.5f) == 0.5f, "a greater peak replaces it", omx_meter_hold_peak(0.25f, 0.5f), 0.5);
     ok(!signbit(omx_meter_hold_peak(0.0f, -0.0f)), "an equal peak is not stored (+0 stays +0)", 0, 0);
     ok(omx_meter_hold_peak(0.5f, NAN) == 0.5f, "a NaN peak never lands in the slot", omx_meter_hold_peak(0.5f, NAN), 0.5);
+
+    /* the strip's post-fader reading: block peak × level */
+    static const float levels[] = {1.0f, 2.0f, 0.5f, 0.70794578f, 0.0f};
+    uint32_t strip_bits = 0;
+    for (uint32_t k = 0; k < 5u; k++) {
+      if (omx_meter_strip_peak(a, b, n, levels[k]) != omx_meter_block_peak(a, b, n) * levels[k]) strip_bits++;
+      if (omx_meter_strip_peak(a, NULL, n, levels[k]) != 0.95f * levels[k]) strip_bits++;
+    }
+    ok(strip_bits == 0, "the strip reading is the block peak times its level, bit for bit", strip_bits, 0);
+  }
+  {
+    float in[4] = {1.0f, -1.0f, 0.5f, -0.25f}, quiet[3] = {0.1f, -0.3f, 0.2f}, sl[2] = {0.2f, 0.2f}, sr2[2] = {0.2f, 0.8f};
+    ok(omx_meter_strip_peak(in, in, 4, omx_mix_strip_level(2.0f, 1.0f, 0)) == 2.0f, "strip reading follows the gain up", 0, 0);
+    ok(omx_meter_strip_peak(in, in, 4, omx_mix_strip_level(1.0f, 0.5f, 0)) == 0.5f, "strip reading follows the fader", 0, 0);
+    ok(omx_meter_strip_peak(in, in, 4, omx_mix_strip_level(1.0f, 1.0f, 1)) == 0.0f, "strip reading follows the mute to 0", 0, 0);
+    ok(omx_meter_strip_peak(quiet, quiet, 3, 2.0f) == 0.3f * 2.0f, "strip reading is the max |sample| times the level", 0, 0);
+    ok(omx_meter_strip_peak(sl, sr2, 2, 1.0f) == 0.8f, "strip reading takes the louder leg", 0, 0);
   }
   expect_clean();
 }
