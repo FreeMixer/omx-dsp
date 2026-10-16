@@ -187,7 +187,7 @@ static void delay_nonfinite_control_is_no_control(void) {
       float *rl = calloc(OMX_FXDELAY_CAP, sizeof(float)), *rr = calloc(OMX_FXDELAY_CAP, sizeof(float));
       struct omx_fx_delay_state s = {rl, rr, OMX_FXDELAY_CAP, 0u, 0.0f, 0.0f};
       const uint32_t d = omx_fxdelay_ms_to_samples(10.0f, sr);
-      struct omx_fx_delay p = {1, d, d, 0.3f, 0.5f, 0.3f, 0};
+      struct omx_fx_delay p = {1, d, d, 0.3f, 0.5f, 0.3f, 0, 0, {0}, {0}, {0}};
       if (which == 0) p.feedback = NAN;
       else if (which == 1) p.tone = NAN;
       float l[256], r[256];
