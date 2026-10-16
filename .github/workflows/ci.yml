@@ -104,7 +104,7 @@ jobs:
 
       - name: The release workflow builds arm on every tag
         id: handback-release-arm-gate
-        run: tools/release-arm-gate-selftest.sh
+        run: tools/release-arm-gate-selftest.sh && tools/release-arm-gate-selftest.sh --sabotage
 
       - name: make test
         id: handback-test
