@@ -546,6 +546,16 @@ function check_file(   f, i, j, e, x, nx, b0, b1, nt, sh, ns, cnt, mcnt, ov, lit
       if (ok) find(LN[i], owner(i), "kernel", KEX[k], "`" KS[k] "`")
     }
   }
+  # the dB-to-linear kernel written with a divisor, pow ( 10 , x / 20 ) in dB or pow ( 10 , x / 2000 )
+  # in centi-dB, pow or powf: the export's pow ( 10 , x * 0.05 ) with the reciprocal spelled out
+  dbk = "pow ( 10 , I * 0.05 )"
+  if (SAB != "kernel" && (dbk in KID)) for (i = 1; i <= m; i++) {
+    if (NR_[i] != "pow" || R[i + 1] != "(" || NR_[i + 2] != "10" || R[i + 3] != ",") continue
+    dk = MT[i + 1]
+    if (dk - i > 14 || NR_[dk - 2] != "/" || (NR_[dk - 1] != "20" && NR_[dk - 1] != "2000")) continue
+    dout = ""; for (dj = i; dj <= dk; dj++) dout = dout (dj > i ? " " : "") NR_[dj]
+    find(LN[i], owner(i), "kernel", KEX[KID[dbk]], "`" dout "`")
+  }
   # a macro that defines an exported name
   if (SAB != "name") for (i = 1; i <= nmac; i++) if (MN[i] in NAMEX) find(ML[i], MN[i], "name", MN[i], "#define")
 }
@@ -710,6 +720,12 @@ void key_build(float *kb, const float *l, const float *r, uint32_t n) {
 double report_level(double rms) {
   return rms > 0 ? 20.0 * log10(rms) : -999.0;
 }
+float headamp_gain(int cdb) {
+  return powf(10.0f, (float)cdb / 2000.0f);
+}
+double fader_gain(double db) {
+  return pow(10.0, db / 20.0);
+}
 EOF
   # legitimate: calls the library, and boilerplate shaped like the library's state init
   cat >"$d/src/legit.c" <<'EOF'
@@ -772,6 +788,8 @@ self_test_once() {
   expect "$out" present '^copy +web/pitch\.ts:1 noteOf literals omx_hrp_midi_note' "literal copy found" || fails=$((fails + 1))
   expect "$out" present '^copy +src/inline\.c:4 key_build kernel omx_rta_tap_mono_sum' "inline mono sum found" || fails=$((fails + 1))
   expect "$out" present '^copy +src/inline\.c:7 report_level kernel .*omx_lin_to_db_d' "inline dB conversion found" || fails=$((fails + 1))
+  expect "$out" present '^copy +src/inline\.c:10 headamp_gain kernel .*omx_db_to_lin' "divisor form in centi-dB found" || fails=$((fails + 1))
+  expect "$out" present '^copy +src/inline\.c:13 fader_gain kernel .*omx_db_to_lin' "divisor form in dB found" || fails=$((fails + 1))
   expect "$out" absent 'legit\.(c|ts)' "legitimate callers and boilerplate pass" || fails=$((fails + 1))
   expect "$out" absent '(tests/|\.fake\.|\.test\.)' "tests, fakes and oracles are out of scope" || fails=$((fails + 1))
   expect "$out" present '^allow .*:3 stale: .*src/gone\.c:old_peak' "stale allowlist entry fails" || fails=$((fails + 1))
