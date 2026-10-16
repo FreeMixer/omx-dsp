@@ -146,9 +146,10 @@ static inline void omx_halfband_decimate(const float *c, uint32_t n, float *out)
 
 /**
  * @brief The round-trip latency of ×4 in base samples, as a plain number a compensation delay
- *        line can be sized by at compile time; held equal to the stages' sum below.
+ *        line can be sized by at compile time; held equal to the stages' sum below. The number is
+ *        the contract's DETECTOR_OVERSAMPLE_LATENCY_SAMPLES.
  */
-#define OMX_OVS_LATENCY_4X 72
+#define OMX_OVS_LATENCY_4X OMX_DETECTOR_OVERSAMPLE_LATENCY_SAMPLES
 
 OMXDSP_STATIC_ASSERT(OMX_OVS_LATENCY_4X == OMX_OVS_UP_DELAY + OMX_OVS_UP_DELAY / 2u
                                          + OMX_OVS_DOWN_DELAY / 4u + OMX_OVS_DOWN_DELAY / 2u,
