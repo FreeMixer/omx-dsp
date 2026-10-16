@@ -65,18 +65,29 @@ typedef struct {
   int ready;
 } OmxPitchInstance;
 
+/** Whether the instance serves `sr`: a rate the console declares, or one of the nine an RME interface
+ * clocks at (32 to 192 kHz, OMX_RME_RATES_INIT), whose latency d_min + W/2 is computed at the
+ * activation rate like any other. */
+static inline int omx_pitch_instance_rate_ok(float sr) {
+  static const float rme[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+  if (omx_rate_is_declared(sr)) return 1;
+  for (uint32_t i = 0; i < OMX_RME_RATES_COUNT; i++)
+    if (rme[i] == sr) return 1;
+  return 0;
+}
+
 /** The ring, per leg, the window needs at `sr`: the floats of each inline ring the kernel uses. */
 static inline uint32_t omx_pitch_instance_cap_for(float sr) { return omx_pitch_cap_for(sr); }
 
 /**
  * Bind an instance to its rate, over its own rings. Returns 1 when usable, 0 when not (a refused
- * init leaves `ready` clear and run() is the identity). A rate that is not declared, or whose
+ * init leaves `ready` clear and run() is the identity). A rate that is neither declared nor one of the nine RME rates, or whose
  * window the inline rings cannot hold, is refused. Allocates nothing.
  */
 static inline int omx_pitch_instance_init(OmxPitchInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr)) return 0;
+  if (!omx_pitch_instance_rate_ok(sr)) return 0;
   const uint32_t cap = omx_pitch_instance_cap_for(sr);
   if (cap > OMX_PITCH_INSTANCE_RING_FLOATS) return 0;
   s->sr = sr;

@@ -74,9 +74,14 @@ static inline int all_zero(const float *a, uint32_t n) {
 static const float HOSTILE[] = {NAN, INFINITY, -INFINITY, 1e30f, -1e30f, -1.0f, 0.0f};
 #define HOSTILE_COUNT ((int)(sizeof(HOSTILE) / sizeof(HOSTILE[0])))
 
+/* The rates a test ran: the declared set unless it defines HARNESS_RATE_COUNT before the include. */
+#ifndef HARNESS_RATE_COUNT
+#define HARNESS_RATE_COUNT ((int)OMX_DECLARED_RATE_COUNT)
+#endif
+
 static int finish(const char *name) {
   printf("fx/%s: %d checks, %d failures (%d rates)\n", name, g_checks, g_failed,
-         (int)OMX_DECLARED_RATE_COUNT);
+         HARNESS_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }
 

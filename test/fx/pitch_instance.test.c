@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * pitch_instance.test.c — the pitch shifter instance core (omx_pitch_instance.h), every arm at
- * every rate in OMX_DECLARED_RATES:
- *   A  a refused init (no rate, a rate the console does not declare) is the identity; every
- *      declared rate is accepted, its window inside the instance's own rings; a refused, a
+ * every one of the nine RME rates (OMX_RME_RATES_INIT, which holds OMX_DECLARED_RATES):
+ *   A  a refused init (no rate, a rate that is neither declared nor RME) is the identity; every
+ *      RME rate is accepted, its window inside the instance's own rings; a refused, a
  *      fresh and a bypassed instance publish no latency;
  *   B  bypassed is the identity byte for byte, in place and out of place;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_pitch_process on the atom the
@@ -30,6 +30,7 @@
 
 #include <omxdsp/fx/omx_pitch_instance.h>
 
+#define HARNESS_RATE_COUNT ((int)OMX_RME_RATES_COUNT)
 #include "instance_harness.h"
 
 #define BLK 256u
@@ -291,6 +292,7 @@ static void arm_latency(void) {
   snprintf(what, sizeof what, "I: at 100 %% the published latency is d_min + W/2 = %u frames (got %u)",
            (unsigned)want, (unsigned)published);
   ok(published == want, what);
+  if (g_sr == 96000.0f) ok(published == 1921u, "I: at 96 kHz the published latency is the ruling's 1921 frames");
 
   double resid = 0.0;
   const uint32_t d = measure_defaults(n, &resid);
@@ -337,8 +339,11 @@ static void arm_latency(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  /* the nine RME rates hold every declared one (32, 64 and 128 kHz are the three the console does
+   * not declare, and the pitch face serves them: omx-dsp#91) */
+  static const float rme[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+  for (int ri = 0; ri < (int)OMX_RME_RATES_COUNT; ri++) {
+    g_sr = rme[ri];
     arm_refused();
     arm_bypass();
     arm_is_the_kernel();
