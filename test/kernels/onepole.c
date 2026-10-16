@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
+#include <omxdsp/fx/omx_delay.h>
 #include <omxdsp/fx/omx_drive.h>
 #include <omxdsp/fx/omx_reverb.h>
 
@@ -163,7 +164,7 @@ static void onepole_fixed_point(void) {
 /* THE 2026-09-17 FOLD MOVED NO COEFFICIENT. Each folded site's PRE-FOLD expression, re-spelled verbatim,
  * against what the tier's kernel computes now: BIT equality at every RME rate. */
 static void onepole_folded_sites(void) {
-  int env_ok = 1, ag_ok = 1, dyn_ok = 1, agp_ok = 1, cut_ok = 1, rev_ok = 1, flush_seen = 0;
+  int env_ok = 1, ag_ok = 1, dyn_ok = 1, agp_ok = 1, cut_ok = 1, rev_ok = 1, flush_seen = 0, tone_ok = 1, damp_ok = 1;
   const float MS[5] = { 0.1f, 1.0f, 12.5f, 100.0f, 1000.0f };
   const float FC[5] = { 20.0f, 200.0f, 1000.0f, 8000.0f, 16000.0f };
   for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
@@ -217,8 +218,22 @@ static void onepole_folded_sites(void) {
       if (!onepole_same_bits(rw, rn)) rev_ok = 0;
       if (rw == 0.0f && k > 64) flush_seen = 1;
     }
+    /* (g) the delay's tone pole and the reverb's damping pole, folded into omx_pole_rescale: each
+     * PRE-FOLD expression, after its own clamp, over the knob's travel (0 .. 1 by 1/64, and 0.98) */
+    for (int k = 0; k <= 65; k++) {
+      const float knob = k == 65 ? 0.98f : (float)k / 64.0f;
+      const float REF = (float)OMX_DSP_KNOB_REFERENCE_RATE;
+      const float t = knob; /* inside [0, 1]: the delay's clamp is the identity */
+      const float tone_was = (t <= 0.0f || t >= 1.0f || sr <= 0.0f || sr == REF) ? t : powf(t, REF / sr); /* FORMER */
+      if (!onepole_same_bits(tone_was, omx_fxdelay_tone_pole(knob, sr))) tone_ok = 0;
+      const float d = knob > OMX_REVERB_DAMP_POLE_MAX ? OMX_REVERB_DAMP_POLE_MAX : knob;
+      const float damp_was = (d <= 0.0f || sr == REF) ? d : powf(d, REF / sr); /* THE FORMER SPELLING */
+      if (!onepole_same_bits(damp_was, omx_reverb_damp_pole(knob, sr))) damp_ok = 0;
+    }
     onepole_drain(sr);
   }
+  ok(tone_ok, "the delay's tone pole is bit-identical to its pre-fold spelling", tone_ok, 1.0);
+  ok(damp_ok, "the reverb's damping pole is bit-identical to its pre-fold spelling", damp_ok, 1.0);
   ok(env_ok, "the dynamics detector's envelope is bit-identical to its pre-fold spelling", env_ok, 1.0);
   ok(ag_ok, "the drive's auto-gain detectors are bit-identical to their pre-fold spelling", ag_ok, 1.0);
   ok(dyn_ok, "attack/release poles are bit-identical to resolve_dyn's pre-fold expression", dyn_ok, 1.0);
