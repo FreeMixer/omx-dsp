@@ -9,6 +9,10 @@
       "kind": "travel",
       "global": "FX_DELAY_TIME_RANGE",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#FX_DELAY_TIME_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_delay_instance.h#ms"
       },
       "doc": "The FX delay's time travel. `max` is the NATIVE ring's ceiling — the same number as `OMX_FXDELAY_MAX_MS` in `omx_delay.h`, pinned to it by the engine's conformance test. Distinct from the per-route ALIGNMENT delay (`OUTPUT_DELAY_RANGE`, 1 s, `OMX_DELAY_MAX_MS`): one is a musical echo with feedback and mix, the other is a pure latency. Two facts, two rings, two ceilings — sharing the word \"delay\" is why they keep being confused for each other.",
@@ -32,6 +36,10 @@
       "kind": "travel",
       "global": "FX_DELAY_FEEDBACK_RANGE",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#FX_DELAY_FEEDBACK_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_delay.h#fb"
       },
       "doc": "The FX delay's REGENERATION travel — how much of the wet tail feeds back in. Stops short of 1: unity feedback is a runaway the kernel hard-clamps anyway, so offering it would draw travel the DSP refuses. Not NORMALIZED_RANGE for exactly that reason — it is a 0..1 quantity whose top the DSP does not accept, and a control must not offer a value its actuator will eat.",
@@ -48,6 +56,10 @@
       "name": "tone",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#DELAY_TONE_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_delay_instance.h#tone"
       },
       "doc": "The FX delay's TONE — a NORMALIZED_RANGE instance with its own come-up value, matching the console's delay default tone. See REVERB_SIZE_RANGE for why this is a named constant rather than a default on the shared shape.",
@@ -64,6 +76,10 @@
       "name": "mix",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#DELAY_MIX_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_delay_instance.h#mix"
       },
       "doc": "The FX DELAY's wet/dry — the same split as REVERB_MIX_RANGE, its own declaration.",
@@ -234,6 +250,12 @@
   "constants": {
     "FX_DELAY_PINGPONG_DEFAULT": {
       "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#FX_DELAY_PINGPONG_DEFAULT",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        }
+      },
       "doc": "The FX delay's PING-PONG come-up value — a toggle, so it has no travel, only this. Declared here rather than as a literal in the console's delay default state (which now reads it) so the DPF plugin generator (omx-plugins) reads the same fact the desk seeds a fresh strip with.",
       "unit": "",
       "value": false

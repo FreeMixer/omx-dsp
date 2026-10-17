@@ -8,6 +8,10 @@
       "name": "rate",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#FLANGER_RATE_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
         "impl": "include/omxdsp/fx/omx_flanger_instance.h#lfo_inc"
       },
       "doc": "The flanger's jet sweep.",
@@ -24,6 +28,10 @@
       "name": "depth",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#FLANGER_DEPTH_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
         "impl": "include/omxdsp/fx/omx_flanger_instance.h#depth_samples"
       },
       "doc": "The flanger's peak-to-peak excursion above its declared 0.5 ms base.",
@@ -40,6 +48,10 @@
       "name": "feedback",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#FLANGER_FEEDBACK_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
         "impl": "include/omxdsp/fx/omx_flanger_instance.h#feedback"
       },
       "doc": "The flanger's SIGNED resonance. The ±0.95 clamp is DECLARED here — a PATCH asking for 1.0 is answered by this travel — and the kernel's own clamp is the enforcement half.",
@@ -56,6 +68,10 @@
       "name": "mix",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#FLANGER_MIX_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
         "impl": "include/omxdsp/fx/omx_flanger_instance.h#mix"
       },
       "doc": "The flanger's wet/dry, as an instance of DRIVE_MIX_RANGE: 50 %, equal dry and wet, where the comb is deepest.",

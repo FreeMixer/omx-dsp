@@ -9,6 +9,10 @@
       "kind": "travel",
       "global": "ROTARY_HORN_SLOW_RANGE",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_SLOW_RANGE",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#horn_slow_hz"
       },
       "doc": "The horn's chorale (slow) rate, Hz.",
@@ -26,6 +30,10 @@
       "kind": "travel",
       "global": "ROTARY_HORN_FAST_RANGE",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_FAST_RANGE",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#horn_fast_hz"
       },
       "doc": "The horn's tremolo (fast) rate, Hz.",
@@ -43,6 +51,10 @@
       "kind": "travel",
       "global": "ROTARY_DRUM_SLOW_RANGE",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_SLOW_RANGE",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#drum_slow_hz"
       },
       "doc": "The drum's chorale (slow) rate, Hz.",
@@ -60,6 +72,10 @@
       "kind": "travel",
       "global": "ROTARY_DRUM_FAST_RANGE",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_FAST_RANGE",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#drum_fast_hz"
       },
       "doc": "The drum's tremolo (fast) rate, Hz.",
@@ -76,6 +92,10 @@
       "name": "accel",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_ACCEL_RANGE",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#accel"
       },
       "doc": "The scale on every speed-change time constant (`ROTARY_*_ACCEL_MS`/`_DECEL_MS`): 2 is twice as slow.",
@@ -92,6 +112,10 @@
       "name": "balance",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_BALANCE_RANGE",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#balance"
       },
       "doc": "The drum/horn balance, percent: −100 drum only, +100 horn only; the law attenuates, never boosts.",
@@ -108,6 +132,10 @@
       "name": "mix",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_MIX_RANGE",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#mix"
       },
       "doc": "The rotary's wet/dry, as an instance of DRIVE_MIX_RANGE: 100 %, because a rotary on an insert IS the sound (it replaces the cabinet) and an `fxReturn` wants it wet too.",
@@ -133,6 +161,12 @@
   ],
   "aggregates": {
     "ROTARY_TRAVELS": {
+      "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_TRAVELS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        }
+      },
       "doc": "The rotary's numeric travels, field → declaration: the ONE map the row's state, its bounds, its OPTIONS and its controller read (`speed` is a member set, ROTARY_SPEEDS, beside it).",
       "fields": [
         "hornSlowHz",
@@ -149,6 +183,10 @@
     "ROTARY_CROSSOVER_HZ": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_CROSSOVER_HZ",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The complementary split's low-pass corner, Hz: the Leslie 122's passive crossover.",
@@ -158,6 +196,10 @@
     "ROTARY_BASE_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_BASE_MS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotor.h#base"
       },
       "doc": "The shortest Doppler read, ms — above the order-3 read's one-sample reach at every rate.",
@@ -167,6 +209,10 @@
     "ROTARY_HORN_DOPPLER_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_DOPPLER_MS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The horn's Doppler excursion `D_horn`, ms: a 0.15 m radius over 343 m/s.",
@@ -176,6 +222,10 @@
     "ROTARY_DRUM_DOPPLER_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_DOPPLER_MS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The drum's Doppler excursion `D_drum`, ms: its baffle turns over a fixed woofer.",
@@ -185,6 +235,10 @@
     "ROTARY_HORN_AM": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_AM",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The horn's amplitude swing `m_horn` (a −6 dB directivity dip), a ratio.",
@@ -194,6 +248,10 @@
     "ROTARY_DRUM_AM": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_AM",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The drum baffle's amplitude swing `m_drum`, a ratio.",
@@ -203,6 +261,10 @@
     "ROTARY_HORN_ACCEL_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_ACCEL_MS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The horn rotor's speed-up time constant, ms (at `accel` 1).",
@@ -212,6 +274,10 @@
     "ROTARY_HORN_DECEL_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_DECEL_MS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The horn rotor's slow-down time constant, ms (at `accel` 1).",
@@ -221,6 +287,10 @@
     "ROTARY_DRUM_ACCEL_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_ACCEL_MS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The drum rotor's speed-up time constant, ms (at `accel` 1).",
@@ -230,6 +300,10 @@
     "ROTARY_DRUM_DECEL_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_DECEL_MS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
       },
       "doc": "The drum rotor's slow-down time constant, ms (at `accel` 1).",
@@ -239,6 +313,10 @@
     "ROTARY_STOP_EPS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_STOP_EPS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotor.h#omx_rotor_step"
       },
       "doc": "Below this rate, Hz, a rotor coasting toward `stop` is snapped to exactly 0.",
@@ -248,6 +326,10 @@
     "ROTARY_RING_FLOATS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_RING_FLOATS",
+          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
+        },
         "impl": "include/omxdsp/fx/omx_rotary.h#c"
       },
       "doc": "One inline ring per rotor per leg, floats — at least the 192 kHz need of the horn's sweep.",

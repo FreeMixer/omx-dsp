@@ -170,6 +170,12 @@
   ],
   "tables": {
     "GATE_LIMITS": {
+      "source": {
+        "from": {
+          "link": "packages/core/src/strip-dynamics-limits.ts#GATE_LIMITS",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        }
+      },
       "doc": "The legal range of each gate field (engineering units). The widget clamps drags to these, `normalizeGate` enforces them, the row's codec refuses by them and the travel sheet publishes them — one source of truth. `rangeDb` reaches GATE_RANGE_FLOOR_DB, shown as \"−∞\" in readouts (a gate fully closed is silence)."
     },
     "GATE_KEY_LIMITS": {

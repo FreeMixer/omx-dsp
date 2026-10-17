@@ -164,6 +164,12 @@
   ],
   "tables": {
     "COMP_LIMITS": {
+      "source": {
+        "from": {
+          "link": "packages/core/src/strip-dynamics-limits.ts#COMP_LIMITS",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        }
+      },
       "doc": "The legal range of each compressor field (engineering units). The widget clamps drags to these, `normalizeComp` enforces them, the row's codec refuses by them and the travel sheet publishes them. `default`/`defaultFrom` are the come-up values `defaultCompState` seeds a fresh strip with, read BACK from here rather than restated there."
     }
   },
@@ -171,6 +177,10 @@
     "PROGRAM_RELEASE": {
       "kind": "sheet",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-dynamics-limits.ts#PROGRAM_RELEASE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/omx_envelope.h#charge_pole"
       },
       "doc": "The program-dependent release's model constants — the LA-2A's opto cell as DATA. `chargeMs`/`dischargeMs` are the word's memory constants, shared by every profile; each profile's `fastMs`, `slowMinMs`, `slowMaxMs` and `share` fit the unit's published two-stage recovery. Not operator controls: generated into `omx_contract_limits.h` as `OMX_PROGRAM_RELEASE_*`, which libomxdsp's `omx_env_program_release` reads.",
