@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.21.0
+Version: 0.22.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.14.0
+BuildRequires: omx-contract-devel >= 2.15.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -34,7 +34,7 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.14.0
+Requires: omx-contract-devel >= 2.15.0
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -67,11 +67,26 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp.pc
 %{_libdir}/pkgconfig/omxdsp-contracts.pc
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
+%{_datadir}/omx-contract/contract.d/2/omx-dsp/
 %{_bindir}/omx-dsp-copy-check
 %{_mandir}/man1/omx-dsp-copy-check.1*
 %{_datadir}/omxdsp/
 
 %changelog
+* Sat Oct 17 2026 Pau Aliagas <linuxnow@gmail.com> - 0.22.0-1
+- The definitions of the kernels and DSP constants this library implements
+  now ship with it. They live in data/, one file per kernel and one per
+  constant, and install into omx-contract's contract directory as the
+  package omx-dsp, with a MANIFEST.json. omx-contract 2.15.0 no longer
+  carries them.
+- The code reads them through omxdsp/omxdsp_definitions.h, rendered from
+  data/ and committed. Every define it holds is the same line omx-contract
+  2.14.0's header held. The declared rates and parameter scales still come
+  from omx-contract's header, which it includes.
+- Each definition names the code that implements it, and where the console
+  engine declared it when it was first imported.
+- omx-contract-devel >= 2.15.0.
+
 * Fri Oct 16 2026 Pau Aliagas <linuxnow@gmail.com> - 0.21.0-1
 - The mix maths the engine used to carry now lives here: the pan laws and
   the LCR downmix centre level (omx_pan_law), a strip's coefficients, its

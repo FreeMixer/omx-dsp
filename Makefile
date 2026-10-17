@@ -10,7 +10,7 @@
 #               writable-data check, the doc check and the effect kernels' oracles and golden
 #               digests — pure C + -lm (+ -pthread), no node
 #   make install   headers, the three archives and their .pc files under PREFIX/LIBDIR/INCLUDEDIR,
-#               into DESTDIR
+#               and data/ as the package omx-dsp of omx-contract's contract directory, into DESTDIR
 #   make flavours  each archive carries its flavour, and a contracts consumer sees the compiled
 #               unit's contracts only through the contracts archive
 #   make test-fx   the effect kernels' oracles and golden digests alone
@@ -24,6 +24,12 @@
 #               kernels and twins, which omx-dsp-copy-check reads in a consumer (make install ships both)
 #   make copy-check  omx-dsp-copy-check's self-test over planted copies, then each rule broken in turn
 #   make lint   the doc check and the source scan only
+#   make contract-dir OMX_CONTRACT=<checkout>  data/ installed beside omx-contract's own data as a contract
+#               directory and read back through the checkout's reader, and three refusals
+#               (tools/contract-dir-check.sh)
+#   make definitions OMX_CONTRACT=<checkout>  include/omxdsp/omxdsp_definitions.h rendered from data/ by the
+#               checkout's `render --package omx-dsp`; make definitions-check holds the committed header equal
+#               to that render (tools/definitions-render.sh)
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
@@ -120,11 +126,18 @@ BINDIR     ?= $(PREFIX)/bin
 DATADIR    ?= $(PREFIX)/share
 MANDIR     ?= $(DATADIR)/man
 DESTDIR    ?=
+# The definitions this library implements (data/) install as the package omx-dsp of the installed
+# omx-contract's contract directory, <contractdir>/<schema major>/omx-dsp/, with the installer that
+# omx-contract ships beside its schema: plain shell, no node. Read when `make install` runs, only.
+CONTRACTDIR        ?= $(shell pkg-config --variable=contractdir omx-contract 2>/dev/null)
+CONTRACT_DATADIR    = $(shell pkg-config --variable=datadir omx-contract 2>/dev/null)
+CONTRACT_INSTALLER ?= $(CONTRACT_DATADIR)/install-contract-dir.sh
+CONTRACT_MAJOR      = $(shell sed -n 's/^  "x-omx-schema-version": "\([0-9]*\)\..*",$$/\1/p' $(CONTRACT_DATADIR)/omx-contract.schema.json 2>/dev/null)
 VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\) \([0-9]*\)$$/\2/p' include/omxdsp/omxdsp.h | paste -sd.)
 
 
 
-.PHONY: all lib test lint docs clean test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -273,6 +286,15 @@ checks:
 	bash tools/face-conformance.sh --self-test
 
 lint: checks
+
+OMX_CONTRACT ?=
+contract-dir:
+	@test -n "$(OMX_CONTRACT)" || { echo "contract-dir: name an omx-contract checkout: make contract-dir OMX_CONTRACT=<dir>" >&2; exit 2; }
+	bash tools/contract-dir-check.sh $(OMX_CONTRACT) $(BUILD)/contract-dir
+
+definitions definitions-check:
+	@test -n "$(OMX_CONTRACT)" || { echo "$@: name an omx-contract checkout: make $@ OMX_CONTRACT=<dir>" >&2; exit 2; }
+	bash tools/definitions-render.sh $(if $(filter definitions-check,$@),--check) $(OMX_CONTRACT) $(BUILD)/definitions
 
 # The exports file a consumer's copy check reads, generated from the headers and the compiled unit.
 EXPORTS = $(BUILD)/omx-dsp-exports.json
@@ -534,6 +556,9 @@ install: $(LIBS_ALL) $(PC_ALL) $(EXPORTS)
 	install -m 0644 include/omxdsp/mix/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/mix/
 	install -m 0644 $(LIBS_ALL) $(DESTDIR)$(LIBDIR)/
 	install -m 0644 $(PC_ALL) $(DESTDIR)$(LIBDIR)/pkgconfig/
+	@test -n "$(CONTRACTDIR)" && test -f "$(CONTRACT_INSTALLER)" && test -n "$(CONTRACT_MAJOR)" || \
+	  { echo "install: the installed omx-contract names no contract directory, installer or schema major (contractdir and datadir of omx-contract.pc): data/ cannot be installed" >&2; exit 1; }
+	sh $(CONTRACT_INSTALLER) omx-dsp $(VERSION) $(CONTRACT_MAJOR) data $(DESTDIR)$(CONTRACTDIR) data
 	install -m 0644 $(EXPORTS) $(DESTDIR)$(DATADIR)/omxdsp/
 	install -m 0755 tools/omx-dsp-copy-check.sh $(DESTDIR)$(BINDIR)/omx-dsp-copy-check
 	install -m 0644 omx-dsp-copy-check.1 $(DESTDIR)$(MANDIR)/man1/

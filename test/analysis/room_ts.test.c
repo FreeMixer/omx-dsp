@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/analysis/omx_align_fit.h>
 #include <omxdsp/analysis/omx_room.h>
 #include <omxdsp/analysis/omx_sweep.h>

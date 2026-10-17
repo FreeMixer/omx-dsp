@@ -1,0 +1,45 @@
+{
+  "kernel": "limiter",
+  "since": "1.0.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "origin/main",
+    "commit": "964a798356925f6bc3774459d9904362b9d3f986"
+  },
+  "items": [
+    {
+      "name": "LIMITER_LIMITS",
+      "source": {
+        "path": "index.ts",
+        "export": "LIMITER_LIMITS"
+      },
+      "value": {
+        "ceilingDb": {
+          "min": -12,
+          "max": 0,
+          "step": 0.1,
+          "unit": "dBFS",
+          "default": -1,
+          "defaultFrom": "desk"
+        },
+        "lookaheadMs": {
+          "min": 0.5,
+          "max": 5,
+          "step": 0.1,
+          "unit": "ms",
+          "default": 1.5,
+          "defaultFrom": "desk"
+        },
+        "releaseMs": {
+          "min": 1,
+          "max": 1000,
+          "step": 1,
+          "unit": "ms",
+          "default": 50,
+          "defaultFrom": "desk"
+        }
+      },
+      "doc": "The precision limiter's travels, rendered into `omx_contract_limits.h` as `OMX_LIMITER_*` by the engine's limits generator, so `mix_limiter.h` reads them and never restates one (R-094). The ceiling is a TRUE peak in dBFS (the ×4 detector); the look-ahead sets the declared latency; the release is the envelope's time constant on the gain depth."
+    }
+  ]
+}

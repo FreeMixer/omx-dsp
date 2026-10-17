@@ -1,0 +1,51 @@
+{
+  "kernel": "src",
+  "since": "2.6.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "6ee8a9bde1017b118f9d7ce67758698423ff8ef3",
+    "commit": "6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
+  },
+  "items": [
+    {
+      "name": "SRC_TAPS",
+      "source": {
+        "path": "mix_src.h",
+        "define": "OMX_SRC_TAPS"
+      },
+      "value": 64,
+      "doc": "Taps per phase. 64 puts the design's transition band comfortably inside what a Kaiser of this beta can hold at every standard rate pair, and costs 64 multiply-adds per output sample — about 12 M flops per track-minute at 48 kHz, which is nothing offline.",
+      "unit": ""
+    },
+    {
+      "name": "SRC_STOPBAND_DB",
+      "source": {
+        "path": "mix_src.h",
+        "define": "OMX_SRC_STOPBAND_DB"
+      },
+      "value": 96,
+      "doc": "Stopband attenuation the window is designed for, in dB. 96 dB is below the noise floor of any take this console can capture (float capture of a 24-bit converter), so the conversion is not what limits the file.",
+      "unit": "dB"
+    },
+    {
+      "name": "SRC_ROLLOFF",
+      "source": {
+        "path": "mix_src.h",
+        "define": "OMX_SRC_ROLLOFF"
+      },
+      "value": 0.92,
+      "doc": "How much of the shared Nyquist the passband keeps. The remaining 8 % is the transition band the window needs to reach its stopband: at 48 kHz that puts the corner at 22.08 kHz and the stopband in place by 24 kHz.",
+      "unit": ""
+    },
+    {
+      "name": "SRC_MAX_L",
+      "source": {
+        "path": "mix_src.h",
+        "define": "OMX_SRC_MAX_L"
+      },
+      "value": 1024,
+      "doc": "The largest interpolation factor a plan may carry. 44.1 kHz -> 192 kHz is 640/147, the widest pair the console's standard rates produce; the cap refuses an exotic pair before it allocates a table nobody budgeted for, rather than discovering it as a bad_alloc.",
+      "unit": ""
+    }
+  ]
+}

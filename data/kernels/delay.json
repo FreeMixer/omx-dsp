@@ -1,0 +1,300 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "fxDelayTime",
+      "kind": "travel",
+      "global": "FX_DELAY_TIME_RANGE",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#FX_DELAY_TIME_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#ms"
+      },
+      "doc": "The FX delay's time travel. `max` is the NATIVE ring's ceiling — the same number as `OMX_FXDELAY_MAX_MS` in `omx_delay.h`, pinned to it by the engine's conformance test. Distinct from the per-route ALIGNMENT delay (`OUTPUT_DELAY_RANGE`, 1 s, `OMX_DELAY_MAX_MS`): one is a musical echo with feedback and mix, the other is a pure latency. Two facts, two rings, two ceilings — sharing the word \"delay\" is why they keep being confused for each other.",
+      "travel": {
+        "min": 0,
+        "max": 2000,
+        "step": 1,
+        "unit": "ms",
+        "default": 300,
+        "defaultFrom": "desk"
+      },
+      "c": {
+        "alias": {
+          "fact": "delay",
+          "field": "timeMs"
+        }
+      }
+    },
+    {
+      "name": "fxDelayFeedback",
+      "kind": "travel",
+      "global": "FX_DELAY_FEEDBACK_RANGE",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#FX_DELAY_FEEDBACK_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_delay.h#fb"
+      },
+      "doc": "The FX delay's REGENERATION travel — how much of the wet tail feeds back in. Stops short of 1: unity feedback is a runaway the kernel hard-clamps anyway, so offering it would draw travel the DSP refuses. Not NORMALIZED_RANGE for exactly that reason — it is a 0..1 quantity whose top the DSP does not accept, and a control must not offer a value its actuator will eat.",
+      "travel": {
+        "min": 0,
+        "max": 0.99,
+        "step": 0,
+        "unit": "",
+        "default": 0.3,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tone",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#DELAY_TONE_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#tone"
+      },
+      "doc": "The FX delay's TONE — a NORMALIZED_RANGE instance with its own come-up value, matching the console's delay default tone. See REVERB_SIZE_RANGE for why this is a named constant rather than a default on the shared shape.",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.3,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mix",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#DELAY_MIX_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#mix"
+      },
+      "doc": "The FX DELAY's wet/dry — the same split as REVERB_MIX_RANGE, its own declaration.",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.3,
+        "defaultFrom": "desk",
+        "byKind": {
+          "fxReturn": 1
+        }
+      }
+    },
+    {
+      "name": "pingpong",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_PINGPONG_DEFAULT"
+      },
+      "doc": "The FX delay's PING-PONG switch: on cross-feeds the two legs' feedback, so each leg's repeats come from the other leg's damped tap and the echoes bounce L<->R (`omx_delay.h`'s `struct omx_fx_delay.pingpong`, read where the feedback is formed). A live control on the console's delay row (`DelayState.pingpong`) and on the omx-delay plugin. Its come-up value is FX_DELAY_PINGPONG_DEFAULT, by reference, so the default keeps one home.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": {
+        "ref": "FX_DELAY_PINGPONG_DEFAULT"
+      },
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "fxDelayTaps",
+      "kind": "travel",
+      "global": "FX_DELAY_TAPS_RANGE",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay.h#OMX_FXDELAY_MAX_TAPS"
+      },
+      "doc": "How many integer read taps of the FX delay's one ring are engaged. 1 is the one-tap delay, bit for bit; `max` is the tap-array ceiling the kernel sizes its arrays by, so the arrays and the travel are one fact. An array extent is an integer constant: the C reader takes OMX_FX_DELAY_TAPS_RANGE_MAX (4) for `OMX_FXDELAY_MAX_TAPS` in `omx_delay.h`, never the alias OMX_DELAY_TAPS_MAX, which is the float 4.0f.",
+      "travel": {
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "unit": "",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "c": {
+        "alias": {
+          "fact": "delay",
+          "field": "taps"
+        }
+      }
+    },
+    {
+      "name": "tap0Gain",
+      "kind": "travel",
+      "table": "DELAY_TAP_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0.01,
+        "unit": "",
+        "default": 1,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tap0Pan",
+      "kind": "travel",
+      "table": "DELAY_TAP_LIMITS",
+      "travel": {
+        "min": -1,
+        "max": 1,
+        "step": 0.01,
+        "unit": "",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tap1Gain",
+      "kind": "travel",
+      "table": "DELAY_TAP_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.7,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tap1Pan",
+      "kind": "travel",
+      "table": "DELAY_TAP_LIMITS",
+      "travel": {
+        "min": -1,
+        "max": 1,
+        "step": 0.01,
+        "unit": "",
+        "default": -0.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tap2Gain",
+      "kind": "travel",
+      "table": "DELAY_TAP_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tap2Pan",
+      "kind": "travel",
+      "table": "DELAY_TAP_LIMITS",
+      "travel": {
+        "min": -1,
+        "max": 1,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tap3Gain",
+      "kind": "travel",
+      "table": "DELAY_TAP_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.35,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tap3Pan",
+      "kind": "travel",
+      "table": "DELAY_TAP_LIMITS",
+      "travel": {
+        "min": -1,
+        "max": 1,
+        "step": 0.01,
+        "unit": "",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "tables": {
+    "DELAY_TAP_LIMITS": {
+      "doc": "The legal range of each read tap's gain (0..1) and pan (-1..+1, the balance law's travel), keyed by the delay row's own field, with each tap's come-up value. Tap 0 comes up at unity gain, centre: the one-tap delay. Taps 1..3 come up as a usable triple pattern (an eighth left, a dotted eighth right, a dotted quarter centre), so raising the tap count is musical at once."
+    }
+  },
+  "constants": {
+    "FX_DELAY_PINGPONG_DEFAULT": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#FX_DELAY_PINGPONG_DEFAULT",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        }
+      },
+      "doc": "The FX delay's PING-PONG come-up value — a toggle, so it has no travel, only this. Declared here rather than as a literal in the console's delay default state (which now reads it) so the DPF plugin generator (omx-plugins) reads the same fact the desk seeds a fresh strip with.",
+      "unit": "",
+      "value": false
+    },
+    "DELAY_TAP_FACTOR_NUMS": {
+      "kind": "list",
+      "doc": "The numerators of the FX delay's tap factor set, in member order: 1/4, 1/3, 3/8, 1/2, 2/3, 3/4, 1, 4/3, 3/2, 2, 3. A read tap k >= 1 sits at the base time times numerator / denominator (DELAY_TAP_FACTOR_DENS at the same position), rounded once to samples. The set is two integer lists, not a set of ids, because a factor such as 1/2 is no id the schema accepts and the ratio must stay exact (1/3 has no finite decimal).",
+      "unit": "",
+      "values": [
+        1,
+        1,
+        3,
+        1,
+        2,
+        3,
+        1,
+        4,
+        3,
+        2,
+        3
+      ]
+    },
+    "DELAY_TAP_FACTOR_DENS": {
+      "kind": "list",
+      "doc": "The denominators of the FX delay's tap factor set, in member order, one per numerator of DELAY_TAP_FACTOR_NUMS: the factor at position i is DELAY_TAP_FACTOR_NUMS[i] / DELAY_TAP_FACTOR_DENS[i].",
+      "unit": "",
+      "values": [
+        4,
+        3,
+        8,
+        2,
+        3,
+        4,
+        1,
+        3,
+        2,
+        1,
+        1
+      ]
+    }
+  }
+}

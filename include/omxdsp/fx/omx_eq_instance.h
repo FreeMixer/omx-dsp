@@ -7,7 +7,7 @@
  *
  * Moved unchanged from the OpenMixer engine's eq_lv2.h, the strip EQ anchor of the instance headers (omx-plugins' omx_delay_instance.h's shape): the
  * includes now name the library's own headers (`omx_biquad_cascade` is omx_biquad.h's, the travels
- * omx_contract_limits.h's), and the control-word processing eq_lv2.c's run() did is here as
+ * omxdsp_definitions.h's), and the control-word processing eq_lv2.c's run() did is here as
  * {@link omx_eq_lv2_set_controls}, so a shell carries ports across its host boundary and nothing
  * more. The `omx_eq_lv2_*` names are kept, as omx-plugins' omx_delay_instance.h keeps `omx_delay_lv2_*`.
  *
@@ -62,7 +62,7 @@
 #include <string.h>
 
 #include <omxdsp/omx_biquad.h>
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_param.h>
 
@@ -104,7 +104,7 @@ enum omx_eq_lv2_slope {
 
 /* The declared travels are `@freemixer/declarations`' EQ_FREQ_RANGE, EQ_GAIN_RANGE, EQ_Q_RANGE,
  * EQ_NOTCH_Q_RANGE, HPF_FREQ_RANGE and LPF_FREQ_RANGE, read as the generated
- * OMX_<NAME>_MIN/_MAX of omx_contract_limits.h (dsp-primitives §7's scalar door) — this face types
+ * OMX_<NAME>_MIN/_MAX of omxdsp_definitions.h (dsp-primitives §7's scalar door) — this face types
  * none of them (audit 2026-09-29 C-1). */
 
 /** The bank's capacity: every band plus two Butterworth sections per pass filter. */

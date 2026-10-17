@@ -16,7 +16,7 @@
 /** @brief API major version: a symbol's meaning changes only with a bump here. */
 #define OMXDSP_VERSION_MAJOR 0
 /** @brief API minor version: additions only. */
-#define OMXDSP_VERSION_MINOR 21
+#define OMXDSP_VERSION_MINOR 22
 /** @brief Patch version: no API change. */
 #define OMXDSP_VERSION_PATCH 0
 
@@ -47,7 +47,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_balance_law.h"
 #include "omx_biquad.h"
 #include "omx_contract.h"
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include "omx_denormal.h"
 #include "omx_divider.h"
 #include "omx_envelope.h"

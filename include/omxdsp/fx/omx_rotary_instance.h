@@ -9,7 +9,7 @@
  *   1. RESOLVE. {@link omx_rotary_instance_resolve} takes the kernel's contract controls in their
  *      declared order and user units (four rotor rates in Hz, an accel scale, a balance and a mix
  *      in percent, the speed as its ROTARY_SPEEDS index), clamps each into its declared travel
- *      (ROTARY_*_RANGE, omx_contract_limits.h; a non-finite word reads as the declared default),
+ *      (ROTARY_*_RANGE, omxdsp_definitions.h; a non-finite word reads as the declared default),
  *      and hands them to the kernel's own omx_rotary_resolve() with balance and mix over 100. That
  *      resolve reads the rotors' present rates (the accel/decel choice), so it runs every cycle,
  *      as the console's does.

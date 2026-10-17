@@ -1,0 +1,146 @@
+{
+  "kernel": "deesser",
+  "since": "1.1.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "origin/main",
+    "commit": "827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+  },
+  "items": [
+    {
+      "name": "DEESS_FREQ_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "DEESS_FREQ_RANGE"
+      },
+      "value": {
+        "min": 2000,
+        "max": 16000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 7000,
+        "defaultFrom": "desk"
+      },
+      "doc": "The detector band's CENTRE, in Hz. Sibilance lives at 5–10 kHz on most voices; 7 kHz with the default width covers 4 950–9 900 Hz, which is where an \"s\" and a \"t\" sit on a close vocal mic. The travel is wider than the come-up on both sides on purpose: a bright female vocal wants the band up near 9 kHz and a chesty male one down at 5, and a surface narrower than the row removes reach the console genuinely has (the same reasoning core's `REVERB_CUT_RANGE` records)."
+    },
+    {
+      "name": "DEESS_WIDTH_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "DEESS_WIDTH_RANGE"
+      },
+      "value": {
+        "min": 0.25,
+        "max": 4,
+        "step": 0.05,
+        "unit": "oct",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band's WIDTH, in OCTAVES around the centre: the edges are `f / 2^(w/2)` and `f · 2^(w/2)`, which is what makes the centre the geometric middle at every width. Octaves and not a Q, because a Q is a property of one section and this band is TWO (a highpass and a lowpass, `mix_deesser.h`) — an operator asked to dial a Q would be dialling a number neither filter carries. One octave is the classic de-esser band: wide enough for a sibilant that moves with the vowel, narrow enough that a 1 kHz vowel sits 27.8 dB down the skirt."
+    },
+    {
+      "name": "DEESS_THRESHOLD_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "DEESS_THRESHOLD_RANGE"
+      },
+      "value": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -30,
+        "defaultFrom": "desk"
+      },
+      "doc": "Where reduction starts — the level of the BAND, not of the strip, which is why the come-up is so much lower than the compressor's. A vocal peaking −12 dBFS carries roughly −30 dBFS in a one-octave band at 7 kHz on its sibilants and under −40 on its vowels, so −30 sits between the two and the stage opens on an \"s\" and stays shut on an \"ah\"."
+    },
+    {
+      "name": "DEESS_RATIO_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "DEESS_RATIO_RANGE"
+      },
+      "value": {
+        "min": 1,
+        "max": 20,
+        "step": 0.1,
+        "unit": "",
+        "default": 4,
+        "defaultFrom": "desk"
+      },
+      "doc": "How hard the band is held once it is over the threshold. 4:1 is the textbook de-esser ratio: firm on the \"s\", short of a limiter."
+    },
+    {
+      "name": "DEESS_RANGE_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "DEESS_RANGE_RANGE"
+      },
+      "value": {
+        "min": -24,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -12,
+        "defaultFrom": "desk"
+      },
+      "doc": "The FLOOR on the reduction, in dB and never positive — the deepest cut the stage may reach however loud the sibilant is (`mix_deesser.h`'s clamp). 12 dB tames a hard sibilant; past that a voice starts to lisp, and a de-esser with NO floor turns a shouted \"s\" into a hole. The ceiling is 0, which switches the reduction off without switching the stage off — a legitimate thing to want while dialling the band in by ear."
+    },
+    {
+      "name": "DEESS_ATTACK_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "DEESS_ATTACK_RANGE"
+      },
+      "value": {
+        "min": 0.1,
+        "max": 50,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "doc": "The detector's ATTACK, in ms. A sibilant's onset is a few milliseconds; 1 ms catches it without the detector chattering on the band's own waveform."
+    },
+    {
+      "name": "DEESS_RELEASE_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "DEESS_RELEASE_RANGE"
+      },
+      "value": {
+        "min": 5,
+        "max": 500,
+        "step": 1,
+        "unit": "ms",
+        "default": 60,
+        "defaultFrom": "desk"
+      },
+      "doc": "The detector's RELEASE, in ms. 60 ms is long enough not to modulate inside one \"s\" and short enough to be open again for the next syllable."
+    },
+    {
+      "name": "DEESS_KNEE_DB",
+      "source": {
+        "path": "deesser-curve.ts",
+        "export": "DEESS_KNEE_DB"
+      },
+      "value": 6,
+      "doc": "The knee, in dB — a CONSTANT of the stage and not a row field: a de-esser without a soft knee latches audibly on the first sibilant of a phrase, and no other value of this number is a de-esser anyone would dial. The controller pushes it to the node and this is the same number; a second spelling would be a picture that disagrees with the audio about where the reduction starts.",
+      "unit": "dB"
+    },
+    {
+      "name": "DEESS_MODES",
+      "source": {
+        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_deesser.h enum omx_deess_mode; the console engine's de-esser mode list"
+      },
+      "value": [
+        "split",
+        "wideband"
+      ],
+      "doc": "The de-esser's modes, in the order of the integer the kernel reads: split attenuates the detected band only, wideband the whole signal while the sibilance lasts.",
+      "since": "1.3.0",
+      "kind": "set"
+    }
+  ]
+}

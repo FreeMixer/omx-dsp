@@ -12,7 +12,7 @@
 #ifndef OMX_BALANCE_LAW_H
 #define OMX_BALANCE_LAW_H
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 /**
  * @brief Clamp a pan position to the declared [-1, +1] range.

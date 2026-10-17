@@ -87,21 +87,12 @@ taken 2.11.0 2.11.0 2.11.4 2.12.0 2.13.0 3.0.0
 refused 2.11.0 2.10.1 2.10.10 2.6.0
 taken 2.14.0 2.14.0 2.14.3 2.15.0 3.0.0
 refused 2.14.0 2.13.0 2.13.9 2.11.0 2.6.0
+taken 2.15.0 2.15.0 2.15.3 2.16.0 3.0.0
+refused 2.15.0 2.14.0 2.14.9 2.13.0 2.6.0
 
 # The tree's own floor is taken.
 render "$floor"
 out="$(run "$HERE" 2>&1)" || fail "the spec's own floor $floor was refused: $out"
-
-# --data cuts each kernel's controls out of omx-contract.json, in the layout face-conformance.sh reads.
-render "$floor"
-if out="$(run "$HERE" --data 2>&1)"; then
-  grep -q '^      "name": "keySource",$' "$out/gate.json" 2>/dev/null || fail "--data's gate.json is not in the layout face-conformance.sh reads: $out"
-  rm -rf "$out"
-else fail "--data refused a package with omx-contract.json: $out"; fi
-mv "$S/share/omx-contract/omx-contract.json" "$S/omx-contract.json.off"
-if out="$(run "$HERE" --data 2>&1)"; then fail "--data answered a package with no omx-contract.json: $out"
-else case "$out" in *omx-contract*) ;; *) fail "the --data refusal names no package: $out" ;; esac; fi
-mv "$S/omx-contract.json.off" "$S/share/omx-contract/omx-contract.json"
 
 # Nothing installed.
 rm -f "$S/lib/pkgconfig/omx-contract.pc"

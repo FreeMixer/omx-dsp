@@ -12,7 +12,7 @@
  *      init or after; a rate the inline rings cannot serve is refused at init.
  *   2. RESOLVE. {@link omx_pitch_instance_resolve} takes the kernel's contract controls in their
  *      declared order and user units (semitones, cents, percent), clamps each into its declared
- *      travel (OMX_PITCH_*, omx_contract_limits.h; a non-finite word reads as the declared
+ *      travel (OMX_PITCH_*, omxdsp_definitions.h; a non-finite word reads as the declared
  *      default) and hands them to the kernel's own omx_pitch_resolve(). That resolve is `exp2f`
  *      and a filter design, so it runs only when a clamped control MOVED.
  *   3. IN -> OUT. The kernel works IN PLACE on two distinct legs; run() copies in to out where

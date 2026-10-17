@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Public headers that omxdsp.h deliberately does not include, relative to include/omxdsp.
 # A name ending in / stands for the whole directory. tools/umbrella-check.sh reads this list.
 analysis/

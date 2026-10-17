@@ -1,0 +1,274 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [],
+  "constants": {
+    "SUBHARMONIC_RADIUS_BINS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#SUBHARMONIC_RADIUS_BINS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#omx_fbs_pshr"
+      },
+      "doc": "How far (bins) around bin/2 and bin/3 PSHR (`omx_fbs_pshr`) scans for a sub-harmonic line. A true half/third partial lands mid-bin in the worst case (bin/2 and bin/3 are rarely integers) and spectral leakage smears it one bin further; ±2 covers both. Measured on the #116 live-music corpus: every false positive's sub-line sat inside this window. Deliberately NOT wider — at low bins the window is already a large fraction of an octave, and widening it would start reading unrelated program lines as \"sub-harmonics\" of real feedback.",
+      "unit": "",
+      "value": 2
+    },
+    "FBS_PAPR_GUARD_BINS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#FBS_PAPR_GUARD_BINS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#papr"
+      },
+      "doc": "PAPR's guard band: bins either side of the peak left out of the floor average (its own skirt).",
+      "unit": "",
+      "value": 2
+    },
+    "FBS_PNPR_RADIUS_BINS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#FBS_PNPR_RADIUS_BINS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#pnpr"
+      },
+      "doc": "PNPR's neighbourhood radius in bins, and the guard inside it that belongs to the peak's own skirt: a pure tone is compared with bins 2 and 3 away on each side.",
+      "unit": "",
+      "value": 3
+    },
+    "FBS_PNPR_GUARD_BINS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#FBS_PNPR_GUARD_BINS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#pnpr"
+      },
+      "doc": "The guard inside PNPR's neighbourhood radius that belongs to the peak's own skirt, in bins.",
+      "unit": "",
+      "value": 1
+    },
+    "FBS_PHPR_HARMONICS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#FBS_PHPR_HARMONICS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#phpr"
+      },
+      "doc": "How many harmonics PHPR reads above the candidate: 2f, 3f and 4f.",
+      "unit": "",
+      "value": 3
+    },
+    "FBS_PSHR_SELF_SKIP_BINS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#FBS_PSHR_SELF_SKIP_BINS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#self"
+      },
+      "doc": "PSHR skips sub-window bins within this many of the candidate, so a low bin never measures its own skirt as a sub-harmonic.",
+      "unit": "",
+      "value": 3
+    },
+    "FBS_FLOOR_LIN": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#FBS_FLOOR_LIN",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#to_db"
+      },
+      "doc": "The magnitude floor of every detector dB reading (−240 dB): a zero bin stays finite.",
+      "unit": "",
+      "value": 1e-12
+    },
+    "FBS_TRACK_SLOTS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#FBS_TRACK_SLOTS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        }
+      },
+      "doc": "Tracked candidate bins per armed channel. A candidate that finds no free slot is COUNTED and reported, never dropped silently; the identity corpus peaks at 34.",
+      "unit": "",
+      "value": 512
+    },
+    "PSHR_MIN_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#PSHR_MIN_DB",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        }
+      },
+      "doc": "Minimum PSHR (`omx_fbs_pshr`) (dB) for a candidate frame to count as sub-harmonic-CLEAN. Evidence-set on the #116 corpus, margin on both sides: the four live false positives (musical overtones at 1 869.1 / 832.0 / 263.7 / 228.5 Hz) read PSHR between −10.2 and +8.8 dB across their windows — never a 5-frame sub-clean stretch, and the single closest approach (+8.8) is isolated between frames at ≈ −1 and −10 — while the committed #106 injected ramp reads ≥ +12.2 dB from its second frame on (its frame 0 sits at +9.4, costing exactly one frame of confirm latency, pinned in the corpus test). A static program line at f/2 of REAL feedback also clears this fast: the runaway gains several dB per hop on anything static, so the deferral is transient.",
+      "unit": "dB",
+      "value": 10
+    },
+    "GROWTH_WINDOW_FRAMES": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#GROWTH_WINDOW_FRAMES",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#omx_fbs_push"
+      },
+      "doc": "How many of a candidate bin's most recent dB readings feed the growth-slope estimate (the engine's least-squares slope) — set equal to DEFAULT_THRESHOLDS's `persistFrames` so growth is judged over the SAME window persistence already demands (the full run since the bin became a candidate, not a shorter or longer slice of it). Long enough that a couple of noisy/vibrato frames can't fake a trend by themselves.",
+      "unit": "",
+      "value": 5
+    },
+    "DEEP_PLATEAU_FRAMES": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#DEEP_PLATEAU_FRAMES",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#by_deep"
+      },
+      "doc": "The DEEP plateau tier's dwell: ~2 s at the watcher's 10 Hz — the TIME that buys the deeper floor its music safety (see DetectThresholds.deepPlateauFloorDb).",
+      "unit": "",
+      "value": 20
+    },
+    "GROWTH_MIN_DB_PER_FRAME": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#GROWTH_MIN_DB_PER_FRAME",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        }
+      },
+      "doc": "Minimum least-squares slope, in dB PER FRAME, over GROWTH_WINDOW_FRAMES for a bin to count as \"running away\" rather than merely holding level. Set with real margin on BOTH sides — comfortably above measurement jitter on a held tone or a quiet/broadband mix (well under 0.2 dB/frame in practice) and comfortably below a genuine feedback ramp, which climbs several dB across a handful of ~20 ms hops as it heads toward clipping. The acceptance bar is \"arming must never burst-alarm on non-growing content\", so this errs conservative (under-fire a marginal ramp) rather than tight (risk a false alarm) — the ramp gate (`omx_fbs_is_growing`) also requires the window's end to sit above its start, a cheap belt-and-braces check against a fit dragged positive by one mid-window wobble.",
+      "unit": "dB",
+      "value": 0.8
+    },
+    "GROWTH_MAX_DIP_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#GROWTH_MAX_DIP_DB",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        }
+      },
+      "doc": "Largest single-frame DIP (dB) a run-away window may contain. Real feedback climbs every hop; a small allowance covers measurement jitter and the −0.3 dB-ish wobble frames seen on live captures, while any real drop (a note ending, tremolo) breaks the run.",
+      "unit": "dB",
+      "value": 0.5
+    },
+    "GROWTH_MIN_TOTAL_RISE_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#GROWTH_MIN_TOTAL_RISE_DB",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        }
+      },
+      "doc": "Minimum END-TO-END rise (dB) across the window. The live-music corpus showed sustained melody notes drifting up ~4–5 dB over a window without ever being feedback; a loop past unity gains several dB per hop and clears 6 dB in a window trivially. Below this the tone is holding level, not running away.",
+      "unit": "dB",
+      "value": 6
+    },
+    "GROWTH_MAX_SINGLE_FRAME_SHARE": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#GROWTH_MAX_SINGLE_FRAME_SHARE",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        }
+      },
+      "doc": "Cap on the share of the window's total rise a SINGLE frame may carry. Feedback is exponential in amplitude ⇒ linear in dB ⇒ its rise is distributed roughly evenly across the window; a musical attack / re-articulation puts almost the whole rise in one hop (the exact shape behind every one of the 72 live false positives of the live-music corpus). One half is generous to real ramps (an even N-frame ramp puts 1/(N−1) per hop) and fatal to steps. A side effect worth knowing: a 2-sample window can never pass (one hop IS the whole rise), so confirmation always rests on at least three frames of actual ramp evidence.",
+      "unit": "",
+      "value": 0.5
+    },
+    "GROWTH_CONFIRM_FRAMES": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#GROWTH_CONFIRM_FRAMES",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        }
+      },
+      "doc": "How many CONSECUTIVE frames the ramp gate (`omx_fbs_is_growing`) must hold before a bin confirms — the time-domain tiebreak for the one shape a single window cannot judge: a smooth musical crescendo. Within one window a +6 dB swell (live corpus: a C6 at 1 049 Hz, `[-53.7, -51.4, -50.4, -48, -47.3]`) is indistinguishable from slow feedback — the difference is only visible on the NEXT hop, where a crescendo peaks and plateaus (the window's rise collapses) while feedback keeps climbing. Requiring the gate to hold twice in a row costs a clean ramp nothing — its gate is already true while persistence is still arming — and blocks the swell that peaks the very frame it would have confirmed.",
+      "unit": "",
+      "value": 2
+    },
+    "DEFAULT_THRESHOLDS": {
+      "kind": "sheet",
+      "source": {
+        "from": {
+          "link": "core/src/feedback.ts#DEFAULT_THRESHOLDS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#papr_db"
+      },
+      "doc": "The corpus-tuned SAFE DEFAULT — today's exact gates, assembled byte-for-byte from the exported consts above (which stay the authoritative literal source, so the corpus test's import type { MagnitudeSeries } from './spectrum-bands.js'; imports remain the single truth). This is the ANCHOR the whole sensitivity mapping pins to: thresholdsFor`(0, 'live')` and `(0, 'fixed')` both deep-equal this object, so an untouched channel runs the identical detector it does now. `plateauFloorDb` is omitted ⇒ the #140 plateau route is OFF at the default.",
+      "value": {
+        "paprDb": 18,
+        "pnprDb": 12,
+        "phprDb": 9,
+        "persistFrames": 5,
+        "growthConfirmFrames": {
+          "ref": "GROWTH_CONFIRM_FRAMES"
+        },
+        "subCleanFrames": {
+          "ref": "GROWTH_WINDOW_FRAMES"
+        },
+        "growthMinTotalRiseDb": {
+          "ref": "GROWTH_MIN_TOTAL_RISE_DB"
+        },
+        "growthMaxSingleFrameShare": {
+          "ref": "GROWTH_MAX_SINGLE_FRAME_SHARE"
+        },
+        "growthMinDbPerFrame": {
+          "ref": "GROWTH_MIN_DB_PER_FRAME"
+        },
+        "growthMaxDipDb": {
+          "ref": "GROWTH_MAX_DIP_DB"
+        },
+        "pshrMinDb": {
+          "ref": "PSHR_MIN_DB"
+        }
+      }
+    },
+    "FBS_MAX_NOTCH_DEPTH_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/fbs.ts#FBS_MAX_NOTCH_DEPTH_DB",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#depth_db"
+      },
+      "doc": "THE NOTCH DEPTH LAW: the deepest cut any machine planter may propose from one reading, in dB. A number, not a literal at the call site, because two planters now lean on it. FBS derives a candidate's depth from the peak-to-average ratio around its bin and stops here; Room Analysis derives a mode's depth from its height above the median curve and is held to the SAME ceiling (the room-analysis design — \"never more than the FBS notch depth law\"). Written twice as `18` those two bounds would be equal by coincidence and could drift apart in silence. It is a CEILING ON THE PROPOSAL, not the final gain: a band that lands as a rampable BELL is bounded again by `EQ_GAIN_RANGE`, which is tighter. A planter must honour both and REPORT when either bit, never quietly deliver a shallower cut than it was asked for.",
+      "unit": "dB",
+      "value": 18
+    },
+    "FBS_DEFAULT_NOTCH_Q": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#FBS_DEFAULT_NOTCH_Q",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "src/omx_fbs_detect.c#candidate_of"
+      },
+      "doc": "Default planted-notch width (Q) — the dbx-AFS-style ultra-narrow notch the corrector plants. `addBand`'s per-shape clamp holds it at 116 for a fixed notch and narrows it to 8 for a live bell, so this is the declared starting point rather than the width every notch ends up with.",
+      "unit": "",
+      "value": 116
+    }
+  }
+}

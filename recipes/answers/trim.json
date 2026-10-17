@@ -1,0 +1,48 @@
+{
+  "kernel": "trim",
+  "since": "2.3.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "origin/main",
+    "commit": "5d9804ad56ffba1133f860a7bd198b3613c89767"
+  },
+  "items": [
+    {
+      "name": "TRIM_RANGE",
+      "source": {
+        "origin": "the console engine's trim range { minDb: -24, maxDb: 24, stepDb: 0.1 }, applied as the lane's head gain by its mixing path (omx_fill_gain); 0 dB is the trim a channel has when none is set"
+      },
+      "value": {
+        "min": -24,
+        "max": 24,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The digital input trim, in dB: the console's fine head gain, applied first in a channel's lane as a click-free ramp from the last block's gain to this one (the console's trim range, -24..+24 dB in 0.1 dB steps, spelled minDb/maxDb/stepDb there). It comes up at 0 dB, the trim a channel has when none is set. omx-dsp's trim face takes it as `trim_db`."
+    },
+    {
+      "name": "TRIM_TRAVELS",
+      "source": {
+        "origin": "omx-contract 1.2.0 data/primitives.json TRIM_TRAVELS, the table omx-plugins' strip declaration reads (ref TRIM_TRAVELS, field trimDb); its one field is TRIM_RANGE"
+      },
+      "value": {
+        "trimDb": {
+          "min": -24,
+          "max": 24,
+          "step": 0.1,
+          "unit": "dB",
+          "default": 0,
+          "defaultFrom": "desk"
+        }
+      },
+      "doc": "The trim as a table with the one field `trimDb`, the name the trim row and the omx-strip plugin store; generated from the trim kernel's control, so the travel has one home.",
+      "set": {
+        "trimDb": {
+          "ref": "TRIM_RANGE"
+        }
+      }
+    }
+  ]
+}

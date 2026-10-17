@@ -33,13 +33,13 @@
 #define OMX_HRP_ATTRIBUTE_H
 
 #include <math.h>
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <omxdsp/analysis/omx_hrp_pitch.h>
 
-/* The attribution window is OMX_HRP_ATTRIBUTION_CENTS from the generated omx_contract_limits.h (declared
+/* The attribution window is OMX_HRP_ATTRIBUTION_CENTS from the generated omxdsp_definitions.h (declared
  * once, in the declarations package; §11) — two partials closer than it are one spectral event. */
 
 /** What ambiguity does to a measurement's confidence. Not zero: the partial IS there and the

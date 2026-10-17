@@ -24,7 +24,7 @@
 
 #include "omx_biquad.h"
 #include "omx_contract.h"
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include "omx_denormal.h"
 
 #ifndef M_PI

@@ -14,7 +14,7 @@
  *      declared order and user units (turns, Hz, ms, a voice count, percent) and turns them into
  *      the atom, the same conversions resolve_fx_chorus (mixer_rt.c) makes, with every knob
  *      clamped through omx_param into the declared travel (CHORUS_*_RANGE,
- *      omx_contract_limits.h): a foreign host's port is not the console's codec, and a non-finite
+ *      omxdsp_definitions.h): a foreign host's port is not the console's codec, and a non-finite
  *      word reads as the declared default.
  *   3. IN -> OUT. The kernel works IN PLACE; run() copies in to out where they differ (they may
  *      alias) and runs the kernel on out. Identity when bypassed or not ready.

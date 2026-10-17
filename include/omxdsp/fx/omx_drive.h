@@ -286,7 +286,7 @@ static inline float omx_drive_shape(int curve, float u) {
  * and refused: it puts the operating point at 0.7071*drive, past the swing of any input below
  * -3 dBFS, so the waveform never crosses back — a 1 kHz tone at -6 dBFS with 18 dB of drive came
  * out 40 dB down, a channel the operator would hear go silent. OMX_DRIVE_BIAS_MAX comes from the
- * generated omx_contract_limits.h (declared once, in core's drive-shaper).
+ * generated omxdsp_definitions.h (declared once, in core's drive-shaper).
  */
 
 /* The shaper's per-block constants for one `character`: the bias, and the offset+scale that
