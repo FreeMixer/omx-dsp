@@ -7,6 +7,9 @@
     {
       "name": "kind",
       "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/omx_gen.h#OMX_GEN_PINK"
+      },
       "doc": "The generator kinds, in surface order: its position is the integer omx-dsp's omx_gen_fill takes as its kind (OMX_GEN_OSC, OMX_GEN_WHITE, OMX_GEN_PINK).",
       "ids": [
         "oscillator",
@@ -18,6 +21,9 @@
       "name": "waveform",
       "kind": "choice",
       "global": "WAVEFORMS",
+      "source": {
+        "impl": "include/omxdsp/omx_gen.h#OMX_WAVE_SAW"
+      },
       "doc": "The selectable oscillator waveforms, in surface order: its position is the integer omx-dsp's omx_gen_osc takes (OMX_WAVE_SINE, OMX_WAVE_SQUARE, OMX_WAVE_SAW, OMX_WAVE_TRIANGLE).",
       "ids": [
         "sine",

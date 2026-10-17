@@ -81,6 +81,9 @@
     },
     "FLANGER_MAX_MS": {
       "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_flanger.h#OMX_FLANGER_CAP"
+      },
       "doc": "The longest delay a flanger sweep reaches, rounded up to whole ms: the base delay plus the depth maximum. The delay line is sized from it.",
       "unit": "ms",
       "value": {

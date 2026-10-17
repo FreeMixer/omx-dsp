@@ -97,6 +97,9 @@
     },
     "CHORUS_MAX_MS": {
       "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_chorus.h#OMX_CHORUS_CAP"
+      },
       "doc": "The longest delay a chorus voice reaches, rounded up to whole ms: the base delay plus the depth maximum. The delay line is sized from it.",
       "unit": "ms",
       "value": {

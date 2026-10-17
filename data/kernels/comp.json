@@ -195,6 +195,9 @@
     },
     "DETECTOR_OVERSAMPLE_LATENCY_SAMPLES": {
       "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/omx_oversampler.h#OMX_OVS_LATENCY_4X"
+      },
       "doc": "What the 4x detector oversampling costs the strip it is engaged on, in samples: the causal linear-phase half-band's reach, by which the audio is delayed so the gain still lands on the sample it was computed from. A sample count, not a time: the same at every rate. omx-dsp's oversampler declares the same number as OMX_OVS_LATENCY_4X, and its comp and gate faces report it while 4x is engaged.",
       "unit": "",
       "value": 72

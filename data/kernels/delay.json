@@ -82,6 +82,9 @@
     {
       "name": "pingpong",
       "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_PINGPONG_DEFAULT"
+      },
       "doc": "The FX delay's PING-PONG switch: on cross-feeds the two legs' feedback, so each leg's repeats come from the other leg's damped tap and the echoes bounce L<->R (`omx_delay.h`'s `struct omx_fx_delay.pingpong`, read where the feedback is formed). A live control on the console's delay row (`DelayState.pingpong`) and on the omx-delay plugin. Its come-up value is FX_DELAY_PINGPONG_DEFAULT, by reference, so the default keeps one home.",
       "ids": [
         "off",
@@ -99,6 +102,9 @@
       "name": "fxDelayTaps",
       "kind": "travel",
       "global": "FX_DELAY_TAPS_RANGE",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay.h#OMX_FXDELAY_MAX_TAPS"
+      },
       "doc": "How many integer read taps of the FX delay's one ring are engaged. 1 is the one-tap delay, bit for bit; `max` is the tap-array ceiling the kernel sizes its arrays by, so the arrays and the travel are one fact. An array extent is an integer constant: the C reader takes OMX_FX_DELAY_TAPS_RANGE_MAX (4) for `OMX_FXDELAY_MAX_TAPS` in `omx_delay.h`, never the alias OMX_DELAY_TAPS_MAX, which is the float 4.0f.",
       "travel": {
         "min": 1,
