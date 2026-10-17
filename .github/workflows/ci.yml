@@ -151,7 +151,7 @@ jobs:
       - name: make lib fails, naming omx-contract, the floor and ${{ env.OLD }}
         run: |
           set +e -uo pipefail
-          floor="$(sh tools/contract-include.sh --range | cut -d' ' -f1)"
+          floor="$(sh tools/contract-include.sh --floor)"
           make lib > out.txt 2>&1; rc=$?
           cat out.txt
           [ "$rc" != 0 ] || { echo "make lib built against omx-contract $OLD, below the floor $floor"; exit 1; }
