@@ -282,7 +282,9 @@ jobs:
   deb:
     name: libomxdsp-dev (${{ matrix.suite }}, ${{ matrix.arch }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # the package build runs make test (dh_auto_test), which alone takes 20 to 30 minutes on a hosted
+    # runner: 30 cut both suites off on every run since 2026-10-17, as it did the test job
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
