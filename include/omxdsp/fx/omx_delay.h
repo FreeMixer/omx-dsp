@@ -35,10 +35,10 @@
 #define OMX_FXDELAY_MAX_RATE OMX_RT_HARD_TARGET_RATE
 /** Per-leg ring capacity, samples: MAX_MS at MAX_RATE, +1 so the full max delay is usable. */
 #define OMX_FXDELAY_CAP (((OMX_FXDELAY_MAX_RATE / 1000) * OMX_FXDELAY_MAX_MS) + 1)
-/** Read-tap ceiling of the one ring per leg: the tap-delay variants' `taps` travel 1..4. omx-contract
- * does not declare that travel yet (FX_DELAY_TAPS_RANGE, to be rendered as OMX_DELAY_TAPS_MAX); when
- * it does, this reads it, as OMX_FXDELAY_MAX_MS reads the time travel. */
-#define OMX_FXDELAY_MAX_TAPS 4
+/** Read-tap ceiling of the one ring per leg: the tap-delay variants' `taps` travel 1..4, read from the
+ * generated header (OMX_FX_DELAY_TAPS_RANGE_MAX, FX_DELAY_TAPS_RANGE.max, the integer reader that sizes
+ * arrays), as OMX_FXDELAY_MAX_MS reads the time travel. */
+#define OMX_FXDELAY_MAX_TAPS OMX_FX_DELAY_TAPS_RANGE_MAX
 
 /** Control atom (word-atomic snapshot). `d_l`/`d_r` are per-leg delays in SAMPLES (caller converts
  * ms/tempo -> samples via omx_bpm_division_ms + rate). `feedback`/`mix`/`tone` in [0,1]. */
