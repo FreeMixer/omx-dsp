@@ -71,13 +71,32 @@ static double g_sr = 96000.0;
 #define SR g_sr
 
 /*
- * Two claims are measured at every rate and ASSERTED only at base rates of 88.2 kHz and above:
- * the 4x alias floor (-110 dBc) and the stage's reconstruction-ripple bound (1.15). The engine's
- * oracle stated both at the rate the rig runs (96 kHz) and the design calls them claims at
- * that rate; at 44.1 and 48 kHz the 4x shaper measures -100.8 and -83.1 dBc and a stage peak of
- * 1.165 and 1.163, printed on every run and not asserted. The no-oversampling CONTROL is asserted
- * wherever a product of order 9 folds into the audio band; above 96 kHz none does, and the line
- * says so instead of passing.
+ * THE MARKS, DECLARED PER RATE (omx-dsp#68, operator 2026-10-17). Two claims are asserted at each of
+ * the nine RME rates, 32..192 kHz, against the mark that rate can hold. The stage stays 4x at every
+ * rate: 8x below 88.2 kHz costs 2.1 times the CPU and 12 more samples of latency and does not make one
+ * set of marks hold (measured), so the marks differ by rate and each has its reason.
+ *
+ *   Stage peak (1 kHz full scale, +36 dB, character -1). The output is band-limited to the base
+ *   rate's Nyquist, so a hard-clipped edge shows Gibbs overshoot whatever the oversampling factor. An
+ *   ideal band-limit of the same waveform alone peaks at
+ *     32k 1.1750   44.1k 1.1697   48k 1.1678   64k 1.1589   88.2k 1.1421
+ *     96k 1.1358   128k 1.1079   176.4k 1.0631   192k 1.0486
+ *   The mark at a rate is that ideal peak plus 0.005, rounded up to 0.005: 1.18, 1.175, 1.175, 1.165,
+ *   and 1.15 from 88.2 kHz up (the claim the engine's oracle always stated at 96 kHz).
+ *
+ *   Alias floor (two-tone 1 kHz + 15 kHz, SOFT, +18 dB, worst folded product below 20 kHz at 4x). The
+ *   floor is set by the last half-band stage, which rejects 82.5 dB at 0.306 of the rate it runs at,
+ *   and not by the factor. At 44.1 kHz a wanted product at 26997 Hz (-18.4 dBc) folds through it to
+ *   17103 Hz and lands at -100.8 dBc; at 48 kHz the shaper's own alias at 7005 Hz lands at -83.1 dBc.
+ *   The marks are -100 dBc at 44.1 kHz, -82 dBc at 48 kHz and -110 dBc from 88.2 kHz up.
+ *
+ *   The alias arm is not run at 32, 64 and 128 kHz. There 1 kHz and 15 kHz sit on bins whose folded
+ *   products land on the fundamentals or on wanted intermodulation products (0 dBc at 32 and 64 kHz,
+ *   -45.7 dBc at 128 kHz at every factor, 1x included), so the arm measures the wanted signal and not
+ *   an alias. The band arm's high-tone H3 is skipped where it folds onto the tone itself (32 kHz).
+ *
+ * The no-oversampling CONTROL is asserted wherever a product of order 9 folds into the audio band;
+ * above 128 kHz none does, and the line says so instead of passing.
  */
 static int high_rate_claim(void) { return SR >= 88200.0; }
 #define NB 16384u
