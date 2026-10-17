@@ -1,0 +1,411 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "hpfOn",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#hon"
+      },
+      "doc": "The HPF's switch: off, the filter is not in the EQ's bank at all; on, its one or two Butterworth sections run after the bands. It comes up off, on the console's channel EQ and in omx-dsp's EQ face (see EQ_PASS_FILTER_DEFAULTS).",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "hpfFreq",
+      "kind": "travel",
+      "global": "HPF_FREQ_RANGE",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#hf"
+      },
+      "doc": "Where the HPF cutoff can sit (low end); mirrors the drawn low-frequency handle.",
+      "travel": {
+        "min": 20,
+        "max": 1000,
+        "step": 10,
+        "unit": "Hz"
+      }
+    },
+    {
+      "name": "hpfSlope",
+      "kind": "choice",
+      "global": "FILTER_SLOPES",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#OMX_EQ_LV2_SLOPE_24"
+      },
+      "doc": "The pass-filter slopes the EQ offers, in dB per octave: the HPF's slope, and by use the LPF's. The id is the slope: 12 is one maximally flat section, 24 the two-section Butterworth.",
+      "ids": [
+        12,
+        24
+      ],
+      "default": 12
+    },
+    {
+      "name": "lpfOn",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#lon"
+      },
+      "doc": "The LPF's switch: off, the filter is not in the EQ's bank at all; on, its one or two Butterworth sections run after the bands and the HPF. It comes up off, on the console's channel EQ and in omx-dsp's EQ face (see EQ_PASS_FILTER_DEFAULTS).",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "lpfFreq",
+      "kind": "travel",
+      "global": "LPF_FREQ_RANGE",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#lf"
+      },
+      "doc": "Where the LPF cutoff can sit (high end).",
+      "travel": {
+        "min": 1000,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz"
+      }
+    },
+    {
+      "name": "lpfSlope",
+      "kind": "choice",
+      "global": "FILTER_SLOPES"
+    },
+    {
+      "name": "bandType",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#OMX_EQ_LV2_ALLPASS2"
+      },
+      "doc": "The generic EQ band shapes, in the order a picker offers them and in the order of the integer a plugin host sees on a band type port. The id is the name; the position is the value. A bell is the shape a band added by the operator starts as.",
+      "ids": [
+        "bell",
+        "lowShelf",
+        "highShelf",
+        "notch",
+        "allpass1",
+        "allpass2"
+      ],
+      "default": "bell",
+      "labels": [
+        "Bell",
+        "Low Shelf",
+        "High Shelf",
+        "Notch",
+        "All-pass 1st",
+        "All-pass 2nd"
+      ],
+      "count": "EQ_BAND_COUNTS"
+    },
+    {
+      "name": "freq",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_band_freq_default"
+      },
+      "doc": "The frequency band a parametric band can be dragged across.",
+      "travel": {
+        "min": 20,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz"
+      },
+      "count": "EQ_BAND_COUNTS"
+    },
+    {
+      "name": "gain",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#g"
+      },
+      "doc": "The parametric-band gain travel, in dB. The ± scalar `clampEqGain` enforces is READ off this (the engine derives its gain limit from `max`), so the bound is stated once and a surface cannot draw a wider knob than the clamp will honour.",
+      "travel": {
+        "min": -15,
+        "max": 15,
+        "step": 0.5,
+        "unit": "dB"
+      },
+      "count": "EQ_BAND_COUNTS"
+    },
+    {
+      "name": "q",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_clamp_q"
+      },
+      "doc": "The Q (resonance) extent of a parametric band.",
+      "travel": {
+        "min": 0.3,
+        "max": 8,
+        "step": 0.1,
+        "unit": ""
+      },
+      "count": "EQ_BAND_COUNTS"
+    },
+    {
+      "name": "notchQ",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_clamp_q"
+      },
+      "doc": "The Q extent of a NOTCH band. Wider than EQ_Q_RANGE on purpose (#116, operator decision): an ultra-narrow surgical cut is the notch shape's whole point — the FBS ring-out pool plants dbx-AFS-style ring killers at Q ≈ 116 (~1/80 octave), inaudible on program yet fatal to a single ringing frequency. Gain-carrying shapes stay bounded at EQ_Q_RANGE — a Q-116 bell is a resonator, not an EQ move.",
+      "travel": {
+        "min": 0.3,
+        "max": 116,
+        "step": 1,
+        "unit": ""
+      },
+      "of": "q",
+      "when": {
+        "control": "bandType",
+        "is": "notch"
+      }
+    },
+    {
+      "name": "bandOn",
+      "kind": "choice",
+      "doc": "A band's switch. Off, the band is not in the EQ's bank (the slots close up); on, it runs, parked when it is a gain-carrying shape at 0 dB. A band comes up off (operator ruling, 2026-10-13): an omx-eq plugin brings every band up off so a racked instance is a wire, and the console's channel EQ reads its come-up value here. A stored session keeps its own band states; only a fresh band comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "count": "EQ_BAND_COUNTS"
+    }
+  ],
+  "constants": {
+    "EQ_MAX_BANDS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#nb"
+      },
+      "doc": "The maximum number of parametric bands a channel EQ may hold — the operator can add up to this many. Generated into `omx_contract_limits.h` as `OMX_EQ_MAX_BANDS`, which `omx_biquad.h` reads (the engine's conformance test reads the header): the native lane allocates exactly this many biquad slots per channel and silently clamps above it, so the model, the wire, and the DSP agree by test, not by memory.",
+      "unit": "",
+      "value": 24
+    },
+    "ISO_THIRD_OCTAVE_CENTRES_HZ": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_geq_instance.h#OMX_GEQ_INSTANCE_CENTRES_HZ"
+      },
+      "doc": "The standard ISO 266 one-third-octave centre frequencies, 20 Hz–20 kHz (31 bands) — the classic 31-band graphic-EQ layout's centres.",
+      "unit": "Hz",
+      "values": [
+        20,
+        25,
+        31.5,
+        40,
+        50,
+        63,
+        80,
+        100,
+        125,
+        160,
+        200,
+        250,
+        315,
+        400,
+        500,
+        630,
+        800,
+        1000,
+        1250,
+        1600,
+        2000,
+        2500,
+        3150,
+        4000,
+        5000,
+        6300,
+        8000,
+        10000,
+        12500,
+        16000,
+        20000
+      ]
+    },
+    "GEQ_BANDS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_geq_instance.h#acc"
+      },
+      "doc": "The graphic EQ's section count: DERIVED from ISO_THIRD_OCTAVE_CENTRES_HZ, never a second literal. Generated into `omx_contract_limits.h` as `OMX_GEQ_BANDS`, which sizes `mix_geq.h`'s section array — its OWN budget, never a claimant on EQ_MAX_BANDS (roster ruling 3).",
+      "unit": "",
+      "value": {
+        "derive": "count",
+        "of": "ISO_THIRD_OCTAVE_CENTRES_HZ"
+      }
+    },
+    "OPERATOR_EQ_BANDS_RESERVE": {
+      "kind": "scalar",
+      "doc": "The band slots kept for the operator's own hand: the reserve the feedback suppressor and the ring correction may never eat into. Nine is the working set a live EQ actually holds. The budget OPERATOR_EQ_BANDS_RESERVE + FBS_DEFAULT_MAX_AUTO_BANDS + HRP_DEFAULT_MAX_AUTO_BANDS (9 + 6 + 8 = 23) must fit EQ_MAX_BANDS, and `omx-contract validate` refuses data where it does not.",
+      "unit": "",
+      "value": 9
+    },
+    "EQ_BAND_COUNTS": {
+      "kind": "sheet",
+      "doc": "How many bands each strip type's EQ starts with (`default`) and may hold (`max`). `channel` is the console's channel strip: it starts with four and the operator adds bands up to EQ_MAX_BANDS (a band added takes the frequency it is added at, so no default is declared for it). `strip` is the omx-strip plugin's EQ and `eq8`, `eq16` and `eq32` the omx-eq plugins, whose bands are fixed. A default may never exceed its maximum, and the default centres of any count come from the one default rule, whatever the strip.",
+      "value": {
+        "channel": {
+          "default": 4,
+          "max": {
+            "ref": "EQ_MAX_BANDS"
+          }
+        },
+        "strip": {
+          "default": 4,
+          "max": 4
+        },
+        "eq8": {
+          "default": 8,
+          "max": 8
+        },
+        "eq16": {
+          "default": 16,
+          "max": 16
+        },
+        "eq32": {
+          "default": 32,
+          "max": 32
+        }
+      }
+    },
+    "EQ_BAND_DEFAULTS": {
+      "kind": "sheet",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#OMX_EQ_LV2_BAND_Q_DEFAULT"
+      },
+      "doc": "What every band of a fresh EQ comes up at, whatever its type and its strip: flat (0 dB) and Q 1. The band frequencies and types come from the default rule.",
+      "value": {
+        "gainDb": 0,
+        "q": 1
+      }
+    },
+    "EQ_PASS_FILTER_DEFAULTS": {
+      "kind": "sheet",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_eq_instance.h#OMX_EQ_LV2_HPF_FREQ_DEFAULT"
+      },
+      "doc": "The corners the high-pass and low-pass filters of a fresh EQ are parked at, whatever the strip. Both come up off.",
+      "value": {
+        "hpfFreqHz": 80,
+        "lpfFreqHz": 18000
+      }
+    },
+    "EQ_DEFAULT_CENTRES_FOUR_BAND_HZ": {
+      "kind": "list",
+      "doc": "The default band centres of a four-band EQ, Hz: ISO 266 preferred values, two to two and a half octaves apart. The default rule gives every other band count its centres from the preferred series; four bands start here.",
+      "unit": "Hz",
+      "values": [
+        100,
+        400,
+        2000,
+        8000
+      ]
+    },
+    "EQ_CENTRE_SERIES_R20_HZ": {
+      "kind": "list",
+      "doc": "The ISO 266 R20 preferred frequencies from 20 Hz to 20 kHz (61 values, sixth-octave spacing): the finer series the default band rule falls back to where R10 (ISO_THIRD_OCTAVE_CENTRES_HZ, 31 values) has too few to give every band its own centre. R10 is a subset of it.",
+      "unit": "Hz",
+      "values": [
+        20,
+        22.4,
+        25,
+        28,
+        31.5,
+        35.5,
+        40,
+        45,
+        50,
+        56,
+        63,
+        71,
+        80,
+        90,
+        100,
+        112,
+        125,
+        140,
+        160,
+        180,
+        200,
+        224,
+        250,
+        280,
+        315,
+        355,
+        400,
+        450,
+        500,
+        560,
+        630,
+        710,
+        800,
+        900,
+        1000,
+        1120,
+        1250,
+        1400,
+        1600,
+        1800,
+        2000,
+        2240,
+        2500,
+        2800,
+        3150,
+        3550,
+        4000,
+        4500,
+        5000,
+        5600,
+        6300,
+        7100,
+        8000,
+        9000,
+        10000,
+        11200,
+        12500,
+        14000,
+        16000,
+        18000,
+        20000
+      ]
+    },
+    "LOWPASS_HANDOVER": {
+      "kind": "sheet",
+      "doc": "Where the low-pass section hands its poles over from the matched pair to the prewarped bilinear pair, as fractions of Nyquist, and how that band moves with Q. At `qHi` (1/sqrt(2), the 12 dB Butterworth) the band runs from `loAtHiQ` to `hiAtHiQ`; at `qLo` (0.5412, the low-Q half of the 24 dB Butterworth) and below, from `loAtLoQ` to `hiAtLoQ`; between the two it moves linearly. Above `qHi` the prototype peaks, and the band's end moves down to `hiAtPeakQ` by `qPeak`, held above it. Below the band the low-pass is the matched design unchanged.",
+      "value": {
+        "qHi": {
+          "ref": "BUTTERWORTH_Q"
+        },
+        "qLo": 0.541196100146197,
+        "qPeak": 0.9,
+        "loAtHiQ": 0.6,
+        "hiAtHiQ": 0.85,
+        "loAtLoQ": 0.8,
+        "hiAtLoQ": 0.9,
+        "hiAtPeakQ": 0.8
+      }
+    }
+  }
+}
