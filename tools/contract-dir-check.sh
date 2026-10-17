@@ -16,7 +16,11 @@
 # and three arms that must each be refused with their code: an installed file changed after the manifest
 # (contract.manifest.mismatch), a file installed with no schema floor (contract.schema.floor-absent) and an
 # impl link to a symbol this tree does not define (contract.source.symbol-absent).
-# Exit 0 green; 1 a check or an arm failed; 2 usage or environment (no node, no checkout), never a pass.
+# It reads only against a contract that already dropped this tree's files (no overlap: a definition has one
+# installed home, and the reader refuses a second with contract.item.duplicate). A checkout that still carries one of
+# them is an environment this check cannot read, exit 2, named, before anything runs.
+# Exit 0 green; 1 a check or an arm failed; 2 usage or environment (no node, no checkout, a checkout that still
+# carries this tree's definitions), never a pass.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 [ "$#" -eq 2 ] || { sed -n '8p' "$0" >&2; exit 2; }
@@ -47,6 +51,19 @@ refused() {
   grep -q "^$code " <<<"$got" || { echo "contract-dir-check: $what: refused, but not with $code" >&2; printf '%s\n' "$got" | tail -3 >&2; return 1; }
   echo "contract-dir-check: $what: refused with $code"
 }
+
+# the checkout must not hold a definition this tree holds: the same file, or the same item in another file
+held="$(cd "$OC" && node --input-type=module -e '
+const [oc, own] = process.argv.slice(1);
+const { loadData } = await import(oc + "/lib/data.mjs");
+const names = (d) => new Map([...loadData(d).items.values()].map((it) => [it.name, it.rel]));
+const theirs = names(oc + "/data");
+for (const [n, rel] of names(own)) if (theirs.has(n)) console.log(`${n} (${rel} here, ${theirs.get(n)} there)`);
+' "$OC" "$HERE/data" 2>&1)" || { echo "contract-dir-check: cannot read the definitions of $OC or data/: $held" >&2; exit 2; }
+if [ -n "$held" ]; then
+  echo "contract-dir-check: $OC still carries $(wc -l <<<"$held") of this tree's definitions, e.g. $(head -1 <<<"$held"): this check reads against a contract that dropped them" >&2
+  exit 2
+fi
 
 dir="$out/dir"
 install_both "$dir" "$HERE/data"
