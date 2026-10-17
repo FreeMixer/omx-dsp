@@ -84,7 +84,6 @@ jobs:
           fi
           pkg-config --modversion omx-contract
           sh tools/contract-include.sh
-          sh tools/contract-include.sh --data
 
       - name: The version agrees everywhere it is written
         id: handback-version
