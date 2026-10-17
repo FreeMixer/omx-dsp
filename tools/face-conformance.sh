@@ -29,7 +29,9 @@ PENDING=""
 # face does not take yet: "<kernel>:<control>" in C case. An installed contract inside the range may carry them
 # (FreeMixer/omx-dsp#95); the face may omit them, and must take them in order when it does. Every other
 # control still has to be taken, so the list only shrinks as faces catch up.
-NEWER="gate:hp_hz gate:lp_hz drive:oversample"
+NEWER="gate:hp_hz gate:lp_hz drive:oversample
+  delay:fx_delay_taps delay:tap0_gain delay:tap0_pan delay:tap1_gain delay:tap1_pan delay:tap2_gain delay:tap2_pan
+  delay:tap3_gain delay:tap3_pan geq:mode"
 
 # controls <kernel.json>: "name kind count" per control, in the declared order; `count` is the
 # control's count (a control taken once per band) or "-". A control that carries `of` is another
