@@ -33,7 +33,7 @@
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
-#   make delay-taps-sabotage  the FX delay's read-tap oracle fails against six sabotages
+#   make delay-taps-sabotage  the FX delay's read-tap oracle fails against ten sabotages
 #   make align-fdelay-sabotage  the strip alignment stage's oracle fails against five sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
@@ -243,7 +243,7 @@ perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
 geq-true-sabotage: test/fx/geq_true.test.c test/fx/geq-true-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/geq-true-sabotage.sh $(BUILD)/geq-true-sabotage $(LIB_CONTRACTS)
 
-# The FX delay's read-tap oracle against six sabotaged copies of omx_delay.h, each red on its named
+# The FX delay's read-tap oracle against ten sabotaged copies of omx_delay.h, each red on its named
 # arm (test/fx/delay-taps-sabotage.sh); the real oracle in test-fx is the control.
 delay-taps-sabotage: test/fx/delay_taps.test.c test/fx/delay-taps-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/delay-taps-sabotage.sh $(BUILD)/delay-taps-sabotage $(LIB_CONTRACTS)
@@ -350,6 +350,9 @@ FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter d
 # The instance faces with golden digests of their own: test/fx/<k>_instance_golden.test.c,
 # compared with test/golden/<k>_instance.sha256.
 FX_INSTANCE_GOLDENS = pitch
+# The further oracles with golden digests of their own: test/fx/<o>_golden.test.c, compared with
+# test/golden/<o>.sha256.
+FX_ORACLE_GOLDENS = delay_taps
 # A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
 FX_PERTURB = $(wildcard test/fx/*-perturb.sh)
 FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
@@ -389,7 +392,8 @@ $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k)_math.test.c),$(BUILD)/fx_$(k)_math) $(BUILD)/fx_$(k)_golden) \
           $(foreach k,$(FX_INSTANCES),$(BUILD)/fx_$(k)_instance) \
           $(foreach o,$(FX_ORACLES),$(BUILD)/fx_$(o)) \
-          $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden)
+          $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden) \
+          $(foreach o,$(FX_ORACLE_GOLDENS),$(BUILD)/fx_$(o)_golden)
 
 test-fx: $(FX_BINS)
 	@set -e; for k in $(FX_KERNELS); do \
@@ -403,6 +407,9 @@ test-fx: $(FX_BINS)
 	  echo "./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256"; \
 	  ./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256; \
 	done
+	@set -e; for o in $(FX_ORACLE_GOLDENS); do \
+	  echo "./$(BUILD)/fx_$${o}_golden test/golden/$$o.sha256"; ./$(BUILD)/fx_$${o}_golden test/golden/$$o.sha256; \
+	done
 	@set -e; for p in $(FX_PERTURB); do \
 	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
 	done
@@ -414,12 +421,13 @@ strip-input-identity: $(LIB)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh "$(OMX_PLUGINS)"
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/strip-input-identity.sh --self-test "$(OMX_PLUGINS)"
 
-golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden) $(BUILD)/eq_bandwidth_q_table
+golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden) $(foreach o,$(FX_ORACLE_GOLDENS),$(BUILD)/fx_$(o)_golden) $(BUILD)/eq_bandwidth_q_table
 	./$(BUILD)/eq_bandwidth_q_table > test/golden/eq_bandwidth_q.json
 	@set -e; for k in $(FX_KERNELS); do ./$(BUILD)/fx_$${k}_golden --write > test/golden/$$k.sha256; done
 	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
 	  ./$(BUILD)/fx_$${k}_instance_golden --write > test/golden/$${k}_instance.sha256; \
 	done
+	@set -e; for o in $(FX_ORACLE_GOLDENS); do ./$(BUILD)/fx_$${o}_golden --write > test/golden/$$o.sha256; done
 
 # ---- the analysis engines ---------------------------------------------------------------------
 # FBS feedback detection and HRP read a spectrum and answer what rings and what to cut; they run on
