@@ -10,7 +10,7 @@
       "global": "DEESS_FREQ_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#DEESS_FREQ_RANGE",
+          "link": "declarations/src/index.ts#DEESS_FREQ_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_freq"
@@ -31,7 +31,7 @@
       "global": "DEESS_WIDTH_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#DEESS_WIDTH_RANGE",
+          "link": "declarations/src/index.ts#DEESS_WIDTH_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_width"
@@ -52,7 +52,7 @@
       "global": "DEESS_THRESHOLD_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#DEESS_THRESHOLD_RANGE",
+          "link": "declarations/src/index.ts#DEESS_THRESHOLD_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_threshold"
@@ -73,7 +73,7 @@
       "global": "DEESS_RATIO_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#DEESS_RATIO_RANGE",
+          "link": "declarations/src/index.ts#DEESS_RATIO_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_ratio"
@@ -94,7 +94,7 @@
       "global": "DEESS_RANGE_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#DEESS_RANGE_RANGE",
+          "link": "declarations/src/index.ts#DEESS_RANGE_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_range"
@@ -115,7 +115,7 @@
       "global": "DEESS_ATTACK_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#DEESS_ATTACK_RANGE",
+          "link": "declarations/src/index.ts#DEESS_ATTACK_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_attack"
@@ -136,7 +136,7 @@
       "global": "DEESS_RELEASE_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#DEESS_RELEASE_RANGE",
+          "link": "declarations/src/index.ts#DEESS_RELEASE_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_release"
@@ -182,7 +182,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/deesser-curve.ts#DEESS_KNEE_DB",
+          "link": "core/src/deesser-curve.ts#DEESS_KNEE_DB",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_deesser_instance.h#knee_db"

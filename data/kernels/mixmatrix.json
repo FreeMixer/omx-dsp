@@ -8,7 +8,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/console-allocation.ts#BUS_INPUT_CAP",
+          "link": "core/src/console-allocation.ts#BUS_INPUT_CAP",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         }
       },

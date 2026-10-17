@@ -9,7 +9,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#SUBHARMONIC_RADIUS_BINS",
+          "link": "core/src/feedback.ts#SUBHARMONIC_RADIUS_BINS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#omx_fbs_pshr"
@@ -22,7 +22,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#FBS_PAPR_GUARD_BINS",
+          "link": "core/src/feedback.ts#FBS_PAPR_GUARD_BINS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#papr"
@@ -35,7 +35,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#FBS_PNPR_RADIUS_BINS",
+          "link": "core/src/feedback.ts#FBS_PNPR_RADIUS_BINS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#pnpr"
@@ -48,7 +48,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#FBS_PNPR_GUARD_BINS",
+          "link": "core/src/feedback.ts#FBS_PNPR_GUARD_BINS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#pnpr"
@@ -61,7 +61,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#FBS_PHPR_HARMONICS",
+          "link": "core/src/feedback.ts#FBS_PHPR_HARMONICS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#phpr"
@@ -74,7 +74,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#FBS_PSHR_SELF_SKIP_BINS",
+          "link": "core/src/feedback.ts#FBS_PSHR_SELF_SKIP_BINS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#self"
@@ -87,7 +87,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#FBS_FLOOR_LIN",
+          "link": "core/src/feedback.ts#FBS_FLOOR_LIN",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#to_db"
@@ -100,7 +100,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#FBS_TRACK_SLOTS",
+          "link": "core/src/feedback.ts#FBS_TRACK_SLOTS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         }
       },
@@ -112,7 +112,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#PSHR_MIN_DB",
+          "link": "core/src/feedback.ts#PSHR_MIN_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         }
       },
@@ -124,7 +124,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#GROWTH_WINDOW_FRAMES",
+          "link": "core/src/feedback.ts#GROWTH_WINDOW_FRAMES",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#omx_fbs_push"
@@ -137,7 +137,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#DEEP_PLATEAU_FRAMES",
+          "link": "core/src/feedback.ts#DEEP_PLATEAU_FRAMES",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#by_deep"
@@ -150,7 +150,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#GROWTH_MIN_DB_PER_FRAME",
+          "link": "core/src/feedback.ts#GROWTH_MIN_DB_PER_FRAME",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         }
       },
@@ -162,7 +162,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#GROWTH_MAX_DIP_DB",
+          "link": "core/src/feedback.ts#GROWTH_MAX_DIP_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         }
       },
@@ -174,7 +174,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#GROWTH_MIN_TOTAL_RISE_DB",
+          "link": "core/src/feedback.ts#GROWTH_MIN_TOTAL_RISE_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         }
       },
@@ -186,7 +186,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#GROWTH_MAX_SINGLE_FRAME_SHARE",
+          "link": "core/src/feedback.ts#GROWTH_MAX_SINGLE_FRAME_SHARE",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         }
       },
@@ -198,7 +198,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#GROWTH_CONFIRM_FRAMES",
+          "link": "core/src/feedback.ts#GROWTH_CONFIRM_FRAMES",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         }
       },
@@ -210,7 +210,7 @@
       "kind": "sheet",
       "source": {
         "from": {
-          "link": "packages/core/src/feedback.ts#DEFAULT_THRESHOLDS",
+          "link": "core/src/feedback.ts#DEFAULT_THRESHOLDS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#papr_db"
@@ -248,7 +248,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/fbs.ts#FBS_MAX_NOTCH_DEPTH_DB",
+          "link": "core/src/fbs.ts#FBS_MAX_NOTCH_DEPTH_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#depth_db"
@@ -261,7 +261,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#FBS_DEFAULT_NOTCH_Q",
+          "link": "declarations/src/index.ts#FBS_DEFAULT_NOTCH_Q",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "src/omx_fbs_detect.c#candidate_of"

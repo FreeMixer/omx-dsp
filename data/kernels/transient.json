@@ -74,7 +74,7 @@
     "TRANSIENT_LIMITS": {
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#TRANSIENT_LIMITS",
+          "link": "declarations/src/index.ts#TRANSIENT_LIMITS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         }
       },
@@ -86,7 +86,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-dynamics-limits.ts#TRANSIENT_FAST_ATTACK_MS",
+          "link": "core/src/strip-dynamics-limits.ts#TRANSIENT_FAST_ATTACK_MS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_transient.h#fast"
@@ -99,7 +99,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-dynamics-limits.ts#TRANSIENT_FAST_RELEASE_MS",
+          "link": "core/src/strip-dynamics-limits.ts#TRANSIENT_FAST_RELEASE_MS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_transient.h#fast"
@@ -112,7 +112,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-dynamics-limits.ts#TRANSIENT_REF_DB",
+          "link": "core/src/strip-dynamics-limits.ts#TRANSIENT_REF_DB",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_transient.h#inv_ref"
@@ -125,7 +125,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-dynamics-limits.ts#TRANSIENT_FLOOR_LIN",
+          "link": "core/src/strip-dynamics-limits.ts#TRANSIENT_FLOOR_LIN",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_transient.h#da"

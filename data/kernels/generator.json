@@ -9,7 +9,7 @@
       "kind": "choice",
       "source": {
         "from": {
-          "link": "packages/core/src/talkback.ts#GENERATOR_KINDS",
+          "link": "core/src/talkback.ts#GENERATOR_KINDS",
           "at": "openmixer@6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
         },
         "impl": "include/omxdsp/omx_gen.h#OMX_GEN_PINK"
@@ -27,7 +27,7 @@
       "global": "WAVEFORMS",
       "source": {
         "from": {
-          "link": "packages/core/src/talkback.ts#WAVEFORMS",
+          "link": "core/src/talkback.ts#WAVEFORMS",
           "at": "openmixer@6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
         },
         "impl": "include/omxdsp/omx_gen.h#OMX_WAVE_SAW"

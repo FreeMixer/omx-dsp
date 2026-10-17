@@ -9,7 +9,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#FLANGER_RATE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#FLANGER_RATE_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_flanger_instance.h#lfo_inc"
@@ -29,7 +29,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#FLANGER_DEPTH_RANGE",
+          "link": "core/src/strip-fx-limits.ts#FLANGER_DEPTH_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_flanger_instance.h#depth_samples"
@@ -49,7 +49,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#FLANGER_FEEDBACK_RANGE",
+          "link": "core/src/strip-fx-limits.ts#FLANGER_FEEDBACK_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_flanger_instance.h#feedback"
@@ -69,7 +69,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#FLANGER_MIX_RANGE",
+          "link": "core/src/strip-fx-limits.ts#FLANGER_MIX_RANGE",
           "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
         },
         "impl": "include/omxdsp/fx/omx_flanger_instance.h#mix"

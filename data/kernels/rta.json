@@ -8,7 +8,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/spectrum-bands.ts#RTA_TARGET_BIN_HZ",
+          "link": "core/src/spectrum-bands.ts#RTA_TARGET_BIN_HZ",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_rta.h#omx_rta_fft_size_for"
@@ -21,7 +21,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/spectrum-bands.ts#RTA_FFT_SIZE_MAX",
+          "link": "core/src/spectrum-bands.ts#RTA_FFT_SIZE_MAX",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_rta.h#omx_rta_fft_size_for"

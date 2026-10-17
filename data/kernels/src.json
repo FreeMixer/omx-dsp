@@ -8,7 +8,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/pipewire-native/src/mix_src.h#OMX_SRC_TAPS",
+          "link": "pipewire-native/src/mix_src.h#OMX_SRC_TAPS",
           "at": "openmixer@6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
         },
         "impl": "include/omxdsp/omx_src.h#omx_src_plan_of"
@@ -21,7 +21,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/pipewire-native/src/mix_src.h#OMX_SRC_STOPBAND_DB",
+          "link": "pipewire-native/src/mix_src.h#OMX_SRC_STOPBAND_DB",
           "at": "openmixer@6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
         }
       },
@@ -33,7 +33,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/pipewire-native/src/mix_src.h#OMX_SRC_ROLLOFF",
+          "link": "pipewire-native/src/mix_src.h#OMX_SRC_ROLLOFF",
           "at": "openmixer@6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
         }
       },
@@ -45,7 +45,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/pipewire-native/src/mix_src.h#OMX_SRC_MAX_L",
+          "link": "pipewire-native/src/mix_src.h#OMX_SRC_MAX_L",
           "at": "openmixer@6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
         },
         "impl": "include/omxdsp/omx_src.h#omx_src_plan_of"

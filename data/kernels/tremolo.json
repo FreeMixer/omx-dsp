@@ -10,7 +10,7 @@
       "global": "TREMOLO_RATE_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#TREMOLO_RATE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#TREMOLO_RATE_RANGE",
           "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
         },
         "impl": "include/omxdsp/fx/omx_tremolo_instance.h#lfo_inc"
@@ -30,7 +30,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#TREMOLO_DEPTH_RANGE",
+          "link": "core/src/strip-fx-limits.ts#TREMOLO_DEPTH_RANGE",
           "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
         },
         "impl": "include/omxdsp/fx/omx_tremolo_instance.h#depth"
@@ -50,7 +50,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#TREMOLO_MIX_RANGE",
+          "link": "core/src/strip-fx-limits.ts#TREMOLO_MIX_RANGE",
           "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
         },
         "impl": "include/omxdsp/fx/omx_tremolo_instance.h#mix"
@@ -80,7 +80,7 @@
     "TREMOLO_TRAVELS": {
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#TREMOLO_TRAVELS",
+          "link": "core/src/strip-fx-limits.ts#TREMOLO_TRAVELS",
           "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
         }
       },

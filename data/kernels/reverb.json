@@ -9,7 +9,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#REVERB_PLATE_MOD_DEPTH_RANGE",
+          "link": "declarations/src/index.ts#REVERB_PLATE_MOD_DEPTH_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#plate_mod_depth"
@@ -29,7 +29,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_MIX_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_MIX_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#omx_reverb_instance_resolve"
@@ -52,7 +52,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_SIZE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_SIZE_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#omx_reverb_instance_resolve"
@@ -72,7 +72,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_DAMPING_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_DAMPING_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#omx_reverb_instance_resolve"
@@ -92,7 +92,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_WIDTH_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_WIDTH_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#omx_reverb_instance_resolve"
@@ -112,7 +112,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_PREDELAY_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_PREDELAY_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#predelay_ms"
@@ -132,7 +132,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_LOWCUT_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_LOWCUT_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#lowcut"
@@ -152,7 +152,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_HIGHCUT_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_HIGHCUT_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#highcut"
@@ -172,7 +172,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_REVERSE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_REVERSE_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#reverse_ms"
@@ -192,7 +192,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_HOLD_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_HOLD_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#hold_ms"
@@ -212,7 +212,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_RELEASE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_RELEASE_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#release_ms"
@@ -232,7 +232,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#REVERB_GATE_THRESHOLD_RANGE",
+          "link": "core/src/strip-fx-limits.ts#REVERB_GATE_THRESHOLD_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_reverb_instance.h#gate_threshold_db"

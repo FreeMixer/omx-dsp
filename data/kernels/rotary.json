@@ -10,7 +10,7 @@
       "global": "ROTARY_HORN_SLOW_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_SLOW_RANGE",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_HORN_SLOW_RANGE",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#horn_slow_hz"
@@ -31,7 +31,7 @@
       "global": "ROTARY_HORN_FAST_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_FAST_RANGE",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_HORN_FAST_RANGE",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#horn_fast_hz"
@@ -52,7 +52,7 @@
       "global": "ROTARY_DRUM_SLOW_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_SLOW_RANGE",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_DRUM_SLOW_RANGE",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#drum_slow_hz"
@@ -73,7 +73,7 @@
       "global": "ROTARY_DRUM_FAST_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_FAST_RANGE",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_DRUM_FAST_RANGE",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#drum_fast_hz"
@@ -93,7 +93,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_ACCEL_RANGE",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_ACCEL_RANGE",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#accel"
@@ -113,7 +113,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_BALANCE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_BALANCE_RANGE",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#balance"
@@ -133,7 +133,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_MIX_RANGE",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_MIX_RANGE",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary_instance.h#mix"
@@ -163,7 +163,7 @@
     "ROTARY_TRAVELS": {
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_TRAVELS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_TRAVELS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         }
       },
@@ -184,7 +184,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_CROSSOVER_HZ",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_CROSSOVER_HZ",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -197,7 +197,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_BASE_MS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_BASE_MS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotor.h#base"
@@ -210,7 +210,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_DOPPLER_MS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_HORN_DOPPLER_MS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -223,7 +223,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_DOPPLER_MS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_DRUM_DOPPLER_MS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -236,7 +236,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_AM",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_HORN_AM",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -249,7 +249,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_AM",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_DRUM_AM",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -262,7 +262,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_ACCEL_MS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_HORN_ACCEL_MS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -275,7 +275,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_HORN_DECEL_MS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_HORN_DECEL_MS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -288,7 +288,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_ACCEL_MS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_DRUM_ACCEL_MS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -301,7 +301,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_DRUM_DECEL_MS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_DRUM_DECEL_MS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#omx_rotary_resolve"
@@ -314,7 +314,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_STOP_EPS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_STOP_EPS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotor.h#omx_rotor_step"
@@ -327,7 +327,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#ROTARY_RING_FLOATS",
+          "link": "core/src/strip-fx-limits.ts#ROTARY_RING_FLOATS",
           "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
         },
         "impl": "include/omxdsp/fx/omx_rotary.h#c"
