@@ -27,6 +27,7 @@ EXPAND_ONLY_PREDEF     = YES
 PREDEFINED             = OMX_CONTRACTS __x86_64__ "__attribute__(x)=" "OMXDSP_STATIC_ASSERT(c,m)="
 ALIASES               += "pre=\par Precondition:^^" \
                          "post=\par Postcondition:^^" \
-                         "invariant=\par Invariant:^^"
+                         "invariant=\par Invariant:^^" \
+                         "twin=\par Twin in TypeScript:^^"
 HAVE_DOT               = NO
 EXCLUDE_SYMBOLS        = OMX_CONTRACT_STAGE M_PI
