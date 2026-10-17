@@ -37,8 +37,8 @@
 #include "omx_contract.h"
 #include "omx_fdelay.h"
 
-/** @brief The alignment's ceiling, ms. */
-#define OMX_ALIGN_MAX_MS 100
+/** @brief The alignment's ceiling, ms: the contract's input alignment travel top (INPUT_ALIGN_DELAY_RANGE.max). */
+#define OMX_ALIGN_MAX_MS OMX_INPUT_ALIGN_DELAY_RANGE_MAX
 /** @brief Highest graph rate the alignment ring is sized for, so MAX_MS is reachable at every rate. */
 #define OMX_ALIGN_MAX_RATE OMX_RT_HARD_TARGET_RATE
 /** @brief The Lagrange order the alignment line constructs (fractional-delay-line §3: strip alignment). */
