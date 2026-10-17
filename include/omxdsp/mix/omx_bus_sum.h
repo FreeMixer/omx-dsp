@@ -63,10 +63,11 @@ static inline struct omx_mixmatrix_entry omx_bus_sum_entry(uint32_t strip, uint3
  * @param y The bus leg, `n` samples, added to.
  * @param x The source leg, `n` samples.
  * @param n Samples; at least 1.
- * @param e The entry (omx_bus_sum_entry()).
+ * @param e The entry (omx_bus_sum_entry()); a non-finite `g_prev` or `g_cur` is taken as 0.
  * @pre `finite-tap`, `finite-accumulator-in`.
  * @post `finite-accumulator-out`.
  * @note RT-safe: one pass, no branch in the loop, the ramp affine in `i` so the loop vectorises.
+ *       A NaN or infinite coefficient mutes the contribution; it never turns the accumulator to NaN.
  */
 static inline void omx_bus_sum_accumulate(float *restrict y, const float *x, uint32_t n,
                                           const struct omx_mixmatrix_entry *e) {
@@ -87,7 +88,8 @@ static inline void omx_bus_sum_accumulate(float *restrict y, const float *x, uin
  * @param a The source's left leg.
  * @param b The source's right leg; a mono source passes `a` again.
  * @param n Samples; at least 1.
- * @param e The entry: the fold's coefficient, already level × fold coefficient.
+ * @param e The entry: the fold's coefficient, already level × fold coefficient; a non-finite
+ *        `g_prev` or `g_cur` is taken as 0.
  * @post `finite-accumulator-out`.
  * @note RT-safe: one pass, no branch in the loop.
  */
