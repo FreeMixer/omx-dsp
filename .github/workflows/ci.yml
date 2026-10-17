@@ -205,7 +205,7 @@ jobs:
             | grep -v '^/usr/share/omx-contract/contract.d/2/omx-dsp/\(kernels\|primitives\)/' | sort > files.txt
           printf '%s\n' '/usr/lib*/libomxdsp.a' '/usr/lib*/libomxdsp-contracts.a' '/usr/lib*/libomxdsp-tsan.a' \
             '/usr/lib*/pkgconfig/omxdsp.pc' '/usr/lib*/pkgconfig/omxdsp-contracts.pc' '/usr/lib*/pkgconfig/omxdsp-tsan.pc' \
-            /usr/share/omx-contract/contract.d/2/omx-dsp/MANIFEST.json \
+            /usr/share/omx-contract/contract.d/2/omx-dsp/MANIFEST.json /usr/share/omx-contract/contract.d/2/omx-dsp/render.json \
             /usr/share/doc/omx-dsp-devel/BUILDING.md /usr/share/doc/omx-dsp-devel/README.md \
             /usr/share/licenses/omx-dsp-devel/LICENSE | sort > expected.txt
           diff -u expected.txt files.txt
