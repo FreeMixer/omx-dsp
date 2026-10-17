@@ -54,10 +54,12 @@ static void drain(float sr) {
 }
 
 /** The tap-delay factor set, num/den, in its declared order (2026-09-26 tap-delay variants §3:
- * DELAY_TAP_FACTORS). omx-contract does not render it yet; the kernel never reads it, only this
- * oracle's choice of taps. */
-static const int TAP_NUM[] = { 1, 1, 3, 1, 2, 3, 1, 4, 3, 2, 3 };
-static const int TAP_DEN[] = { 4, 3, 8, 2, 3, 4, 1, 3, 2, 1, 1 };
+ * DELAY_TAP_FACTORS), as omx-contract renders it (OMX_DELAY_TAP_FACTOR_NUMS / _DENS). The kernel never
+ * reads it, only this oracle's choice of taps. */
+static const int TAP_NUM[] = OMX_DELAY_TAP_FACTOR_NUMS_INIT;
+static const int TAP_DEN[] = OMX_DELAY_TAP_FACTOR_DENS_INIT;
+_Static_assert(sizeof TAP_NUM / sizeof TAP_NUM[0] == OMX_DELAY_TAP_FACTOR_NUMS_COUNT, "the factor numerators as declared");
+_Static_assert(sizeof TAP_DEN / sizeof TAP_DEN[0] == OMX_DELAY_TAP_FACTOR_DENS_COUNT, "the factor denominators as declared");
 #define NFACTORS ((int)(sizeof TAP_NUM / sizeof TAP_NUM[0]))
 
 static uint32_t g_rng = 0x2545F491u;

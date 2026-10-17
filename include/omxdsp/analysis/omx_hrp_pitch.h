@@ -52,8 +52,9 @@
  *
  * OMX_HRP_MAX_VOICES itself comes from the generated omx_contract_limits.h (declared once, in
  * the declarations package) — one number, no twin. */
-/* §9: H1..H12 per voice. 8 × 12 = 96 potential components, from which correction stays sparse. */
-#define OMX_HRP_HARMONICS 12
+/* §9: H1..H12 per voice. 8 × 12 = 96 potential components, from which correction stays sparse.
+ * The count is the contract's HRP_HARMONIC_COUNT. */
+#define OMX_HRP_HARMONICS OMX_HRP_HARMONIC_COUNT
 
 /** The confidence floor is HALF a voice's fair share — the divisor, named so both languages
  * derive the floor the same way (see {@link omx_hrp_min_confidence_for}). */

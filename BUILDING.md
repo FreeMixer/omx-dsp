@@ -244,8 +244,8 @@ digest.
 omx-dsp commits no limits header. Every limit, travel, default, list and choice the kernels read
 is declared in FreeMixer/omx-contract and read through `<omxcontract/omx_contract_limits.h>`.
 The dependency is declared once, in the packaging: `packaging/omx-dsp.spec` (`BuildRequires`,
-`Requires`) and `debian/control` (`Build-Depends`, `Depends`) carry the same range, a floor and the
-next minor as the ceiling (`>= 2.11.0`, `< 2.12`), and `omxdsp.pc` requires the same range. Install
+`Requires`) and `debian/control` (`Build-Depends`, `Depends`) carry the same floor and no upper
+bound (`>= 2.14.0`), and `omxdsp.pc` requires the same floor. Install
 it from the FreeMixer channel with the rest of the build dependencies:
 
     dnf builddep packaging/omx-dsp.spec     # Fedora, with the FreeMixer repository added
