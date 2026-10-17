@@ -141,6 +141,9 @@
     {
       "name": "autoGain",
       "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_drive_instance.h#OMX_DRIVE_INSTANCE_AUTO_GAIN_DEFAULT"
+      },
       "doc": "The drive's AUTO-GAIN switch: on, the stage measures its own level change and matches it out (`omx_drive.h`'s `struct omx_drive.auto_gain`), so turning the drive up adds colour rather than loudness. A field of the console's drive row (`DriveState.autoGain`), on at come-up there and in omx-dsp's drive face.",
       "ids": [
         "off",
@@ -155,6 +158,9 @@
     {
       "name": "stereoLink",
       "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_drive_instance.h#OMX_DRIVE_INSTANCE_STEREO_LINK_DEFAULT"
+      },
       "doc": "The drive's STEREO LINK switch: on, ONE auto-gain path is driven by both legs' summed energy, so the image cannot shift under the level match; off, each leg matches its own (`omx_drive.h`'s `struct omx_drive.stereo_link`). A field of the console's drive row (`DriveState.stereoLink`), on at come-up there and in omx-dsp's drive face.",
       "ids": [
         "off",
