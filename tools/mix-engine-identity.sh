@@ -3,9 +3,9 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # mix-engine-identity.sh — the mix module (include/omxdsp/mix/) gives the same bits as the copies
-# OpenMixer's engine carries, or carried, in its native sources. Two sets of kernels, each with its
-# own engine build of test/mix/golden.test.c, because the engine dropped the first set's copies
-# when it switched to this library:
+# OpenMixer's engine carries, or carried, in its native sources. Three sets of kernels, each with
+# its own engine build of test/mix/golden.test.c, because the engine dropped each set's copies
+# when it switched to this library for them:
 #   first  (-DOMX_GOLDEN_ENGINE, the engine's mix_dsp.h, mix_lcr.h, mix_bus.h and mix_gr_meter.h)
 #          the pan law, the LCR pan, the strip and fold coefficients, a bus's out stage, the block
 #          and leg peaks, the clip run, the peak hold, the gain-reduction reading, one analyser
@@ -13,8 +13,11 @@
 #   rest   (-DOMX_GOLDEN_ENGINE_REST, the engine's mix_dsp.h and mix_sum.h) the factored strip
 #          coefficient, the route gain stages (fill, fold, fold-fill), the strip's post-fader
 #          reading, the settled-silence test and the LCR fold's centre level
-# A set is compared when the engine tree carries its copies; a tree that carries neither set
-# compares nothing and fails.
+#   strip  (-DOMX_GOLDEN_ENGINE_STRIP, the engine's mix_dsp.h) the bus stages of mix/omx_bus_stage.h:
+#          one source summed into a stereo bus, a bus's out gain and its whole out stage, which keep
+#          the engine's names, so the build must never reach the library's omx_bus_stage.h
+# A set is compared when the engine tree carries its copies; a tree that carries no set compares
+# nothing and fails.
 #
 #   tools/mix-engine-identity.sh <engine-src>             the check
 #   tools/mix-engine-identity.sh --write <engine-src>     print the
@@ -41,8 +44,8 @@ CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2}"
 INCLUDE="${ENGINE_IDENTITY_INCLUDE:-$PKG/include}"
 
 # set_headers <set>: the engine headers a set's build reads; set_define <set>: its build's define
-set_headers() { case "$1" in first) echo "mix_dsp.h mix_lcr.h mix_bus.h mix_gr_meter.h" ;; rest) echo "mix_dsp.h mix_sum.h" ;; esac; }
-set_define() { case "$1" in first) echo "-DOMX_GOLDEN_ENGINE" ;; rest) echo "-DOMX_GOLDEN_ENGINE_REST" ;; esac; }
+set_headers() { case "$1" in first) echo "mix_dsp.h mix_lcr.h mix_bus.h mix_gr_meter.h" ;; rest) echo "mix_dsp.h mix_sum.h" ;; strip) echo "mix_dsp.h" ;; esac; }
+set_define() { case "$1" in first) echo "-DOMX_GOLDEN_ENGINE" ;; rest) echo "-DOMX_GOLDEN_ENGINE_REST" ;; strip) echo "-DOMX_GOLDEN_ENGINE_STRIP" ;; esac; }
 # The rest's engine copies, one defining line each, in an engine whose mix_dsp.h takes the rest of
 # the mix module from this library (an older engine's own copies of it collide with the library's
 # in one build): file|extended regex
@@ -54,6 +57,12 @@ mix_dsp.h|^static inline void omx_fold_fill\(
 mix_dsp.h|^static inline float omx_strip_meter\(
 mix_dsp.h|^static inline bool omx_strip_silent\(
 mix_dsp.h|^#define OMX_CUE_FOLD_CLEV '
+# The bus stages' engine copies, in an engine whose mix_dsp.h takes the rest of the mix module from
+# this library: file|extended regex
+STRIP_COPIES='mix_dsp.h|^#include <omxdsp/mix/omx_route_gain.h>
+mix_dsp.h|^static inline void omx_mix_strip\(
+mix_dsp.h|^static inline void omx_bus_out_gain\(
+mix_dsp.h|^static inline void omx_bus_out_stage\('
 
 # carries <set> <engine src dir>: whether the engine tree carries the set's copies
 carries() {
@@ -61,6 +70,9 @@ carries() {
   for h in $(set_headers "$1"); do [ -f "$2/$h" ] || return 1; done
   if [ "$1" = rest ]; then
     while IFS='|' read -r f re; do grep -qE "$re" "$2/$f" || return 1; done <<<"$REST_COPIES"
+  fi
+  if [ "$1" = strip ]; then
+    while IFS='|' read -r f re; do grep -qE "$re" "$2/$f" || return 1; done <<<"$STRIP_COPIES"
   fi
   return 0
 }
@@ -109,6 +121,13 @@ build() {
     fi
     carries rest "$src" || { echo "mix-engine-identity: FAIL — $src lacks one of the rest's engine copies"; return 1; }
   fi
+  if [ "$set" = strip ]; then
+    if grep -qE "^\.+ .*/omxdsp/mix/omx_bus_stage\.h$" "$out/trace"; then
+      echo "mix-engine-identity: FAIL — the bus stages' engine build reached the library's omx_bus_stage.h, so it compared the library with itself"
+      return 1
+    fi
+    carries strip "$src" || { echo "mix-engine-identity: FAIL — $src lacks one of the bus stages' engine copies"; return 1; }
+  fi
 }
 
 # run_set <set> <engine src dir> <scratch dir>: one set's digests through the engine's copies
@@ -125,7 +144,7 @@ run_set() {
 # run_check <engine src dir> <scratch dir>: every set the tree carries; carrying none is a failure
 run_check() {
   local set ran=0
-  for set in first rest; do
+  for set in first rest strip; do
     if carries "$set" "$1"; then
       run_set "$set" "$1" "$2/$set" || return 1
       ran=1
@@ -133,12 +152,12 @@ run_check() {
       echo "mix-engine-identity: $1 does not carry the $set kernels' engine copies, not compared"
     fi
   done
-  [ "$ran" = 1 ] || { echo "mix-engine-identity: FAIL — $1 carries neither set's engine copies, so nothing was compared"; return 1; }
+  [ "$ran" = 1 ] || { echo "mix-engine-identity: FAIL — $1 carries no set's engine copies, so nothing was compared"; return 1; }
 }
 
 if [ "${1:-}" = --write ]; then
   src="${2:?usage: mix-engine-identity.sh --write <engine-src>}"
-  for set in first rest; do
+  for set in first rest strip; do
     if carries "$set" "$src"; then
       build "$set" "$src" "$PKG/build/mix-engine-identity/$set"
       "$PKG/build/mix-engine-identity/$set/golden" --write
@@ -192,8 +211,11 @@ rest|fold_fill|mix_dsp.h|s/    cr += stepR;/    cr += stepR * 0.5f;/
 rest|strip_meter|mix_dsp.h|s/  return omx_meter_block_peak(inL, inR, n) \* eff;/  return omx_meter_block_peak(inL, inR, n) * eff * 0.9999f;/
 rest|settled|mix_dsp.h|s/  return tgtL == 0.0f \&\& tgtR == 0.0f \&\& curL == 0.0f \&\& curR == 0.0f;/  return tgtL == 0.0f \&\& tgtR == 0.0f \&\& curL == 0.0f \&\& curR < 1.0f;/
 rest|lcr_clev|mix_dsp.h|s/#define OMX_CUE_FOLD_CLEV 0.70710678f/#define OMX_CUE_FOLD_CLEV 0.7071068f/
+strip|mix_strip|mix_dsp.h|s/  \*curL = el.g_cur;/  *curL = tgtL;/
+strip|bus_out_gain|mix_dsp.h|s/  omx_bus_out_apply(busL, busR, n, tgtL, tgtR, curL, curR);/  omx_bus_out_apply(busL, busR, n, tgtR, tgtL, curL, curR);/
+strip|bus_out_stage|mix_dsp.h|s/  omx_meter_hold(peakL, peakR, mL, mR);/  omx_meter_hold(peakL, peakR, mR, mL);/
 EOF
-  [ "$ran" -gt 0 ] || { echo "SABOTAGE: the tree carries neither set, so no sabotage ran"; fail=1; }
+  [ "$ran" -gt 0 ] || { echo "SABOTAGE: the tree carries no set, so no sabotage ran"; fail=1; }
   # and a tree without the engine's headers compares nothing, so it must not pass either
   mkdir -p "$scratch/x/y/empty"
   if run_check "$scratch/x/y/empty" "$scratch/out" >"$scratch/empty.log" 2>&1; then
