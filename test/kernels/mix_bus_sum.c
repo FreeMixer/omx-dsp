@@ -90,6 +90,45 @@ static void arm_mix_bus_sum(void) {
     for (uint32_t i = 0; i < n; i++) if (bl[i] != 0.0f || br[i] != 0.0f) bad++;
     ok(bad == 0 && cl == 0.0f && cr == 0.0f, "a NaN level mutes the contribution and the cursors end finite", bad, 0);
 
+    /* a raw entry whose target or cursor is not finite: the accumulate itself takes it as 0 */
+    const float bad_g[3] = {NAN, INFINITY, -INFINITY};
+    for (uint32_t b = 0; b < 3; b++) {
+      struct omx_mixmatrix_entry raw = {0u, 0u, 0.0f, bad_g[b]};
+      for (uint32_t i = 0; i < n; i++) bl[i] = 0.25f;
+      omx_bus_sum_accumulate(bl, l, n, &raw);
+      bad = 0;
+      for (uint32_t i = 0; i < n; i++) if (bl[i] != 0.25f) bad++;
+      ok(bad == 0, "a non-finite target in a raw entry gives 0 gain, the bus untouched", bad, 0);
+      raw.g_prev = bad_g[b];
+      raw.g_cur = 1.0f;
+      for (uint32_t i = 0; i < n; i++) bl[i] = 0.25f;
+      omx_bus_sum_accumulate(bl, l, n, &raw);
+      bad = 0;
+      for (uint32_t i = 0; i < n; i++) if (bl[i] != 0.25f + l[i] * ((1.0f / (float)n) * (float)i)) bad++;
+      ok(bad == 0, "a non-finite cursor in a raw entry starts the ramp from 0", bad, 0);
+      for (uint32_t i = 0; i < n; i++) bl[i] = 0.25f;
+      raw.g_prev = 0.0f;
+      raw.g_cur = bad_g[b];
+      omx_bus_sum_accumulate_fold(bl, l, r, n, &raw);
+      bad = 0;
+      for (uint32_t i = 0; i < n; i++) if (bl[i] != 0.25f) bad++;
+      ok(bad == 0, "a non-finite target in a raw fold entry gives 0 gain, the bus untouched", bad, 0);
+    }
+    /* finite entries: the bits of the plain ramp y += x · (g_prev + step · i), no heal in the way */
+    {
+      const struct omx_mixmatrix_entry fin = {0u, 0u, 0.3f, -0.7f};
+      for (uint32_t i = 0; i < n; i++) bl[i] = br[i] = 0.125f;
+      omx_bus_sum_accumulate(bl, l, n, &fin);
+      omx_bus_sum_accumulate_fold(br, l, r, n, &fin);
+      const float step = (fin.g_cur - fin.g_prev) / (float)n;
+      bad = 0;
+      for (uint32_t i = 0; i < n; i++) {
+        const float g = fin.g_prev + step * (float)i;
+        if (bl[i] != 0.125f + l[i] * g || br[i] != 0.125f + (l[i] + r[i]) * g) bad++;
+      }
+      ok(bad == 0, "a finite entry accumulates bit for bit as before", bad, 0);
+    }
+
     /* the same entries through the mix matrix */
     const struct omx_mixmatrix_entry e[2] = {omx_bus_sum_entry(0u, 0u, 0.1f, 0.9f),
                                              omx_bus_sum_entry(1u, 1u, 0.7f, 0.7f)};
