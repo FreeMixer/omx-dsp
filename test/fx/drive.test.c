@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * Oracle for the native DRIVE stage (omx_drive.h), every arm at every rate in OMX_DECLARED_RATES:
+ * Oracle for the native DRIVE stage (omx_drive.h), every arm at every rate in OMX_FX_RME_RATES (the nine RME rates):
  *   make test-fx
  *
  * WHAT THIS FILE IS FOR. A saturator's whole job is the harmonics it adds, so a test that only
@@ -66,7 +66,7 @@ static void check_num(int cond, const char *what, double got, double want) {
   if (!cond) { g_fail++; fprintf(stderr, "FAIL: %s — got %.4f, want %.4f\n", what, got, want); }
 }
 
-/* The rate the fixed-rate arms run at: main() walks it over OMX_DECLARED_RATES. */
+/* The rate the fixed-rate arms run at: main() walks it over OMX_FX_RME_RATES. */
 static double g_sr = 96000.0;
 #define SR g_sr
 
@@ -98,7 +98,18 @@ static double g_sr = 96000.0;
  * The no-oversampling CONTROL is asserted wherever a product of order 9 folds into the audio band;
  * above 128 kHz none does, and the line says so instead of passing.
  */
-static int high_rate_claim(void) { return SR >= 88200.0; }
+struct drive_marks { double sr, stage_peak, alias_db; }; /* alias_db 0: the alias arm is not run */
+static const struct drive_marks MARKS[] = {
+  { 32000.0, 1.18, 0.0 },   { 44100.0, 1.175, -100.0 }, { 48000.0, 1.175, -82.0 },
+  { 64000.0, 1.165, 0.0 },  { 88200.0, 1.15, -110.0 },  { 96000.0, 1.15, -110.0 },
+  { 128000.0, 1.15, 0.0 },  { 176400.0, 1.15, -110.0 }, { 192000.0, 1.15, -110.0 },
+};
+static const struct drive_marks *marks(void) {
+  for (size_t i = 0; i < sizeof MARKS / sizeof MARKS[0]; i++)
+    if (MARKS[i].sr == SR) return &MARKS[i];
+  fprintf(stderr, "FAIL: no marks declared for %.0f Hz\n", SR);
+  exit(2);
+}
 #define NB 16384u
 
 /* ---- measurement ---------------------------------------------------------------------- */
@@ -539,11 +550,8 @@ static void test_character_is_bounded(void) {
       for (uint32_t i = 0; i < NB; i++) if (fabs((double)y[i]) > pk) pk = fabs((double)y[i]);
       printf("  bound: %-7s stage peak at 36 dB drive, character %+.0f, full scale = %.4f\n",
              names[c], ch, pk);
-      if (high_rate_claim())
-        check_num(pk < 1.15, "the STAGE stays inside full scale plus the reconstruction ripple",
-                  pk, 1.15);
-      else
-        printf("  bound: NOT ASSERTED at %.0f Hz (the 1.15 claim is stated at 88.2 kHz and above)\n", SR);
+      check_num(pk < marks()->stage_peak, "the STAGE stays inside full scale plus the reconstruction ripple",
+                pk, marks()->stage_peak);
       free(s);
     }
   }
@@ -595,16 +603,17 @@ static void test_alias_floor(void) {
            w, at);
     free(s);
   }
+  if (marks()->alias_db == 0.0) {
+    printf("  alias: NOT RUN at %.0f Hz (folded products land on wanted bins, see THE MARKS)\n", SR);
+    return;
+  }
   if (worst[0] > -999.0)
     check_num(worst[0] > -90.0, "CONTROL: without oversampling the stage DOES alias in band",
               worst[0], -90.0);
   else
     printf("  alias: CONTROL NOT APPLICABLE at %.0f Hz: no product of order 9 folds below 20 kHz\n", SR);
-  if (high_rate_claim())
-    check_num(worst[2] < -110.0, "at 4x the worst in-band aliased product is below -110 dBc",
-              worst[2], -110.0);
-  else
-    printf("  alias: NOT ASSERTED at %.0f Hz (the -110 dBc claim is stated at 88.2 kHz and above)\n", SR);
+  check_num(worst[2] < marks()->alias_db, "at 4x the worst in-band aliased product is below the rate's mark",
+            worst[2], marks()->alias_db);
   printf("  alias: 4x buys %.1f dB in band over no oversampling\n", worst[0] - worst[2]);
 }
 
@@ -626,7 +635,11 @@ static void test_band(void) {
   double h3hi = db(bin_mag(y, NB, (double)(3 * khi) / NB) / bin_mag(y, NB, (double)khi / NB));
   printf("  band LOW: 100 Hz H3 %.1f dBc, 8 kHz H3 %.1f dBc\n", h3lo, h3hi);
   check_num(h3lo > -30.0, "band LOW drives the low tone", h3lo, -30.0);
-  check_num(h3hi < h3lo - 20.0, "band LOW leaves the high tone far less driven", h3hi, h3lo - 20.0);
+  /* At 32 kHz 3 x 8 kHz folds onto the 8 kHz tone itself, so the bin reads the tone, not its H3. */
+  if (!(khi * 3 > (int)NB / 2 && abs((int)NB - khi * 3 - khi) <= 1))
+    check_num(h3hi < h3lo - 20.0, "band LOW leaves the high tone far less driven", h3hi, h3lo - 20.0);
+  else
+    printf("  band LOW: high-tone H3 folds onto the tone at %.0f Hz, not asserted\n", SR);
   free(s);
 
   /* band HIGH is the complement: the same split, the other half. */
@@ -1042,9 +1055,9 @@ static void report_cost(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  printf("fx/drive oracle — chunk %u, %u declared rates\n", OMX_DRIVE_CHUNK, OMX_DECLARED_RATE_COUNT);
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = (double)OMX_DECLARED_RATES[ri];
+  printf("fx/drive oracle — chunk %u, %u RME rates\n", OMX_DRIVE_CHUNK, (unsigned)OMX_FX_RME_RATE_COUNT);
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = (double)OMX_FX_RME_RATES[ri];
     printf(" rate %.0f Hz\n", SR);
     test_control_analyser();
     test_bypass_is_untouched();
@@ -1064,6 +1077,6 @@ int main(void) {
   test_enhancer_untouched_band();
   g_sr = 96000.0; /* the cost is quoted at the rate the rig runs */
   report_cost();
-  printf("fx/drive: %d checks, %d failures (%u rates)\n", g_checks, g_fail, OMX_DECLARED_RATE_COUNT);
+  printf("fx/drive: %d checks, %d failures (%u rates)\n", g_checks, g_fail, (unsigned)OMX_FX_RME_RATE_COUNT);
   return g_fail == 0 ? 0 : 1;
 }
