@@ -78,6 +78,25 @@ run() { # $1 = kernel (its digest name), $2 = arm, $3 = header under omxdsp/mix/
   echo "mix-sabotage: $1 — $(grep -cE "^FAIL \[$2\]" "$dir/suite.log") $2 checks fail, $(grep -cE "^FAIL: $1 " "$dir/golden.log") $1 digests move"
 }
 
+# a guard that moves no finite digest (a heal of a non-finite input): only the arm must fail
+run_arm() { # $1 = label, $2 = arm, $3 = header under omxdsp/mix/, $4 = sed expression
+  local dir="$OUT/$1" h="omxdsp/mix/$3"
+  rm -rf "$dir" && mkdir -p "$dir"
+  cp -r "$PKG/include/omxdsp" "$dir/"
+  sed -i "$4" "$dir/$h"
+  if cmp -s "$PKG/include/$h" "$dir/$h"; then
+    echo "mix-sabotage: FAIL — the $1 sabotage matched nothing in $h; the line it targets is gone"
+    exit 1
+  fi
+  build "$dir"
+  "$dir/suite" > "$dir/suite.log" || true
+  if ! grep -qE "^FAIL \[$2\]" "$dir/suite.log"; then
+    echo "mix-sabotage: FAIL — the $1 sabotage left the $2 arm green"
+    exit 1
+  fi
+  echo "mix-sabotage: $1 — $(grep -cE "^FAIL \[$2\]" "$dir/suite.log") $2 checks fail (no finite digest moves)"
+}
+
 run pan mix_pan_law omx_pan_law.h 's|  g\[k + 1u\] = sinf(theta);|  g[k + 1u] = sinf(theta) * 0.9999f;|'
 run lcr mix_pan_law omx_pan_law.h 's|  const float phantom = sqrtf(phantom_sq);|  const float phantom = sqrtf(phantom_sq) * 0.9999f;|'
 run strip mix_coef omx_mix_coef.h 's|  return gain \* fader \* (mute ? 0.0f : 1.0f);|  return gain * fader * (mute ? 0.0f : 1.0001f);|'
@@ -91,6 +110,8 @@ run rta mix_rta_tap omx_rta_tap.h 's|  for (uint32_t i = 0; i < n; i++) out\[i\]
 run rta mix_rta_tap omx_rta_tap.h 's|  omx_decimate_halfband(scr->stage2, OMX_RTA_LOW_WINDOW / 4, scr->low_block);|  omx_decimate_halfband(scr->stage1, OMX_RTA_LOW_WINDOW / 4, scr->low_block);|'
 run bus_sum mix_bus_sum omx_bus_sum.h 's|  for (uint32_t i = 0; i < n; i++) y\[i\] += x\[i\] \* (g0 + step \* (float)i);|  for (uint32_t i = 0; i < n; i++) y[i] += x[i] * (g0 + step * (float)i) * 0.9999f;|'
 run bus_sum mix_bus_sum omx_bus_sum.h 's|  for (uint32_t i = 0; i < n; i++) y\[i\] += (a\[i\] + b\[i\]) \* (g0 + step \* (float)i);|  for (uint32_t i = 0; i < n; i++) y[i] += (a[i] + 0.5f * b[i]) * (g0 + step * (float)i);|'
+run_arm bus_sum_heal mix_bus_sum omx_bus_sum.h 's|  const float g1 = isfinite(e->g_cur) ? e->g_cur : 0.0f;|  const float g1 = e->g_cur;|'
+run_arm bus_sum_heal_prev mix_bus_sum omx_bus_sum.h 's|  const float g0 = isfinite(e->g_prev) ? e->g_prev : 0.0f;|  const float g0 = e->g_prev;|'
 run rt_load mix_rt_load omx_rt_load.h 's|#define OMX_RT_LOAD_SMOOTHING 0.9f|#define OMX_RT_LOAD_SMOOTHING 0.8f|'
 run rt_load mix_rt_load omx_rt_load.h 's|  return (seeded \&\& xrun_ns > seen_ns) ? 1u : 0u;|  return (seeded \&\& xrun_ns >= seen_ns) ? 1u : 0u;|'
 run split mix_coef omx_mix_coef.h 's|    omx_pan_gains(l, pan, divergence, img);|    omx_pan_gains(l, -pan, divergence, img);|'

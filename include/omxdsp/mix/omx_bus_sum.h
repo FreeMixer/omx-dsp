@@ -63,17 +63,19 @@ static inline struct omx_mixmatrix_entry omx_bus_sum_entry(uint32_t strip, uint3
  * @param y The bus leg, `n` samples, added to.
  * @param x The source leg, `n` samples.
  * @param n Samples; at least 1.
- * @param e The entry (omx_bus_sum_entry()).
+ * @param e The entry (omx_bus_sum_entry()); a non-finite `g_prev` or `g_cur` is taken as 0.
  * @pre `finite-tap`, `finite-accumulator-in`.
  * @post `finite-accumulator-out`.
  * @note RT-safe: one pass, no branch in the loop, the ramp affine in `i` so the loop vectorises.
+ *       A NaN or infinite coefficient mutes the contribution; it never turns the accumulator to NaN.
  */
 static inline void omx_bus_sum_accumulate(float *restrict y, const float *x, uint32_t n,
                                           const struct omx_mixmatrix_entry *e) {
   OMX_PRE(omx_block_finite(x, n), "finite-tap");
   OMX_PRE(omx_block_finite(y, n), "finite-accumulator-in");
-  const float g0 = e->g_prev;
-  const float step = (e->g_cur - e->g_prev) / (float)n;
+  const float g0 = isfinite(e->g_prev) ? e->g_prev : 0.0f;
+  const float g1 = isfinite(e->g_cur) ? e->g_cur : 0.0f;
+  const float step = (g1 - g0) / (float)n;
   for (uint32_t i = 0; i < n; i++) y[i] += x[i] * (g0 + step * (float)i);
   OMX_POST(omx_block_finite(y, n), "finite-accumulator-out");
 }
@@ -87,14 +89,16 @@ static inline void omx_bus_sum_accumulate(float *restrict y, const float *x, uin
  * @param a The source's left leg.
  * @param b The source's right leg; a mono source passes `a` again.
  * @param n Samples; at least 1.
- * @param e The entry: the fold's coefficient, already level × fold coefficient.
+ * @param e The entry: the fold's coefficient, already level × fold coefficient; a non-finite
+ *        `g_prev` or `g_cur` is taken as 0.
  * @post `finite-accumulator-out`.
  * @note RT-safe: one pass, no branch in the loop.
  */
 static inline void omx_bus_sum_accumulate_fold(float *restrict y, const float *a, const float *b,
                                                uint32_t n, const struct omx_mixmatrix_entry *e) {
-  const float g0 = e->g_prev;
-  const float step = (e->g_cur - e->g_prev) / (float)n;
+  const float g0 = isfinite(e->g_prev) ? e->g_prev : 0.0f;
+  const float g1 = isfinite(e->g_cur) ? e->g_cur : 0.0f;
+  const float step = (g1 - g0) / (float)n;
   for (uint32_t i = 0; i < n; i++) y[i] += (a[i] + b[i]) * (g0 + step * (float)i);
   OMX_POST(omx_block_finite(y, n), "finite-accumulator-out");
 }
