@@ -24,6 +24,9 @@
 #   make contract-dir OMX_CONTRACT=<checkout>  data/ installed beside omx-contract's own data as a contract
 #               directory and read back through the checkout's reader, and three refusals
 #               (tools/contract-dir-check.sh)
+#   make definitions OMX_CONTRACT=<checkout>  include/omxdsp/omxdsp_definitions.h rendered from data/ by the
+#               checkout's `render --package omx-dsp`; make definitions-check holds the committed header equal
+#               to that render (tools/definitions-render.sh)
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
@@ -128,7 +131,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage
 
 all: lib
 
@@ -282,6 +285,10 @@ OMX_CONTRACT ?=
 contract-dir:
 	@test -n "$(OMX_CONTRACT)" || { echo "contract-dir: name an omx-contract checkout: make contract-dir OMX_CONTRACT=<dir>" >&2; exit 2; }
 	bash tools/contract-dir-check.sh $(OMX_CONTRACT) $(BUILD)/contract-dir
+
+definitions definitions-check:
+	@test -n "$(OMX_CONTRACT)" || { echo "$@: name an omx-contract checkout: make $@ OMX_CONTRACT=<dir>" >&2; exit 2; }
+	bash tools/definitions-render.sh $(if $(filter definitions-check,$@),--check) $(OMX_CONTRACT) $(BUILD)/definitions
 
 # Public sources state public facts only: no pointer into a private repository (operator ruling
 # 2026-10-13). The check, then its self-test.
