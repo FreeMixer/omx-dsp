@@ -220,6 +220,16 @@
       "value": 18,
       "doc": "THE NOTCH DEPTH LAW: the deepest cut any machine planter may propose from one reading, in dB. A number, not a literal at the call site, because two planters now lean on it. FBS derives a candidate's depth from the peak-to-average ratio around its bin and stops here; Room Analysis derives a mode's depth from its height above the median curve and is held to the SAME ceiling (the room-analysis design — \"never more than the FBS notch depth law\"). Written twice as `18` those two bounds would be equal by coincidence and could drift apart in silence. It is a CEILING ON THE PROPOSAL, not the final gain: a band that lands as a rampable BELL is bounded again by `EQ_GAIN_RANGE`, which is tighter. A planter must honour both and REPORT when either bit, never quietly deliver a shallower cut than it was asked for.",
       "unit": "dB"
+    },
+    {
+      "name": "FBS_DEFAULT_NOTCH_Q",
+      "source": {
+        "path": "index.ts",
+        "export": "FBS_DEFAULT_NOTCH_Q"
+      },
+      "value": 116,
+      "doc": "Default planted-notch width (Q) — the dbx-AFS-style ultra-narrow notch the corrector plants. `addBand`'s per-shape clamp holds it at 116 for a fixed notch and narrows it to 8 for a live bell, so this is the declared starting point rather than the width every notch ends up with.",
+      "unit": ""
     }
   ]
 }
