@@ -1,0 +1,346 @@
+{
+  "kernel": "rotary",
+  "since": "1.1.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "origin/lane/row-rotary",
+    "commit": "4fc6671b1677f520586175344772e0eb95fe39d9"
+  },
+  "items": [
+    {
+      "name": "ROTARY_HORN_SLOW_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_HORN_SLOW_RANGE"
+      },
+      "value": {
+        "min": 0.1,
+        "max": 2,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 0.8,
+        "defaultFrom": "desk"
+      },
+      "doc": "The horn's chorale (slow) rate, Hz."
+    },
+    {
+      "name": "ROTARY_HORN_FAST_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_HORN_FAST_RANGE"
+      },
+      "value": {
+        "min": 3,
+        "max": 10,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 6.8,
+        "defaultFrom": "desk"
+      },
+      "doc": "The horn's tremolo (fast) rate, Hz."
+    },
+    {
+      "name": "ROTARY_DRUM_SLOW_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_DRUM_SLOW_RANGE"
+      },
+      "value": {
+        "min": 0.1,
+        "max": 2,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 0.7,
+        "defaultFrom": "desk"
+      },
+      "doc": "The drum's chorale (slow) rate, Hz."
+    },
+    {
+      "name": "ROTARY_DRUM_FAST_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_DRUM_FAST_RANGE"
+      },
+      "value": {
+        "min": 3,
+        "max": 10,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 5.9,
+        "defaultFrom": "desk"
+      },
+      "doc": "The drum's tremolo (fast) rate, Hz."
+    },
+    {
+      "name": "ROTARY_ACCEL_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_ACCEL_RANGE"
+      },
+      "value": {
+        "min": 0.25,
+        "max": 4,
+        "step": 0.01,
+        "unit": "x",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "doc": "The scale on every speed-change time constant (`ROTARY_*_ACCEL_MS`/`_DECEL_MS`): 2 is twice as slow."
+    },
+    {
+      "name": "ROTARY_BALANCE_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_BALANCE_RANGE"
+      },
+      "value": {
+        "min": -100,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The drum/horn balance, percent: −100 drum only, +100 horn only; the law attenuates, never boosts."
+    },
+    {
+      "name": "ROTARY_MIX_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_MIX_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "The rotary's wet/dry, as an instance of DRIVE_MIX_RANGE: 100 %, because a rotary on an insert IS the sound (it replaces the cabinet) and an `fxReturn` wants it wet too."
+    },
+    {
+      "name": "ROTARY_TRAVELS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_TRAVELS"
+      },
+      "value": {
+        "hornSlowHz": {
+          "min": 0.1,
+          "max": 2,
+          "step": 0.01,
+          "unit": "Hz",
+          "default": 0.8,
+          "defaultFrom": "desk"
+        },
+        "hornFastHz": {
+          "min": 3,
+          "max": 10,
+          "step": 0.01,
+          "unit": "Hz",
+          "default": 6.8,
+          "defaultFrom": "desk"
+        },
+        "drumSlowHz": {
+          "min": 0.1,
+          "max": 2,
+          "step": 0.01,
+          "unit": "Hz",
+          "default": 0.7,
+          "defaultFrom": "desk"
+        },
+        "drumFastHz": {
+          "min": 3,
+          "max": 10,
+          "step": 0.01,
+          "unit": "Hz",
+          "default": 5.9,
+          "defaultFrom": "desk"
+        },
+        "accel": {
+          "min": 0.25,
+          "max": 4,
+          "step": 0.01,
+          "unit": "x",
+          "default": 1,
+          "defaultFrom": "desk"
+        },
+        "balance": {
+          "min": -100,
+          "max": 100,
+          "step": 1,
+          "unit": "%",
+          "default": 0,
+          "defaultFrom": "desk"
+        },
+        "mix": {
+          "min": 0,
+          "max": 100,
+          "step": 0.1,
+          "unit": "%",
+          "default": 100,
+          "defaultFrom": "desk"
+        }
+      },
+      "doc": "The rotary's numeric travels, field → declaration: the ONE map the row's state, its bounds, its OPTIONS and its controller read (`speed` is a member set, ROTARY_SPEEDS, beside it).",
+      "set": {
+        "hornSlowHz": {
+          "ref": "ROTARY_HORN_SLOW_RANGE"
+        },
+        "hornFastHz": {
+          "ref": "ROTARY_HORN_FAST_RANGE"
+        },
+        "drumSlowHz": {
+          "ref": "ROTARY_DRUM_SLOW_RANGE"
+        },
+        "drumFastHz": {
+          "ref": "ROTARY_DRUM_FAST_RANGE"
+        },
+        "accel": {
+          "ref": "ROTARY_ACCEL_RANGE"
+        },
+        "balance": {
+          "ref": "ROTARY_BALANCE_RANGE"
+        },
+        "mix": {
+          "ref": "ROTARY_MIX_RANGE"
+        }
+      }
+    },
+    {
+      "name": "ROTARY_CROSSOVER_HZ",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_CROSSOVER_HZ"
+      },
+      "value": 800,
+      "doc": "The complementary split's low-pass corner, Hz: the Leslie 122's passive crossover.",
+      "unit": "Hz"
+    },
+    {
+      "name": "ROTARY_BASE_MS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_BASE_MS"
+      },
+      "value": 0.1,
+      "doc": "The shortest Doppler read, ms — above the order-3 read's one-sample reach at every rate.",
+      "unit": "ms"
+    },
+    {
+      "name": "ROTARY_HORN_DOPPLER_MS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_HORN_DOPPLER_MS"
+      },
+      "value": 0.44,
+      "doc": "The horn's Doppler excursion `D_horn`, ms: a 0.15 m radius over 343 m/s.",
+      "unit": "ms"
+    },
+    {
+      "name": "ROTARY_DRUM_DOPPLER_MS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_DRUM_DOPPLER_MS"
+      },
+      "value": 0.29,
+      "doc": "The drum's Doppler excursion `D_drum`, ms: its baffle turns over a fixed woofer.",
+      "unit": "ms"
+    },
+    {
+      "name": "ROTARY_HORN_AM",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_HORN_AM"
+      },
+      "value": 0.5,
+      "doc": "The horn's amplitude swing `m_horn` (a −6 dB directivity dip), a ratio.",
+      "unit": ""
+    },
+    {
+      "name": "ROTARY_DRUM_AM",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_DRUM_AM"
+      },
+      "value": 0.3,
+      "doc": "The drum baffle's amplitude swing `m_drum`, a ratio.",
+      "unit": ""
+    },
+    {
+      "name": "ROTARY_HORN_ACCEL_MS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_HORN_ACCEL_MS"
+      },
+      "value": 330,
+      "doc": "The horn rotor's speed-up time constant, ms (at `accel` 1).",
+      "unit": "ms"
+    },
+    {
+      "name": "ROTARY_HORN_DECEL_MS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_HORN_DECEL_MS"
+      },
+      "value": 500,
+      "doc": "The horn rotor's slow-down time constant, ms (at `accel` 1).",
+      "unit": "ms"
+    },
+    {
+      "name": "ROTARY_DRUM_ACCEL_MS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_DRUM_ACCEL_MS"
+      },
+      "value": 1700,
+      "doc": "The drum rotor's speed-up time constant, ms (at `accel` 1).",
+      "unit": "ms"
+    },
+    {
+      "name": "ROTARY_DRUM_DECEL_MS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_DRUM_DECEL_MS"
+      },
+      "value": 1800,
+      "doc": "The drum rotor's slow-down time constant, ms (at `accel` 1).",
+      "unit": "ms"
+    },
+    {
+      "name": "ROTARY_STOP_EPS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_STOP_EPS"
+      },
+      "value": 0.0001,
+      "doc": "Below this rate, Hz, a rotor coasting toward `stop` is snapped to exactly 0.",
+      "unit": ""
+    },
+    {
+      "name": "ROTARY_RING_FLOATS",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "ROTARY_RING_FLOATS"
+      },
+      "value": 256,
+      "doc": "One inline ring per rotor per leg, floats — at least the 192 kHz need of the horn's sweep.",
+      "unit": ""
+    },
+    {
+      "name": "ROTARY_SPEEDS",
+      "source": {
+        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_rotary.h enum omx_rotary_speed"
+      },
+      "value": [
+        "stop",
+        "slow",
+        "fast"
+      ],
+      "doc": "The rotary speaker's speed settings, in the order of the integer the kernel reads: the rotors stopped, at their chorale (slow) rate, or at their tremolo (fast) rate.",
+      "since": "1.3.0",
+      "kind": "set"
+    }
+  ]
+}

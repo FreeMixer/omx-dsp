@@ -1,0 +1,169 @@
+{
+  "kernel": "comp",
+  "since": "1.0.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "origin/main",
+    "commit": "964a798356925f6bc3774459d9904362b9d3f986"
+  },
+  "items": [
+    {
+      "name": "COMP_LIMITS",
+      "source": {
+        "path": "strip-dynamics-limits.ts",
+        "export": "COMP_LIMITS"
+      },
+      "value": {
+        "thresholdDb": {
+          "min": -60,
+          "max": 0,
+          "step": 1,
+          "unit": "dB",
+          "default": -18,
+          "defaultFrom": "desk"
+        },
+        "ratio": {
+          "min": 1,
+          "max": 20,
+          "step": 0.5,
+          "unit": "",
+          "default": 4,
+          "defaultFrom": "desk"
+        },
+        "kneeDb": {
+          "min": 0,
+          "max": 24,
+          "step": 0.5,
+          "unit": "dB",
+          "default": 6,
+          "defaultFrom": "desk"
+        },
+        "attackMs": {
+          "min": 0.1,
+          "max": 100,
+          "step": 1,
+          "unit": "ms",
+          "default": 5,
+          "defaultFrom": "desk"
+        },
+        "releaseMs": {
+          "min": 5,
+          "max": 3000,
+          "step": 10,
+          "unit": "ms",
+          "default": 200,
+          "defaultFrom": "desk"
+        },
+        "makeupDb": {
+          "min": 0,
+          "max": 24,
+          "step": 0.5,
+          "unit": "dB",
+          "default": 0,
+          "defaultFrom": "desk"
+        },
+        "mixPct": {
+          "min": 0,
+          "max": 100,
+          "step": 5,
+          "unit": "%",
+          "default": 100,
+          "defaultFrom": "desk"
+        }
+      },
+      "doc": "The legal range of each compressor field (engineering units). The widget clamps drags to these, `normalizeComp` enforces them, the row's codec refuses by them and the travel sheet publishes them. `default`/`defaultFrom` are the come-up values `defaultCompState` seeds a fresh strip with, read BACK from here rather than restated there."
+    },
+    {
+      "name": "PROGRAM_RELEASE",
+      "source": {
+        "path": "strip-dynamics-limits.ts",
+        "export": "PROGRAM_RELEASE"
+      },
+      "value": {
+        "chargeMs": 1000,
+        "dischargeMs": 5000,
+        "profiles": {
+          "opto": {
+            "fastMs": 70,
+            "slowMinMs": 110,
+            "slowMaxMs": 1100,
+            "share": 0.5
+          }
+        }
+      },
+      "doc": "The program-dependent release's model constants — the LA-2A's opto cell as DATA. `chargeMs`/`dischargeMs` are the word's memory constants, shared by every profile; each profile's `fastMs`, `slowMinMs`, `slowMaxMs` and `share` fit the unit's published two-stage recovery. Not operator controls: generated into `omx_contract_limits.h` as `OMX_PROGRAM_RELEASE_*`, which libomxdsp's `omx_env_program_release` reads."
+    },
+    {
+      "name": "COMP_KINDS",
+      "source": {
+        "origin": "the console engine's compressor kinds (limiter -> peak, comp -> rms); omx-dsp a624f26 include/omxdsp/fx/omx_dynamics_instance.h:84 the rms argument"
+      },
+      "value": [
+        "comp",
+        "limiter"
+      ],
+      "doc": "The compressor's character, which picks its detector: `comp` runs the RMS detector, `limiter` the peak detector. The console's comp row carries it (`CompState.kind`, `COMP_KINDS`) and comes up as `comp`.",
+      "since": "2.2.0",
+      "kind": "set",
+      "default": "comp",
+      "labels": [
+        "Compressor",
+        "Limiter"
+      ]
+    },
+    {
+      "name": "DETECTOR_OVERSAMPLINGS",
+      "source": {
+        "origin": "the console engine's detector oversampling choices (auto, off, 4x), defaulting to auto; omx-dsp a624f26 include/omxdsp/omx_dyn.h:46-50 OMX_DYN_OVS_AUTO 0, _OFF 1, _X4 2, fx/omx_dynamics_instance.h:84 ovs_mode"
+      },
+      "value": [
+        "auto",
+        "off",
+        "4x"
+      ],
+      "doc": "The compressor's detector oversampling: `auto` runs the control path at 4x only while the attack is faster than DETECTOR_OVERSAMPLE_AUTO_MS, `off` never, `4x` always (omx-dsp's OMX_DYN_OVS_AUTO, _OFF and _X4, in that order, so the index mapping holds). The ids are the console's wire vocabulary (`CompState.detectorOversampling`, what the dynamics row's OPTIONS publishes and a session stores), so the console re-exports this set; it comes up `auto`.",
+      "since": "2.2.0",
+      "kind": "set",
+      "default": "auto",
+      "labels": [
+        "Auto",
+        "Off",
+        "4x"
+      ]
+    },
+    {
+      "name": "DETECTOR_TOPOLOGY",
+      "source": {
+        "origin": "omx-dsp 91beb6d (lane/salvage-ssl-bus-comp) include/omxdsp/omx_dyn.h:60-68 OMX_DYN_TOPOLOGY_FEEDFORWARD 0, OMX_DYN_TOPOLOGY_FEEDBACK 1, the comp row's detectorTopology (the SSL bus compressor design); :86 a zeroed atom is feedforward"
+      },
+      "value": [
+        "feedforward",
+        "feedback"
+      ],
+      "doc": "Where the compressor's detector listens: `feedforward` hears the slot's input (or its key), `feedback` hears the slot's own pre-make-up output DYN_FB_LOOP_DELAY_SAMPLES late, through one envelope stage, and a keyed slot stays feed-forward (omx-dsp's OMX_DYN_TOPOLOGY_FEEDFORWARD 0 and _FEEDBACK 1, in that order; the set is named for its control, so C spells them OMX_DETECTOR_TOPOLOGY_*). The console's comp row carries it (`detectorTopology`) and comes up `feedforward`, so a zeroed atom is the compressor every slot runs.",
+      "since": "2.5.0",
+      "kind": "set",
+      "default": "feedforward"
+    },
+    {
+      "name": "DYN_FB_LOOP_DELAY_SAMPLES",
+      "source": {
+        "origin": "omx-dsp 91beb6d (lane/salvage-ssl-bus-comp) include/omxdsp/omx_dyn.h:72 OMX_DYN_FB_LOOP_DELAY_SAMPLES 1u, :164 the _Static_assert that the loop state holds one sample per leg"
+      },
+      "value": 1,
+      "doc": "The feedback detector's loop delay, in samples: the output y[n] depends on the gain at n, so the detector can only have heard y[n - 1]. Not a latency: the audio is never delayed by it. omx-dsp's feedback state holds exactly this many output samples per leg.",
+      "since": "2.5.0",
+      "unit": ""
+    },
+    {
+      "name": "DETECTOR_OVERSAMPLE_LATENCY_SAMPLES",
+      "source": {
+        "origin": "omx-dsp 0f23bed include/omxdsp/omx_oversampler.h:151 OMX_OVS_LATENCY_4X 72; the console engine's DETECTOR_OVERSAMPLE_LATENCY_SAMPLES"
+      },
+      "value": 72,
+      "doc": "What the 4x detector oversampling costs the strip it is engaged on, in samples: the causal linear-phase half-band's reach, by which the audio is delayed so the gain still lands on the sample it was computed from. A sample count, not a time: the same at every rate. omx-dsp's oversampler declares the same number as OMX_OVS_LATENCY_4X, and its comp and gate faces report it while 4x is engaged.",
+      "unit": "",
+      "since": "2.14.0"
+    }
+  ]
+}

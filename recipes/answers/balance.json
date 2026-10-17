@@ -1,0 +1,45 @@
+{
+  "kernel": "balance",
+  "since": "1.2.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "origin/main",
+    "commit": "964a798356925f6bc3774459d9904362b9d3f986"
+  },
+  "items": [
+    {
+      "name": "PAN_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "PAN_RANGE"
+      },
+      "value": {
+        "min": -1,
+        "max": 1,
+        "step": 0,
+        "unit": ""
+      },
+      "doc": "The PAN travel — −1 (hard left) … 0 (center) … +1 (hard right). A property of the pan law itself, not of any desk, so it is declared once. Continuous: a pan position has no quantum, and panGains clamps to these bounds.",
+      "c": {
+        "alias": {
+          "fact": "pan",
+          "field": "pan"
+        }
+      }
+    },
+    {
+      "name": "DIVERGENCE_RANGE",
+      "source": {
+        "origin": "the console engine's LCR divergence travel DIVERGENCE_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": ""
+      },
+      "doc": "The LCR divergence travel: 0 is a hard discrete centre, 1 full phantom, the stereo image. A property of the LCR panner law itself, the same authority class as PAN_RANGE: no device narrows it.",
+      "since": "2.14.0"
+    }
+  ]
+}
