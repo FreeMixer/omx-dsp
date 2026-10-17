@@ -249,12 +249,15 @@ jobs:
             /usr/share/licenses/omx-dsp-devel/LICENSE /usr/bin/omx-dsp-copy-check \
             /usr/share/man/man1/omx-dsp-copy-check.1.gz /usr/share/omxdsp/omx-dsp-exports.json | sort > expected.txt
           diff -u expected.txt files.txt
-          rpm -qlp "$rpm" | grep -q '^/usr/include/omxdsp/fx/omx_delay.h$'
-          rpm -qlp "$rpm" | grep -q '^/usr/include/omxdsp/fx/omx_reverb.h$'
+          # the listing is read from a file: grep -q stops at its first match, and under pipefail the rpm it
+          # cut off (SIGPIPE, exit 141) fails the step once the listing is longer than the pipe holds
+          rpm -qlp "$rpm" > listing.txt
+          grep -q '^/usr/include/omxdsp/fx/omx_delay.h$' listing.txt
+          grep -q '^/usr/include/omxdsp/fx/omx_reverb.h$' listing.txt
           # every definition file of data/ is installed, under the same relative path
           diff <(cd data && find . -name '*.json' | sed 's|^\./|/usr/share/omx-contract/contract.d/2/omx-dsp/|' | sort) \
-               <(rpm -qlp "$rpm" | grep '^/usr/share/omx-contract/contract.d/2/omx-dsp/.*\.json$' | grep -v '/MANIFEST\.json$' | sort)
-          ! rpm -qlp "$rpm" | grep -E '\.so(\.|$)'
+               <(grep '^/usr/share/omx-contract/contract.d/2/omx-dsp/.*\.json$' listing.txt | grep -v '/MANIFEST\.json$' | sort)
+          ! grep -E '\.so(\.|$)' listing.txt
 
       - name: A consumer builds against omx-dsp-devel
         run: |
@@ -316,12 +319,13 @@ jobs:
         run: |
           set -euo pipefail
           apt-get install -y --no-install-recommends ./debs/libomxdsp-dev_*.deb
-          for a in libomxdsp libomxdsp-contracts libomxdsp-tsan; do dpkg -L libomxdsp-dev | grep -q "/$a\.a\$"; done
-          for p in omxdsp omxdsp-contracts omxdsp-tsan; do dpkg -L libomxdsp-dev | grep -q "/pkgconfig/$p\.pc\$"; done
-          dpkg -L libomxdsp-dev | grep -q '^/usr/share/omx-contract/contract.d/2/omx-dsp/MANIFEST.json$'
+          dpkg -L libomxdsp-dev > listing.txt   # read from a file: see the RPM job's listing
+          for a in libomxdsp libomxdsp-contracts libomxdsp-tsan; do grep -q "/$a\.a\$" listing.txt; done
+          for p in omxdsp omxdsp-contracts omxdsp-tsan; do grep -q "/pkgconfig/$p\.pc\$" listing.txt; done
+          grep -q '^/usr/share/omx-contract/contract.d/2/omx-dsp/MANIFEST.json$' listing.txt
           diff <(cd data && find . -name '*.json' | sed 's|^\./|/usr/share/omx-contract/contract.d/2/omx-dsp/|' | sort) \
-               <(dpkg -L libomxdsp-dev | grep '^/usr/share/omx-contract/contract.d/2/omx-dsp/.*\.json$' | grep -v '/MANIFEST\.json$' | sort)
-          ! dpkg -L libomxdsp-dev | grep -E '\.so(\.|$)'
+               <(grep '^/usr/share/omx-contract/contract.d/2/omx-dsp/.*\.json$' listing.txt | grep -v '/MANIFEST\.json$' | sort)
+          ! grep -E '\.so(\.|$)' listing.txt
           test "$(pkg-config --modversion omxdsp)" = "$(make -s version)"
           gcc $(pkg-config --cflags omxdsp) -Itest/fx -include test/support/log10f_subst.h -O2 -o /tmp/golden test/fx/delay_golden.test.c $(pkg-config --libs omxdsp)
           /tmp/golden test/golden/delay.sha256
