@@ -203,7 +203,7 @@ jobs:
           rpm=$(ls rpms/omx-dsp-devel-[0-9]*.${{ matrix.arch }}.rpm)
           rpm -qp --qf '[%{FILEMODES:perms} %{FILENAMES}\n]' "$rpm" | grep -v '^d' | cut -d' ' -f2 \
             | sed 's,/usr/lib64/,/usr/lib*/,' | grep -v '^/usr/include/omxdsp/' \
-            | grep -v '^/usr/share/omx-contract/contract.d/2/omx-dsp/kernels/' | sort > files.txt
+            | grep -v '^/usr/share/omx-contract/contract.d/2/omx-dsp/\(kernels\|primitives\)/' | sort > files.txt
           printf '%s\n' '/usr/lib*/libomxdsp.a' '/usr/lib*/libomxdsp-contracts.a' '/usr/lib*/libomxdsp-tsan.a' \
             '/usr/lib*/pkgconfig/omxdsp.pc' '/usr/lib*/pkgconfig/omxdsp-contracts.pc' '/usr/lib*/pkgconfig/omxdsp-tsan.pc' \
             /usr/share/omx-contract/contract.d/2/omx-dsp/MANIFEST.json \
