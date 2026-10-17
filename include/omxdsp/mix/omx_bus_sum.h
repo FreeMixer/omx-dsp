@@ -73,8 +73,9 @@ static inline void omx_bus_sum_accumulate(float *restrict y, const float *x, uin
                                           const struct omx_mixmatrix_entry *e) {
   OMX_PRE(omx_block_finite(x, n), "finite-tap");
   OMX_PRE(omx_block_finite(y, n), "finite-accumulator-in");
-  const float g0 = e->g_prev;
-  const float step = (e->g_cur - e->g_prev) / (float)n;
+  const float g0 = isfinite(e->g_prev) ? e->g_prev : 0.0f;
+  const float g1 = isfinite(e->g_cur) ? e->g_cur : 0.0f;
+  const float step = (g1 - g0) / (float)n;
   for (uint32_t i = 0; i < n; i++) y[i] += x[i] * (g0 + step * (float)i);
   OMX_POST(omx_block_finite(y, n), "finite-accumulator-out");
 }
@@ -95,8 +96,9 @@ static inline void omx_bus_sum_accumulate(float *restrict y, const float *x, uin
  */
 static inline void omx_bus_sum_accumulate_fold(float *restrict y, const float *a, const float *b,
                                                uint32_t n, const struct omx_mixmatrix_entry *e) {
-  const float g0 = e->g_prev;
-  const float step = (e->g_cur - e->g_prev) / (float)n;
+  const float g0 = isfinite(e->g_prev) ? e->g_prev : 0.0f;
+  const float g1 = isfinite(e->g_cur) ? e->g_cur : 0.0f;
+  const float step = (g1 - g0) / (float)n;
   for (uint32_t i = 0; i < n; i++) y[i] += (a[i] + b[i]) * (g0 + step * (float)i);
   OMX_POST(omx_block_finite(y, n), "finite-accumulator-out");
 }
