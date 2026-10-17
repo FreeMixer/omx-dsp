@@ -1,0 +1,77 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "rateHz",
+      "kind": "travel",
+      "global": "TREMOLO_RATE_RANGE",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tremolo_instance.h#lfo_inc"
+      },
+      "doc": "The tremolo's LFO rate (the catalogue row's 0.1..20 Hz); 4 Hz is the classic amp tremolo.",
+      "travel": {
+        "min": 0.1,
+        "max": 20,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 4,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "depth",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tremolo_instance.h#depth"
+      },
+      "doc": "The tremolo's modulation depth: the gain's trough is `1 − mix·depth`.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 50,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mix",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tremolo_instance.h#mix"
+      },
+      "doc": "The tremolo's wet/dry, as an instance of DRIVE_MIX_RANGE: 100 %. The kernel folds the wet/dry into its one gain, so a strip tremolo IS the sound (as the rotary's mix 100 % is).",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mode",
+      "kind": "choice",
+      "doc": "What the tremolo's one oscillator modulates, in the order of the integer the kernel reads: the level of both legs in phase (tremolo), or the balance law's position with the legs in opposition (pan).",
+      "ids": [
+        "tremolo",
+        "pan"
+      ],
+      "default": "tremolo"
+    }
+  ],
+  "aggregates": {
+    "TREMOLO_TRAVELS": {
+      "doc": "The tremolo's numeric travels, field → declaration: the ONE map the row's state, its bounds, its OPTIONS and its controller read (`mode` is a member set, TREMOLO_MODES, beside it).",
+      "fields": [
+        "rateHz",
+        "depth",
+        "mix"
+      ]
+    }
+  }
+}

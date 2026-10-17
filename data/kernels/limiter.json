@@ -1,0 +1,68 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "ceilingDb",
+      "kind": "travel",
+      "table": "LIMITER_LIMITS",
+      "travel": {
+        "min": -12,
+        "max": 0,
+        "step": 0.1,
+        "unit": "dBFS",
+        "default": -1,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "lookaheadMs",
+      "kind": "travel",
+      "table": "LIMITER_LIMITS",
+      "rearms": true,
+      "travel": {
+        "min": 0.5,
+        "max": 5,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 1.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "releaseMs",
+      "kind": "travel",
+      "table": "LIMITER_LIMITS",
+      "travel": {
+        "min": 1,
+        "max": 1000,
+        "step": 1,
+        "unit": "ms",
+        "default": 50,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "gainReductionDb",
+      "doc": "The limiter's gain reduction, in dB with CLAP's sign: 0 while it reduces nothing, negative the reduction it applies. The display range runs down to LIMITER_LIMITS.ceilingDb.min: on a signal at or below 0 dBFS the limiter pulls the peak down to its ceiling at most, and the ceiling is at least its minimum.",
+      "unit": "dB",
+      "min": {
+        "ref": "LIMITER_LIMITS.ceilingDb.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "tables": {
+    "LIMITER_LIMITS": {
+      "doc": "The precision limiter's travels, rendered into `omx_contract_limits.h` as `OMX_LIMITER_*` by the engine's limits generator, so `mix_limiter.h` reads them and never restates one (R-094). The ceiling is a TRUE peak in dBFS (the ×4 detector); the look-ahead sets the declared latency; the release is the envelope's time constant on the gain depth."
+    }
+  }
+}

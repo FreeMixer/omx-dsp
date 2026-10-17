@@ -1,0 +1,203 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "thresholdDb",
+      "kind": "travel",
+      "table": "COMP_LIMITS",
+      "travel": {
+        "min": -60,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -18,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "ratio",
+      "kind": "travel",
+      "table": "COMP_LIMITS",
+      "travel": {
+        "min": 1,
+        "max": 20,
+        "step": 0.5,
+        "unit": "",
+        "default": 4,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "kneeDb",
+      "kind": "travel",
+      "table": "COMP_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 6,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "attackMs",
+      "kind": "travel",
+      "table": "COMP_LIMITS",
+      "travel": {
+        "min": 0.1,
+        "max": 100,
+        "step": 1,
+        "unit": "ms",
+        "default": 5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "releaseMs",
+      "kind": "travel",
+      "table": "COMP_LIMITS",
+      "travel": {
+        "min": 5,
+        "max": 3000,
+        "step": 10,
+        "unit": "ms",
+        "default": 200,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "makeupDb",
+      "kind": "travel",
+      "table": "COMP_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mixPct",
+      "kind": "travel",
+      "table": "COMP_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 5,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "kind",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#detect"
+      },
+      "doc": "The compressor's character, which picks its detector: `comp` runs the RMS detector, `limiter` the peak detector. The console's comp row carries it (`CompState.kind`, `COMP_KINDS`) and comes up as `comp`.",
+      "ids": [
+        "comp",
+        "limiter"
+      ],
+      "default": "comp",
+      "labels": [
+        "Compressor",
+        "Limiter"
+      ]
+    },
+    {
+      "name": "detectorOversampling",
+      "kind": "choice",
+      "global": "DETECTOR_OVERSAMPLINGS",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#ovs_mode"
+      },
+      "doc": "The compressor's detector oversampling: `auto` runs the control path at 4x only while the attack is faster than DETECTOR_OVERSAMPLE_AUTO_MS, `off` never, `4x` always (omx-dsp's OMX_DYN_OVS_AUTO, _OFF and _X4, in that order, so the index mapping holds). The ids are the console's wire vocabulary (`CompState.detectorOversampling`, what the dynamics row's OPTIONS publishes and a session stores), so the console re-exports this set; it comes up `auto`.",
+      "ids": [
+        "auto",
+        "off",
+        "4x"
+      ],
+      "default": "auto",
+      "labels": [
+        "Auto",
+        "Off",
+        "4x"
+      ]
+    },
+    {
+      "name": "detectorTopology",
+      "kind": "choice",
+      "global": "DETECTOR_TOPOLOGY",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#topology"
+      },
+      "doc": "Where the compressor's detector listens: `feedforward` hears the slot's input (or its key), `feedback` hears the slot's own pre-make-up output DYN_FB_LOOP_DELAY_SAMPLES late, through one envelope stage, and a keyed slot stays feed-forward (omx-dsp's OMX_DYN_TOPOLOGY_FEEDFORWARD 0 and _FEEDBACK 1, in that order; the set is named for its control, so C spells them OMX_DETECTOR_TOPOLOGY_*). The console's comp row carries it (`detectorTopology`) and comes up `feedforward`, so a zeroed atom is the compressor every slot runs.",
+      "ids": [
+        "feedforward",
+        "feedback"
+      ],
+      "default": "feedforward"
+    }
+  ],
+  "readouts": [
+    {
+      "name": "gainReductionDb",
+      "doc": "The compressor's gain reduction, in dB with CLAP's sign: 0 while it reduces nothing, negative the reduction it applies. The display range runs down to COMP_LIMITS.thresholdDb.min: on a signal at or below 0 dBFS the reduction (x - T)(1 - 1/R) never exceeds -T, and T is at least the threshold's minimum.",
+      "unit": "dB",
+      "min": {
+        "ref": "COMP_LIMITS.thresholdDb.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "tables": {
+    "COMP_LIMITS": {
+      "doc": "The legal range of each compressor field (engineering units). The widget clamps drags to these, `normalizeComp` enforces them, the row's codec refuses by them and the travel sheet publishes them. `default`/`defaultFrom` are the come-up values `defaultCompState` seeds a fresh strip with, read BACK from here rather than restated there."
+    }
+  },
+  "constants": {
+    "PROGRAM_RELEASE": {
+      "kind": "sheet",
+      "source": {
+        "impl": "include/omxdsp/omx_envelope.h#charge_pole"
+      },
+      "doc": "The program-dependent release's model constants — the LA-2A's opto cell as DATA. `chargeMs`/`dischargeMs` are the word's memory constants, shared by every profile; each profile's `fastMs`, `slowMinMs`, `slowMaxMs` and `share` fit the unit's published two-stage recovery. Not operator controls: generated into `omx_contract_limits.h` as `OMX_PROGRAM_RELEASE_*`, which libomxdsp's `omx_env_program_release` reads.",
+      "value": {
+        "chargeMs": 1000,
+        "dischargeMs": 5000,
+        "profiles": {
+          "opto": {
+            "fastMs": 70,
+            "slowMinMs": 110,
+            "slowMaxMs": 1100,
+            "share": 0.5
+          }
+        }
+      }
+    },
+    "DYN_FB_LOOP_DELAY_SAMPLES": {
+      "kind": "scalar",
+      "doc": "The feedback detector's loop delay, in samples: the output y[n] depends on the gain at n, so the detector can only have heard y[n - 1]. Not a latency: the audio is never delayed by it. omx-dsp's feedback state holds exactly this many output samples per leg.",
+      "unit": "",
+      "value": 1
+    },
+    "DETECTOR_OVERSAMPLE_LATENCY_SAMPLES": {
+      "kind": "scalar",
+      "doc": "What the 4x detector oversampling costs the strip it is engaged on, in samples: the causal linear-phase half-band's reach, by which the audio is delayed so the gain still lands on the sample it was computed from. A sample count, not a time: the same at every rate. omx-dsp's oversampler declares the same number as OMX_OVS_LATENCY_4X, and its comp and gate faces report it while 4x is engaged.",
+      "unit": "",
+      "value": 72
+    }
+  }
+}
