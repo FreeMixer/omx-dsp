@@ -1,0 +1,42 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "kind",
+      "kind": "choice",
+      "doc": "The generator kinds, in surface order: its position is the integer omx-dsp's omx_gen_fill takes as its kind (OMX_GEN_OSC, OMX_GEN_WHITE, OMX_GEN_PINK).",
+      "ids": [
+        "oscillator",
+        "white",
+        "pink"
+      ]
+    },
+    {
+      "name": "waveform",
+      "kind": "choice",
+      "global": "WAVEFORMS",
+      "doc": "The selectable oscillator waveforms, in surface order: its position is the integer omx-dsp's omx_gen_osc takes (OMX_WAVE_SINE, OMX_WAVE_SQUARE, OMX_WAVE_SAW, OMX_WAVE_TRIANGLE).",
+      "ids": [
+        "sine",
+        "square",
+        "saw",
+        "triangle"
+      ]
+    },
+    {
+      "name": "oscillatorFreq",
+      "kind": "travel",
+      "global": "OSCILLATOR_FREQ_RANGE",
+      "doc": "The oscillator's frequency travel: the audible band, 20 Hz to 20 kHz, stepped by 10 Hz on a nudge. omx-dsp's omx_gen_osc takes the frequency in Hz.",
+      "travel": {
+        "min": 20,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz"
+      }
+    }
+  ]
+}

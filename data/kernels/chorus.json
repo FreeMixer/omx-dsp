@@ -1,0 +1,115 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "spread",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_chorus_instance.h#spread"
+      },
+      "doc": "The chorus's right-leg phase offset, in TURNS of its one oscillator. The right leg's voice k reads the LFO at k/N + spread: 0 is both legs one phase (the stage without the field, bit for bit), 0.25 quadrature, 0.5 the Dimension's opposed sweep. A fraction of a cycle carries no engineering symbol, so the unit is ''.",
+      "travel": {
+        "min": 0,
+        "max": 0.5,
+        "step": 0.01,
+        "unit": "",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "rate",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_chorus_instance.h#lfo_inc"
+      },
+      "doc": "The chorus sweep's speed. Above ~3 Hz it stops being a chorus and becomes a vibrato.",
+      "travel": {
+        "min": 0.05,
+        "max": 8,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 0.6,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "depth",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_chorus_instance.h#depth_samples"
+      },
+      "doc": "The chorus's peak-to-peak excursion above its declared 10 ms base.",
+      "travel": {
+        "min": 0,
+        "max": 12,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 4,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "voices",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_chorus_instance.h#v"
+      },
+      "doc": "The chorus's tap count — one oscillator read at k/N.",
+      "travel": {
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "unit": "",
+        "default": 3,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mix",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_chorus_instance.h#mix"
+      },
+      "doc": "The chorus's wet/dry, as an instance of DRIVE_MIX_RANGE — the same percent travel, its own come-up value: 35 %, a colour under the dry on a strip. The REVERB_LOWCUT_RANGE-over- REVERB_CUT_RANGE shape: one travel, one declared default per field that reads it.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 35,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "constants": {
+    "CHORUS_BASE_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_chorus_instance.h#base_samples"
+      },
+      "doc": "The chorus's base delay, ms: the voices swing around it by up to the depth.",
+      "unit": "ms",
+      "value": 10
+    },
+    "CHORUS_MAX_MS": {
+      "kind": "scalar",
+      "doc": "The longest delay a chorus voice reaches, rounded up to whole ms: the base delay plus the depth maximum. The delay line is sized from it.",
+      "unit": "ms",
+      "value": {
+        "derive": "ceilSum",
+        "of": [
+          {
+            "ref": "CHORUS_BASE_MS"
+          },
+          {
+            "ref": "CHORUS_DEPTH_RANGE.max"
+          }
+        ]
+      }
+    }
+  }
+}

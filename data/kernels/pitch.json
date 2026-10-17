@@ -1,0 +1,65 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "semitones",
+      "kind": "travel",
+      "table": "PITCH_LIMITS",
+      "travel": {
+        "min": -12,
+        "max": 12,
+        "step": 1,
+        "unit": "st",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "cents",
+      "kind": "travel",
+      "table": "PITCH_LIMITS",
+      "travel": {
+        "min": -50,
+        "max": 50,
+        "step": 1,
+        "unit": "cents",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mix",
+      "kind": "travel",
+      "table": "PITCH_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "tables": {
+    "PITCH_LIMITS": {
+      "doc": "The pitch shifter's control travels: the shift in whole semitones (-12 to 12), the fine shift in cents (-50 to 50), and the wet share in percent, on the drive's mix travel so the modulation family shares one word and unit. A fresh shifter is fully wet, the mix travel's own top."
+    }
+  },
+  "constants": {
+    "PITCH_KERNEL": {
+      "kind": "sheet",
+      "doc": "The pitch kernel's constants that are not a control's travel. `windowMs` is the crossfade window in ms, declared rather than a control and whole in samples at every rate; `prefilterCeilingHz` is the pre-filter's highest corner, the corner being min(ceiling, sample rate / (2 x ratio)); `prefilterQ` is its Q, a second-order Butterworth.",
+      "value": {
+        "windowMs": 40,
+        "prefilterCeilingHz": 20000,
+        "prefilterQ": {
+          "ref": "BUTTERWORTH_Q"
+        }
+      }
+    }
+  }
+}

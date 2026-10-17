@@ -1,0 +1,116 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "attackDb",
+      "kind": "travel",
+      "table": "TRANSIENT_LIMITS",
+      "travel": {
+        "min": -24,
+        "max": 24,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "sustainDb",
+      "kind": "travel",
+      "table": "TRANSIENT_LIMITS",
+      "travel": {
+        "min": -24,
+        "max": 24,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "attackTimeMs",
+      "kind": "travel",
+      "table": "TRANSIENT_LIMITS",
+      "travel": {
+        "min": 2,
+        "max": 50,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 10,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "sustainTimeMs",
+      "kind": "travel",
+      "table": "TRANSIENT_LIMITS",
+      "travel": {
+        "min": 50,
+        "max": 2000,
+        "step": 1,
+        "unit": "ms",
+        "default": 250,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "outputDb",
+      "kind": "travel",
+      "table": "TRANSIENT_LIMITS",
+      "travel": {
+        "min": -24,
+        "max": 12,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "tables": {
+    "TRANSIENT_LIMITS": {
+      "doc": "The legal range of each transient-designer field (engineering units). Every kind comes up flat: no per-kind default differs. the engine's limits generator emits each as `OMX_TRANSIENT_<FIELD>_{MIN,MAX,DEFAULT}` for `mix_transient.h`'s resolve; the row publishes them on OPTIONS when it lands."
+    }
+  },
+  "constants": {
+    "TRANSIENT_FAST_ATTACK_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_transient.h#fast"
+      },
+      "doc": "The fast follower's attack, ms: exactly the dynamics detector's no-oversampling line.",
+      "unit": "ms",
+      "value": 0.5
+    },
+    "TRANSIENT_FAST_RELEASE_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_transient.h#fast"
+      },
+      "doc": "The fast follower's release, ms: one 50 Hz cycle held, a 180 bpm sixteenth forgotten.",
+      "unit": "ms",
+      "value": 20
+    },
+    "TRANSIENT_REF_DB": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_transient.h#inv_ref"
+      },
+      "doc": "The contrast, dB, at which a knob reaches its full value.",
+      "unit": "dB",
+      "value": 6
+    },
+    "TRANSIENT_FLOOR_LIN": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_transient.h#da"
+      },
+      "doc": "The detector floor, linear (−100 dBFS): below it both envelopes read the floor and the stage is unity.",
+      "unit": "",
+      "value": 0.00001
+    }
+  }
+}

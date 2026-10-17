@@ -1,0 +1,20 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "inputAlignDelay",
+      "kind": "travel",
+      "global": "INPUT_ALIGN_DELAY_RANGE",
+      "doc": "The input alignment delay travel: how far one microphone is pushed back to meet another on the same source. Not the FX delay (FX_DELAY_TIME_RANGE, a musical echo) and not the output delay (OUTPUT_DELAY_RANGE, a loudspeaker zone). max is the alignment ring's ceiling, the same number as OMX_ALIGN_MAX_MS in omx-dsp's omx_align.h: 100 ms is 34 m of air, further apart than two microphones on one source can be. The step is fine enough to carry what the fractional read applies: 0.0001 ms is under a hundredth of a sample at 96 kHz.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.0001,
+        "unit": "ms"
+      }
+    }
+  ]
+}

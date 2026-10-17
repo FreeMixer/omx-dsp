@@ -1,0 +1,38 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "constants": {
+    "SRC_TAPS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/omx_src.h#omx_src_plan_of"
+      },
+      "doc": "Taps per phase. 64 puts the design's transition band comfortably inside what a Kaiser of this beta can hold at every standard rate pair, and costs 64 multiply-adds per output sample — about 12 M flops per track-minute at 48 kHz, which is nothing offline.",
+      "unit": "",
+      "value": 64
+    },
+    "SRC_STOPBAND_DB": {
+      "kind": "scalar",
+      "doc": "Stopband attenuation the window is designed for, in dB. 96 dB is below the noise floor of any take this console can capture (float capture of a 24-bit converter), so the conversion is not what limits the file.",
+      "unit": "dB",
+      "value": 96
+    },
+    "SRC_ROLLOFF": {
+      "kind": "scalar",
+      "doc": "How much of the shared Nyquist the passband keeps. The remaining 8 % is the transition band the window needs to reach its stopband: at 48 kHz that puts the corner at 22.08 kHz and the stopband in place by 24 kHz.",
+      "unit": "",
+      "value": 0.92
+    },
+    "SRC_MAX_L": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/omx_src.h#omx_src_plan_of"
+      },
+      "doc": "The largest interpolation factor a plan may carry. 44.1 kHz -> 192 kHz is 640/147, the widest pair the console's standard rates produce; the cap refuses an exotic pair before it allocates a table nobody budgeted for, rather than discovering it as a bad_alloc.",
+      "unit": "",
+      "value": 1024
+    }
+  }
+}
