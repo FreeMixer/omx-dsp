@@ -5,6 +5,21 @@
   },
   "controls": [
     {
+      "name": "family",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#omx_hrp_lv2_ask_of"
+      },
+      "doc": "The instrument family HRP searches for, as an OmxHrpFamily value: -1 (OMX_HRP_FAMILY_NONE) is the console's wide default search, 0 to 9 the families of INSTRUMENT_FAMILIES in their order. A broad prior on where the fundamentals lie and how many voices sound at once; it never moves the confidence floor. An integer control: a face rounds the word inside the travel and reads a non-finite one as the default.",
+      "travel": {
+        "min": -1,
+        "max": 9,
+        "step": 1,
+        "unit": "",
+        "default": -1
+      }
+    },
+    {
       "name": "amount",
       "kind": "travel",
       "source": {
@@ -18,6 +33,25 @@
         "unit": "",
         "default": 0.5,
         "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "bands",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#omx_hrp_lv2_ask_of"
+      },
+      "doc": "How many bands one HRP instance may plant at once, from one up to the size of its answer set (HRP_DEFAULT_MAX_AUTO_BANDS). It comes up at the full budget. An integer control: a face rounds the word inside the travel and reads a non-finite one as the default.",
+      "travel": {
+        "min": 1,
+        "max": {
+          "ref": "HRP_DEFAULT_MAX_AUTO_BANDS"
+        },
+        "step": 1,
+        "unit": "",
+        "default": {
+          "ref": "HRP_DEFAULT_MAX_AUTO_BANDS"
+        }
       }
     }
   ],
