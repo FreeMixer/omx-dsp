@@ -20,6 +20,9 @@
 #               moved from the engine, and a sabotage of each
 #   make engine-kernels-identity OPENMIXER=<checkout>  the same digests rendered through the engine's
 #               own copies (mix_src.h, mix_dsp.h), and the check's sabotages (tools/engine-kernels-identity.sh)
+#   make exports  build/omx-dsp-exports.json: every public export with its fingerprint, literals,
+#               kernels and twins, which omx-dsp-copy-check reads in a consumer (make install ships both)
+#   make copy-check  omx-dsp-copy-check's self-test over planted copies, then each rule broken in turn
 #   make lint   the doc check and the source scan only
 #   make contract-dir OMX_CONTRACT=<checkout>  data/ installed beside omx-contract's own data as a contract
 #               directory and read back through the checkout's reader, and three refusals
@@ -73,7 +76,7 @@ override CFLAGS += $(FPFLAGS)
 # at or above the floor packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
 # (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
 # directory as CONTRACT_INC.
-ifeq ($(filter version clean docs public-sources public-sources-messages,$(MAKECMDGOALS)),)
+ifeq ($(filter version clean docs public-sources public-sources-messages exports copy-check,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
 $(error tools/contract-include.sh found no omx-contract: see its message above)
@@ -119,6 +122,9 @@ GOLDEN_SUBST    = -include test/support/log10f_subst.h
 PREFIX     ?= /usr/local
 LIBDIR     ?= $(PREFIX)/lib
 INCLUDEDIR ?= $(PREFIX)/include
+BINDIR     ?= $(PREFIX)/bin
+DATADIR    ?= $(PREFIX)/share
+MANDIR     ?= $(DATADIR)/man
 DESTDIR    ?=
 # The definitions this library implements (data/) install as the package omx-dsp of the installed
 # omx-contract's contract directory, <contractdir>/<schema major>/omx-dsp/, with the installer that
@@ -131,7 +137,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -289,6 +295,19 @@ contract-dir:
 definitions definitions-check:
 	@test -n "$(OMX_CONTRACT)" || { echo "$@: name an omx-contract checkout: make $@ OMX_CONTRACT=<dir>" >&2; exit 2; }
 	bash tools/definitions-render.sh $(if $(filter definitions-check,$@),--check) $(OMX_CONTRACT) $(BUILD)/definitions
+
+# The exports file a consumer's copy check reads, generated from the headers and the compiled unit.
+EXPORTS = $(BUILD)/omx-dsp-exports.json
+exports: $(EXPORTS)
+$(EXPORTS): $(HEADERS) $(FX_HEADERS) $(ANALYSIS_HEADERS) $(MIX_HEADERS) $(SRC) tools/omx-dsp-copy-check.sh include/omxdsp/omxdsp.h | $(BUILD)
+	bash tools/omx-dsp-copy-check.sh --generate --version $(VERSION) . > $@.tmp
+	mv $@.tmp $@
+
+# omx-dsp-copy-check finds every planted copy and passes every legitimate use, and each of its
+# rules, broken in turn, turns its self-test red.
+copy-check: | $(BUILD)
+	TMPDIR="$(abspath $(BUILD))" bash tools/omx-dsp-copy-check.sh --self-test
+	TMPDIR="$(abspath $(BUILD))" bash tools/omx-dsp-copy-check.sh --self-test --sabotage
 
 # Public sources state public facts only: no pointer into a private repository (operator ruling
 # 2026-10-13). The check, then its self-test.
@@ -505,7 +524,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks copy-check suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
@@ -513,7 +532,7 @@ test: lib checks suite negative magnitude-sabotage eq-sabotage geq-true-sabotage
 version:
 	@echo $(VERSION)
 
-PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
+PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' -e 's|@DATADIR@|$(DATADIR)|' \
 	 -e 's|@VERSION@|$(VERSION)|' -e 's|@CONTRACTFLOOR@|$(CONTRACT_FLOOR)|' -e 's|@FPFLAGS@|$(FPFLAGS)|'
 
 $(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
@@ -528,8 +547,9 @@ $(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-tsan|' -e 's|@FLAVOUR@|contracts compiled in, under ThreadSanitizer|' \
 	    -e 's|@CFLAGS@| $(TSAN_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS)|' $< | sed 's/ *$$//' > $@
 
-install: $(LIBS_ALL) $(PC_ALL)
-	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis $(DESTDIR)$(INCLUDEDIR)/omxdsp/mix $(DESTDIR)$(LIBDIR)/pkgconfig
+install: $(LIBS_ALL) $(PC_ALL) $(EXPORTS)
+	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis $(DESTDIR)$(INCLUDEDIR)/omxdsp/mix $(DESTDIR)$(LIBDIR)/pkgconfig \
+	  $(DESTDIR)$(BINDIR) $(DESTDIR)$(DATADIR)/omxdsp $(DESTDIR)$(MANDIR)/man1
 	install -m 0644 include/omxdsp/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/
 	install -m 0644 include/omxdsp/fx/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx/
 	install -m 0644 include/omxdsp/analysis/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis/
@@ -539,6 +559,9 @@ install: $(LIBS_ALL) $(PC_ALL)
 	@test -n "$(CONTRACTDIR)" && test -f "$(CONTRACT_INSTALLER)" && test -n "$(CONTRACT_MAJOR)" || \
 	  { echo "install: the installed omx-contract names no contract directory, installer or schema major (contractdir and datadir of omx-contract.pc): data/ cannot be installed" >&2; exit 1; }
 	sh $(CONTRACT_INSTALLER) omx-dsp $(VERSION) $(CONTRACT_MAJOR) data $(DESTDIR)$(CONTRACTDIR) data
+	install -m 0644 $(EXPORTS) $(DESTDIR)$(DATADIR)/omxdsp/
+	install -m 0755 tools/omx-dsp-copy-check.sh $(DESTDIR)$(BINDIR)/omx-dsp-copy-check
+	install -m 0644 omx-dsp-copy-check.1 $(DESTDIR)$(MANDIR)/man1/
 
 # §4.3 (e): UNJUDGED (exit 0, never a pass) where the toolchain has no TSan; where it has, the
 # thread arm must be report-free and its shared-state sabotage must race. The gate's own report

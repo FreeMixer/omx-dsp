@@ -187,6 +187,7 @@ static inline void omx_eq_band_anchors(double freq_hz, double q, double out[3]) 
  * @return The band's magnitude, dB, floored at `floor_db`.
  * @pre `finite-args-and-positive-rate`.
  * @note Not for the audio thread (a design per call); thread-safe: pure.
+ * @twin biquadMagnitudeDb
  */
 static inline double omx_eq_band_magnitude_db(const struct omx_eq_band *b, double freq_hz,
                                               double sample_rate, double floor_db) {
@@ -208,6 +209,7 @@ static inline double omx_eq_band_magnitude_db(const struct omx_eq_band *b, doubl
  * @param floor_db The floor each band's value is held at, dB.
  * @return The sum of omx_eq_band_magnitude_db() over the bands; 0 dB for none.
  * @note Not for the audio thread; thread-safe: pure.
+ * @twin magnitudeSumDb
  */
 static inline double omx_eq_magnitude_sum_db(const struct omx_eq_band *bands, uint32_t nbands,
                                              double freq_hz, double sample_rate,
