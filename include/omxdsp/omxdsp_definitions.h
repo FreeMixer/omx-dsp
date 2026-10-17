@@ -26,6 +26,8 @@
  * and DSP constants this library implements. The rendered file is kept in this repository so the library
  * builds without node; the values are changed where they are declared and the file is re-rendered, never
  * edited here.
+ * It is kept out of the API reference (Doxyfile EXCLUDE): each define is documented by its definition in
+ * data/, and the header carries no doc comment of its own for Doxygen to read.
  */
 
 /** @file
