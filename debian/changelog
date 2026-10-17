@@ -1,3 +1,20 @@
+omx-dsp (0.21.0) unstable; urgency=medium
+
+  * The mix maths the engine used to carry now lives here: the pan laws and
+    the LCR downmix centre level, a strip's coefficients, split and
+    settled-silence test, the strip's post-fader peak reading and an output
+    route's fill, fold and fold-fill gains, each with goldens written by the
+    engine's own copies.
+  * New kernels: omx_mbcomp, a multiband compressor over an LR4 crossover
+    tree, and omx_pole_rescale, one home for the reference-rate pole law.
+  * The delay has up to four integer read taps on its one ring. The band
+    dynamics gain path runs on the libm-free unit pair in 64-sample chunks.
+  * omxdsp.h includes omx_align.h, with a check that every public header is
+    reached or listed. omx_dyn seeds y[n-1] when its slot enters the
+    feedback loop.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 16 Oct 2026 00:00:00 +0000
+
 omx-dsp (0.20.2) unstable; urgency=medium
 
   * The header documentation states its design notes as plain facts,
