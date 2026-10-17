@@ -13,7 +13,7 @@
  *   2. RESOLVE. {@link omx_reverb_instance_resolve} takes the kernel's thirteen contract controls
  *      in their declared order and the row's own units (resolve_fx_reverb, mixer_rt.c, loads them
  *      unconverted) into the atom, every travel clamped through omx_param into its declared range
- *      (REVERB_*_RANGE, omx_contract_limits.h) and a non-finite word reading as the declared
+ *      (REVERB_*_RANGE, omxdsp_definitions.h) and a non-finite word reading as the declared
  *      default — a foreign host's port is not the console's codec. The algorithm is the
  *      REVERB_ALGORITHMS index; any other value reads as ROOM.
  *   3. IN -> OUT. The kernel works IN PLACE; run() copies in to out where they differ (they may

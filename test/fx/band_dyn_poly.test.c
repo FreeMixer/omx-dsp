@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/fx/omx_deesser.h>
 #include <omxdsp/omx_band_dyn.h>
 #include <omxdsp/omx_eq_design.h>

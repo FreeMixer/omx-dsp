@@ -47,7 +47,7 @@
 
 #include <stdint.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/omx_fdelay.h>
 #include <omxdsp/omx_lfo.h>
 #include <omxdsp/omx_param.h>

@@ -34,7 +34,7 @@
 
 /**
  * @brief The graphic EQ's section count, the ISO third-octave set's length. OMX_GEQ_BANDS comes
- *        from the generated omx_contract_limits.h (declared once, in core's eq.ts).
+ *        from the generated omxdsp_definitions.h (declared once, in core's eq.ts).
  */
 
 /** @brief The graphic EQ's resolved controls: one coefficient set and one live byte per section. */

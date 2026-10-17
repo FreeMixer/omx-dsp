@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 #define OMX_ANALYSIS_RATE_COUNT ((int)OMX_RME_RATES_COUNT)
 

@@ -13,7 +13,7 @@
  *      the inline rings cannot serve is refused at init.
  *   2. RESOLVE. {@link omx_limiter_instance_resolve} takes the kernel's contract controls in their
  *      declared order and user units (dBFS, ms, ms) and clamps each into its declared travel
- *      (OMX_LIMITER_*, omx_contract_limits.h; a non-finite word reads as the declared default).
+ *      (OMX_LIMITER_*, omxdsp_definitions.h; a non-finite word reads as the declared default).
  *      The look-ahead is the state's geometry, not an atom word: when it moves by a frame the
  *      state is re-armed (omx_limiter_init: a bounded pass over the instance's rings, no
  *      allocation), the gain restarts at unity and the latency changes.

@@ -66,13 +66,13 @@
  * by `hrp-native-twins.test.ts` rather than by anyone noticing. */
 
 /** Largest automatic cut, positive dB magnitude. Declared as `HRP_MAX_CUT_DB`. */
-/* OMX_HRP_MAX_CUT_DB: read from omx_contract_limits.h (the declaration's own door). */
+/* OMX_HRP_MAX_CUT_DB: read from omxdsp_definitions.h (the declaration's own door). */
 
 /** The bell's Q for every planted band. Declared as `HRP_BAND_Q`. */
-/* OMX_HRP_BAND_Q: read from omx_contract_limits.h (the declaration's own door). */
+/* OMX_HRP_BAND_Q: read from omxdsp_definitions.h (the declaration's own door). */
 
 /** Deviation below which a partial is expression, not resonance. Declared as `HRP_EXCESS_THRESHOLD_DB`. */
-/* OMX_HRP_EXCESS_THRESHOLD_DB: read from omx_contract_limits.h (the declaration's own door). */
+/* OMX_HRP_EXCESS_THRESHOLD_DB: read from omxdsp_definitions.h (the declaration's own door). */
 
 /** Two candidates closer than this are the same spectral REGION and one of them is discarded
  * (§30). Declared as `HRP_COLLISION_CENTS`.
@@ -86,7 +86,7 @@
  * they overlap over most of their travel. Different laws, different derivations, different
  * numbers; they shared a name for one commit and the build now refuses that (-Werror on the
  * two binaries that include both headers). */
-#define OMX_HRP_SELECT_COLLISION_CENTS OMX_HRP_COLLISION_CENTS /* the declaration, through omx_contract_limits.h */
+#define OMX_HRP_SELECT_COLLISION_CENTS OMX_HRP_COLLISION_CENTS /* the declaration, through omxdsp_definitions.h */
 
 /** How far ONE pass may move a band's gain, dB — §48's smoothing, at the control level because
  * §48 forbids interpolating in the native biquad. Declared as `HRP_GAIN_STEP_DB`.
@@ -94,10 +94,10 @@
  * A correction ENTERS by deepening from silence and LEAVES by walking to exactly 0 dB, the
  * provable parked identity, from which removal is bit-identical. An unbounded step is a
  * waveform discontinuity — the click heard live on 2026-08-20. */
-/* OMX_HRP_GAIN_STEP_DB: read from omx_contract_limits.h (the declaration's own door). */
+/* OMX_HRP_GAIN_STEP_DB: read from omxdsp_definitions.h (the declaration's own door). */
 
 /** The channel's band budget across ALL voices (§29). Declared as `HRP_DEFAULT_MAX_AUTO_BANDS`. */
-/* OMX_HRP_DEFAULT_MAX_AUTO_BANDS: read from omx_contract_limits.h (the declaration's own door). */
+/* OMX_HRP_DEFAULT_MAX_AUTO_BANDS: read from omxdsp_definitions.h (the declaration's own door). */
 
 /** The corrector's default strength, 0..1. Twin of `makeHrpChannelState().amount`. */
 #define OMX_HRP_DEFAULT_AMOUNT OMX_HRP_AMOUNT_RANGE_DEFAULT

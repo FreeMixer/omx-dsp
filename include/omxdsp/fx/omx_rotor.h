@@ -8,7 +8,7 @@
  *
  * Composed of `omx_fdelay.h` at order
  * 3, `omx_lfo.h` and `omx_onepole.h`; the constants are `OMX_ROTARY_*` from the generated
- * `omx_contract_limits.h`. No allocation: the lines are the caller's.
+ * `omxdsp_definitions.h`. No allocation: the lines are the caller's.
  */
 #ifndef OMX_MIX_ROTOR_H
 #define OMX_MIX_ROTOR_H
