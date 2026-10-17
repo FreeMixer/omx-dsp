@@ -172,7 +172,7 @@
     "GATE_LIMITS": {
       "source": {
         "from": {
-          "link": "packages/core/src/strip-dynamics-limits.ts#GATE_LIMITS",
+          "link": "core/src/strip-dynamics-limits.ts#GATE_LIMITS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         }
       },

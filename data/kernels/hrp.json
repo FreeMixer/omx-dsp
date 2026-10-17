@@ -26,7 +26,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HRP_MAX_CUT_DB",
+          "link": "declarations/src/index.ts#HRP_MAX_CUT_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#cut"
@@ -39,7 +39,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HRP_MAX_VOICES",
+          "link": "declarations/src/index.ts#HRP_MAX_VOICES",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_hrp_pitch.h#max_voices"
@@ -108,7 +108,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HRP_BAND_Q",
+          "link": "declarations/src/index.ts#HRP_BAND_Q",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#omx_hrp_lv2_analyse"
@@ -121,7 +121,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HRP_EXCESS_THRESHOLD_DB",
+          "link": "declarations/src/index.ts#HRP_EXCESS_THRESHOLD_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_hrp_correct.h#correctable"
@@ -134,7 +134,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HRP_GAIN_STEP_DB",
+          "link": "declarations/src/index.ts#HRP_GAIN_STEP_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#step"
@@ -147,7 +147,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HRP_COLLISION_CENTS",
+          "link": "declarations/src/index.ts#HRP_COLLISION_CENTS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_hrp_correct.h#OMX_HRP_SELECT_COLLISION_CENTS"
@@ -160,7 +160,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HRP_ATTRIBUTION_CENTS",
+          "link": "declarations/src/index.ts#HRP_ATTRIBUTION_CENTS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_hrp_attribute.h#omx_hrp_attribute"
@@ -173,7 +173,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HRP_DEFAULT_MAX_AUTO_BANDS",
+          "link": "declarations/src/index.ts#HRP_DEFAULT_MAX_AUTO_BANDS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
         },
         "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#OMX_HRP_LV2_MAX_BANDS"

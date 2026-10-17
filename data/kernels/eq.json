@@ -27,7 +27,7 @@
       "global": "HPF_FREQ_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#HPF_FREQ_RANGE",
+          "link": "declarations/src/index.ts#HPF_FREQ_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#hf"
@@ -77,7 +77,7 @@
       "global": "LPF_FREQ_RANGE",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#LPF_FREQ_RANGE",
+          "link": "declarations/src/index.ts#LPF_FREQ_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#lf"
@@ -126,7 +126,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#EQ_FREQ_RANGE",
+          "link": "declarations/src/index.ts#EQ_FREQ_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_band_freq_default"
@@ -145,7 +145,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#EQ_GAIN_RANGE",
+          "link": "declarations/src/index.ts#EQ_GAIN_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#g"
@@ -164,7 +164,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#EQ_Q_RANGE",
+          "link": "declarations/src/index.ts#EQ_Q_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_clamp_q"
@@ -183,7 +183,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#EQ_NOTCH_Q_RANGE",
+          "link": "declarations/src/index.ts#EQ_NOTCH_Q_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_clamp_q"
@@ -222,7 +222,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#EQ_MAX_BANDS",
+          "link": "declarations/src/index.ts#EQ_MAX_BANDS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#nb"
@@ -235,7 +235,7 @@
       "kind": "list",
       "source": {
         "from": {
-          "link": "packages/core/src/eq.ts#ISO_THIRD_OCTAVE_CENTRES_HZ",
+          "link": "core/src/eq.ts#ISO_THIRD_OCTAVE_CENTRES_HZ",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_geq_instance.h#OMX_GEQ_INSTANCE_CENTRES_HZ"
@@ -280,7 +280,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/eq.ts#GEQ_BANDS",
+          "link": "core/src/eq.ts#GEQ_BANDS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_geq_instance.h#acc"

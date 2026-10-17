@@ -10,7 +10,7 @@
       "global": "PHASER_RATE_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#PHASER_RATE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#PHASER_RATE_RANGE",
           "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
         },
         "impl": "include/omxdsp/fx/omx_phaser_instance.h#lfo_inc"
@@ -31,7 +31,7 @@
       "global": "PHASER_BASE_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#PHASER_BASE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#PHASER_BASE_RANGE",
           "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
         },
         "impl": "include/omxdsp/fx/omx_phaser_instance.h#base_hz"
@@ -52,7 +52,7 @@
       "global": "PHASER_DEPTH_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#PHASER_DEPTH_RANGE",
+          "link": "core/src/strip-fx-limits.ts#PHASER_DEPTH_RANGE",
           "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
         },
         "impl": "include/omxdsp/fx/omx_phaser_instance.h#depth_oct"
@@ -72,7 +72,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#PHASER_STAGES_RANGE",
+          "link": "core/src/strip-fx-limits.ts#PHASER_STAGES_RANGE",
           "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
         },
         "impl": "include/omxdsp/fx/omx_phaser_instance.h#n"
@@ -92,7 +92,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#PHASER_FEEDBACK_RANGE",
+          "link": "core/src/strip-fx-limits.ts#PHASER_FEEDBACK_RANGE",
           "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
         },
         "impl": "include/omxdsp/fx/omx_phaser_instance.h#feedback"
@@ -112,7 +112,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#PHASER_MIX_RANGE",
+          "link": "core/src/strip-fx-limits.ts#PHASER_MIX_RANGE",
           "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
         },
         "impl": "include/omxdsp/fx/omx_phaser_instance.h#mix"
@@ -132,7 +132,7 @@
     "PHASER_TRAVELS": {
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#PHASER_TRAVELS",
+          "link": "core/src/strip-fx-limits.ts#PHASER_TRAVELS",
           "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
         }
       },
@@ -151,7 +151,7 @@
       "kind": "list",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#PHASER_STAGE_COUNTS",
+          "link": "core/src/strip-fx-limits.ts#PHASER_STAGE_COUNTS",
           "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
         }
       },

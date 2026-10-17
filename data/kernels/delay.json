@@ -10,7 +10,7 @@
       "global": "FX_DELAY_TIME_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#FX_DELAY_TIME_RANGE",
+          "link": "core/src/strip-fx-limits.ts#FX_DELAY_TIME_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_delay_instance.h#ms"
@@ -37,7 +37,7 @@
       "global": "FX_DELAY_FEEDBACK_RANGE",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#FX_DELAY_FEEDBACK_RANGE",
+          "link": "core/src/strip-fx-limits.ts#FX_DELAY_FEEDBACK_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_delay.h#fb"
@@ -57,7 +57,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#DELAY_TONE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#DELAY_TONE_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_delay_instance.h#tone"
@@ -77,7 +77,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#DELAY_MIX_RANGE",
+          "link": "core/src/strip-fx-limits.ts#DELAY_MIX_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_delay_instance.h#mix"
@@ -252,7 +252,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#FX_DELAY_PINGPONG_DEFAULT",
+          "link": "core/src/strip-fx-limits.ts#FX_DELAY_PINGPONG_DEFAULT",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         }
       },

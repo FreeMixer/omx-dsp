@@ -9,7 +9,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/declarations/src/index.ts#GEQ_BAND_RANGE",
+          "link": "declarations/src/index.ts#GEQ_BAND_RANGE",
           "at": "openmixer@89343ca0a0d36b2a4b4a966e7a220ad7b4c06a03"
         },
         "impl": "include/omxdsp/fx/omx_geq_instance.h#band_db"
@@ -54,7 +54,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/eq.ts#GEQ_BAND_Q",
+          "link": "core/src/eq.ts#GEQ_BAND_Q",
           "at": "openmixer@89343ca0a0d36b2a4b4a966e7a220ad7b4c06a03"
         },
         "impl": "include/omxdsp/fx/omx_geq_instance.h#omx_geq_instance_column"
@@ -67,7 +67,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/eq.ts#GEQ_PROTO_DB",
+          "link": "core/src/eq.ts#GEQ_PROTO_DB",
           "at": "openmixer@89343ca0a0d36b2a4b4a966e7a220ad7b4c06a03"
         },
         "impl": "include/omxdsp/fx/omx_geq_instance.h#omx_geq_true_gains"
@@ -80,7 +80,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/eq.ts#GEQ_DESIGN_GAIN_MAX_DB",
+          "link": "core/src/eq.ts#GEQ_DESIGN_GAIN_MAX_DB",
           "at": "openmixer@89343ca0a0d36b2a4b4a966e7a220ad7b4c06a03"
         },
         "impl": "include/omxdsp/fx/omx_geq_instance.h#ceiling"

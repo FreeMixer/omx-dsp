@@ -9,7 +9,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_SPREAD_RANGE",
+          "link": "core/src/strip-fx-limits.ts#CHORUS_SPREAD_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#spread"
@@ -29,7 +29,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_RATE_RANGE",
+          "link": "core/src/strip-fx-limits.ts#CHORUS_RATE_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#lfo_inc"
@@ -49,7 +49,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_DEPTH_RANGE",
+          "link": "core/src/strip-fx-limits.ts#CHORUS_DEPTH_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#depth_samples"
@@ -69,7 +69,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_VOICES_RANGE",
+          "link": "core/src/strip-fx-limits.ts#CHORUS_VOICES_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#v"
@@ -89,7 +89,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_MIX_RANGE",
+          "link": "core/src/strip-fx-limits.ts#CHORUS_MIX_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#mix"

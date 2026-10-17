@@ -9,7 +9,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#DRIVE_AMOUNT_RANGE",
+          "link": "core/src/strip-fx-limits.ts#DRIVE_AMOUNT_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_drive_instance.h#drive_lin"
@@ -35,7 +35,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#DRIVE_CHARACTER_RANGE",
+          "link": "core/src/strip-fx-limits.ts#DRIVE_CHARACTER_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_drive_instance.h#even_w"
@@ -61,7 +61,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#DRIVE_BAND_FREQ_RANGE",
+          "link": "core/src/strip-fx-limits.ts#DRIVE_BAND_FREQ_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_drive_instance.h#band_hz"
@@ -87,7 +87,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#DRIVE_MIX_RANGE",
+          "link": "core/src/strip-fx-limits.ts#DRIVE_MIX_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_drive_instance.h#mix"
@@ -113,7 +113,7 @@
       "kind": "travel",
       "source": {
         "from": {
-          "link": "packages/core/src/strip-fx-limits.ts#DRIVE_TRIM_RANGE",
+          "link": "core/src/strip-fx-limits.ts#DRIVE_TRIM_RANGE",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_drive_instance.h#trim_lin"
@@ -242,7 +242,7 @@
       "kind": "scalar",
       "source": {
         "from": {
-          "link": "packages/core/src/drive-shaper.ts#DRIVE_BIAS_MAX",
+          "link": "core/src/drive-shaper.ts#DRIVE_BIAS_MAX",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
         "impl": "include/omxdsp/fx/omx_drive.h#b"
