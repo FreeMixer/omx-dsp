@@ -1,0 +1,74 @@
+{
+  "kernel": "mbcomp",
+  "since": "2.14.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "origin/main",
+    "commit": "0f23bed020941eb5cfac9d0dfeb20dac8074468e"
+  },
+  "items": [
+    {
+      "name": "MBC_MIN_BANDS",
+      "source": {
+        "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:56 #define OMX_MBC_MIN_BANDS 2u, staged there until this declaration: omx_mbcomp_design and omx_mbcomp_process refuse a band count below it (PRE band-count-declared)"
+      },
+      "value": 2,
+      "doc": "The fewest bands the multiband compressor splits into: one crossover. omx_mbcomp_design and omx_mbcomp_process refuse a band count below it (`band-count-declared`), and a refused count reads as this floor.",
+      "unit": ""
+    },
+    {
+      "name": "MBC_MAX_BANDS",
+      "source": {
+        "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:60 #define OMX_MBC_MAX_BANDS 5u, staged there until this declaration: the band count's ceiling and the extent of the stage's inline state"
+      },
+      "value": 5,
+      "doc": "The most bands the multiband compressor splits into, and the capacity of its inline state: `struct omx_mbcomp_state` holds this many band compressors and one crossover fewer per leg, so the ceiling and the arrays are one fact.",
+      "unit": ""
+    },
+    {
+      "name": "MBC_CORNER_MAX_FRACTION",
+      "source": {
+        "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:64 #define OMX_MBC_CORNER_MAX_FRACTION 0.45, staged there until this declaration, read as a double at omx_mbcomp_design (top = fraction x sr)"
+      },
+      "value": 0.45,
+      "doc": "The highest crossover corner the multiband design builds, as a fraction of the live rate: a corner at or above `fraction x rate` is designed AT that line, because the LR4 section degenerates toward Nyquist. omx_mbcomp_design computes the line in double, so a C reader takes OMX_MBC_CORNER_MAX_FRACTION_DOUBLE. A 20 kHz corner is under the line from 48 kHz up; at 44.1 kHz the line is 19845 Hz and a 20 kHz corner is designed there.",
+      "unit": ""
+    },
+    {
+      "name": "MBC_CROSSOVER_DEFAULTS_2",
+      "source": {
+        "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:68 #define OMX_MBC_CROSSOVER_DEFAULTS_2_INIT { 1000.0f }, row 2 of OMX_MBC_COME_UP_HZ, read through omx_mbcomp_come_up_hz"
+      },
+      "value": [1000],
+      "doc": "The come-up crossover corners of a 2-band multiband stage, Hz, ascending: one split at 1 kHz.",
+      "unit": "Hz"
+    },
+    {
+      "name": "MBC_CROSSOVER_DEFAULTS_3",
+      "source": {
+        "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:72 #define OMX_MBC_CROSSOVER_DEFAULTS_3_INIT { 200.0f, 2000.0f }, row 3 of OMX_MBC_COME_UP_HZ, read through omx_mbcomp_come_up_hz"
+      },
+      "value": [200, 2000],
+      "doc": "The come-up crossover corners of a 3-band multiband stage, Hz, ascending: body, presence, air.",
+      "unit": "Hz"
+    },
+    {
+      "name": "MBC_CROSSOVER_DEFAULTS_4",
+      "source": {
+        "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:76 #define OMX_MBC_CROSSOVER_DEFAULTS_4_INIT { 150.0f, 800.0f, 5000.0f }, row 4 of OMX_MBC_COME_UP_HZ, read through omx_mbcomp_come_up_hz"
+      },
+      "value": [150, 800, 5000],
+      "doc": "The come-up crossover corners of a 4-band multiband stage, Hz, ascending.",
+      "unit": "Hz"
+    },
+    {
+      "name": "MBC_CROSSOVER_DEFAULTS_5",
+      "source": {
+        "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:80 #define OMX_MBC_CROSSOVER_DEFAULTS_5_INIT { 100.0f, 400.0f, 1600.0f, 6400.0f }, row 5 of OMX_MBC_COME_UP_HZ, read through omx_mbcomp_come_up_hz"
+      },
+      "value": [100, 400, 1600, 6400],
+      "doc": "The come-up crossover corners of a 5-band multiband stage, Hz, ascending: two octaves apart.",
+      "unit": "Hz"
+    }
+  ]
+}

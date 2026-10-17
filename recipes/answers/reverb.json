@@ -1,0 +1,243 @@
+{
+  "kernel": "reverb",
+  "since": "1.0.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "origin/main",
+    "commit": "964a798356925f6bc3774459d9904362b9d3f986"
+  },
+  "items": [
+    {
+      "name": "REVERB_PLATE_MOD_DEPTH_RANGE",
+      "source": {
+        "path": "index.ts",
+        "export": "REVERB_PLATE_MOD_DEPTH_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 400,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "PLATE's tank MODULATION DEPTH, in percent of Dattorro's own excursion (±8 samples at his 29 761 Hz tuning rate, scaled to the live rate the way the tank lengths are). 100 is the depth the plate has always run at, so the come-up is bit-identical to the plate before the field; 0 brings back the unmodulated tank's ring; 400 is the wide, chorused EMT-style swing. The rate stays 1 Hz. Only PLATE reads it."
+    },
+    {
+      "name": "REVERB_MIX_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_MIX_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.3,
+        "defaultFrom": "desk",
+        "byKind": {
+          "fxReturn": 1
+        }
+      },
+      "doc": "The REVERB's wet/dry. An insert keeps the dry signal (0.3); an `fxReturn` is wet-only (1), so the return carries only the effect. Both numbers live HERE and nowhere else: the row's `mix` limit, `ReverbController`'s seed and its fresh state read them through limitForKind.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_SIZE_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_SIZE_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.7,
+        "defaultFrom": "desk"
+      },
+      "doc": "The reverb's SIZE/DAMPING/WIDTH — each a NORMALIZED_RANGE instance with its own come-up value, matching `DEFAULT_REVERB_STATE`. Three separate constants rather than one shared default on `NORMALIZED_RANGE`: that range is the bare 0..1 REPRESENTATION, reused by fields across the whole console whose come-up values disagree (a fader position is not a reverb's damping), so a default belongs on the NAMED field, never on the shape it borrows.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_DAMPING_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_DAMPING_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      },
+      "doc": "The reverb's DAMPING — a NORMALIZED_RANGE instance with its own come-up value, matching `DEFAULT_REVERB_STATE`. Declared with SIZE and WIDTH (see REVERB_SIZE_RANGE for why each is a named constant rather than a default on the shared 0..1 shape).",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_WIDTH_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_WIDTH_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "doc": "The reverb's stereo WIDTH — a NORMALIZED_RANGE instance with its own come-up value, matching `DEFAULT_REVERB_STATE`. Declared with SIZE and DAMPING (see REVERB_SIZE_RANGE for why each is a named constant rather than a default on the shared 0..1 shape).",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_PREDELAY_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_PREDELAY_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "ms",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The reverb's PRE-DELAY travel — the gap before the first reflection, in milliseconds. Declared here so the unit crosses with the bounds: a `finiteNumber(0, 100)` codec publishes `unit: ''`, and a surface binding that draws a millisecond control it cannot label. The panel knowing better than the wire is the wrong way round.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_LOWCUT_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_LOWCUT_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The reverb's LOW cut, as an instance of REVERB_CUT_RANGE — same bounds, its own come-up value. `0` reads as \"none\" (`mix_reverb.h`), which is also `DEFAULT_REVERB_STATE`'s seed, so a fresh reverb's low cut and its declared default are the same fact stated once. Split from REVERB_CUT_RANGE rather than adding `default` there: the low and high cut share ONE travel (the C imposes one constraint on both) but do NOT share one come-up value, and a `default` on the shared range could only be honest for one of the two fields that read it.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_HIGHCUT_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_HIGHCUT_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 20000,
+        "defaultFrom": "desk"
+      },
+      "doc": "The reverb's HIGH cut, as an instance of REVERB_CUT_RANGE — same bounds, its own come-up value. The top of the travel reads as \"open\" (`mix_reverb.h`), matching `DEFAULT_REVERB_STATE`'s seed.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_REVERSE_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_REVERSE_RANGE"
+      },
+      "value": {
+        "min": 50,
+        "max": 500,
+        "step": 10,
+        "unit": "ms",
+        "default": 300,
+        "defaultFrom": "desk"
+      },
+      "doc": "REVERSE's MIRROR WINDOW — how long a slice of the wet is played backward, in milliseconds. A DECLARED travel and never derived from `size`'s RT60: an RT60 of seconds cannot be buffered at 192 kHz, and a window silently clamped to fit is the silent-clamp defect. The ceiling is what `mix_reverb.h`'s pool budgets a ring for (`OMX_REVERB_REVERSE_MAX_MS`), so the console offers exactly the travel the kernel accepts — nothing wider, nothing narrower.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_HOLD_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_HOLD_RANGE"
+      },
+      "value": {
+        "min": 10,
+        "max": 2000,
+        "step": 10,
+        "unit": "ms",
+        "default": 120,
+        "defaultFrom": "desk"
+      },
+      "doc": "GATED's HOLD — how long the wet stays at full level after the key falls away, in milliseconds. The Phil-Collins tail is cut where the operator puts the cut, so this is the control that decides the effect's length; `size` still decides what is being cut off.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_RELEASE_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_RELEASE_RANGE"
+      },
+      "value": {
+        "min": 1,
+        "max": 500,
+        "step": 1,
+        "unit": "ms",
+        "default": 20,
+        "defaultFrom": "desk"
+      },
+      "doc": "GATED's RELEASE — how long the held wet takes to reach zero, in milliseconds. A straight line down, short by design: a long release is a reverb tail again, which is the thing a gated reverb exists to remove.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_GATE_THRESHOLD_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "REVERB_GATE_THRESHOLD_RANGE"
+      },
+      "value": {
+        "min": -80,
+        "max": 0,
+        "step": 1,
+        "unit": "dBFS",
+        "default": -40,
+        "defaultFrom": "desk"
+      },
+      "doc": "GATED's ARM THRESHOLD — the level the reverb's own mono feed must reach to arm the hold, in dBFS. Declared, because the alternative is a hidden onset detector: the kernel compares `|input|` against exactly this number and nothing else.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "REVERB_ALGORITHMS",
+      "source": {
+        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_reverb.h enum omx_reverb_algo; the console engine's reverb algorithm list"
+      },
+      "value": [
+        "room",
+        "plate",
+        "hall",
+        "reverse",
+        "gated"
+      ],
+      "doc": "The reverb's algorithms, in the order of the integer the kernel reads. Reverse and gated are the room network handed a window and a gate.",
+      "since": "1.3.0",
+      "kind": "set"
+    },
+    {
+      "name": "REVERB_GATE_ATTACK_MS",
+      "source": {
+        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_reverb.h OMX_REVERB_GATE_ATTACK_MS; the console engine carries a copy of the same constant until the FX migration"
+      },
+      "value": 1.5,
+      "doc": "The gated reverb's gate attack, ms: the time the gate takes to open on a hit.",
+      "since": "1.3.0",
+      "unit": "ms"
+    }
+  ]
+}
