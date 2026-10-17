@@ -1,0 +1,46 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "EQ_CONTINUOUS_TRAVELS": {
+    "kind": "travels",
+    "since": "1.3.0",
+    "doc": "The EQ's three frequency travels as a host draws them: the band frequency, the high-pass corner and the low-pass corner, EQ_FREQ_RANGE's, HPF_FREQ_RANGE's and LPF_FREQ_RANGE's bounds with no step and a logarithmic scale. The console's EQ quantises frequency to 10 Hz; a frequency drags continuously on a log axis, which is how every host draws it, so this is the form the omx-plugins read. Every number but the step is the source's, held equal by test/continuous-travels.test.mjs. Not rendered to C: no C reader needs a second spelling of the EQ's bounds.",
+    "fields": {
+      "freqHz": {
+        "min": {
+          "ref": "EQ_FREQ_RANGE.min"
+        },
+        "max": {
+          "ref": "EQ_FREQ_RANGE.max"
+        },
+        "step": 0,
+        "unit": "Hz",
+        "scale": "log"
+      },
+      "hpfFreqHz": {
+        "min": {
+          "ref": "HPF_FREQ_RANGE.min"
+        },
+        "max": {
+          "ref": "HPF_FREQ_RANGE.max"
+        },
+        "step": 0,
+        "unit": "Hz",
+        "scale": "log"
+      },
+      "lpfFreqHz": {
+        "min": {
+          "ref": "LPF_FREQ_RANGE.min"
+        },
+        "max": {
+          "ref": "LPF_FREQ_RANGE.max"
+        },
+        "step": 0,
+        "unit": "Hz",
+        "scale": "log"
+      }
+    }
+  }
+}
