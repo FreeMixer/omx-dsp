@@ -9,7 +9,7 @@
  * most the stage computes per frame). Prints one TSV row per rate and setting: rate, setting,
  * p50, p95 (ns per frame).
  */
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/fx/omx_deesser.h>
 #include <omxdsp/omxdsp.h>
 

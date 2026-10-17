@@ -29,7 +29,7 @@
 #include <string.h>
 #include <time.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/fx/omx_geq.h>
 

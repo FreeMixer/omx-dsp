@@ -10,7 +10,7 @@
  *      declared order and user units (Hz, Hz, octaves, a section count, a signed resonance,
  *      percent) and turns them into the atom: `lfo_inc = omx_lfo_inc(rate_hz, sr)`, the section
  *      count rounded to the nearest even member, mix over 100. Every knob is clamped through
- *      omx_param into its declared travel (PHASER_*_RANGE, omx_contract_limits.h): a foreign
+ *      omx_param into its declared travel (PHASER_*_RANGE, omxdsp_definitions.h): a foreign
  *      host's port is not the console's codec, and a non-finite word reads as the declared default.
  *   2. IN -> OUT. The kernel works IN PLACE; run() copies in to out where they differ (they may
  *      alias) and runs the kernel on out. Identity when bypassed or not ready.

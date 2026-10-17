@@ -1,0 +1,44 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "GATE_CONTINUOUS_TRAVELS": {
+    "kind": "travels",
+    "doc": "The gate's threshold, range, release and ratio as a plugin host draws them: GATE_LIMITS' bounds, units and defaults with no step. The console's row quantises these four to whole steps (1 dB, 10 ms, 1:1), and a travel whose step is 1 or more reads as an integer control; the omx-strip plugin has always offered them continuous, so it reads this table instead. Every number but the step is GATE_LIMITS', held equal by test/continuous-travels.test.mjs. Not rendered to C: no C reader needs a second spelling of the gate's bounds.",
+    "fields": {
+      "thresholdDb": {
+        "min": -80,
+        "max": 0,
+        "step": 0,
+        "unit": "dB",
+        "default": -40,
+        "defaultFrom": "desk"
+      },
+      "rangeDb": {
+        "min": -90,
+        "max": 0,
+        "step": 0,
+        "unit": "dB",
+        "default": -90,
+        "defaultFrom": "desk"
+      },
+      "releaseMs": {
+        "min": 0,
+        "max": 5000,
+        "step": 0,
+        "unit": "ms",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "ratio": {
+        "min": 1,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "default": 16,
+        "defaultFrom": "desk"
+      }
+    }
+  }
+}

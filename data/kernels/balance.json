@@ -1,0 +1,44 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "pan",
+      "kind": "travel",
+      "global": "PAN_RANGE",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#PAN_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        }
+      },
+      "doc": "The PAN travel — −1 (hard left) … 0 (center) … +1 (hard right). A property of the pan law itself, not of any desk, so it is declared once. Continuous: a pan position has no quantum, and panGains clamps to these bounds.",
+      "travel": {
+        "min": -1,
+        "max": 1,
+        "step": 0,
+        "unit": ""
+      },
+      "c": {
+        "alias": {
+          "fact": "pan",
+          "field": "pan"
+        }
+      }
+    },
+    {
+      "name": "divergence",
+      "kind": "travel",
+      "global": "DIVERGENCE_RANGE",
+      "doc": "The LCR divergence travel: 0 is a hard discrete centre, 1 full phantom, the stereo image. A property of the LCR panner law itself, the same authority class as PAN_RANGE: no device narrows it.",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": ""
+      }
+    }
+  ]
+}

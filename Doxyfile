@@ -5,6 +5,8 @@ PROJECT_NAME           = libomxdsp
 PROJECT_BRIEF          = "openmixer's DSP primitives: one header per building block"
 OUTPUT_DIRECTORY       = build/docs
 INPUT                  = include/omxdsp
+# rendered from data/, where every define is documented (its definition); the banner says so
+EXCLUDE                = include/omxdsp/omxdsp_definitions.h
 FILE_PATTERNS          = *.h
 RECURSIVE              = NO
 OPTIMIZE_OUTPUT_FOR_C  = YES

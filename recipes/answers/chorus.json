@@ -1,0 +1,128 @@
+{
+  "kernel": "chorus",
+  "since": "1.0.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "origin/main",
+    "commit": "964a798356925f6bc3774459d9904362b9d3f986"
+  },
+  "items": [
+    {
+      "name": "CHORUS_SPREAD_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "CHORUS_SPREAD_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 0.5,
+        "step": 0.01,
+        "unit": "",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The chorus's right-leg phase offset, in TURNS of its one oscillator. The right leg's voice k reads the LFO at k/N + spread: 0 is both legs one phase (the stage without the field, bit for bit), 0.25 quadrature, 0.5 the Dimension's opposed sweep. A fraction of a cycle carries no engineering symbol, so the unit is ''."
+    },
+    {
+      "name": "CHORUS_RATE_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "CHORUS_RATE_RANGE"
+      },
+      "value": {
+        "min": 0.05,
+        "max": 8,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 0.6,
+        "defaultFrom": "desk"
+      },
+      "doc": "The chorus sweep's speed. Above ~3 Hz it stops being a chorus and becomes a vibrato.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "CHORUS_DEPTH_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "CHORUS_DEPTH_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 12,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 4,
+        "defaultFrom": "desk"
+      },
+      "doc": "The chorus's peak-to-peak excursion above its declared 10 ms base.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "CHORUS_VOICES_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "CHORUS_VOICES_RANGE"
+      },
+      "value": {
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "unit": "",
+        "default": 3,
+        "defaultFrom": "desk"
+      },
+      "doc": "The chorus's tap count — one oscillator read at k/N.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "CHORUS_MIX_RANGE",
+      "source": {
+        "path": "strip-fx-limits.ts",
+        "export": "CHORUS_MIX_RANGE"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 35,
+        "defaultFrom": "desk"
+      },
+      "doc": "The chorus's wet/dry, as an instance of DRIVE_MIX_RANGE — the same percent travel, its own come-up value: 35 %, a colour under the dry on a strip. The REVERB_LOWCUT_RANGE-over- REVERB_CUT_RANGE shape: one travel, one declared default per field that reads it.",
+      "since": "1.2.0"
+    },
+    {
+      "name": "CHORUS_BASE_MS",
+      "source": {
+        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_chorus.h OMX_CHORUS_BASE_MS"
+      },
+      "value": 10,
+      "doc": "The chorus's base delay, ms: the voices swing around it by up to the depth.",
+      "since": "1.3.0",
+      "unit": "ms"
+    },
+    {
+      "name": "CHORUS_MAX_MS",
+      "source": {
+        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_chorus.h OMX_CHORUS_MAX_MS (the sum typed as a literal)"
+      },
+      "value": 22,
+      "doc": "The longest delay a chorus voice reaches, rounded up to whole ms: the base delay plus the depth maximum. The delay line is sized from it.",
+      "since": "1.3.0",
+      "unit": "ms",
+      "set": {
+        "": {
+          "derive": "ceilSum",
+          "of": [
+            {
+              "ref": "CHORUS_BASE_MS"
+            },
+            {
+              "ref": "CHORUS_DEPTH_RANGE.max"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

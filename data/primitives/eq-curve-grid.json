@@ -1,0 +1,21 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "EQ_CURVE_GRID": {
+    "kind": "sheet",
+    "since": "2.13.0",
+    "doc": "The log frequency grid an EQ response curve is sampled on: point k is startHz x 10^(k / pointsPerDecade), for k = 0, 1, 2 and on while the point is at or below nyquistFraction x the rate / 2. At these values the points up to 20 kHz are the 160 points from 20 Hz to 20 kHz the console draws its EQ curve on, the same at every rate whose bound lies above 20 kHz; above 20 kHz the grid goes on at the same step up to the bound.",
+    "value": {
+      "startHz": 20,
+      "pointsPerDecade": 53,
+      "nyquistFraction": 0.999
+    },
+    "docs": {
+      "startHz": "the first point of the grid, in Hz",
+      "pointsPerDecade": "the points in each decade; neighbouring points are a ratio of 10^(1 / pointsPerDecade) apart",
+      "nyquistFraction": "the last point is the last at or below this fraction of the Nyquist frequency (the rate / 2)"
+    }
+  }
+}

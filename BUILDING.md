@@ -239,13 +239,23 @@ switched on at full level is a step, and its reconstruction overshoots. The gold
 peak and the momentary window one at a time, and each must turn the oracle red and move every
 digest.
 
-## The limits come from omx-contract
+## The definitions and the limits
 
-omx-dsp commits no limits header. Every limit, travel, default, list and choice the kernels read
-is declared in FreeMixer/omx-contract and read through `<omxcontract/omx_contract_limits.h>`.
-The dependency is declared once, in the packaging: `packaging/omx-dsp.spec` (`BuildRequires`,
-`Requires`) and `debian/control` (`Build-Depends`, `Depends`) carry the same floor and no upper
-bound (`>= 2.14.0`), and `omxdsp.pc` requires the same floor. Install
+The kernels and DSP constants this library implements are defined in `data/`: one file per kernel
+under `data/kernels/`, one per constant under `data/primitives/`, in omx-contract's schema. The C
+code reads them through `<omxdsp/omxdsp_definitions.h>`, rendered from `data/` by omx-contract's tool
+(`make definitions OMX_CONTRACT=<checkout>`, which runs `omx-contract render --target c --package
+omx-dsp`) and committed, so a build needs no node. Never edit the header: change the definition and
+render again; `make definitions-check` fails while the two differ, and `tools/contract-single-source.sh`
+fails on a second definition of any of its names. `make install` installs `data/` into omx-contract's
+contract directory as the package `omx-dsp`, with a `MANIFEST.json`, where the other packages read
+it.
+
+The facts no single package implements (the declared sample rates, the parameter scales) stay in
+FreeMixer/omx-contract, read through `<omxcontract/omx_contract_limits.h>`, which the definitions
+header includes. That dependency is declared once, in the packaging: `packaging/omx-dsp.spec`
+(`BuildRequires`, `Requires`) and `debian/control` (`Build-Depends`, `Depends`) carry the same floor
+and no upper bound (`>= 2.15.0`), and `omxdsp.pc` requires the same floor. Install
 it from the FreeMixer channel with the rest of the build dependencies:
 
     dnf builddep packaging/omx-dsp.spec     # Fedora, with the FreeMixer repository added
@@ -258,16 +268,12 @@ Nothing is downloaded and no version is pinned anywhere else. `tools/contract-in
 (`make checks`) holds the script to that floor, `debian/control` and `omxdsp.pc.in` to the spec's, and
 refuses an upper bound in any of them.
 
-With `--data` the script prints a directory of the kernels' controls, one `<kernel>.json` each,
-cut from the installed `omx-contract.json` into `build/omx-contract-kernels/<version>/`;
-`tools/face-conformance.sh` reads them.
-
 `OMX_CONTRACT_INC=<dir>` names another include directory (one that holds `omxcontract/`) and skips the
 version check. The perturbation arms use it, and so can you: render a contract with one value moved
 into a scratch directory, `make test`, and the kernel test that reads that value must go red.
-Moving the range is one commit of its own, in the spec and `debian/control` together. A name the
-kernels need that the contract lacks is added to the contract and released there first; it is never
-typed here.
+Moving the range is one commit of its own, in the spec and `debian/control` together. A value the
+kernels need is added to its definition in `data/` and the header rendered again; it is never typed
+in the code.
 
 ## Packages
 

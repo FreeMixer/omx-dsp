@@ -13,7 +13,7 @@
 #include <math.h>
 #include <string.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_fft.h>

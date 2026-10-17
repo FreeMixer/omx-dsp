@@ -39,7 +39,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846

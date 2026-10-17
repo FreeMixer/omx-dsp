@@ -24,7 +24,7 @@
 #endif
 
 #include <stdint.h>
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 #ifdef OMX_CONTRACTS
 

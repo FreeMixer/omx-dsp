@@ -1,0 +1,179 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "rateHz",
+      "kind": "travel",
+      "global": "PHASER_RATE_RANGE",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#PHASER_RATE_RANGE",
+          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
+        },
+        "impl": "include/omxdsp/fx/omx_phaser_instance.h#lfo_inc"
+      },
+      "doc": "The phaser's sweep speed. `omx_lfo_inc` freezes at Nyquist; this travel stays far below.",
+      "travel": {
+        "min": 0.05,
+        "max": 5,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "baseHz",
+      "kind": "travel",
+      "global": "PHASER_BASE_RANGE",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#PHASER_BASE_RANGE",
+          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
+        },
+        "impl": "include/omxdsp/fx/omx_phaser_instance.h#base_hz"
+      },
+      "doc": "The phaser's lowest centre frequency; the sweep runs upward from it.",
+      "travel": {
+        "min": 50,
+        "max": 2000,
+        "step": 1,
+        "unit": "Hz",
+        "default": 200,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "depthOct",
+      "kind": "travel",
+      "global": "PHASER_DEPTH_RANGE",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#PHASER_DEPTH_RANGE",
+          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
+        },
+        "impl": "include/omxdsp/fx/omx_phaser_instance.h#depth_oct"
+      },
+      "doc": "The sweep's span above `base`, in octaves; 0 is a static phaser at `base`.",
+      "travel": {
+        "min": 0,
+        "max": 6,
+        "step": 0.1,
+        "unit": "oct",
+        "default": 4,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "stages",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#PHASER_STAGES_RANGE",
+          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
+        },
+        "impl": "include/omxdsp/fx/omx_phaser_instance.h#n"
+      },
+      "doc": "The phaser's section count per leg — EVEN, 2 … 12 (two sections per notch). Its ends are the kernel's state capacity (`OMX_PHASER_MAX_STAGES` reads `OMX_PHASER_STAGES_RANGE_MAX`); the row moves it through the closed member set PHASER_STAGE_COUNTS, which is derived from it.",
+      "travel": {
+        "min": 2,
+        "max": 12,
+        "step": 2,
+        "unit": "",
+        "default": 6,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "feedback",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#PHASER_FEEDBACK_RANGE",
+          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
+        },
+        "impl": "include/omxdsp/fx/omx_phaser_instance.h#feedback"
+      },
+      "doc": "The phaser's SIGNED resonance. ±0.9, tighter than the flanger's ±0.95: the loop runs through a time-varying chain. Declared here (the refusal half); the kernel's clamp is the enforcement half.",
+      "travel": {
+        "min": -0.9,
+        "max": 0.9,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.4,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mix",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#PHASER_MIX_RANGE",
+          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
+        },
+        "impl": "include/omxdsp/fx/omx_phaser_instance.h#mix"
+      },
+      "doc": "The phaser's wet/dry, as an instance of DRIVE_MIX_RANGE: 50 %, where the notch is complete.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 50,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "aggregates": {
+    "PHASER_TRAVELS": {
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#PHASER_TRAVELS",
+          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
+        }
+      },
+      "doc": "The phaser's continuous travels by row field — the ONE map its control bounds and its row travels both read. `stages` is not here: it moves through PHASER_STAGE_COUNTS.",
+      "fields": [
+        "rateHz",
+        "baseHz",
+        "depthOct",
+        "feedback",
+        "mix"
+      ]
+    }
+  },
+  "constants": {
+    "PHASER_STAGE_COUNTS": {
+      "kind": "list",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#PHASER_STAGE_COUNTS",
+          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
+        }
+      },
+      "doc": "The member set the `stages` field accepts: PHASER_STAGES_RANGE walked by its step.",
+      "unit": "",
+      "values": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12
+      ]
+    },
+    "PHASER_F_TOP_HZ": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_phaser.h#out"
+      },
+      "doc": "The highest frequency the phaser's all-pass sweep reaches, Hz.",
+      "unit": "Hz",
+      "value": 16000
+    }
+  }
+}

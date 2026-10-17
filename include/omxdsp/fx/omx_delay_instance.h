@@ -39,7 +39,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/fx/omx_delay.h>
 #include <omxdsp/omx_param.h>
 

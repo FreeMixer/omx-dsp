@@ -36,7 +36,7 @@
 #include <omxdsp/omx_gen.h>
 #include <omxdsp/analysis/omx_rta.h>
 #include <omxdsp/omx_src.h>
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 #include "../fx/sha256.h"
 

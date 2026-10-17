@@ -6,10 +6,11 @@
 # same names, in the declared order, nothing extra and nothing missing.
 #
 #   tools/face-conformance.sh              the check, over include/omxdsp/fx/omx_<k>_instance.h
-#   tools/face-conformance.sh --self-test  a renamed and a dropped argument must each be named
+#   tools/face-conformance.sh --self-test  a renamed and a dropped argument, and a control renamed in
+#                                          data/kernels/, must each be named
 #
-# The installed omx-contract declares each kernel's controls as an ordered list, cut into
-# <k>.json files (tools/contract-include.sh --data). A face's resolve is
+# Each kernel's controls are an ordered list in its definition file, data/kernels/<k>.json of this tree: the
+# library defines every kernel it implements. A face's resolve is
 #   omx_<k>_instance_resolve(Omx<K>Instance *s, int bypass, <one argument per control>)
 # where each argument is named after its control in C case (`rateHz` -> `rate_hz`) and typed by its
 # kind: a travel is a `float` in the control's user unit, a choice is an `int`, its index. A control
@@ -79,17 +80,17 @@ arguments() {
 }
 
 # per_band <face.h>: an array argument `const T name[X]` read as `T name[]` when X is a count the
-# installed contract's render defines, or a macro the face defines as one (`#define
+# render defines (the installed contract's header or this library's include/omxdsp/omxdsp_definitions.h), or a macro the face defines as one (`#define
 # OMX_EQ_INSTANCE_BANDS OMX_EQ_BAND_COUNTS_EQ8_MAX`); every other line, and any other extent,
 # unchanged, so it is named as a mismatch.
-LIMITS="$(sh "$HERE/tools/contract-include.sh")/omxcontract/omx_contract_limits.h"
+LIMITS="$(sh "$HERE/tools/contract-include.sh")/omxcontract/omx_contract_limits.h $HERE/include/omxdsp/omxdsp_definitions.h"
 per_band() {
   local face="$1" line t n x to
   while IFS= read -r line; do
     if [[ "$line" =~ ^const\ (float|int)\ ([a-z_0-9]+)\[(OMX_[A-Z0-9_]+)\]$ ]]; then
       t="${BASH_REMATCH[1]}" n="${BASH_REMATCH[2]}" x="${BASH_REMATCH[3]}"
       to="$(sed -n "s/^#[ \t]*define $x \(OMX_[A-Z0-9_]*\)\$/\1/p" "$face" | head -1)"
-      if grep -q "^#define $x [0-9]" "$LIMITS" || { [ -n "$to" ] && grep -q "^#define $to [0-9]" "$LIMITS"; }; then
+      if grep -qh "^#define $x [0-9]" $LIMITS || { [ -n "$to" ] && grep -qh "^#define $to [0-9]" $LIMITS; }; then
         echo "$t $n[]"; continue
       fi
     fi
@@ -97,16 +98,17 @@ per_band() {
   done
 }
 
-# check <fx include dir> <kernel data dir>: 0 when every face conforms (PENDING aside).
+# check <fx include dir> <kernel dir>: 0 when every face conforms (PENDING aside).
 check() {
-  local fx="$1" data="$2" bad=0 ok=0 k face got want n
+  local fx="$1" own="$2" bad=0 ok=0 k face got want n file
   for face in "$fx"/omx_*_instance.h; do
     k="$(basename "$face" _instance.h)"; k="${k#omx_}"
-    if [ ! -f "$data/$k.json" ]; then
+    file="$own/$k.json"
+    if [ ! -f "$file" ]; then
       if [[ " $PENDING " == *" $k "* ]]; then echo "face-conformance: $k pending (no kernel file $k.json)"; continue; fi
-      echo "face-conformance: $k: the installed contract has no kernel file $k.json" >&2; bad=1; continue
+      echo "face-conformance: $k: this tree has no kernel file data/kernels/$k.json" >&2; bad=1; continue
     fi
-    want="$(expected "$data/$k.json")"
+    want="$(expected "$file")"
     [ -n "$want" ] || { echo "face-conformance: $k: no controls read from $k.json" >&2; bad=1; continue; }
     got="$(arguments "$face" "$k" | per_band "$face")"
     for n in $NEWER; do
@@ -131,28 +133,33 @@ check() {
   return "$bad"
 }
 
-DATA="$(sh "$HERE/tools/contract-include.sh" --data)"
+OWN="$HERE/data/kernels"
 
 if [ "${1:-}" = --self-test ]; then
   scratch="$(mktemp -d)"; trap 'rm -rf "$scratch"' EXIT
   cp "$HERE"/include/omxdsp/fx/omx_*_instance.h "$scratch/"
-  check "$scratch" "$DATA" >/dev/null || { echo "face-conformance self-test: the unmodified faces do not pass" >&2; exit 1; }
+  check "$scratch" "$OWN" >/dev/null || { echo "face-conformance self-test: the unmodified faces do not pass" >&2; exit 1; }
   # A renamed argument: the contract's `depth` written as `depth_pct`.
   sed -i 's/^\( *\)float depth, float mix, int mode) {$/\1float depth_pct, float mix, int mode) {/' "$scratch/omx_tremolo_instance.h"
-  out="$(check "$scratch" "$DATA" 2>&1)" && { echo "face-conformance self-test: a renamed tremolo argument passed" >&2; exit 1; }
+  out="$(check "$scratch" "$OWN" 2>&1)" && { echo "face-conformance self-test: a renamed tremolo argument passed" >&2; exit 1; }
   grep -q 'contract: *float depth$' <<<"$out" || { echo "face-conformance self-test: a renamed tremolo argument was NOT named" >&2; exit 1; }
   cp "$HERE/include/omxdsp/fx/omx_tremolo_instance.h" "$scratch/"
   # A dropped argument: the limiter without its release.
   sed -i 's/float lookahead_ms, float release_ms) {$/float lookahead_ms) {/' "$scratch/omx_limiter_instance.h"
-  out="$(check "$scratch" "$DATA" 2>&1)" && { echo "face-conformance self-test: a dropped limiter argument passed" >&2; exit 1; }
+  out="$(check "$scratch" "$OWN" 2>&1)" && { echo "face-conformance self-test: a dropped limiter argument passed" >&2; exit 1; }
   grep -q 'contract: *float release_ms$' <<<"$out" || { echo "face-conformance self-test: a dropped limiter argument was NOT named" >&2; exit 1; }
   cp "$HERE/include/omxdsp/fx/omx_limiter_instance.h" "$scratch/"
   # A per-band array whose extent is no contract count: the geq's bands as a literal 31.
   sed -i 's/const float band\[OMX_GEQ_BANDS\]/const float band[31]/' "$scratch/omx_geq_instance.h"
-  out="$(check "$scratch" "$DATA" 2>&1)" && { echo "face-conformance self-test: a geq band array of literal extent passed" >&2; exit 1; }
+  out="$(check "$scratch" "$OWN" 2>&1)" && { echo "face-conformance self-test: a geq band array of literal extent passed" >&2; exit 1; }
   grep -q 'face: *const float band\[31\]$' <<<"$out" || { echo "face-conformance self-test: a geq band array of literal extent was NOT named" >&2; exit 1; }
-  echo "face-conformance self-test: a renamed and a dropped argument, and a band array of no contract count, were each named"
+  # This tree's kernel file is the one read: its tremolo `depth` renamed `depthPct` must be named against the face.
+  mkdir "$scratch/own"; cp "$OWN"/*.json "$scratch/own/"
+  sed -i 's/^      "name": "depth",$/      "name": "depthPct",/' "$scratch/own/tremolo.json"
+  out="$(check "$HERE/include/omxdsp/fx" "$scratch/own" 2>&1)" && { echo "face-conformance self-test: a tremolo control renamed in this tree's kernel file passed" >&2; exit 1; }
+  grep -q 'contract: *float depth_pct$' <<<"$out" || { echo "face-conformance self-test: a tremolo control renamed in this tree's kernel file was NOT named" >&2; exit 1; }
+  echo "face-conformance self-test: a renamed and a dropped argument, a band array of no contract count and a control renamed in this tree's kernel file were each named"
   exit 0
 fi
 
-check "$HERE/include/omxdsp/fx" "$DATA"
+check "$HERE/include/omxdsp/fx" "$OWN"

@@ -20,7 +20,7 @@
 #include <math.h>
 #include <stdint.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 #include "omx_contract.h"
 

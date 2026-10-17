@@ -29,7 +29,7 @@
 #include <omxdsp/fx/omx_pitch.h>
 #include <omxdsp/fx/omx_rotary.h>
 #include <omxdsp/fx/omx_rotor.h>
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 static int g_checks = 0, g_failed = 0;
 

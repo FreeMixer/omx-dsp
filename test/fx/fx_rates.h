@@ -9,7 +9,7 @@
 #include <string.h>
 
 #include <omxdsp/omx_contract.h>
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 /** The rates every kernel oracle runs at, whatever the declaration says: a declared list missing
  * one of them stops the suite (exit 2) instead of testing less. */

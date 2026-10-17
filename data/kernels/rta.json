@@ -1,0 +1,34 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "constants": {
+    "RTA_TARGET_BIN_HZ": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/spectrum-bands.ts#RTA_TARGET_BIN_HZ",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_rta.h#omx_rta_fft_size_for"
+      },
+      "doc": "The RTA's target bin resolution — generated into `omx_contract_limits.h` as `OMX_RTA_TARGET_BIN_HZ`, which `mix_dsp.h` reads; the engine's conformance test reads it back from the header.",
+      "unit": "Hz",
+      "value": 5.9
+    },
+    "RTA_FFT_SIZE_MAX": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/spectrum-bands.ts#RTA_FFT_SIZE_MAX",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_rta.h#omx_rta_fft_size_for"
+      },
+      "doc": "The largest RTA FFT the native ring holds — generated into `omx_contract_limits.h` as `OMX_RTA_FFT_SIZE_MAX`.",
+      "unit": "",
+      "value": 32768
+    }
+  }
+}

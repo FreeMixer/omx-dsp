@@ -1,0 +1,30 @@
+{
+  "$schema": "../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "render": {
+    "c": [
+      {
+        "header": "omxdsp/omxdsp_definitions.h",
+        "guard": "OMXDSP_DEFINITIONS_H",
+        "project": "omx-dsp",
+        "banner": [
+          "Rendered by `omx-contract render --target c --package omx-dsp` from data/, the definitions of the kernels",
+          "and DSP constants this library implements. The rendered file is kept in this repository so the library",
+          "builds without node; the values are changed where they are declared and the file is re-rendered, never",
+          "edited here.",
+          "It is kept out of the API reference (Doxyfile EXCLUDE): each define is documented by its definition in",
+          "data/, and the header carries no doc comment of its own for Doxygen to read."
+        ],
+        "brief": "The definitions omx-dsp implements: every kernel's travels, sets, readouts and constants.",
+        "includes": [
+          "math.h",
+          "omxcontract/omx_contract_limits.h"
+        ],
+        "scope": "package",
+        "limits": {}
+      }
+    ]
+  }
+}
