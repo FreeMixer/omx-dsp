@@ -9,6 +9,10 @@
       "kind": "travel",
       "global": "TREMOLO_RATE_RANGE",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#TREMOLO_RATE_RANGE",
+          "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
+        },
         "impl": "include/omxdsp/fx/omx_tremolo_instance.h#lfo_inc"
       },
       "doc": "The tremolo's LFO rate (the catalogue row's 0.1..20 Hz); 4 Hz is the classic amp tremolo.",
@@ -25,6 +29,10 @@
       "name": "depth",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#TREMOLO_DEPTH_RANGE",
+          "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
+        },
         "impl": "include/omxdsp/fx/omx_tremolo_instance.h#depth"
       },
       "doc": "The tremolo's modulation depth: the gain's trough is `1 − mix·depth`.",
@@ -41,6 +49,10 @@
       "name": "mix",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#TREMOLO_MIX_RANGE",
+          "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
+        },
         "impl": "include/omxdsp/fx/omx_tremolo_instance.h#mix"
       },
       "doc": "The tremolo's wet/dry, as an instance of DRIVE_MIX_RANGE: 100 %. The kernel folds the wet/dry into its one gain, so a strip tremolo IS the sound (as the rotary's mix 100 % is).",
@@ -66,6 +78,12 @@
   ],
   "aggregates": {
     "TREMOLO_TRAVELS": {
+      "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#TREMOLO_TRAVELS",
+          "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
+        }
+      },
       "doc": "The tremolo's numeric travels, field → declaration: the ONE map the row's state, its bounds, its OPTIONS and its controller read (`mode` is a member set, TREMOLO_MODES, beside it).",
       "fields": [
         "rateHz",

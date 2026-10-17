@@ -26,6 +26,10 @@
       "kind": "travel",
       "global": "HPF_FREQ_RANGE",
       "source": {
+        "from": {
+          "link": "packages/declarations/src/index.ts#HPF_FREQ_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#hf"
       },
       "doc": "Where the HPF cutoff can sit (low end); mirrors the drawn low-frequency handle.",
@@ -72,6 +76,10 @@
       "kind": "travel",
       "global": "LPF_FREQ_RANGE",
       "source": {
+        "from": {
+          "link": "packages/declarations/src/index.ts#LPF_FREQ_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#lf"
       },
       "doc": "Where the LPF cutoff can sit (high end).",
@@ -117,6 +125,10 @@
       "name": "freq",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/declarations/src/index.ts#EQ_FREQ_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_band_freq_default"
       },
       "doc": "The frequency band a parametric band can be dragged across.",
@@ -132,6 +144,10 @@
       "name": "gain",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/declarations/src/index.ts#EQ_GAIN_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#g"
       },
       "doc": "The parametric-band gain travel, in dB. The ± scalar `clampEqGain` enforces is READ off this (the engine derives its gain limit from `max`), so the bound is stated once and a surface cannot draw a wider knob than the clamp will honour.",
@@ -147,6 +163,10 @@
       "name": "q",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/declarations/src/index.ts#EQ_Q_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_clamp_q"
       },
       "doc": "The Q (resonance) extent of a parametric band.",
@@ -162,6 +182,10 @@
       "name": "notchQ",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/declarations/src/index.ts#EQ_NOTCH_Q_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#omx_eq_lv2_clamp_q"
       },
       "doc": "The Q extent of a NOTCH band. Wider than EQ_Q_RANGE on purpose (#116, operator decision): an ultra-narrow surgical cut is the notch shape's whole point — the FBS ring-out pool plants dbx-AFS-style ring killers at Q ≈ 116 (~1/80 octave), inaudible on program yet fatal to a single ringing frequency. Gain-carrying shapes stay bounded at EQ_Q_RANGE — a Q-116 bell is a resonator, not an EQ move.",
@@ -197,6 +221,10 @@
     "EQ_MAX_BANDS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/declarations/src/index.ts#EQ_MAX_BANDS",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_eq_instance.h#nb"
       },
       "doc": "The maximum number of parametric bands a channel EQ may hold — the operator can add up to this many. Generated into `omx_contract_limits.h` as `OMX_EQ_MAX_BANDS`, which `omx_biquad.h` reads (the engine's conformance test reads the header): the native lane allocates exactly this many biquad slots per channel and silently clamps above it, so the model, the wire, and the DSP agree by test, not by memory.",
@@ -206,6 +234,10 @@
     "ISO_THIRD_OCTAVE_CENTRES_HZ": {
       "kind": "list",
       "source": {
+        "from": {
+          "link": "packages/core/src/eq.ts#ISO_THIRD_OCTAVE_CENTRES_HZ",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_geq_instance.h#OMX_GEQ_INSTANCE_CENTRES_HZ"
       },
       "doc": "The standard ISO 266 one-third-octave centre frequencies, 20 Hz–20 kHz (31 bands) — the classic 31-band graphic-EQ layout's centres.",
@@ -247,6 +279,10 @@
     "GEQ_BANDS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/eq.ts#GEQ_BANDS",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_geq_instance.h#acc"
       },
       "doc": "The graphic EQ's section count: DERIVED from ISO_THIRD_OCTAVE_CENTRES_HZ, never a second literal. Generated into `omx_contract_limits.h` as `OMX_GEQ_BANDS`, which sizes `mix_geq.h`'s section array — its OWN budget, never a claimant on EQ_MAX_BANDS (roster ruling 3).",

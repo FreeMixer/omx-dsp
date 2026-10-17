@@ -72,6 +72,12 @@
   ],
   "tables": {
     "TRANSIENT_LIMITS": {
+      "source": {
+        "from": {
+          "link": "packages/declarations/src/index.ts#TRANSIENT_LIMITS",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        }
+      },
       "doc": "The legal range of each transient-designer field (engineering units). Every kind comes up flat: no per-kind default differs. the engine's limits generator emits each as `OMX_TRANSIENT_<FIELD>_{MIN,MAX,DEFAULT}` for `mix_transient.h`'s resolve; the row publishes them on OPTIONS when it lands."
     }
   },
@@ -79,6 +85,10 @@
     "TRANSIENT_FAST_ATTACK_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-dynamics-limits.ts#TRANSIENT_FAST_ATTACK_MS",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_transient.h#fast"
       },
       "doc": "The fast follower's attack, ms: exactly the dynamics detector's no-oversampling line.",
@@ -88,6 +98,10 @@
     "TRANSIENT_FAST_RELEASE_MS": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-dynamics-limits.ts#TRANSIENT_FAST_RELEASE_MS",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_transient.h#fast"
       },
       "doc": "The fast follower's release, ms: one 50 Hz cycle held, a 180 bpm sixteenth forgotten.",
@@ -97,6 +111,10 @@
     "TRANSIENT_REF_DB": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-dynamics-limits.ts#TRANSIENT_REF_DB",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_transient.h#inv_ref"
       },
       "doc": "The contrast, dB, at which a knob reaches its full value.",
@@ -106,6 +124,10 @@
     "TRANSIENT_FLOOR_LIN": {
       "kind": "scalar",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-dynamics-limits.ts#TRANSIENT_FLOOR_LIN",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_transient.h#da"
       },
       "doc": "The detector floor, linear (−100 dBFS): below it both envelopes read the floor and the stage is unity.",

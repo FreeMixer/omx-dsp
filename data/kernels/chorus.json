@@ -8,6 +8,10 @@
       "name": "spread",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_SPREAD_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#spread"
       },
       "doc": "The chorus's right-leg phase offset, in TURNS of its one oscillator. The right leg's voice k reads the LFO at k/N + spread: 0 is both legs one phase (the stage without the field, bit for bit), 0.25 quadrature, 0.5 the Dimension's opposed sweep. A fraction of a cycle carries no engineering symbol, so the unit is ''.",
@@ -24,6 +28,10 @@
       "name": "rate",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_RATE_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#lfo_inc"
       },
       "doc": "The chorus sweep's speed. Above ~3 Hz it stops being a chorus and becomes a vibrato.",
@@ -40,6 +48,10 @@
       "name": "depth",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_DEPTH_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#depth_samples"
       },
       "doc": "The chorus's peak-to-peak excursion above its declared 10 ms base.",
@@ -56,6 +68,10 @@
       "name": "voices",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_VOICES_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#v"
       },
       "doc": "The chorus's tap count — one oscillator read at k/N.",
@@ -72,6 +88,10 @@
       "name": "mix",
       "kind": "travel",
       "source": {
+        "from": {
+          "link": "packages/core/src/strip-fx-limits.ts#CHORUS_MIX_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
         "impl": "include/omxdsp/fx/omx_chorus_instance.h#mix"
       },
       "doc": "The chorus's wet/dry, as an instance of DRIVE_MIX_RANGE — the same percent travel, its own come-up value: 35 %, a colour under the dry on a strip. The REVERB_LOWCUT_RANGE-over- REVERB_CUT_RANGE shape: one travel, one declared default per field that reads it.",

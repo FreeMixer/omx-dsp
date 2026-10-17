@@ -6,6 +6,12 @@
   "constants": {
     "BUS_INPUT_CAP": {
       "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "packages/core/src/console-allocation.ts#BUS_INPUT_CAP",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        }
+      },
       "doc": "The input cap a summing bus can be sized to — **the engine's declared input ceiling**, read from the engine's declarations rather than re-typed here. A gig with more than this many inputs needs more than one engine node; below it a bus is sized to `min(N, BUS_INPUT_CAP)`. It was a literal 64 until 2026-09-15, said to mirror the engine's `MAX_BUS_INPUTS` — and it did, but that 64 was the PipeWire builtin mixer's single-tier fan-in (8 × 8), never the engine's bound: the native node has allocated `OMX_MAX_STRIPS` (128) strips all along. Two literals agreeing by hand is how the console came to refuse a 96-channel desk it could carry. the engine's conformance test holds this to the C header; the console allocation design carries the ruling and the measured cost of width.",
       "unit": "",
       "value": 128
