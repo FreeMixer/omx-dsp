@@ -152,7 +152,7 @@ static void arm_rest(float sr, uint32_t bands, int ovs_mode) {
      first, tap, sr, bands);
   ok(memcmp(h, hr, len * sizeof *h) == 0, arm, "both legs run the same tree", 0, 0, sr, bands);
   double worst = 0.0;
-  const double top = fmin(20000.0, OMX_MBC_CORNER_MAX_FRACTION * sr);
+  const double top = fmin(20000.0, OMX_MBC_CORNER_MAX_FRACTION_DOUBLE * sr);
   for (int q = 0; q < 40; q++) {
     const double f = 20.0 * pow(top / 20.0, q / 39.0), w = 2.0 * M_PI * f / sr;
     const double db = 20.0 * log10(cabs(dft(h + tap, len - tap, w)) / amp);
@@ -192,7 +192,7 @@ static void arm_off_bands(float sr, uint32_t bands) {
   h[0] = 1e-3f;
   omx_mbcomp_process(h, NULL, len, &m, &st);
   double worst = 0.0;
-  const double top = fmin(20000.0, OMX_MBC_CORNER_MAX_FRACTION * sr);
+  const double top = fmin(20000.0, OMX_MBC_CORNER_MAX_FRACTION_DOUBLE * sr);
   for (int q = 0; q < 40; q++) {
     const double f = 20.0 * pow(top / 20.0, q / 39.0), w = 2.0 * M_PI * f / sr;
     worst = fmax(worst, fabs(20.0 * log10(cabs(dft(h, len, w)) / 1e-3)));
@@ -240,7 +240,7 @@ static void arm_convex(float sr, uint32_t bands) {
   h[0] = 1e-3f;
   omx_mbcomp_process(h, NULL, len, &m, &st);
   double over = -1e9, dev = 0.0;
-  const double top = fmin(20000.0, OMX_MBC_CORNER_MAX_FRACTION * sr);
+  const double top = fmin(20000.0, OMX_MBC_CORNER_MAX_FRACTION_DOUBLE * sr);
   for (int q = 0; q < 40; q++) {
     const double f = 20.0 * pow(top / 20.0, q / 39.0), w = 2.0 * M_PI * f / sr;
     const double db = 20.0 * log10(cabs(dft(h, len, w)) / 1e-3);
@@ -321,7 +321,7 @@ static void arm_corner_line(float sr) {
   memset(&m, 0, sizeof m);
   const float hz[1] = {20000.0f};
   omx_mbcomp_design(&m, 2u, hz, sr);
-  const double line = OMX_MBC_CORNER_MAX_FRACTION * sr, want = hz[0] < line ? hz[0] : line;
+  const double line = OMX_MBC_CORNER_MAX_FRACTION_DOUBLE * sr, want = hz[0] < line ? hz[0] : line;
   const double w = 2.0 * M_PI * want / sr;
   const double got = 40.0 * log10(cabs(section(m.xo[0].lp, w)));
   ok(fabs(got + 6.0206) <= 0.001, "O7", "a 20 kHz corner is designed at min(20 kHz, the corner line)", got, -6.0206, sr, 2u);
