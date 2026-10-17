@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The dual-tap pitch shifter (omx_pitch.h) against the closed forms of its own splice — the
- * the design, at EVERY
- * declared rate (OMX_DECLARED_RATES, the generated header — never this file's own list). Every
+ * The dual-tap pitch shifter (omx_pitch.h) against the closed forms of its own splice, at each of
+ * the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz, from the contract header — never this
+ * file's own list; the six declared rates are among them). Every
  * number the stage declares is read from OMX_PITCH_*; the oracle's formulas are the design's, in
  * double, and never call the kernel's own delay or weight words. Contracts are compiled in and
  * every arm drains the ledger empty.
@@ -15,7 +15,7 @@
  *        periods. B2 — the envelope's dip against 20·log10|cos(π·wrap)|, 0.1 dB, and a null
  *        below −60 dB at wrap = ½.
  *   C  — rate direction: the pre-filter's coefficients are the tier's low-pass at
- *        min(ceiling, sr/(2r)), and the product's attenuation (a filtered run over an
+ *        min(ceiling, sr/(2r), fraction·sr/2), and the product's attenuation (a filtered run over an
  *        identity-filter copy) equals that filter's closed form |H(e^{jω})| at the input tone,
  *        ±1 dB. The copy is the positive control: its product must be present.
  *   D  — the delay follows the ramp: impulse centroids and cluster sums at frozen phases, both
@@ -256,8 +256,8 @@ static float *wet_run(double sr, double r, double f0, size_t span, size_t *warm_
 
 static void arm_a_on_the_grid(void) {
   const double f0 = 1000.0; /* f0·W_s/2 = 20 at 40 ms: on the grid */
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    const double sr = OMX_DECLARED_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const double sr = OMX_FX_RME_RATES[ri];
     for (int g = 0; g < 6; g++) {
       const double r = GRID[g], want = r * f0;
       size_t warm = 0;
@@ -281,8 +281,8 @@ static void arm_a_on_the_grid(void) {
 static void arm_b_off_the_grid(void) {
   static const double FR[5] = {0.25, 0.5, 0.66741992708501718, 1.49830707687668152, 2.0};
   static const double F0[2] = {1010.0, 1012.5};
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    const double sr = OMX_DECLARED_RATES[ri], W = o_window(sr), Ws = W / sr;
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const double sr = OMX_FX_RME_RATES[ri], W = o_window(sr), Ws = W / sr;
     for (int g = 0; g < 5; g++) {
       const double r = FR[g];
       const double T = W / fabs(1.0 - r); /* one ramp period, samples: two hand-overs */
@@ -341,8 +341,8 @@ static double fold(double f, double sr) {
 }
 
 static void arm_c_rate_direction(void) {
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    const double sr = OMX_DECLARED_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const double sr = OMX_FX_RME_RATES[ri];
     const double down = fmin(60000.0, floor(0.45 * sr / 50.0) * 50.0);
     const double RS[2] = {2.0, 0.25}, FS[2] = {15000.0, down};
     for (int d = 0; d < 2; d++) {
@@ -357,9 +357,11 @@ static void arm_c_rate_direction(void) {
       struct run R;
       setup(&R, sr, r, 1.0);
       float want[5];
-      omx_eq_design_f(OMX_EQ_LOWPASS, fmin((double)OMX_PITCH_PREFILTER_CEILING_HZ, sr / (2.0 * r)),
+      omx_eq_design_f(OMX_EQ_LOWPASS,
+                      fmin(fmin((double)OMX_PITCH_PREFILTER_CEILING_HZ, sr / (2.0 * r)),
+                           OMX_PITCH_PREFILTER_NYQUIST_FRACTION_DOUBLE * sr / 2.0),
                       (double)OMX_PITCH_PREFILTER_Q, 0.0, sr, want);
-      ok(memcmp(want, R.p.lp, sizeof want) == 0, "C the pre-filter is the low-pass at min(ceiling, sr/(2r))",
+      ok(memcmp(want, R.p.lp, sizeof want) == 0, "C the pre-filter is the low-pass at min(ceiling, sr/(2r), fraction·sr/2)",
          sr, r, 0);
       memcpy(a, x, n * sizeof(float));
       memcpy(junk, x, n * sizeof(float));
@@ -400,8 +402,8 @@ static double biquad_dc_delay(const float c[5]) {
 
 static void arm_d_delay_follows(void) {
   static const double U[6] = {0.1, 0.3, 0.45, 0.6, 0.8, 0.95};
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    const double sr = OMX_DECLARED_RATES[ri], W = o_window(sr);
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const double sr = OMX_FX_RME_RATES[ri], W = o_window(sr);
     const size_t n0 = 64u, n = n0 + (size_t)(W + 64.0) + 256u;
     float *l = calloc(n, sizeof(float)), *rr = calloc(n, sizeof(float));
     if (l == NULL || rr == NULL) abort();
@@ -460,7 +462,7 @@ static void arm_d_delay_follows(void) {
 
 int main(void) {
   float top = 0.0f;
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) top = fmaxf(top, OMX_DECLARED_RATES[ri]);
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) top = fmaxf(top, OMX_FX_RME_RATES[ri]);
   g_ring_cap = omx_pitch_cap_for(top);
   g_ring = calloc(2u * g_ring_cap, sizeof(float));
   if (g_ring == NULL) return 2;
@@ -470,6 +472,6 @@ int main(void) {
   arm_c_rate_direction();
   arm_d_delay_follows();
   free(g_ring);
-  printf("fx/pitch_math: %d checks, %d failed (%d rates)\n", g_checks, g_failed, (int)OMX_DECLARED_RATE_COUNT);
+  printf("fx/pitch_math: %d checks, %d failed (%d rates)\n", g_checks, g_failed, (int)OMX_FX_RME_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }

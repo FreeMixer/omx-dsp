@@ -64,10 +64,11 @@
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         }
       },
-      "doc": "The pitch kernel's constants that are not a control's travel. `windowMs` is the crossfade window in ms, declared rather than a control and whole in samples at every rate; `prefilterCeilingHz` is the pre-filter's highest corner, the corner being min(ceiling, sample rate / (2 x ratio)); `prefilterQ` is its Q, a second-order Butterworth.",
+      "doc": "The pitch kernel's constants that are not a control's travel. `windowMs` is the crossfade window in ms, declared rather than a control and whole in samples at every rate; `prefilterCeilingHz` is the pre-filter's highest corner, the corner being min(ceiling, sample rate / (2 x ratio), nyquistFraction x sample rate / 2); `prefilterNyquistFraction` keeps that corner off Nyquist at a rate whose Nyquist is at or below the ceiling (32 kHz), and at 0.91 it is above the ceiling's own share of Nyquist at every declared rate (20 kHz is 0.907 of 22.05 kHz), so it moves no corner there; `prefilterQ` is its Q, a second-order Butterworth.",
       "value": {
         "windowMs": 40,
         "prefilterCeilingHz": 20000,
+        "prefilterNyquistFraction": 0.91,
         "prefilterQ": {
           "ref": "BUTTERWORTH_Q"
         }
