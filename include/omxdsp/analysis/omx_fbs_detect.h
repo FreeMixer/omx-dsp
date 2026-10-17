@@ -7,18 +7,18 @@
  * tick that feed it a spectrum, and plants what it confirms in the strip's own EQ bands; the detection itself lives here.
  *
  * The gates are core's declaration (`DEFAULT_THRESHOLDS`, `thresholdsFor`), read here from the
- * generated omx_contract_limits.h or handed in per detector; this file restates none of them.
+ * generated omxdsp_definitions.h or handed in per detector; this file restates none of them.
  * NEVER called from the audio callback: the detector allocates nothing, takes every buffer from
  * the caller, holds no global mutable state and does no I/O.
  */
 #ifndef OMX_FBS_DETECT_H
 #define OMX_FBS_DETECT_H
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <stdint.h>
 
 /* Every constant this engine reads is declared once in core's feedback declaration and reaches
- * it through the generated omx_contract_limits.h: the gates (OMX_DEFAULT_THRESHOLDS_*,
+ * it through the generated omxdsp_definitions.h: the gates (OMX_DEFAULT_THRESHOLDS_*,
  * OMX_GROWTH_WINDOW_FRAMES, OMX_DEEP_PLATEAU_FRAMES, OMX_SUBHARMONIC_RADIUS_BINS), the ratio
  * neighbourhoods (OMX_FBS_PAPR_GUARD_BINS, OMX_FBS_PNPR_RADIUS_BINS, OMX_FBS_PNPR_GUARD_BINS,
  * OMX_FBS_PHPR_HARMONICS, OMX_FBS_PSHR_SELF_SKIP_BINS), the dB floor (OMX_FBS_FLOOR_LIN_DOUBLE),

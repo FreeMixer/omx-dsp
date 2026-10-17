@@ -24,7 +24,7 @@
 #include "omx_allpass.h"
 #include "omx_biquad.h"
 #include "omx_contract.h"
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 /** @brief What omx_xover_design() answers. */
 enum omx_xover_status {

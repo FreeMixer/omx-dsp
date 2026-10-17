@@ -73,7 +73,7 @@
 
 #include <omxdsp/fx/omx_drive.h>
 #include <omxdsp/fx/omx_drive_design.h>
-#include <omxcontract/omx_contract_limits.h> /* the drive kernel's controls: every travel below */
+#include <omxdsp/omxdsp_definitions.h> /* the drive kernel's controls: every travel below */
 #include <omxdsp/omx_param.h>
 
 #define OMX_DRIVE_INSTANCE_CHANNELS 2

@@ -81,17 +81,17 @@ arguments() {
 }
 
 # per_band <face.h>: an array argument `const T name[X]` read as `T name[]` when X is a count the
-# installed contract's render defines, or a macro the face defines as one (`#define
+# render defines (the installed contract's header or this library's include/omxdsp/omxdsp_definitions.h), or a macro the face defines as one (`#define
 # OMX_EQ_INSTANCE_BANDS OMX_EQ_BAND_COUNTS_EQ8_MAX`); every other line, and any other extent,
 # unchanged, so it is named as a mismatch.
-LIMITS="$(sh "$HERE/tools/contract-include.sh")/omxcontract/omx_contract_limits.h"
+LIMITS="$(sh "$HERE/tools/contract-include.sh")/omxcontract/omx_contract_limits.h $HERE/include/omxdsp/omxdsp_definitions.h"
 per_band() {
   local face="$1" line t n x to
   while IFS= read -r line; do
     if [[ "$line" =~ ^const\ (float|int)\ ([a-z_0-9]+)\[(OMX_[A-Z0-9_]+)\]$ ]]; then
       t="${BASH_REMATCH[1]}" n="${BASH_REMATCH[2]}" x="${BASH_REMATCH[3]}"
       to="$(sed -n "s/^#[ \t]*define $x \(OMX_[A-Z0-9_]*\)\$/\1/p" "$face" | head -1)"
-      if grep -q "^#define $x [0-9]" "$LIMITS" || { [ -n "$to" ] && grep -q "^#define $to [0-9]" "$LIMITS"; }; then
+      if grep -qh "^#define $x [0-9]" $LIMITS || { [ -n "$to" ] && grep -qh "^#define $to [0-9]" $LIMITS; }; then
         echo "$t $n[]"; continue
       fi
     fi

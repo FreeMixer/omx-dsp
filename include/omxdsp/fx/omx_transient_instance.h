@@ -13,7 +13,7 @@
  *      inline floats, so the instance holds it whole; there is nothing to hand in.
  *   2. RESOLVE. A host publishes control ports as floats in the operator's units (dB, ms).
  *      {@link omx_transient_instance_resolve} clamps every word into the declared travel
- *      (omx_contract_limits.h's OMX_TRANSIENT_*) BEFORE the kernel's own resolve sees it, because
+ *      (omxdsp_definitions.h's OMX_TRANSIENT_*) BEFORE the kernel's own resolve sees it, because
  *      a foreign host's port is not the console's codec and nothing upstream has clamped it: the
  *      three gains read any non-finite word as their declared default, 0 dB (omx_clamp_or — a
  *      NaN gain carries no position), the two times read NaN as the floor and ±Inf as the ends

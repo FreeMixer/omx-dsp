@@ -77,7 +77,7 @@
 
 #include "omx_biquad.h"
 #include "omx_contract.h"
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include "omx_dyn.h"
 #include "omx_eq_design.h"
 #include "omx_param.h"

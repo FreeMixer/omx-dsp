@@ -25,7 +25,7 @@
  *
  * ## The control
  *
- * `trim_db`, the trim kernel's one control `trimDb` (TRIM_RANGE, omx_contract_limits.h), in dB:
+ * `trim_db`, the trim kernel's one control `trimDb` (TRIM_RANGE, omxdsp_definitions.h), in dB:
  * clamped into its declared travel, a non-finite word reading as its declared default (0 dB), and
  * turned into a linear gain with omx_db_to_lin. Bypass is the identity and holds the ramp where it
  * was, so re-engaging glides from the gain the last engaged block ended on. A fresh instance's
@@ -39,7 +39,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_ramp.h>
 #include <omxdsp/omx_units.h>

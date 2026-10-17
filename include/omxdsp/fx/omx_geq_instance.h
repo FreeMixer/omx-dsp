@@ -17,7 +17,7 @@
  *      `ISO_THIRD_OCTAVE_CENTRES_HZ` verbatim) and the declared band Q (OMX_GEQ_BAND_Q_DOUBLE). A
  *      section is redesigned only when ITS gain moved; a static instance designs nothing.
  *   2. CLAMP. Every band gain is clamped into the geq kernel's declared `band` travel
- *      (OMX_GEQ_BAND_RANGE_MIN..MAX, omx_contract_limits.h) and a non-finite word reads as the
+ *      (OMX_GEQ_BAND_RANGE_MIN..MAX, omxdsp_definitions.h) and a non-finite word reads as the
  *      declared default, 0 dB, flat (omx_clamp_or: a NaN gain carries no position). A band at
  *      exactly 0 dB is skipped by the kernel, so a flat instance is memcmp-identical to bypass.
  *   3. TRUE MODE. `standard` hands each fader to its section (the classic proportional build-up);
@@ -47,7 +47,7 @@
 #include <string.h>
 
 #include <omxdsp/fx/omx_geq.h>
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_magnitude.h>
 #include <omxdsp/omx_param.h>

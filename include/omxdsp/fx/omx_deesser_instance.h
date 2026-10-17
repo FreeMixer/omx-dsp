@@ -9,7 +9,7 @@
  *
  *   1. RESOLVE. {@link omx_deesser_instance_resolve} takes the kernel's contract controls in their
  *      declared order and user units (Hz, octaves, dB, a ratio, dB, ms, ms, the DEESS_MODES
- *      index), clamps each into its declared travel (DEESS_*_RANGE, omx_contract_limits.h; a
+ *      index), clamps each into its declared travel (DEESS_*_RANGE, omxdsp_definitions.h; a
  *      non-finite word reads as the declared default) and fills the atom as the console's
  *      resolve_fx_deess (mixer_rt.c) does: ABOVE, PEAK detection, unity make-up, no oversampling,
  *      the stage's knee (DEESS_KNEE_DB), the attack and release poles through

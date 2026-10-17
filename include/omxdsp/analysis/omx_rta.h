@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_fft.h>
 #include <omxdsp/omx_oversampler.h>
@@ -41,11 +41,11 @@
  * passages smear away (1.46 Hz/bin ⇒ 683 ms ⇒ 34 of 236 note events survive). The FFT
  * LENGTH is therefore derived from the graph rate ({@link omx_rta_fft_size_for}) — pinning
  * the length instead was how moving the rig to 96 kHz silently halved the resolution.
- * OMX_RTA_TARGET_BIN_HZ comes from the generated omx_contract_limits.h (declared once, in core). */
+ * OMX_RTA_TARGET_BIN_HZ comes from the generated omxdsp_definitions.h (declared once, in core). */
 
 /** The largest FFT the buffers hold: 192 kHz — the console's declared rate ceiling
  * — at the target resolution. A power of two. OMX_RTA_FFT_SIZE_MAX comes from the generated
- * omx_contract_limits.h (declared once, in core). */
+ * omxdsp_definitions.h (declared once, in core). */
 
 /** The FFT length for `rate`: the smallest power of two whose bins are at or under
  * {@link OMX_RTA_TARGET_BIN_HZ} (44.1/48 kHz → 8192, 88.2/96 kHz → 16384, 176.4/192 kHz →

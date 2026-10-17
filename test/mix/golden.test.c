@@ -65,7 +65,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 #if defined(OMX_GOLDEN_ENGINE) && defined(OMX_GOLDEN_ENGINE_REST)
 #error "one engine build at a time: OMX_GOLDEN_ENGINE (the first kernels) or OMX_GOLDEN_ENGINE_REST"

@@ -47,7 +47,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_balance_law.h"
 #include "omx_biquad.h"
 #include "omx_contract.h"
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include "omx_denormal.h"
 #include "omx_divider.h"
 #include "omx_envelope.h"

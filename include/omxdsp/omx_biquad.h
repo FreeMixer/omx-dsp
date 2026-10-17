@@ -15,12 +15,12 @@
 #include <string.h>
 
 #include "omx_contract.h"
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 
 /**
  * @brief The most sections one cascade carries: the joint budget of the strip EQ (9), the
  *        feedback corrector (6) and HRP at full polyphony (8), plus one spare. OMX_EQ_MAX_BANDS
- *        comes from the generated omx_contract_limits.h (declared once, in the declarations package).
+ *        comes from the generated omxdsp_definitions.h (declared once, in the declarations package).
  */
 
 /**

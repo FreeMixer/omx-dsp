@@ -36,7 +36,7 @@
 #define OMX_HRP_PITCH_H
 
 #include <math.h>
-#include <omxcontract/omx_contract_limits.h>
+#include <omxdsp/omxdsp_definitions.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -50,7 +50,7 @@
  * (`omx_hrp_detect` breaks out below `min_confidence`), so a monophonic channel does the same
  * work at eight as it did at four.
  *
- * OMX_HRP_MAX_VOICES itself comes from the generated omx_contract_limits.h (declared once, in
+ * OMX_HRP_MAX_VOICES itself comes from the generated omxdsp_definitions.h (declared once, in
  * the declarations package) — one number, no twin. */
 /* §9: H1..H12 per voice. 8 × 12 = 96 potential components, from which correction stays sparse.
  * The count is the contract's HRP_HARMONIC_COUNT. */
