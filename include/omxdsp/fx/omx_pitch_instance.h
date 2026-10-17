@@ -9,7 +9,7 @@
  *   1. RINGS. `struct omx_pitch_state` reads two rings; the instance OWNS them, inline, sized for
  *      the window at the highest rate it accepts (OMX_PITCH_INSTANCE_RING_FLOATS per leg), and
  *      arms the kernel over the first omx_pitch_cap_for(sr) floats of each. Nothing is allocated,
- *      at init or after. It accepts the nine rates an RME interface clocks at, 32 to 192 kHz
+ *      at init or after. It accepts the contract's nine full-oracle rates, 32 to 192 kHz
  *      ({@link omx_pitch_instance_rate_ok}): the console's six declared rates and 32, 64 and
  *      128 kHz, where a host may run it although the console never does. Any other rate, and one
  *      the inline rings cannot serve, is refused at init.
@@ -46,7 +46,7 @@
 
 #define OMX_PITCH_INSTANCE_CHANNELS 2
 
-/** The highest rate, Hz, the inline rings are sized for: the top of the nine RME rates. */
+/** The highest rate, Hz, the inline rings are sized for: the top of the nine accepted rates. */
 #define OMX_PITCH_INSTANCE_RATE_MAX 192000u
 /** Floats per inline ring: the window at OMX_PITCH_INSTANCE_RATE_MAX plus the read's lookbehind
  * and guard, with room to spare; init refuses a rate whose omx_pitch_cap_for() exceeds it. */
@@ -71,17 +71,28 @@ typedef struct {
 /** The ring, per leg, the window needs at `sr`: the floats of each inline ring the kernel uses. */
 static inline uint32_t omx_pitch_instance_cap_for(float sr) { return omx_pitch_cap_for(sr); }
 
+/** @brief The count of the nine accepted rates: omx-contract's OMX_ORACLE_FULL_RATES_COUNT from
+ *         2.16.0, the same list under its former name before it. */
+#ifdef OMX_ORACLE_FULL_RATES_INIT
+#define OMX_PITCH_INSTANCE_RATES_COUNT OMX_ORACLE_FULL_RATES_COUNT
+/** @brief The nine accepted rates, Hz, as an initialiser: 32 to 192 kHz. */
+#define OMX_PITCH_INSTANCE_RATES_INIT OMX_ORACLE_FULL_RATES_INIT
+#else
+#define OMX_PITCH_INSTANCE_RATES_COUNT OMX_RME_RATES_COUNT
+#define OMX_PITCH_INSTANCE_RATES_INIT OMX_RME_RATES_INIT
+#endif
+
 /**
- * @brief Whether the instance runs at `sr`: one of the nine RME rates, 32 to 192 kHz
- *        (OMX_RME_RATES_INIT, which holds every declared rate), so 32, 64 and 128 kHz too. The
- *        rule {@link omx_pitch_instance_init} applies.
+ * @brief Whether the instance runs at `sr`: one of omx-contract's nine full-oracle rates, 32 to
+ *        192 kHz (they hold every declared rate), so 32, 64 and 128 kHz too. The rule
+ *        {@link omx_pitch_instance_init} applies.
  * @param sr The sample rate, Hz.
  * @return 1 when accepted, 0 when not.
  * @note Thread-safe: a read of a constant table.
  */
 static inline int omx_pitch_instance_rate_ok(float sr) {
-  static const float rates[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
-  for (uint32_t i = 0; i < OMX_RME_RATES_COUNT; i++)
+  static const float rates[OMX_PITCH_INSTANCE_RATES_COUNT] = OMX_PITCH_INSTANCE_RATES_INIT;
+  for (uint32_t i = 0; i < OMX_PITCH_INSTANCE_RATES_COUNT; i++)
     if (rates[i] == sr) return 1;
   return 0;
 }
