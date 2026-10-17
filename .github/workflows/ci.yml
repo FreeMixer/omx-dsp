@@ -36,7 +36,9 @@ jobs:
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The suite takes 20 to 30 minutes on a hosted runner (median 25 min); 30 cut it off on a quarter
+    # of the jobs, so the slowest runs are not known. 60 is twice the old limit and well above the tail.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -292,3 +294,20 @@ jobs:
     with:
       publish: false
       arm: false  # arm64/aarch64 build at release only
+
+  # A commit message is published like a file. A pull request's own commits must carry no
+  # AI-attribution line (tools/ai-trace-commit-check.sh); what is already on the base is not read.
+  ai-trace:
+    name: commit messages carry no AI attribution
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: The checker catches a fixture and goes blind when its patterns are removed
+        run: tools/ai-trace-commit-check.sh --selftest
+      - name: Scan the commits of the pull request
+        run: tools/ai-trace-commit-check.sh origin/${{ github.event.pull_request.base.ref }}..HEAD
