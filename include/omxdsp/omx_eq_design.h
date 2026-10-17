@@ -143,6 +143,7 @@ static inline void omx_eq_matched_pair(double wn, double zeta, double out[3]) {
  * @pre `finite-params-and-positive-rate`.
  * @post `finite-coeffs`; `poles-inside-the-unit-circle` (`|a1| < 1 + a2` and `a2 < 1`).
  * @note RT-safe: `exp`, `cos`, `sin`, `sqrt` on the RT-safe allowlist (no `pow`). Thread-safe: pure.
+ * @twin rbjCoeffs
  */
 static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q, double gain_db,
                                  double sample_rate, double c[5]) {
@@ -298,6 +299,7 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
  * @pre `finite-params-and-positive-rate`.
  * @post `finite-positive-q`.
  * @note RT-safe: `sin` and `sinh` on the RT-safe allowlist. Thread-safe: pure.
+ * @twin bandwidthOctavesQ
  */
 static inline double omx_eq_bandwidth_q(double freq_hz, double bw_oct, double sample_rate) {
   OMX_PRE(sample_rate > 0.0 && isfinite(freq_hz) && isfinite(bw_oct) && bw_oct > 0.0,
@@ -371,6 +373,7 @@ static inline uint32_t omx_eq_butterworth_qs(int slope_24, double q_out[2]) {
  * @pre `finite-coeffs`.
  * @post `same-denominator`.
  * @note RT-safe and thread-safe: three subtractions, pure.
+ * @twin complementSection
  */
 static inline void omx_eq_complement(const double c[5], double out[5]) {
   OMX_PRE(omx_block_finite_d(c, 5u), "finite-coeffs");
@@ -394,6 +397,7 @@ static inline void omx_eq_complement(const double c[5], double out[5]) {
  * @pre `finite-width`.
  * @post `finite-positive-q`.
  * @note Not for the audio thread (`pow`); thread-safe: pure.
+ * @twin octavesToQ
  */
 static inline double omx_eq_octaves_q(double bw_oct) {
   OMX_PRE(isfinite(bw_oct), "finite-width");
@@ -414,6 +418,7 @@ static inline double omx_eq_octaves_q(double bw_oct) {
  * @param gain_db Gain, dB.
  * @return 1 for an identity band, else 0.
  * @note RT-safe and thread-safe: two comparisons, pure.
+ * @twin eqBandIsIdentity
  */
 static inline int omx_eq_band_is_identity(enum omx_eq_kind kind, double gain_db) {
   return (kind == OMX_EQ_PEAKING || kind == OMX_EQ_LOWSHELF || kind == OMX_EQ_HIGHSHELF) &&
@@ -458,6 +463,7 @@ struct omx_eq_pass {
  * @post `no-more-sections-than-bands`.
  * @note Not for the audio thread (the designs' libm calls, as the desk designs on its control
  *       thread); thread-safe on distinct output.
+ * @twin eqCoeffs
  */
 static inline uint32_t omx_eq_bank_design(int eq_on, const struct omx_eq_band *bands,
                                           uint32_t nbands, double sample_rate,
@@ -491,6 +497,7 @@ static inline uint32_t omx_eq_bank_design(int eq_on, const struct omx_eq_band *b
  * @pre `filters-and-positive-rate`.
  * @post `at-most-four-sections`.
  * @note Not for the audio thread (the designs' libm calls); thread-safe on distinct output.
+ * @twin passFilterCoeffs
  */
 static inline uint32_t omx_eq_pass_design(const struct omx_eq_pass *hpf,
                                           const struct omx_eq_pass *lpf, double sample_rate,

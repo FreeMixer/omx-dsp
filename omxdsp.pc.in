@@ -3,6 +3,9 @@
 prefix=@PREFIX@
 libdir=@LIBDIR@
 includedir=@INCLUDEDIR@
+datadir=@DATADIR@
+# the exports file omx-dsp-copy-check reads
+exports=${datadir}/omxdsp/omx-dsp-exports.json
 
 Name: @NAME@
 Description: DSP primitives and effect kernels of OpenMixer, linked statically (@FLAVOUR@)

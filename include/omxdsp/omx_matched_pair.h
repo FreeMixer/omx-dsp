@@ -37,6 +37,7 @@ typedef struct {
  * @pre `positive-finite-w`, `positive-finite-damping`.
  * @post `pair-inside-unit-circle`: `0 <= p2 < 1` and `dc > 0`.
  * @note RT-safe: `exp`, `cos`, `sin`, `sqrt` on the RT-safe allowlist. Thread-safe: pure.
+ * @twin matchedPair
  */
 static inline OmxMatchedPair omx_matched_pair(double wn, double zeta) {
   OMX_PRE(wn > 0.0 && wn - wn == 0.0, "positive-finite-w");

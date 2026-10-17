@@ -44,6 +44,7 @@ uint32_t omx_sweep_length(double sample_rate, double duration_s);
  * @param sweep_rate_s Receives `L`, seconds.
  * @return 1; 0 when the sweep cannot exist (core's `RangeError`), touching nothing.
  * @note Allocation-free, O(n). Thread-safe on distinct buffers.
+ * @twin generateSweep
  */
 int omx_sweep_generate(double sample_rate, double f0, double f1, double duration_s, double fade_in_s,
                        double fade_out_s, double *stimulus, double *inverse, uint32_t n, double *sweep_rate_s);
@@ -85,6 +86,7 @@ uint32_t omx_sweep_convolve(const double *a, uint32_t la, const double *b, uint3
  * @param length How many.
  * @param scratch `4 · omx_sweep_convolve_size(nr, n)` doubles.
  * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
+ * @twin recoverImpulseResponse
  */
 void omx_sweep_recover_ir(const double *response, uint32_t nr, const double *inverse, uint32_t n, uint32_t pre_roll,
                           double *ir, uint32_t length, double *scratch);
@@ -97,6 +99,7 @@ void omx_sweep_recover_ir(const double *response, uint32_t nr, const double *inv
  * @param order The harmonic, ≥ 1 (1 is the linear response itself).
  * @return The delay, fractional; NAN for an order under 1.
  * @note Allocation-free, O(1). Thread-safe: pure.
+ * @twin harmonicDelaySamples
  */
 double omx_sweep_harmonic_delay(double sweep_rate_s, double sample_rate, double order);
 

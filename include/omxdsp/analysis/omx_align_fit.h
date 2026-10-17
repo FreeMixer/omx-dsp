@@ -184,6 +184,7 @@ int omx_align_coarse_delay(const double *cross_re, const double *cross_im, uint3
  * @return `OMX_ANALYSIS_OK`, or the refusal: too-few-frames, shape-mismatch, empty-band,
  *         no-shared-energy, residual-exceeds-half-sample.
  * @note Allocation-free, O(n log n). Thread-safe on distinct accumulators and scratch.
+ * @twin fitAlignment
  */
 enum omx_analysis_refusal omx_align_fit(const OmxXspec *a, uint32_t min_frames, double low_hz, double high_hz,
                                         enum omx_align_arrival arrival, double trust_coherence,
@@ -201,6 +202,7 @@ enum omx_analysis_refusal omx_align_fit(const OmxXspec *a, uint32_t min_frames, 
  * @param travel_max Its upper end, ms.
  * @param out Receives the correction.
  * @note Allocation-free, O(1). Thread-safe: pure.
+ * @twin alignCorrection
  */
 void omx_align_correction(double fit_delay_ms, uint32_t fit_invert, double applied_delay_ms, uint32_t applied_inverted,
                           double travel_min, double travel_max, OmxAlignCorrection *out);
