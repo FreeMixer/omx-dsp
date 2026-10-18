@@ -11,6 +11,10 @@
 #   fb-tap-zero    the feedback regenerates from tap 0, not the longest tap                   (C)
 #   no-refusal     the precondition on a tap past the ring is gone                            (D)
 #   no-clamp       a tap past the ring wraps instead of reading cap-1                          (D)
+#   tap0-gain      tap 0's gain moves off unity at one engaged tap                            (A)
+#   no-ms-clamp    omx_fxdelay_tap_ms forgets the millisecond ceiling                         (D)
+#   rounded-base   omx_fxdelay_tap_ms rounds the base to a whole ms before the factor         (F)
+#   constant-power a tap's legs follow the constant-power pan law, -3 dB at centre            (G)
 # The builds run in parallel. The tree is never edited; a sed that matches nothing is a failure, not
 # a skip. The real oracle, run by `make test-fx`, is the control.
 # Usage: CC=… CFLAGS=… CONTRACT_INC=… delay-taps-sabotage.sh <scratch-dir> <libomxdsp-contracts.a>
@@ -56,12 +60,16 @@ run wet-plus-zero "A" 's|    float wetL = gl\[0\] \* tapL, wetR = gr\[0\] \* tap
 run tap-at-zero "B" 's|      const uint32_t rk = omx_lookahead_back(w, td\[k\], cap);|      const uint32_t rk = omx_lookahead_back(w, dl, cap);|' & pids+=($!)
 run no-pan "B" 's|  \*gl = g \* bl;|  *gl = g;|' & pids+=($!)
 run fb-tap-zero "C" 's|      if (k == kfl) srcL = tl;|      (void)kfl;|' & pids+=($!)
-run no-refusal "D" 's|    OMX_PRE(p->tap_d\[k\] < s->cap, "taps-inside-the-ring");|    (void)0;|' & pids+=($!)
-run no-clamp "D" 's|    td\[k\] = omx_fxdelay_clamp(p->tap_d\[k\], cap);|    td[k] = p->tap_d[k] % cap;|' & pids+=($!)
+run no-refusal "D" 's|    OMX_PRE(t->d\[k\] < s->cap, "taps-inside-the-ring");|    (void)0;|' & pids+=($!)
+run no-clamp "D" 's|    td\[k\] = omx_fxdelay_clamp(t->d\[k\], cap);|    td[k] = t->d[k] % cap;|' & pids+=($!)
+run tap0-gain "A" 's|  gl\[0\] = ntaps == 0u ? 1.0f : omx_fxdelay_tap_gain(t->gl\[0\]);|  gl[0] = ntaps == 0u ? 1.0f : 0.999f * omx_fxdelay_tap_gain(t->gl[0]);|' & pids+=($!)
+run no-ms-clamp "D" 's|  const float out = over ? (float)top : (float)ms;|  const float out = (float)ms;|' & pids+=($!)
+run rounded-base "F" 's|(double)base_ms \* (double)num / (double)den|(double)roundf(base_ms) * (double)num / (double)den|' & pids+=($!)
+run constant-power "G" 's|  omx_balance_law(omx_clamp_or(pan, OMX_PAN_PAN_MIN, OMX_PAN_PAN_MAX, 0.0f), &bl, &br);|  { const float q = (omx_clamp_or(pan, OMX_PAN_PAN_MIN, OMX_PAN_PAN_MAX, 0.0f) + 1.0f) * 0.785398163f; bl = cosf(q); br = sinf(q); }|' & pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 if [ "$failed" -ne 0 ]; then
   echo "delay-taps-sabotage: FAIL"
   exit 1
 fi
-echo "delay-taps-sabotage: all six sabotages are caught"
+echo "delay-taps-sabotage: all ten sabotages are caught"

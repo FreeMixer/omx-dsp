@@ -244,6 +244,9 @@
   ],
   "tables": {
     "DELAY_TAP_LIMITS": {
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay.h#omx_fxdelay_tap_legs"
+      },
       "doc": "The legal range of each read tap's gain (0..1) and pan (-1..+1, the balance law's travel), keyed by the delay row's own field, with each tap's come-up value. Tap 0 comes up at unity gain, centre: the one-tap delay. Taps 1..3 come up as a usable triple pattern (an eighth left, a dotted eighth right, a dotted quarter centre), so raising the tap count is musical at once."
     }
   },
@@ -262,7 +265,10 @@
     },
     "DELAY_TAP_FACTOR_NUMS": {
       "kind": "list",
-      "doc": "The numerators of the FX delay's tap factor set, in member order: 1/4, 1/3, 3/8, 1/2, 2/3, 3/4, 1, 4/3, 3/2, 2, 3. A read tap k >= 1 sits at the base time times numerator / denominator (DELAY_TAP_FACTOR_DENS at the same position), rounded once to samples. The set is two integer lists, not a set of ids, because a factor such as 1/2 is no id the schema accepts and the ratio must stay exact (1/3 has no finite decimal).",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay.h#omx_fxdelay_tap_ms"
+      },
+      "doc": "The numerators of the FX delay's tap factor set, in member order: 1/4, 1/3, 3/8, 1/2, 2/3, 3/4, 1, 4/3, 3/2, 2, 3. A read tap k >= 1 sits at the base time times numerator / denominator (DELAY_TAP_FACTOR_DENS at the same position), formed in double and bounded in milliseconds to FX_DELAY_TIME_RANGE.max by `omx_fxdelay_tap_ms`, then rounded once to samples. The set is two integer lists, not a set of ids, because a factor such as 1/2 is no id the schema accepts and the ratio must stay exact (1/3 has no finite decimal).",
       "unit": "",
       "values": [
         1,
@@ -280,6 +286,9 @@
     },
     "DELAY_TAP_FACTOR_DENS": {
       "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay.h#omx_fxdelay_tap_ms"
+      },
       "doc": "The denominators of the FX delay's tap factor set, in member order, one per numerator of DELAY_TAP_FACTOR_NUMS: the factor at position i is DELAY_TAP_FACTOR_NUMS[i] / DELAY_TAP_FACTOR_DENS[i].",
       "unit": "",
       "values": [

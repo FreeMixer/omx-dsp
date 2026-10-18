@@ -50,10 +50,18 @@ struct omx_fx_delay {
   float mix;        /* 0 = dry (bit-identical), 1 = wet-only (FX send/return default) */
   float tone;       /* feedback-path one-pole damping 0..1 (0 = bright, ->1 = dark repeats) */
   int pingpong;     /* non-zero -> cross-feed the legs (echoes bounce L<->R) */
-  uint32_t ntaps;   /* engaged read taps 1..OMX_FXDELAY_MAX_TAPS; 0 is the one-tap delay at unity, centre */
-  uint32_t tap_d[OMX_FXDELAY_MAX_TAPS]; /* tap k >= 1: delay, samples, both legs; [0] unused (tap 0 is d_l/d_r) */
-  float tap_gl[OMX_FXDELAY_MAX_TAPS];   /* tap k's left-leg gain, gain_k x balance-law bL(pan_k), 0..1 */
-  float tap_gr[OMX_FXDELAY_MAX_TAPS];   /* tap k's right-leg gain, gain_k x balance-law bR(pan_k), 0..1 */
+};
+
+/** The read taps, a second snapshot beside the atom (word-atomic, read once per block by
+ * omx_fx_delay_process_taps). The atom stays the one-tap delay's and every caller of
+ * omx_fx_delay_process builds and plays as it did; a caller that plays taps resolves this once per
+ * parameter change: each tap's time by omx_fxdelay_tap_ms then omx_fxdelay_ms_to_samples, each
+ * tap's gain pair by omx_fxdelay_tap_legs. Tap 0 is the atom's own d_l/d_r. */
+struct omx_fx_delay_taps {
+  uint32_t ntaps;                   /* engaged read taps 1..OMX_FXDELAY_MAX_TAPS; 0 is the one-tap delay at unity, centre */
+  uint32_t d[OMX_FXDELAY_MAX_TAPS]; /* tap k >= 1: delay, samples, both legs; d[0] unused (tap 0 is d_l/d_r) */
+  float gl[OMX_FXDELAY_MAX_TAPS];   /* tap k's left-leg gain, gain_k x balance-law bL(pan_k), 0..1 */
+  float gr[OMX_FXDELAY_MAX_TAPS];   /* tap k's right-leg gain, gain_k x balance-law bR(pan_k), 0..1 */
 };
 
 /** Caller-owned rings + RT-owned state. `ring_l`/`ring_r` are `cap` floats each (allocated on insert). */
@@ -147,20 +155,62 @@ static inline uint32_t omx_fxdelay_clamp(uint32_t d, uint32_t cap) {
 #undef OMX_CONTRACT_STAGE
 
 /**
+ * A read tap's time (ms) from the base time and its factor `num/den`, bounded IN MILLISECONDS to the
+ * declared time travel's top (OMX_FXDELAY_MAX_MS, FX_DELAY_TIME_RANGE.max). The control thread's
+ * resolve, one call per tap, before omx_fxdelay_ms_to_samples rounds the tap to a whole sample.
+ *
+ * The product `base_ms x num / den` is formed in double from the exact fraction, so each tap is
+ * rounded ONCE from its own time and never inherits the rounding of another tap or of the base. The
+ * ceiling is a millisecond one, not a sample one: the ring (OMX_FXDELAY_CAP) is sized for the top of
+ * the travel at the highest rate, so it holds more than that at a lower rate, and a sample ceiling
+ * would make the longest tap depend on the clock. omx_fxdelay_clamp stays the kernel's backstop for a
+ * tap its caller did not bound.
+ *
+ * @param base_ms the base time T, ms (the free time, or omx_bpm_division_ms when synced); a
+ *        non-finite or negative base is 0
+ * @param num the factor's numerator
+ * @param den the factor's denominator; 0 is refused (PRE factor-denominator-is-not-zero) and the
+ *        tap is 0 ms
+ * @param clamped out, may be NULL: 1 when the tap was asked past the travel's top and was clamped
+ *        to it, else 0
+ * @return the tap's time, ms, in [0, OMX_FXDELAY_MAX_MS]
+ */
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "fx-delay/tap-ms"
+static inline float omx_fxdelay_tap_ms(float base_ms, uint32_t num, uint32_t den, int *clamped) {
+  /* num/den is a member of the declared factor set, DELAY_TAP_FACTOR_NUMS[i] / DELAY_TAP_FACTOR_DENS[i],
+   * or any fraction a caller forms; the kernel takes the fraction, never a float factor. */
+  OMX_PRE(den != 0u, "factor-denominator-is-not-zero");
+  const double top = (double)OMX_FXDELAY_MAX_MS;
+  /* A NaN, an infinity, a negative or a zero base is no time at all (x - x is 0 only when x is
+   * finite, and `> 0` is false for a NaN). */
+  const int timed = den != 0u && base_ms - base_ms == 0.0f && base_ms > 0.0f;
+  const double ms = timed ? (double)base_ms * (double)num / (double)den : 0.0;
+  const int over = ms > top;
+  if (clamped != NULL) *clamped = over;
+  const float out = over ? (float)top : (float)ms;
+  OMX_POST(out >= 0.0f && out <= (float)top, "a-tap-is-inside-the-time-travel");
+  return out;
+}
+#undef OMX_CONTRACT_STAGE
+
+/**
  * A tap's per-leg gain from its gain and pan: `gain x omx_balance_law(pan)`, the stereo-strip law that
  * attenuates the far leg and never boosts. The control thread's resolve, one call per tap.
  *
  * @param gain the tap's gain, 0..1; a non-finite gain is 0
- * @param pan the tap's pan, -1..+1 (omx_clamp_pan's travel)
+ * @param pan the tap's pan, -1..+1 (omx_clamp_pan's travel); a non-finite pan is centre
  * @param gl out: the left leg's gain, in [0, 1]
  * @param gr out: the right leg's gain, in [0, 1]
  */
 #undef OMX_CONTRACT_STAGE
-#define OMX_CONTRACT_STAGE "fx-delay/tap-gains"
-static inline void omx_fxdelay_tap_gains(float gain, float pan, float *gl, float *gr) {
+#define OMX_CONTRACT_STAGE "fx-delay/tap-legs"
+static inline void omx_fxdelay_tap_legs(float gain, float pan, float *gl, float *gr) {
+  /* The gain and pan travels are DELAY_TAP_LIMITS' rows: gain 0..1, pan -1..+1. */
   const float g = omx_clamp_or(gain, 0.0f, 1.0f, 0.0f);
+  /* A non-finite pan is centre: the balance law would carry a NaN into both legs' gains. */
   float bl, br;
-  omx_balance_law(pan, &bl, &br);
+  omx_balance_law(omx_clamp_or(pan, OMX_PAN_PAN_MIN, OMX_PAN_PAN_MAX, 0.0f), &bl, &br);
   *gl = g * bl;
   *gr = g * br;
   OMX_POST(*gl >= 0.0f && *gl <= 1.0f && *gr >= 0.0f && *gr <= 1.0f, "a-tap-gain-is-inside-unity");
@@ -203,20 +253,28 @@ static inline uint32_t omx_fxdelay_longest_tap(uint32_t d0, const uint32_t *d, u
 #undef OMX_CONTRACT_STAGE
 
 /**
- * Process one block IN PLACE. `l`/`r` are the strip's two legs (distinct buffers). A disabled atom /
- * NULL ring is a passthrough. RT-safe: fixed work per sample, no allocation.
+ * Process one block IN PLACE with read taps. `l`/`r` are the strip's two legs (distinct buffers). A
+ * disabled atom / NULL ring is a passthrough. RT-safe: fixed work per sample, no allocation.
  *
- * Read taps: `ntaps` 1..OMX_FXDELAY_MAX_TAPS integer reads of the SAME ring, tap 0 at d_l/d_r and
- * tap k >= 1 at tap_d[k] on both legs, each with its own per-leg gain; the wet sum is
- * `sum_k g_k,leg x tap_k` and the feedback regenerates from the longest engaged tap. `ntaps` 0 is
- * the one-tap delay at unity and centre, bit for bit the kernel before taps. A tap asked past the
- * ring is refused (PRE taps-inside-the-ring) and read at cap-1.
+ * `t->ntaps` 1..OMX_FXDELAY_MAX_TAPS integer reads of the SAME ring, tap 0 at the atom's d_l/d_r and
+ * tap k >= 1 at `t->d[k]` on both legs, each with its own per-leg gain; the wet sum is
+ * `sum_k g_k,leg x tap_k` and the feedback regenerates from the longest engaged tap. A NULL `t`, or
+ * `ntaps` 0, is the one-tap delay at unity and centre, bit for bit omx_fx_delay_process. A tap asked
+ * past the ring is refused (PRE taps-inside-the-ring) and read at cap-1.
+ *
+ * @param l the left leg, `n` frames, processed in place
+ * @param r the right leg, `n` frames, processed in place
+ * @param n frames in the block
+ * @param p the delay's control atom
+ * @param t the read taps, or NULL for the one-tap delay
+ * @param s the caller-owned rings and the RT state
+ * @param sr the live rate, Hz
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay"
-static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
-                                        const struct omx_fx_delay *p, struct omx_fx_delay_state *s,
-                                        float sr) {
+static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, const struct omx_fx_delay *p,
+                                             const struct omx_fx_delay_taps *t, struct omx_fx_delay_state *s,
+                                             float sr) {
   /* CONTRACT (omx_contract.h). A delay is a LINEAR, time-invariant transformation with memory:
    * out = dry*in + mix*in[k-d], and the recursion in the ring is bounded by a feedback strictly
    * below 1 — that bound is the whole reason this stage cannot run away, and it is a claim about
@@ -228,10 +286,12 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   OMX_PRE(p->mix >= 0.0f && p->mix <= 1.0f, "mix-in-unit-range");
   OMX_PRE(p->tone >= 0.0f && p->tone <= 1.0f, "tone-in-unit-range");
   OMX_PRE(s->cap == 0u || (p->d_l < s->cap && p->d_r < s->cap), "taps-inside-the-ring");
-  OMX_PRE(p->ntaps <= (uint32_t)OMX_FXDELAY_MAX_TAPS, "tap-count-inside-the-array");
+  /* No taps, or ntaps 0, is the one-tap delay: tap 0 alone, at unity and centre. */
+  const uint32_t ntaps = t == NULL ? 0u : t->ntaps;
+  OMX_PRE(ntaps <= (uint32_t)OMX_FXDELAY_MAX_TAPS, "tap-count-inside-the-array");
 #ifdef OMX_CONTRACTS
-  for (uint32_t k = 1; s->cap != 0u && k < p->ntaps && k < (uint32_t)OMX_FXDELAY_MAX_TAPS; k++)
-    OMX_PRE(p->tap_d[k] < s->cap, "taps-inside-the-ring");
+  for (uint32_t k = 1; s->cap != 0u && k < ntaps && k < (uint32_t)OMX_FXDELAY_MAX_TAPS; k++)
+    OMX_PRE(t->d[k] < s->cap, "taps-inside-the-ring");
 #endif
   OMX_PRE(sr <= 0.0f || OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
   if (!p->enabled || n == 0 || s->ring_l == NULL || s->ring_r == NULL || s->cap == 0) return;
@@ -248,19 +308,19 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
   /* R-058: the tone knob is quoted at 96 kHz and raised to REF/sr HERE, once per block, so the
    * repeats darken by the same filter at every clock. */
   float tone = omx_fxdelay_tone_pole(p->tone, sr);
-  /* The taps, resolved once per block. ntaps 0 is the one-tap delay at unity and centre, so an
-   * atom that never heard of taps plays as it always did; tap 0 is d_l/d_r. */
-  const uint32_t nt = p->ntaps == 0u ? 1u
-                    : (p->ntaps > (uint32_t)OMX_FXDELAY_MAX_TAPS ? (uint32_t)OMX_FXDELAY_MAX_TAPS : p->ntaps);
+  /* The taps, resolved once per block. ntaps 0 is the one-tap delay at unity and centre, so a
+   * caller that plays no taps hears the delay as it always was; tap 0 is d_l/d_r. */
+  const uint32_t nt = ntaps == 0u ? 1u
+                    : (ntaps > (uint32_t)OMX_FXDELAY_MAX_TAPS ? (uint32_t)OMX_FXDELAY_MAX_TAPS : ntaps);
   uint32_t td[OMX_FXDELAY_MAX_TAPS];
   float gl[OMX_FXDELAY_MAX_TAPS], gr[OMX_FXDELAY_MAX_TAPS];
-  gl[0] = p->ntaps == 0u ? 1.0f : omx_fxdelay_tap_gain(p->tap_gl[0]);
-  gr[0] = p->ntaps == 0u ? 1.0f : omx_fxdelay_tap_gain(p->tap_gr[0]);
+  gl[0] = ntaps == 0u ? 1.0f : omx_fxdelay_tap_gain(t->gl[0]);
+  gr[0] = ntaps == 0u ? 1.0f : omx_fxdelay_tap_gain(t->gr[0]);
   td[0] = 0u;
   for (uint32_t k = 1; k < nt; k++) {
-    td[k] = omx_fxdelay_clamp(p->tap_d[k], cap);
-    gl[k] = omx_fxdelay_tap_gain(p->tap_gl[k]);
-    gr[k] = omx_fxdelay_tap_gain(p->tap_gr[k]);
+    td[k] = omx_fxdelay_clamp(t->d[k], cap);
+    gl[k] = omx_fxdelay_tap_gain(t->gl[k]);
+    gr[k] = omx_fxdelay_tap_gain(t->gr[k]);
   }
   const uint32_t kfl = omx_fxdelay_longest_tap(dl, td, nt);
   const uint32_t kfr = omx_fxdelay_longest_tap(dr, td, nt);
@@ -310,5 +370,23 @@ static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
                 "damping-state-finite");
 }
 #undef OMX_CONTRACT_STAGE
+
+/**
+ * Process one block IN PLACE: the one-tap delay, omx_fx_delay_process_taps with no taps. `l`/`r` are
+ * the strip's two legs (distinct buffers). A disabled atom / NULL ring is a passthrough. RT-safe:
+ * fixed work per sample, no allocation.
+ *
+ * @param l the left leg, `n` frames, processed in place
+ * @param r the right leg, `n` frames, processed in place
+ * @param n frames in the block
+ * @param p the delay's control atom
+ * @param s the caller-owned rings and the RT state
+ * @param sr the live rate, Hz
+ */
+static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
+                                        const struct omx_fx_delay *p, struct omx_fx_delay_state *s,
+                                        float sr) {
+  omx_fx_delay_process_taps(l, r, n, p, NULL, s, sr);
+}
 
 #endif /* OMX_MIX_DELAY_H */

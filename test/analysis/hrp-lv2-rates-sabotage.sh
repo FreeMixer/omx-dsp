@@ -13,6 +13,21 @@
 #   band    run() skips the cascade, so an adopted band does not reach the audio
 #   walk    the ramp moves half a step per pass
 #
+# and the calls a plugin face drives the shell through:
+#
+#   block-size       the analysis block is sized one half-window short
+#   block-partition  init_block lays the hop buffer over the residual
+#   ask-default      a non-finite family word reads as the last family, not the declared default
+#   ask-bypass       a bypass word of exactly one half bypasses
+#   install          install_ask never re-points the family
+#   asked            mark_asked counts two passes for one
+#   in-flight        "in flight" compares the counters by order, so the 2^32 wrap breaks it
+#   clear            clear leaves the cascade running
+#   restart-slots    restart leaves the band slots
+#   restart-cursors  restart leaves the consumed cursor
+#   wants            wants ignores the snapshot's bypass
+#   answer           answer analyses without installing the snapshot
+#
 # CC, CFLAGS and CONTRACT_INC from the environment (make exports CONTRACT_INC).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -64,3 +79,27 @@ sabotage band "a sine at the centre comes out at |H|" \
   's|^  omx_hrp_cascade_apply(&s->live, in, out, n);$|  if (out != in) memcpy(out, in, (size_t)n * sizeof(float));|'
 sabotage walk "the walk moves one step per pass" \
   's|^  const float step = OMX_HRP_GAIN_STEP_DB;$|  const float step = 0.5f * OMX_HRP_GAIN_STEP_DB;|'
+sabotage block-size "block_floats = five windows" \
+  's|^  return 4u \* fft + 2u \* (fft / 2u);$|  return 4u * fft + (fft / 2u);|'
+sabotage block-partition "the hop buffer is the block's last window" \
+  's|^\( *block + 3u \* fft + half, block + 3u \* fft\) + 2u \* half);$|\1 + half);|'
+sabotage ask-default "ask_of: a NaN family is no family" \
+  's|^\( *\)OMX_HRP_FAMILY_RANGE_DEFAULT);$|\1OMX_HRP_FAMILY_RANGE_MAX);|'
+sabotage ask-bypass "bypass 0.5 is not bypassed" \
+  's|^  a.bypass = bypass > 0.5f ? 1 : 0;$|  a.bypass = bypass >= 0.5f ? 1 : 0;|'
+sabotage install "install: the family and its search are installed" \
+  's|^  if (a->family != s->family) omx_hrp_lv2_set_family(s, a->family);$|  if (0) omx_hrp_lv2_set_family(s, a->family);|'
+sabotage asked "answered: not in flight" \
+  's|^  if (s) atomic_fetch_add_explicit(&s->asked, 1u, memory_order_release);$|  if (s) atomic_fetch_add_explicit(\&s->asked, 2u, memory_order_release);|'
+sabotage in-flight "wrapped counters: in flight" \
+  's|^  return atomic_load_explicit(&s->asked, memory_order_acquire) !=$|  return atomic_load_explicit(\&s->asked, memory_order_acquire) >|'
+sabotage clear "cleared: the cascade is empty" \
+  '/^static inline void omx_hrp_lv2_clear(OmxHrpLv2 \*s) {$/,/^}$/ s|^  omx_hrp_cascade_init(&s->live);$|  (void)s;|'
+sabotage restart-slots "restart: every slot free" \
+  's|^  memset(s->slot, 0, sizeof(s->slot));$|  (void)0;|'
+sabotage restart-cursors "restart: both cursors at zero" \
+  's|^  atomic_store_explicit(&s->consumed, 0u, memory_order_relaxed);$|  (void)0;|'
+sabotage wants "wants follows the snapshot's bypass" \
+  's|^  return a ? omx_hrp_lv2_due(s, a->bypass) : 0;$|  return a ? omx_hrp_lv2_due(s, 0) : 0;|'
+sabotage answer "answer installs the snapshot" \
+  's|^  omx_hrp_lv2_install_ask(s, a);$|  (void)0;|'
