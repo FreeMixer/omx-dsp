@@ -422,24 +422,44 @@ FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k
           $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden) \
           $(foreach o,$(FX_ORACLE_GOLDENS),$(BUILD)/fx_$(o)_golden)
 
-test-fx: $(FX_BINS)
-	@set -e; for k in $(FX_KERNELS); do \
-	  echo "./$(BUILD)/fx_$$k"; ./$(BUILD)/fx_$$k; \
-	  if [ -f test/fx/$${k}_math.test.c ]; then echo "./$(BUILD)/fx_$${k}_math"; ./$(BUILD)/fx_$${k}_math; fi; \
-	  echo "./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256"; ./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256; \
-	done
-	@set -e; for k in $(FX_INSTANCES); do echo "./$(BUILD)/fx_$${k}_instance"; ./$(BUILD)/fx_$${k}_instance; done
-	@set -e; for o in $(FX_ORACLES); do echo "./$(BUILD)/fx_$$o"; ./$(BUILD)/fx_$$o; done
-	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
-	  echo "./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256"; \
-	  ./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256; \
-	done
-	@set -e; for o in $(FX_ORACLE_GOLDENS); do \
-	  echo "./$(BUILD)/fx_$${o}_golden test/golden/$$o.sha256"; ./$(BUILD)/fx_$${o}_golden test/golden/$$o.sha256; \
-	done
-	@set -e; for p in $(FX_PERTURB); do \
-	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
-	done
+# test-fx is one phony target per thing it runs, so `make -jN test-fx` runs them side by side. The
+# targets and the order of the prerequisites are the loops' that stood here: the same binaries, with
+# the same arguments, and a binary that exits non-zero fails its target and so test-fx.
+FX_RUN_KERNELS  = $(addprefix fx-run-kernel-,$(FX_KERNELS))
+FX_RUN_MATHS    = $(foreach k,$(FX_KERNELS),$(if $(wildcard test/fx/$(k)_math.test.c),fx-run-math-$(k)))
+FX_RUN_INSTANCES = $(addprefix fx-run-instance-,$(FX_INSTANCES))
+FX_RUN_ORACLES  = $(addprefix fx-run-oracle-,$(FX_ORACLES))
+FX_RUN_INSTGOLD = $(addprefix fx-run-instance-golden-,$(FX_INSTANCE_GOLDENS))
+FX_RUN_ORAGOLD  = $(addprefix fx-run-oracle-golden-,$(FX_ORACLE_GOLDENS))
+FX_RUN_PERTURB  = $(addprefix fx-run-perturb-,$(notdir $(basename $(FX_PERTURB))))
+FX_RUN_ALL      = $(FX_RUN_KERNELS) $(FX_RUN_MATHS) $(FX_RUN_INSTANCES) $(FX_RUN_ORACLES) $(FX_RUN_INSTGOLD) $(FX_RUN_ORAGOLD) $(FX_RUN_PERTURB)
+.PHONY: $(FX_RUN_ALL)
+
+test-fx: $(FX_RUN_ALL)
+
+$(FX_RUN_KERNELS): fx-run-kernel-%: $(BUILD)/fx_% $(BUILD)/fx_%_golden
+	@echo "./$(BUILD)/fx_$*"; ./$(BUILD)/fx_$*
+	@echo "./$(BUILD)/fx_$*_golden test/golden/$*.sha256"; ./$(BUILD)/fx_$*_golden test/golden/$*.sha256
+
+$(FX_RUN_MATHS): fx-run-math-%: $(BUILD)/fx_%_math
+	@echo "./$(BUILD)/fx_$*_math"; ./$(BUILD)/fx_$*_math
+
+$(FX_RUN_INSTANCES): fx-run-instance-%: $(BUILD)/fx_%_instance
+	@echo "./$(BUILD)/fx_$*_instance"; ./$(BUILD)/fx_$*_instance
+
+$(FX_RUN_ORACLES): fx-run-oracle-%: $(BUILD)/fx_%
+	@echo "./$(BUILD)/fx_$*"; ./$(BUILD)/fx_$*
+
+$(FX_RUN_INSTGOLD): fx-run-instance-golden-%: $(BUILD)/fx_%_instance_golden
+	@echo "./$(BUILD)/fx_$*_instance_golden test/golden/$*_instance.sha256"; \
+	  ./$(BUILD)/fx_$*_instance_golden test/golden/$*_instance.sha256
+
+$(FX_RUN_ORAGOLD): fx-run-oracle-golden-%: $(BUILD)/fx_%_golden
+	@echo "./$(BUILD)/fx_$*_golden test/golden/$*.sha256"; ./$(BUILD)/fx_$*_golden test/golden/$*.sha256
+
+$(foreach p,$(FX_PERTURB),$(eval fx-run-perturb-$(notdir $(basename $(p))): $(p) $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)))
+$(FX_RUN_PERTURB): fx-run-perturb-%:
+	@echo "bash test/fx/$*.sh"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/$*.sh $(BUILD)/fx-perturb/$*
 
 # The trim and eq faces against omx-plugins' channel strip's own input stage (omx_strip.h): a desk
 # check, the strip lives in another repository (tools/strip-input-identity.sh).
