@@ -174,8 +174,17 @@ $(LIB_TSAN): $(OBJ_TSAN)
 # omxdsp_suite.c #includes — a kernel lane adds ONE file and never touches this Makefile or
 # omxdsp_suite.c's main().
 
-$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) $(MIX_HEADERS) tools/kernels-gen.sh | $(BUILD)
-	bash tools/kernels-gen.sh $(BUILD)
+# The generation is ONE rule: both files come from one run (a grouped target), and every target that
+# reads either lists them, so `make -jN` runs the generator once and never reads a half-written file.
+# No recipe and no script calls the generator into $(BUILD) (make gen-once, test/gen-once.sh).
+# KERNELS_GEN is the command, overridable so the test can count its runs.
+KERNELS_GEN = bash tools/kernels-gen.sh
+KERNELS_INC = $(BUILD)/kernels-suite.inc.c $(BUILD)/kernels-perturb.inc.c
+
+$(KERNELS_INC) &: $(wildcard test/kernels/*.c) tools/kernels-gen.sh | $(BUILD)
+	$(KERNELS_GEN) $(BUILD)
+
+$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(KERNELS_INC) $(LIB_CONTRACTS) $(HEADERS) $(MIX_HEADERS)
 	$(CC) $(TESTFLAGS) -I$(BUILD) -o $@ test/omxdsp_suite.c $(LIB_CONTRACTS) -lm
 
 $(BUILD)/omxdsp_threads: test/omxdsp_threads.c $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
@@ -237,8 +246,8 @@ bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 	./$(BUILD)/eq_bandwidth_q_table | diff -u test/golden/eq_bandwidth_q.json -
 	@echo "bandwidth-q-table: test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s"
 
-perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
+perturb: $(HEADERS) $(KERNELS) $(KERNELS_INC) test/perturb.sh test/omxdsp_perturb.c | $(BUILD)
+	OMXDSP_GEN="$(CURDIR)/$(BUILD)" CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
 
 # The graphic EQ's true-mode oracle against seven sabotaged copies of omx_geq_instance.h, each red on
 # its named arm (test/fx/geq-true-sabotage.sh); the real oracle in test-fx is the control.
