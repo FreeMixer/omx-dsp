@@ -144,7 +144,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -179,8 +179,17 @@ $(LIB_TSAN): $(OBJ_TSAN)
 # omxdsp_suite.c #includes — a kernel lane adds ONE file and never touches this Makefile or
 # omxdsp_suite.c's main().
 
-$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) $(MIX_HEADERS) tools/kernels-gen.sh | $(BUILD)
-	bash tools/kernels-gen.sh $(BUILD)
+# The generation is ONE rule: both files come from one run (a grouped target), and every target that
+# reads either lists them, so `make -jN` runs the generator once and never reads a half-written file.
+# No recipe and no script calls the generator into $(BUILD) (make gen-once, test/gen-once.sh).
+# KERNELS_GEN is the command, overridable so the test can count its runs.
+KERNELS_GEN = bash tools/kernels-gen.sh
+KERNELS_INC = $(BUILD)/kernels-suite.inc.c $(BUILD)/kernels-perturb.inc.c
+
+$(KERNELS_INC) &: $(wildcard test/kernels/*.c) tools/kernels-gen.sh | $(BUILD)
+	$(KERNELS_GEN) $(BUILD)
+
+$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(KERNELS_INC) $(LIB_CONTRACTS) $(HEADERS) $(MIX_HEADERS)
 	$(CC) $(TESTFLAGS) -I$(BUILD) -o $@ test/omxdsp_suite.c $(LIB_CONTRACTS) -lm
 
 $(BUILD)/omxdsp_threads: test/omxdsp_threads.c $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
@@ -242,8 +251,12 @@ bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 	./$(BUILD)/eq_bandwidth_q_table | diff -u test/golden/eq_bandwidth_q.json -
 	@echo "bandwidth-q-table: test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s"
 
-perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
+# The generator runs once under make -j8 (test/gen-once.sh), and a Makefile that calls it from a recipe again turns it red.
+gen-once: $(HEADERS) test/gen-once.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/gen-once.sh $(BUILD)/gen-once
+
+perturb: $(HEADERS) $(KERNELS) $(KERNELS_INC) test/perturb.sh test/omxdsp_perturb.c | $(BUILD)
+	OMXDSP_GEN="$(CURDIR)/$(BUILD)" CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
 
 # The graphic EQ's true-mode oracle against seven sabotaged copies of omx_geq_instance.h, each red on
 # its named arm (test/fx/geq-true-sabotage.sh); the real oracle in test-fx is the control.
@@ -418,24 +431,44 @@ FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k
           $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden) \
           $(foreach o,$(FX_ORACLE_GOLDENS),$(BUILD)/fx_$(o)_golden)
 
-test-fx: $(FX_BINS)
-	@set -e; for k in $(FX_KERNELS); do \
-	  echo "./$(BUILD)/fx_$$k"; ./$(BUILD)/fx_$$k; \
-	  if [ -f test/fx/$${k}_math.test.c ]; then echo "./$(BUILD)/fx_$${k}_math"; ./$(BUILD)/fx_$${k}_math; fi; \
-	  echo "./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256"; ./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256; \
-	done
-	@set -e; for k in $(FX_INSTANCES); do echo "./$(BUILD)/fx_$${k}_instance"; ./$(BUILD)/fx_$${k}_instance; done
-	@set -e; for o in $(FX_ORACLES); do echo "./$(BUILD)/fx_$$o"; ./$(BUILD)/fx_$$o; done
-	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
-	  echo "./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256"; \
-	  ./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256; \
-	done
-	@set -e; for o in $(FX_ORACLE_GOLDENS); do \
-	  echo "./$(BUILD)/fx_$${o}_golden test/golden/$$o.sha256"; ./$(BUILD)/fx_$${o}_golden test/golden/$$o.sha256; \
-	done
-	@set -e; for p in $(FX_PERTURB); do \
-	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
-	done
+# test-fx is one phony target per thing it runs, so `make -jN test-fx` runs them side by side. The
+# targets and the order of the prerequisites are the loops' that stood here: the same binaries, with
+# the same arguments, and a binary that exits non-zero fails its target and so test-fx.
+FX_RUN_KERNELS  = $(addprefix fx-run-kernel-,$(FX_KERNELS))
+FX_RUN_MATHS    = $(foreach k,$(FX_KERNELS),$(if $(wildcard test/fx/$(k)_math.test.c),fx-run-math-$(k)))
+FX_RUN_INSTANCES = $(addprefix fx-run-instance-,$(FX_INSTANCES))
+FX_RUN_ORACLES  = $(addprefix fx-run-oracle-,$(FX_ORACLES))
+FX_RUN_INSTGOLD = $(addprefix fx-run-instance-golden-,$(FX_INSTANCE_GOLDENS))
+FX_RUN_ORAGOLD  = $(addprefix fx-run-oracle-golden-,$(FX_ORACLE_GOLDENS))
+FX_RUN_PERTURB  = $(addprefix fx-run-perturb-,$(notdir $(basename $(FX_PERTURB))))
+FX_RUN_ALL      = $(FX_RUN_KERNELS) $(FX_RUN_MATHS) $(FX_RUN_INSTANCES) $(FX_RUN_ORACLES) $(FX_RUN_INSTGOLD) $(FX_RUN_ORAGOLD) $(FX_RUN_PERTURB)
+.PHONY: $(FX_RUN_ALL)
+
+test-fx: $(FX_RUN_ALL)
+
+$(FX_RUN_KERNELS): fx-run-kernel-%: $(BUILD)/fx_% $(BUILD)/fx_%_golden
+	@echo "./$(BUILD)/fx_$*"; ./$(BUILD)/fx_$*
+	@echo "./$(BUILD)/fx_$*_golden test/golden/$*.sha256"; ./$(BUILD)/fx_$*_golden test/golden/$*.sha256
+
+$(FX_RUN_MATHS): fx-run-math-%: $(BUILD)/fx_%_math
+	@echo "./$(BUILD)/fx_$*_math"; ./$(BUILD)/fx_$*_math
+
+$(FX_RUN_INSTANCES): fx-run-instance-%: $(BUILD)/fx_%_instance
+	@echo "./$(BUILD)/fx_$*_instance"; ./$(BUILD)/fx_$*_instance
+
+$(FX_RUN_ORACLES): fx-run-oracle-%: $(BUILD)/fx_%
+	@echo "./$(BUILD)/fx_$*"; ./$(BUILD)/fx_$*
+
+$(FX_RUN_INSTGOLD): fx-run-instance-golden-%: $(BUILD)/fx_%_instance_golden
+	@echo "./$(BUILD)/fx_$*_instance_golden test/golden/$*_instance.sha256"; \
+	  ./$(BUILD)/fx_$*_instance_golden test/golden/$*_instance.sha256
+
+$(FX_RUN_ORAGOLD): fx-run-oracle-golden-%: $(BUILD)/fx_%_golden
+	@echo "./$(BUILD)/fx_$*_golden test/golden/$*.sha256"; ./$(BUILD)/fx_$*_golden test/golden/$*.sha256
+
+$(foreach p,$(FX_PERTURB),$(eval fx-run-perturb-$(notdir $(basename $(p))): $(p) $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)))
+$(FX_RUN_PERTURB): fx-run-perturb-%:
+	@echo "bash test/fx/$*.sh"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/$*.sh $(BUILD)/fx-perturb/$*
 
 # The trim and eq faces against omx-plugins' channel strip's own input stage (omx_strip.h): a desk
 # check, the strip lives in another repository (tools/strip-input-identity.sh).
@@ -559,7 +592,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks copy-check suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks copy-check gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
