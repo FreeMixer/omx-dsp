@@ -28,6 +28,15 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make eq-sabotage` | the EQ bank, head-filter and drawn-curve arms (`eq-curve`, `eq-design-ts`) against nine sabotaged copies of the headers; each must fail both arms (part of `make test`) |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
+`make -jN test` is supported. `tools/kernels-gen.sh` runs once, as the Make rule that produces
+`build/kernels-suite.inc.c` and `build/kernels-perturb.inc.c`; every target that reads them lists
+them as a prerequisite and no recipe or script calls the generator into `build/`. `make test-fx`
+is one target per kernel, instance, oracle, golden and perturbation script (`fx-run-*`), so `-j`
+runs them side by side; the set run and each assertion are the same as serially.
+`make gen-once` (`test/gen-once.sh`, part of `make test`) counts the generations under `-j8` and
+must see exactly one; it then re-adds the generator call to a recipe in a scratch copy of the
+Makefile, which must turn it red.
+
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
 `-ffp-contract=off`: the kernels are inline, and without it an architecture with fused
 multiply-add would round differently from one without.
