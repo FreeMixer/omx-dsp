@@ -6,8 +6,8 @@
  * compared with test/golden/<kernel>.sha256, or printed as those lines with --write. A patch
  * release may not move one; a release that does is a minor and names the kernel.
  *
- * A test that defines OMX_FX_GOLDEN_RME before including this header holds its kernel at the nine
- * RME rates (OMX_FX_RME_RATES) instead of the declared six.
+ * A test that defines OMX_FX_GOLDEN_ORACLE_RATES before including this header holds its kernel at the nine
+ * oracle rates (OMX_FX_ORACLE_RATES) instead of the declared six.
  */
 #ifndef OMXDSP_TEST_FX_GOLDEN_H
 #define OMXDSP_TEST_FX_GOLDEN_H
@@ -21,9 +21,9 @@
 #include "fx_rates.h"
 #include "sha256.h"
 
-#ifdef OMX_FX_GOLDEN_RME
-#define OMX_FX_GOLDEN_RATES OMX_FX_RME_RATES
-#define OMX_FX_GOLDEN_RATE_COUNT OMX_FX_RME_RATE_COUNT
+#ifdef OMX_FX_GOLDEN_ORACLE_RATES
+#define OMX_FX_GOLDEN_RATES OMX_FX_ORACLE_RATES
+#define OMX_FX_GOLDEN_RATE_COUNT OMX_FX_ORACLE_RATE_COUNT
 #else
 #define OMX_FX_GOLDEN_RATES OMX_DECLARED_RATES
 #define OMX_FX_GOLDEN_RATE_COUNT OMX_DECLARED_RATE_COUNT

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The FX delay against its declared numbers at each of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them): an impulse lands
+ * The FX delay against its declared numbers at each of the nine oracle rates (OMX_FX_ORACLE_RATES, 32 to 192 kHz; the six declared ones are among them): an impulse lands
  * on the declared sample and nowhere else, the feedback clamp the audio obeys, and the tone knob
  * as one filter at every clock (R-058). Contracts are compiled in and the last arm asserts the
  * ledger came out empty.
@@ -69,8 +69,8 @@ static double rms(const float *b, int from, int to) {
  */
 static void test_an_impulse_through_the_fx_delay_lands_on_the_declared_sample(void) {
   static const float MS[] = { 0.0f, 1.0f, 5.0f, 23.5f, 120.0f, 750.0f };
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    float sr = OMX_FX_RME_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    float sr = OMX_FX_ORACLE_RATES[ri];
     for (size_t k = 0; k < sizeof MS / sizeof MS[0]; k++) {
       uint32_t d = omx_fxdelay_ms_to_samples(MS[k], sr);
       int n = (int)d + 64;
@@ -118,8 +118,8 @@ static void test_an_impulse_through_the_fx_delay_lands_on_the_declared_sample(vo
  * implies.
  */
 static void test_the_feedback_clamp_is_the_bodys_figure_not_the_contracts(void) {
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    float sr = OMX_FX_RME_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    float sr = OMX_FX_ORACLE_RATES[ri];
     uint32_t d = omx_fxdelay_ms_to_samples(10.0f, sr);
     int reps = 40;
     int total = (int)d * (reps + 1) + 64;
@@ -184,9 +184,9 @@ static void test_the_feedback_clamp_is_the_bodys_figure_not_the_contracts(void) 
  */
 static void test_the_tone_pole_is_rate_normalised_to_the_desks_own_rate(void) {
   const double PROBE_HZ = 8000.0, P = 0.6, FB = 0.9;
-  double measured[OMX_FX_RME_RATE_COUNT];
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    float sr = OMX_FX_RME_RATES[ri];
+  double measured[OMX_FX_ORACLE_RATE_COUNT];
+  for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    float sr = OMX_FX_ORACLE_RATES[ri];
     uint32_t d = omx_fxdelay_ms_to_samples(10.0f, sr);
     int total = (int)d * 4;
     float *l = calloc((size_t)total, sizeof(float));
@@ -250,8 +250,8 @@ static void test_the_tone_pole_is_rate_normalised_to_the_desks_own_rate(void) {
    * one-pole's warping is larger (1.09 at 32 kHz), which is the warping and not a miss. */
   double lo = 0.0, hi = 0.0;
   int seen = 0;
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    if (!omx_rate_is_declared(OMX_FX_RME_RATES[ri])) continue;
+  for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    if (!omx_rate_is_declared(OMX_FX_ORACLE_RATES[ri])) continue;
     if (!seen || measured[ri] < lo) lo = measured[ri];
     if (!seen || measured[ri] > hi) hi = measured[ri];
     seen = 1;
@@ -288,6 +288,6 @@ int main(void) {
   test_the_feedback_clamp_is_the_bodys_figure_not_the_contracts();
   test_the_tone_pole_is_rate_normalised_to_the_desks_own_rate();
   test_the_contract_ledger_came_out_empty();
-  printf("fx/delay_math: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_FX_RME_RATE_COUNT);
+  printf("fx/delay_math: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_FX_ORACLE_RATE_COUNT);
   return g_fail == 0 ? 0 : 1;
 }

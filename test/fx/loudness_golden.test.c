@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The loudness kernels' golden digests (golden.h), at the nine RME rates.
+ * The loudness kernels' golden digests (golden.h), at the nine oracle rates.
  *
  * One digest per rate covers, as doubles laid end to end:
  *   - the two K-weighting sections omx_loudness_kweight_design() gives for the rate;
@@ -16,7 +16,7 @@
  *   make test-fx       compare omx_loudness.h with test/golden/loudness.sha256
  *   make golden-write  rewrite it (only in a commit that bumps the minor version)
  */
-#define OMX_FX_GOLDEN_RME 1
+#define OMX_FX_GOLDEN_ORACLE_RATES 1
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>

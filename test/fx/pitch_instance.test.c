@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * pitch_instance.test.c — the pitch shifter instance core (omx_pitch_instance.h), every arm at
- * each of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the declared rates are six of them):
+ * each of the nine oracle rates (OMX_FX_ORACLE_RATES, 32 to 192 kHz; the declared rates are six of them):
  *   A  a refused init (no rate, a rate outside the nine) is the identity; each of the nine rates
  *      is accepted, its window inside the instance's own rings; a refused, a fresh and a bypassed
  *      instance publish no latency;
@@ -351,14 +351,14 @@ int main(void) {
   /* The nine cover every declared rate, so this loop tests no less than the declaration. */
   for (int k = 0; k < (int)OMX_DECLARED_RATE_COUNT; k++) {
     int found = 0;
-    for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) found |= OMX_FX_RME_RATES[ri] == OMX_DECLARED_RATES[k];
+    for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) found |= OMX_FX_ORACLE_RATES[ri] == OMX_DECLARED_RATES[k];
     if (!found) {
-      fprintf(stderr, "OMX_FX_RME_RATES lacks the declared %.0f Hz\n", (double)OMX_DECLARED_RATES[k]);
+      fprintf(stderr, "OMX_FX_ORACLE_RATES lacks the declared %.0f Hz\n", (double)OMX_DECLARED_RATES[k]);
       return 2;
     }
   }
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = OMX_FX_RME_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_ORACLE_RATES[ri];
     arm_refused();
     arm_bypass();
     arm_is_the_kernel();
@@ -368,6 +368,6 @@ int main(void) {
     arm_no_allocation();
     arm_latency();
   }
-  printf("fx/pitch_instance: %d RME rates\n", (int)OMX_FX_RME_RATE_COUNT);
+  printf("fx/pitch_instance: %d oracle rates\n", (int)OMX_FX_ORACLE_RATE_COUNT);
   return finish("pitch_instance");
 }

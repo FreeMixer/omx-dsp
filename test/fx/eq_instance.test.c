@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The strip EQ's instance oracle (omx_eq_instance.h), built at 32 bands so a full bank (32 bands +
-// 4 pass sections) is wider than OMX_EQ_MAX_BANDS and the chunked walk is exercised, at each of the nine RME rates
-// (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
+// 4 pass sections) is wider than OMX_EQ_MAX_BANDS and the chunked walk is exercised, at each of the nine oracle rates
+// (OMX_FX_ORACLE_RATES, 32 to 192 kHz; the six declared ones are among them):
 //   A  the instance IS the bank: bit-identical to a chunk-free reference that designs each section
 //      with omx_eq_design_f and runs it with omx_biquad, in `eqCoeffs` order (bands, HPF, LPF), in
 //      odd block sizes, separate and aliased buffers;
@@ -356,8 +356,8 @@ int main(void) {
   omx_contract_reset();
   wire();
   omx_fx_require_full_rates_cover_declared();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_ORACLE_RATES[ri];
     stimulus(in_l, in_r, N, 0x1234567u, 0u);
     arm_identity();
     arm_clamps();

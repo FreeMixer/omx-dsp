@@ -14,12 +14,12 @@
  * post-fader reading is the block peak times its level, bit for bit, and follows gain, fader and
  * mute. ---------------------------------------------------------------------------------------- */
 
-static const float MIX_METER_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_METER_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 static void arm_mix_meter(void) {
   g_arm = "mix_meter";
   static float a[192000], b[192000];
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const float sr = MIX_METER_RATES[ri];
     const uint32_t n = (uint32_t)sr;
     for (uint32_t i = 0; i < n; i++) {

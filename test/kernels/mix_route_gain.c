@@ -5,7 +5,7 @@
 
 #include <omxdsp/mix/omx_route_gain.h>
 
-/* ---- an output route's gain stages (mix/omx_route_gain.h). At each of the nine RME rates, 10 ms
+/* ---- an output route's gain stages (mix/omx_route_gain.h). At each of the nine oracle rates, 10 ms
  * blocks of a 997 Hz tone through a run of gain moves (up, down, through zero to a polarity
  * invert, held): each sample is the closed form in·(cur + i·(tgt − cur)/n) within 4 ulp of the
  * product, the gains are linear across the block (equal steps within float rounding), and every
@@ -15,7 +15,7 @@
  * nothing; a non-finite target reads as 0 on the omx_ramp path. The engine's own cases
  * (mix_dsp.test.c: fill, polarity invert, fold, fold-fill) are kept as exact checks. ---------------- */
 
-static const float MIX_ROUTE_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_ROUTE_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 /* `got` against the closed form `want`, within `ulps` of the magnitude the product is formed at. */
 static int route_near(float got, double want, double scale, double ulps) {
@@ -73,7 +73,7 @@ static void arm_mix_route_gain(void) {
 
   static float x[1920], y[1920], l[1920], r[1920], o[1920], l0[1920], r0[1920];
   static const float tgts[] = {0.0f, 1.0f, 0.5f, -0.5f, -0.5f, 2.0f, 0.70710678f, 0.0f, 0.0f, 1.0f};
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const float sr = MIX_ROUTE_RATES[ri];
     const uint32_t n = (uint32_t)sr / 100u;
     uint32_t sample_bad = 0, linear_bad = 0, end_bad = 0, held_bad = 0, fold_exact_bad = 0, both_bad = 0;

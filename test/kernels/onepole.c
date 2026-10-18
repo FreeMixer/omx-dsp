@@ -9,8 +9,8 @@
 
 /* ---- one-pole: the convention oracle, moved from openmixer's mix_onepole.test.c -------
  * The parameter is the POLE: `y = x(1-p) + yp`. The arms below are the engine's convention oracle,
- * closed forms and tolerances unchanged; the rate-dependent ones run at the nine RME rates
- * (OMX_FX_RME_RATES), each rate's ledger drained by omx_fx_drain_ledger (a `rate-is-declared` PRE at
+ * closed forms and tolerances unchanged; the rate-dependent ones run at the nine oracle rates
+ * (OMX_FX_ORACLE_RATES), each rate's ledger drained by omx_fx_drain_ledger (a `rate-is-declared` PRE at
  * 32, 64 or 128 kHz is the contract saying so; any other violation counts). */
 
 /* Bit equality, not near equality: `==` would let a signed zero through and a tolerance would let
@@ -62,8 +62,8 @@ static void onepole_dc_gain(void) {
  * tau recovered from the pole, -1/(ln(p)·sr), is the 50 ms it was made from (±1e-4 s). */
 static void onepole_time_constant_rme(void) {
   const float MS[4] = { 0.5f, 5.0f, 50.0f, 250.0f };
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     for (int m = 0; m < 4; m++) {
       const float pole = omx_pole_from_time_ms(MS[m], sr);
       const uint32_t n = (uint32_t)(MS[m] * 0.001f * sr + 0.5f);
@@ -103,8 +103,8 @@ static double onepole_settled_gain(float hz, float pole, float sr) {
  * there. The mapping is not to be fixed here: changing it moves every shipped wet-cut coefficient. */
 static void onepole_corner_rme(void) {
   const float FC[3] = { 200.0f, 1000.0f, 2000.0f };
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     for (int f = 0; f < 3; f++) {
       if (FC[f] / sr > 0.05f) continue;
       const double db = 20.0 * log10(onepole_settled_gain(FC[f], omx_pole_from_cutoff_hz(FC[f], sr), sr));
@@ -127,12 +127,12 @@ static void onepole_corner_rme(void) {
 /* WHY THERE ARE TWO KERNELS. The increment form is EXACT at its fixed point (`target - x` is exactly 0,
  * so `+= 0` cannot move the state, whatever the pole); the convex form recomputes `x(1-p) + xp`, which
  * for some (x, pole) is not exactly x. A SWEEP, not one pair: 400 x (0.00713 .. 2.852) × 4 poles × 64
- * steps at every RME rate. Were convex_moved ever 0 the two kernels could be merged. They are still the
+ * steps at every oracle rate. Were convex_moved ever 0 the two kernels could be merged. They are still the
  * SAME FILTER: from a cold start on a sine, 20000 samples at the 5 ms pole, they agree within 1e-5. */
 static void onepole_fixed_point(void) {
   int toward_moved = 0, convex_moved = 0, pairs = 0;
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     const float POLE[4] = { omx_pole_from_time_ms(50.0f, sr), omx_pole_from_time_ms(0.5f, sr),
                             omx_pole_from_cutoff_hz(200.0f, sr), 0.75f };
     for (int pi = 0; pi < 4; pi++) {
@@ -162,13 +162,13 @@ static void onepole_fixed_point(void) {
 }
 
 /* THE 2026-09-17 FOLD MOVED NO COEFFICIENT. Each folded site's PRE-FOLD expression, re-spelled verbatim,
- * against what the tier's kernel computes now: BIT equality at every RME rate. */
+ * against what the tier's kernel computes now: BIT equality at every oracle rate. */
 static void onepole_folded_sites(void) {
   int env_ok = 1, ag_ok = 1, dyn_ok = 1, agp_ok = 1, cut_ok = 1, rev_ok = 1, flush_seen = 0, tone_ok = 1, damp_ok = 1;
   const float MS[5] = { 0.1f, 1.0f, 12.5f, 100.0f, 1000.0f };
   const float FC[5] = { 20.0f, 200.0f, 1000.0f, 8000.0f, 16000.0f };
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     /* (a) omx_env_step: `stage[s] = coeff*stage[s] + (1-coeff)*d` */
     const float ac = omx_pole_from_time_ms(3.0f, sr);
     float env_was = 0.0f, env_now = 0.0f;
@@ -255,8 +255,8 @@ static void onepole_rescale_rme(void) {
   const float MS[2] = { 5.0f, 250.0f };
   const float SWEEP[5] = { 0.0f, 0.25f, 0.6f, 0.98f, 1.0f };
   const double ULP = 5.96046448e-8; /* 2^-24, the ULP of a float in [0.5, 1) */
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     for (int m = 0; m < 2; m++) {
       const float p = omx_pole_from_time_ms(MS[m], REF);
       const float q = omx_pole_rescale(p, REF, sr);
@@ -303,15 +303,15 @@ static void onepole_rescale_rme(void) {
  * give the closed form in double, to the float's own bound (FLT_MIN, not a subnormal: the suite thread
  * runs with denormals-are-zero, under which a subnormal rate is read as 0, one of the cases above):
  * a few ulps of q from powf and the stored pole, plus |ln q|·2^-23 from the rounded exponent ref/sr.
- * Every result is in [0, 1], never NaN. At each of the nine RME rates, as the running rate and as the
+ * Every result is in [0, 1], never NaN. At each of the nine oracle rates, as the running rate and as the
  * reference. */
 static void onepole_rescale_reference_rme(void) {
   const float POLES[3] = { 0.25f, 0.6f, 0.98f };
   const double ULP = 5.96046448e-8; /* 2^-24 */
   int unusable_ok = 1, closed_ok = 1, stable = 1;
   double worst = 0.0;
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     const float UNUSABLE[6] = { NAN, -NAN, 0.0f, -0.0f, -sr, -INFINITY };
     const float REFS[6] = { FLT_MIN, 1.0f, 0.5f * sr, 2.0f * sr, FLT_MAX, INFINITY };
     const float RUN[3] = { FLT_MIN, FLT_MAX, INFINITY };
@@ -351,8 +351,8 @@ static void onepole_rescale_reference_rme(void) {
  * finding for a ruling, not a fold). */
 static void onepole_dc_blocker(void) {
   int first_same = -1, monotone = 1, rig_differs = 1;
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     const float approx = 1.0f - 2.0f * 3.14159265f * 5.0f / sr;
     const float exact = omx_pole_from_cutoff_hz(5.0f, sr);
     const double c_approx = -log((double)approx) * (double)sr / (2.0 * M_PI);
@@ -367,12 +367,12 @@ static void onepole_dc_blocker(void) {
     ok(fabs(c_approx - 5.0) <= 0.01, "the DC blocker's approximated corner is within 0.01 Hz of 5 Hz", c_approx, 5.0);
     const int differs = !onepole_same_bits(approx, exact);
     if (!differs && first_same < 0) first_same = (int)ri;
-    if (differs && first_same >= 0) monotone = 0; /* OMX_FX_RME_RATES ascends */
+    if (differs && first_same >= 0) monotone = 0; /* OMX_FX_ORACLE_RATES ascends */
     if (differs == 0 && (sr == 44100.0f || sr == 48000.0f || sr == 96000.0f)) rig_differs = 0;
     onepole_drain(sr);
   }
   /* The engine's predicate, verbatim and at the engine's rates (OMX_DECLARED_RATES): the flip sits at half
-   * the fastest DECLARED rate. It is a fit to the declared set, not a closed form: at the nine RME rates
+   * the fastest DECLARED rate. It is a fit to the declared set, not a closed form: at the nine oracle rates
    * 128 kHz (above half of 192 kHz) still differs and the first agreeing rate is 176.4 kHz, so on the
    * RME set the arm asserts what does carry over — the floats differ at every rate below some flip and
    * agree at every rate above it, and the rig rates 44.1 / 48 / 96 kHz are on the differing side. */

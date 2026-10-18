@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The dynamics slot's oracle (omx_dyn.h, omx_dynamics_keyed), moved unchanged from the OpenMixer
-// engine. At the nine RME rates, contracts on, and after each arm no violation
+// engine. At the nine oracle rates, contracts on, and after each arm no violation
 // the rate does not explain (fx_rates.h):
 //   A  a disabled slot is the identity on the audio AND the state, bit for bit;
 //   B  a mono slot keyed on its own leg is the self-detecting slot, bit for bit, at factor 1 and 4;
@@ -209,8 +209,8 @@ static void arm_latency(float sr) {
 int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     arm_bypass(sr);
     expect_clean(sr);
     arm_self_key(sr);
@@ -224,6 +224,6 @@ int main(void) {
     arm_latency(sr);
     expect_clean(sr);
   }
-  printf("fx/dynamics_keyed: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_RME_RATE_COUNT);
+  printf("fx/dynamics_keyed: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_ORACLE_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }

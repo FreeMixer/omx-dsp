@@ -5,7 +5,7 @@
  * console's mix_dsp.test.c and mix_delay_math.test.c, moved with the line. The arms there that
  * measure the FX delay and the input alignment stay with those stages.
  *
- * Four claims, at the nine RME rates (32 to 192 kHz): the delay dialled in ms is the delay the
+ * Four claims, at the nine oracle rates (32 to 192 kHz): the delay dialled in ms is the delay the
  * audio takes, to the nearest sample; zero is an exact passthrough; a steady delay does not
  * depend on the block size; and a re-point cross-fades across one block and lands exactly on the
  * new delay. The ring
@@ -30,8 +30,8 @@
 #define MAX_RATE OMX_RT_HARD_TARGET_RATE
 #define CAP (((MAX_RATE / 1000) * MAX_MS) + 1)
 
-#define NRATES ((int)OMX_FX_RME_RATE_COUNT)
-#define RATE OMX_FX_RME_RATES
+#define NRATES ((int)OMX_FX_ORACLE_RATE_COUNT)
+#define RATE OMX_FX_ORACLE_RATES
 
 static int g_fail = 0, g_checks = 0;
 

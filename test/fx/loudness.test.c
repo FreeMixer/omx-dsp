@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The loudness kernels' oracle (omx_loudness.h, FreeMixer/omx-dsp#64): EBU Tech 3341's and Tech
- * 3342's test signals, generated here from their closed forms, at each of the nine RME rates,
+ * 3342's test signals, generated here from their closed forms, at each of the nine oracle rates,
  * held to the tolerances the documents give:
  *
  *   momentary, short-term, integrated   ±0.1 LU
@@ -526,8 +526,8 @@ int main(int argc, char **argv) {
   const float only = argc > 1 ? (float)atof(argv[1]) : 0.0f;
   check(omx_loudness_state_size() == sizeof(struct omx_loudness), "the state layout is exported");
   test_the_design_prints_the_standards_coefficients_at_48k();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_ORACLE_RATES[ri];
     if (only > 0.0f && g_sr != only) continue;
     test_the_design_at_every_rate(g_sr);
     test_3341_steady(g_sr, -23.0, "3341 signal 1");
@@ -547,6 +547,6 @@ int main(int argc, char **argv) {
     const uint32_t v = omx_fx_drain_ledger(g_sr);
     check(v == 0u, "the contract ledger came out empty at this rate");
   }
-  printf("fx/loudness: %d checks, %d failures, %s\n", g_checks, g_fail, only > 0.0f ? "one rate" : "nine RME rates");
+  printf("fx/loudness: %d checks, %d failures, %s\n", g_checks, g_fail, only > 0.0f ? "one rate" : "nine oracle rates");
   return g_fail == 0 ? 0 : 1;
 }

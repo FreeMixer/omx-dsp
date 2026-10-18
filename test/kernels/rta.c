@@ -9,7 +9,7 @@
  *
  * The engine's oracles (the engine's mix_dsp.test.c: the decimator and the known sinusoid;
  * mix_align.test.c: the complex reading), moved with the code. The decimator's passband, stopband
- * and three-stage cascade, and the known sinusoid, then run again at each of the nine RME rates. */
+ * and three-stage cascade, and the known sinusoid, then run again at each of the nine oracle rates. */
 
 /* The engine's low zoom: three ÷2 stages of a 65536-sample window feed an 8192-point FFT. */
 #define RTA_LOW_FFT 8192u
@@ -184,8 +184,8 @@ static void arm_rta(void) {
   rta_halfband_short_blocks();
   rta_known_sinusoid(48000.0f, 256u); /* 1500 Hz */
   rta_complex();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     rta_halfband_passband(sr);
     rta_halfband_stopband(sr, sr / 3.0f);
     rta_halfband_cascade(sr);
