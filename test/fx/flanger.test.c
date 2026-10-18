@@ -87,7 +87,9 @@ static void drain_violations(const char *where) {
   omx_contract_log.count = 0u;
 }
 
-static const double RATES[4] = {44100.0, 48000.0, 96000.0, 192000.0};
+/* The floor rates every oracle runs at, as fx_rates.h holds them: the contract's list, never a local one. */
+#define NRATES OMX_ORACLE_FLOOR_RATES_COUNT
+#define RATES OMX_FX_RATE_FLOOR
 
 static float g_ring_l[OMX_FLANGER_CAP], g_ring_r[OMX_FLANGER_CAP];
 
@@ -145,7 +147,7 @@ static double complex closed_form(const struct omx_flanger *p, double phase, dou
 
 static void arm_a_delay_follows(void) {
   double worst = 0.0, worst_control = 1e9;
-  for (int ri = 0; ri < 4; ri++) {
+  for (unsigned ri = 0; ri < NRATES; ri++) {
     const double sr = RATES[ri];
     const struct omx_flanger p = atom(sr, OMX_FLANGER_BASE_MS, 2.0, 0.0, 1.0);
     for (int i = 0; i < 16; i++) {
@@ -186,7 +188,7 @@ static double mag_at(double f, double sr) {
 
 static void arm_b_resonance(void) {
   double worst = 0.0;
-  for (int ri = 0; ri < 4; ri++) {
+  for (unsigned ri = 0; ri < NRATES; ri++) {
     const double sr = RATES[ri];
     for (int si = 0; si < 2; si++) {
       const double fb = si == 0 ? 0.6 : -0.6;
@@ -437,7 +439,7 @@ static float g_el[CLEN], g_er[CLEN], g_zoh[CLEN];
 
 static void arm_e_no_click(void) {
   const double f = 1000.0, A = 0.5;
-  for (int ri = 0; ri < 4; ri++) {
+  for (unsigned ri = 0; ri < NRATES; ri++) {
     const double sr = RATES[ri];
     const double wt = 2.0 * M_PI * f / sr;
     /* The deepest, fastest sweep the row's travel allows, and NO feedback: a click is a property
@@ -558,7 +560,7 @@ static void chorus_flanger_stay_inside_their_bound(void) {
   enum { N = 8192 };
   static float l[N], r[N];
   static float ca[OMX_CHORUS_CAP], cb[OMX_CHORUS_CAP];
-  for (int ri = 0; ri < 4; ri++) {
+  for (unsigned ri = 0; ri < NRATES; ri++) {
     const float sr = (float)RATES[ri];
     /* CHORUS: one voice, all wet, the oscillator frozen at the turn's zero so the sweep sits at
      * base + depth/2 — one sample of depth puts the read exactly half a sample off a tap. */

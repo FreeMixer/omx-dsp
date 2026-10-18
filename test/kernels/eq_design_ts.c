@@ -205,8 +205,8 @@ static void arm_eq_design_ts(void) {
    * flat there, so on their own they see the hold only through a last-bit rounding difference that
    * differs between libms (aarch64 read none: v0.18.0's release). A peak just under Nyquist makes
    * the held point and the unheld one (0 dB at and past Nyquist) several dB apart. */
-  static const double hold_rates[4] = {44100.0, 48000.0, 96000.0, 192000.0};
-  for (uint32_t r = 0; r < 4u; r++) {
+  static const double hold_rates[OMX_ORACLE_FLOOR_RATES_COUNT] = OMX_ORACLE_FLOOR_RATES_INIT;
+  for (uint32_t r = 0; r < OMX_ORACLE_FLOOR_RATES_COUNT; r++) {
     const double sr = hold_rates[r], hi = sr / 2.0 * 0.999;
     const struct omx_eq_band pk = {OMX_EQ_PEAKING, sr / 2.0 * 0.995, 12.0, 5.0, 1};
     double f[OMX_EQ_CURVE_CAP(160u, 1u)], db[OMX_EQ_CURVE_CAP(160u, 1u)];
