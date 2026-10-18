@@ -24,11 +24,11 @@
 
 #include "fx_rates.h"
 
-/* The console's output delay ring: its ceiling (OMX_IDELAY_MAX_MS) at the highest graph rate, +1 so the
- * full ceiling is a tap strictly inside the ring. */
+/* The console's output delay ring is the library's: the ceiling (OMX_IDELAY_MAX_MS) at the highest graph rate,
+ * +1 so the full ceiling is a tap strictly inside the ring. */
 #define MAX_MS OMX_IDELAY_MAX_MS /* the contract's OUTPUT_DELAY_RANGE.max, through the header */
-#define MAX_RATE OMX_RT_HARD_TARGET_RATE
-#define CAP (((MAX_RATE / 1000) * MAX_MS) + 1)
+#define MAX_RATE OMX_IDELAY_MAX_RATE
+#define CAP OMX_IDELAY_CAP
 
 #define NRATES ((int)OMX_FX_RME_RATE_COUNT)
 #define RATE OMX_FX_RME_RATES
@@ -85,6 +85,14 @@ static double rms(const float *b, int from, int to) {
 }
 
 /* ---- 1. ms -> samples --------------------------------------------------------------------- */
+
+static void test_ring_size_is_declared(void) {
+  check(OMX_IDELAY_MAX_RATE == 192000, "the ring is sized for 192 kHz");
+  check(OMX_IDELAY_MAX_MS == 1000, "the ceiling is 1000 ms");
+  check(OMX_IDELAY_CAP == 192001, "the ring holds 192001 samples per leg");
+  check(omx_idelay_samples((float)OMX_IDELAY_MAX_MS, (float)OMX_IDELAY_MAX_RATE, OMX_IDELAY_CAP) == OMX_IDELAY_CAP - 1,
+        "the ceiling at the highest rate is the last tap inside the ring");
+}
 
 static void test_samples_fixed_points(void) {
   check(omx_idelay_samples(0.0f, 48000.0f, CAP) == 0, "0 ms is 0 samples");
@@ -527,6 +535,7 @@ static void test_the_contract_ledger_came_out_empty(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
+  test_ring_size_is_declared();
   test_samples_fixed_points();
   test_samples_round_to_nearest_at_every_rate();
   test_impulse();
