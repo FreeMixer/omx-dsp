@@ -28,6 +28,9 @@
 #include "omx_lookahead.h"
 #include "omxdsp.h"
 
+/** @brief The line's ceiling, ms: the contract's output delay travel top (OUTPUT_DELAY_RANGE.max). */
+#define OMX_IDELAY_MAX_MS OMX_OUTPUT_DELAY_RANGE_MAX
+
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "idelay/samples"
 /**
