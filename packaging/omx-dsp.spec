@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.22.0
+Version: 0.23.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -73,6 +73,26 @@ library exists.
 %{_datadir}/omxdsp/
 
 %changelog
+* Sun Oct 18 2026 Pau Aliagas <linuxnow@gmail.com> - 0.23.0-1
+- New header omxdsp/mix/omx_bus_stage.h with omx_mix_strip,
+  omx_bus_out_gain and omx_bus_out_stage, the console engine's strip and
+  bus output stages, bit for bit, with their contracts.
+- omxdsp/analysis/omx_hrp_lv2.h gains the calls a plugin face drives the
+  live HRP core through: asks and answers, their counters, the block and
+  restart helpers. HRP's family and bands controls are declared in data/.
+- Delay taps: the read taps move out of struct omx_fx_delay into struct
+  omx_fx_delay_taps, read by omx_fx_delay_process_taps;
+  omx_fx_delay_process is that call with no taps. omx_fxdelay_tap_gains is
+  now omx_fxdelay_tap_legs and takes a non-finite pan as centre. New
+  omx_fxdelay_tap_ms gives a tap's time in milliseconds. The delay's output
+  does not change.
+- The pitch instance runs at the nine rates from 32 to 192 kHz; at 32, 64
+  and 128 kHz it used to pass the signal through. At 32 kHz the pre-filter
+  corner stays below Nyquist.
+- omx_pole_rescale leaves the pole as it is when the reference rate is not
+  above 0, as it already did for the running rate.
+- omx-contract-devel >= 2.16.0.
+
 * Sat Oct 17 2026 Pau Aliagas <linuxnow@gmail.com> - 0.22.0-1
 - The definitions of the kernels and DSP constants this library implements
   now ship with it. They live in data/, one file per kernel and one per
@@ -85,7 +105,7 @@ library exists.
   from omx-contract's header, which it includes.
 - Each definition names the code that implements it, and where the console
   engine declared it when it was first imported.
-- omx-contract-devel >= 2.16.0.
+- omx-contract-devel >= 2.15.0.
 
 * Fri Oct 16 2026 Pau Aliagas <linuxnow@gmail.com> - 0.21.0-1
 - The mix maths the engine used to carry now lives here: the pan laws and
