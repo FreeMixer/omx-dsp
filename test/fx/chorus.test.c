@@ -22,7 +22,7 @@
  *
  *   A — THE DELAY FOLLOWS THE LFO. The wet-only impulse response's CENTROID is the delay the
  *       stage is reading at (an order-N Lagrange kernel reproduces a linear function exactly, so
- *       its coefficients' first moment IS the read point). Sixteen phases across the turn, four
+ *       its coefficients' first moment IS the read point). Sixteen phases across the turn, nine
  *       rates, against `base + depth·(1 + s(φ))/2`. A positive control requires the same measure
  *       to REJECT a prediction half a sample away, so "it follows" is not a claim a blunt ruler
  *       would also make.
