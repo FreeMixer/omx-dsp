@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The self-detecting dynamics slot's oracle (omx_dyn.h, omx_dynamics), moved unchanged from
-// the OpenMixer engine. At the nine RME rates, contracts on, and after each arm
+// the OpenMixer engine. At the nine oracle rates, contracts on, and after each arm
 // no violation the rate does not explain (fx_rates.h): the slot every comp and every un-keyed gate takes IS omx_dynamics_keyed with no
 // key, bit for bit, stereo and mono, a gate and a comp, on the base path, the 4x control path and
 // across an `auto` handover, in uneven blocks.
@@ -96,11 +96,11 @@ static void arm_unkeyed(float sr) {
 int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     arm_unkeyed(sr);
     expect_clean(sr);
   }
-  printf("fx/dynamics: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_RME_RATE_COUNT);
+  printf("fx/dynamics: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_ORACLE_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }

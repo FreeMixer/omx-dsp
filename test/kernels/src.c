@@ -14,7 +14,7 @@
  *   4. the timing survives: output frame N is input frame N·L/M (group delay compensated);
  *   5. the identity case is exact, bit for bit;
  *   6. the design curve is real: a window designed for 40 dB does not reach 90.
- * Then every ordered pair of the nine RME rates: a plan of the rate ratio (or the refusal the cap
+ * Then every ordered pair of the nine oracle rates: a plan of the rate ratio (or the refusal the cap
  * gives), the tone's frequency and level, and DC at unity. */
 
 static double src_db(double lin) { return 20.0 * log10(lin < 1e-12 ? 1e-12 : lin); }
@@ -264,14 +264,14 @@ static void src_every_declared_pair_has_a_plan(void) {
     }
 }
 
-/* The nine RME rates, every ordered pair. The plan is the ratio in lowest terms, refused only past
+/* The nine oracle rates, every ordered pair. The plan is the ratio in lowest terms, refused only past
  * OMX_SRC_MAX_L: of the 81 pairs that is 44.1k -> 128k alone (1280/441). Every planned pair keeps
  * a 1 kHz tone's frequency and level and passes DC at unity, a quarter second each. */
 static void src_rme_pairs(void) {
   int refused = 0;
-  for (unsigned a = 0; a < OMX_FX_RME_RATE_COUNT; a++)
-    for (unsigned b = 0; b < OMX_FX_RME_RATE_COUNT; b++) {
-      const uint32_t in = (uint32_t)OMX_FX_RME_RATES[a], out = (uint32_t)OMX_FX_RME_RATES[b];
+  for (unsigned a = 0; a < OMX_FX_ORACLE_RATE_COUNT; a++)
+    for (unsigned b = 0; b < OMX_FX_ORACLE_RATE_COUNT; b++) {
+      const uint32_t in = (uint32_t)OMX_FX_ORACLE_RATES[a], out = (uint32_t)OMX_FX_ORACLE_RATES[b];
       const uint32_t g = omx_src_gcd(in, out);
       struct omx_src_plan plan = {0};
       const int r = omx_src_plan_of(in, out, &plan);
@@ -287,7 +287,7 @@ static void src_rme_pairs(void) {
       float *y = calloc(cap, sizeof(float));
       for (size_t i = 0; i < in_n; i++) x[i] = (float)(0.5 * sin(2.0 * M_PI * 1000.0 * (double)i / (double)in));
       src_convert(x, in_n, in, out, y, cap, OMX_SRC_ROLLOFF_DOUBLE, OMX_SRC_STOPBAND_DB);
-      /* a tenth of a second in the middle of the output: 100 whole cycles of 1 kHz at every RME rate */
+      /* a tenth of a second in the middle of the output: 100 whole cycles of 1 kHz at every oracle rate */
       double mag = 0.0;
       src_tone_at(y, out_n / 4u, out / 10u, 1000.0, (double)out, &mag, NULL);
       ok(fabs(mag - 0.5) <= 0.01, "an RME pair keeps a 1 kHz tone's frequency and level", mag, 0.5);

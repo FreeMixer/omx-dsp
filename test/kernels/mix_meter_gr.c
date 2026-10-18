@@ -4,17 +4,17 @@
 #include <omxdsp/mix/omx_meter.h>
 
 /* ---- the gain-reduction reading's hold and recovery (mix/omx_meter.h, FreeMixer/omx-dsp#98). At
- * each of the nine RME rates, in 10 ms blocks with a 500 ms release pole: a deeper block shows at
+ * each of the nine oracle rates, in 10 ms blocks with a 500 ms release pole: a deeper block shows at
  * once; the reading stays put for the declared hold, a shallower block never lifts it and a deeper
  * one replaces it; once the hold is spent the linear gain closes on the block by pole^n per block,
  * against the closed form within 0.01 dB, lands on 0 dB exactly, and on a −5 dB block never passes
  * it. A pole outside [0, 1) lands the first block after the hold. ------------------------------ */
 
-static const float MIX_GR_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_GR_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 static void arm_mix_meter_gr(void) {
   g_arm = "mix_meter_gr";
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const float sr = MIX_GR_RATES[ri];
     const uint32_t n = (uint32_t)sr / 100u;
     const float pole = expf(-1.0f / (0.5f * sr)); /* a 500 ms release */

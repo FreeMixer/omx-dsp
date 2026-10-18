@@ -84,35 +84,35 @@ static void arm_lfo(void) {
   ok(worst_sine >= 0.050, "and it IS the parabola, not the sine (deviation above 0.05)",
      worst_sine, 0.050);
 
-  /* THE INCREMENT (engine arm B), at the nine RME rates: rate/sr turns per sample to 1e-6
+  /* THE INCREMENT (engine arm B), at the nine oracle rates: rate/sr turns per sample to 1e-6
    * relative at 0.05, 0.6 and 8 Hz; zero, negative, Nyquist and above freeze; and so does a
    * non-positive sample rate. omx_lfo_inc carries no rate-is-declared precondition, so the
    * ledger stays empty at 32, 64 and 128 kHz too. */
   static const double INC_HZ[3] = {0.05, 0.6, 8.0};
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     for (int k = 0; k < 3; k++) {
       const double want = INC_HZ[k] / (double)sr;
       const double got = (double)omx_lfo_inc((float)INC_HZ[k], sr);
-      ok(fabs(got - want) <= want * 1e-6, "the increment is rate/sr turns to 1e-6, RME rates",
+      ok(fabs(got - want) <= want * 1e-6, "the increment is rate/sr turns to 1e-6, oracle rates",
          got, want);
     }
     ok(omx_lfo_inc(0.0f, sr) == 0.0f && omx_lfo_inc(-1.0f, sr) == 0.0f,
-       "a non-positive rate freezes, RME rates", omx_lfo_inc(-1.0f, sr), 0.0);
+       "a non-positive rate freezes, oracle rates", omx_lfo_inc(-1.0f, sr), 0.0);
     ok(omx_lfo_inc(sr * 0.5f, sr) == 0.0f && omx_lfo_inc(sr, sr) == 0.0f,
-       "a rate at or above Nyquist freezes, never aliased, RME rates", omx_lfo_inc(sr, sr), 0.0);
+       "a rate at or above Nyquist freezes, never aliased, oracle rates", omx_lfo_inc(sr, sr), 0.0);
   }
   ok(omx_lfo_inc(1.0f, 0.0f) == 0.0f, "no sample rate at all freezes", omx_lfo_inc(1.0f, 0.0f),
      0.0);
 
   /* THE ACCUMULATOR (engine arm C, there one minute at 96 kHz; here one minute at each of the
-   * nine RME rates): at 0.6 Hz the phase never leaves [0, 1), and its drift from the exact
+   * nine oracle rates): at 0.6 Hz the phase never leaves [0, 1), and its drift from the exact
    * k * inc mod 1 (the wrap is not a drift), sampled every 4096 advances, stays under 0.05 turns.
    * Then 10 Hz for sr/10 samples (one period) lands within 1e-3 of the start. */
   double worst_drift = 0.0, worst_period = 0.0;
   int inside_min = 1;
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     struct omx_lfo m = {0.0f, omx_lfo_inc(0.6f, sr), 0.0f};
     const double inc = (double)m.inc;
     const uint32_t n = (uint32_t)((double)sr * 60.0);
@@ -131,10 +131,10 @@ static void arm_lfo(void) {
     const double off = p.phase > 0.5f ? 1.0 - (double)p.phase : (double)p.phase;
     if (off > worst_period) worst_period = off;
   }
-  ok(inside_min, "a phase never leaves its turn over a minute, RME rates", 0.0, 0.0);
+  ok(inside_min, "a phase never leaves its turn over a minute, oracle rates", 0.0, 0.0);
   ok(worst_drift <= 0.05, "the phase drifts from k*inc mod 1 by under 0.05 turns a minute",
      worst_drift, 0.05);
-  ok(worst_period < 1e-3, "one period of samples at 10 Hz is one turn, RME rates", worst_period,
+  ok(worst_period < 1e-3, "one period of samples at 10 Hz is one turn, oracle rates", worst_period,
      1e-3);
 
   /* THE OFFSET READ (engine arm D, 96 kHz: a phase walk, not a rate property): over 1000

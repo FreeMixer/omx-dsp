@@ -213,8 +213,8 @@ static void eqp_prototype_checks(void) {
     const double e = eqp_worst_err(c, EQP_PEAK, 16000.0, 2.0, 12.0, 96000.0, 1000.0, 20000.0, -200.0);
     ok(e > 1.0, "control: a sabotaged matched bell (pole damping missing its A) is > 1 dB off the prototype", e, 1.0);
   }
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const double fs = OMX_FX_RME_RATES[ri], nyq = fs * 0.5;
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const double fs = OMX_FX_ORACLE_RATES[ri], nyq = fs * 0.5;
     /* the span the ruling measured, 1..20 kHz, stopped at Nyquist where Nyquist is lower (32 kHz) */
     const double top = nyq < 20000.0 ? nyq : 20000.0;
     /* CONTROL (d): Orfanidis is EXACT at DC, f0 and Nyquist by construction, so reading zero there

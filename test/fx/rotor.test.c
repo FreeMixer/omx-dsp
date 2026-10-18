@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The rotor word's oracle (omx_rotor.h, formerly openmixer's mix_rotor.test.c),
- * the design, at the nine RME rates (32 to
+ * the design, at the nine oracle rates (32 to
  * 192 kHz), closed forms in double.
  *
  *   B  Doppler: a 1 kHz tone through a rotor settled at the horn's fast speed, 2 s; every sample
@@ -249,14 +249,14 @@ int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
   arm_s();
-  for (uint32_t k = 0; k < OMX_FX_RME_RATE_COUNT; k++) {
-    const double sr = OMX_FX_RME_RATES[k];
+  for (uint32_t k = 0; k < OMX_FX_ORACLE_RATE_COUNT; k++) {
+    const double sr = OMX_FX_ORACLE_RATES[k];
     arm_bc(sr);
     arm_d(sr, "horn", HORN_SLOW, HORN_FAST, OMX_ROTARY_HORN_ACCEL_MS, OMX_ROTARY_HORN_DECEL_MS,
           OMX_ROTARY_HORN_DOPPLER_MS, OMX_ROTARY_HORN_AM);
     arm_d(sr, "drum", DRUM_SLOW, DRUM_FAST, OMX_ROTARY_DRUM_ACCEL_MS, OMX_ROTARY_DRUM_DECEL_MS,
           OMX_ROTARY_DRUM_DOPPLER_MS, OMX_ROTARY_DRUM_AM);
   }
-  printf("fx/rotor: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_RME_RATE_COUNT);
+  printf("fx/rotor: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_ORACLE_RATE_COUNT);
   return g_failed ? 1 : 0;
 }

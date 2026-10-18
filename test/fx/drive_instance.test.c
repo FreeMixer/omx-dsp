@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * drive_instance.test.c — the drive instance face (omx_drive_instance.h), every arm at every rate
- * of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
+ * of the nine oracle rates (OMX_FX_ORACLE_RATES, 32 to 192 kHz; the six declared ones are among them):
  *   A  a rate outside the nine is refused and the face is the identity; init resolves
  *      the contract's defaults: engaged, the default factor (4x), the latency the kernel declares;
  *   B  bypassed is the identity byte for byte, in place and out of place, with no latency;
@@ -17,7 +17,7 @@
  *   G  an instance run between two others leaves them each the instance alone (no shared state);
  *   H  init, resolve (re-engage and factor changes included) and run allocate nothing: malloc,
  *      calloc, realloc and free are wrapped at link time and counted across the instance's whole life;
- * and, at the nine RME rates (32 to 192 kHz; the face where the console declares the rate, the
+ * and, at the nine oracle rates (32 to 192 kHz; the face where the console declares the rate, the
  * kernel on the console's atom at the three it refuses):
  *   O  every `oversample` factor (1, 2, 4) publishes its closed-form latency (0, 48, 72) and at mix
  *      0 is its input that many samples late, bit for bit; a factor change mid-run, every ordered
@@ -323,7 +323,7 @@ static void arm_no_allocation(void) {
   drain_violations("H: no contract broken");
 }
 
-/* ---- O: the oversample control, at the nine RME rates ------------------------------------- */
+/* ---- O: the oversample control, at the nine oracle rates ------------------------------------- */
 
 /* The factors the contract offers (DRIVE_OVERSAMPLES) and the round trip each one costs, in
  * base-rate samples: nothing at 1x; at 2x the up stage's 24 plus the down stage's 48 at twice the
@@ -502,8 +502,8 @@ static void arm_oversample(void) {
 int main(void) {
   omx_fx_require_rate_floor();
   omx_fx_require_full_rates_cover_declared();
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = OMX_FX_RME_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_ORACLE_RATES[ri];
     arm_init();
     arm_bypass();
     arm_is_the_kernel();
@@ -512,6 +512,6 @@ int main(void) {
     arm_no_allocation();
     arm_oversample();
   }
-  printf("fx/drive_instance: %d RME rates\n", (int)OMX_FX_RME_RATE_COUNT);
+  printf("fx/drive_instance: %d oracle rates\n", (int)OMX_FX_ORACLE_RATE_COUNT);
   return finish("drive_instance");
 }

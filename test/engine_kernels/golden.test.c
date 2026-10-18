@@ -18,7 +18,7 @@
  * The stimulus makes no libm call: an integer generator, impulses, steps and square waves whose
  * periods are computed from the rate by integer division.
  *
- *   src  every RME rate to every RME rate: the plan, the designed table and the conversion of a
+ *   src  every oracle rate to every oracle rate: the plan, the designed table and the conversion of a
  *        4096-sample stimulus fed in uneven blocks with the flush, plus the 40 dB, 0.8 design of
  *        the rate to its double
  *   gen  every kind and waveform through a run of fills of uneven lengths, frequencies (in band,
@@ -46,7 +46,7 @@
 #define GOLDEN_SRC_ROLLOFF OMX_SRC_ROLLOFF_DOUBLE
 #endif
 
-static const float GOLDEN_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float GOLDEN_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 /* ---- the record ---------------------------------------------------------------------------- */
 
@@ -129,7 +129,7 @@ static void render_src_pair(uint32_t in_rate, uint32_t out_rate, double rolloff,
 
 static void render_src(uint32_t rate) {
   stimulus(src_in, SRC_IN, rate, 0x1234567u);
-  for (uint32_t k = 0; k < OMX_RME_RATES_COUNT; k++)
+  for (uint32_t k = 0; k < OMX_ORACLE_FULL_RATES_COUNT; k++)
     render_src_pair(rate, (uint32_t)GOLDEN_RATES[k], GOLDEN_SRC_ROLLOFF, OMX_SRC_STOPBAND_DB);
   render_src_pair(rate, 2u * rate, 0.8, 40.0);
   put_u32(omx_src_gcd(rate, 2u * rate + 1u));
@@ -245,7 +245,7 @@ int main(int argc, char **argv) {
   static const char *const kernels[] = {"src", "gen", "rta"};
   int fail = 0, checked = 0;
   for (unsigned ki = 0; ki < 3; ki++)
-    for (uint32_t r = 0; r < OMX_RME_RATES_COUNT; r++) {
+    for (uint32_t r = 0; r < OMX_ORACLE_FULL_RATES_COUNT; r++) {
       const uint32_t rate = (uint32_t)GOLDEN_RATES[r];
       char hex[65];
       if (digest(kernels[ki], rate, hex) != 0) return 2;
@@ -265,6 +265,6 @@ int main(int argc, char **argv) {
     }
   if (f) fclose(f);
   if (!write) printf("engine_kernels_golden: %d digests (src, gen, rta at %u rates), %d moved\n", checked,
-                     (unsigned)OMX_RME_RATES_COUNT, fail);
+                     (unsigned)OMX_ORACLE_FULL_RATES_COUNT, fail);
   return fail == 0 ? 0 : 1;
 }

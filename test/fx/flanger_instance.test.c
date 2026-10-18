@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * flanger_instance.test.c — the flanger instance core (omx_flanger_instance.h), every arm at every
- * rate of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
+ * rate of the nine oracle rates (OMX_FX_ORACLE_RATES, 32 to 192 kHz; the six declared ones are among them):
  *   A  a refused init (no rate, a rate outside the nine) is the identity; each of the
  *      nine rates is accepted, its deepest sweep inside the instance's own rings;
  *   B  bypassed is the identity byte for byte, in place and out of place;
@@ -254,8 +254,8 @@ static void arm_no_allocation(void) {
 int main(void) {
   omx_fx_require_rate_floor();
   omx_fx_require_full_rates_cover_declared();
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = OMX_FX_RME_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_ORACLE_RATES[ri];
     arm_refused();
     arm_bypass();
     arm_is_the_kernel();
