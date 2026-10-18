@@ -138,11 +138,13 @@ static inline float omx_pole_from_cutoff_hz(float hz, float sr) {
  * @brief A pole quoted at a reference rate, re-expressed at the running rate: `p^(ref/sr)`, the
  *        same time constant in seconds (and the same corner in Hz) at every rate.
  * @param p The pole at `ref`, in [0, 1].
- * @param ref The rate the pole is quoted at, Hz.
- * @param sr The running rate, Hz; a rate that is not above 0 (0, negative, NaN: one the caller
- *        could not supply) leaves the pole as it is.
+ * @param ref The rate the pole is quoted at, Hz; a rate that is not above 0 (0, negative, -inf,
+ *        NaN: one the caller could not supply) leaves the pole as it is.
+ * @param sr The running rate, Hz; a rate that is not above 0 leaves the pole as it is, as for `ref`.
  * @return The pole at `sr`. 0 and 1 are their own fixed points, so are `sr == ref` (no `powf` is
- *         taken, the reference rate is bit-for-bit untouched) and a rate not above 0.
+ *         taken, the reference rate is bit-for-bit untouched) and either rate not above 0. With
+ *         both rates above 0 the exponent `ref/sr` is in [0, +inf], so the result is in [0, 1]
+ *         (an infinite or overflowing exponent gives 0, a vanishing one gives 1).
  * @pre `pole-in-unit-range`: `0 <= p <= 1`.
  * @post `stable-pole`: the result stays in [0, 1], never NaN.
  * @note RT-safe: one `powf`, on the RT-safe allowlist; call it once per block, never per sample.
@@ -150,7 +152,7 @@ static inline float omx_pole_from_cutoff_hz(float hz, float sr) {
  */
 static inline float omx_pole_rescale(float p, float ref, float sr) {
   OMX_PRE(p >= 0.0f && p <= 1.0f, "pole-in-unit-range");
-  const float q = (p <= 0.0f || p >= 1.0f || !(sr > 0.0f) || sr == ref) ? p : powf(p, ref / sr);
+  const float q = (p <= 0.0f || p >= 1.0f || !(ref > 0.0f) || !(sr > 0.0f) || sr == ref) ? p : powf(p, ref / sr);
   OMX_POST(q >= 0.0f && q <= 1.0f, "stable-pole");
   return q;
 }
