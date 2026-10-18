@@ -25,13 +25,20 @@ echo "gen \$\$ \$*" >> "$OUT/count.log"
 exec bash "$PKG/tools/kernels-gen.sh" "\$@"
 EOF
 
-# count_runs <makefile> <label>: a fresh build dir, the racing targets under -j8, the log's line count.
+# count_runs <makefile> <label> <tolerate>: a fresh build dir, the racing targets under -j8, the log's line count.
+# A build failure is reported on stderr (stdout is the count). The sabotaged Makefile builds the very
+# race the test counts: a second generator run rewrites the lists while the other target compiles them,
+# so that build may fail to compile; only its count matters, so it passes <tolerate>=1.
 count_runs() {
-  local mk="$1" b="$OUT/b-$2"
+  local mk="$1" b="$OUT/b-$2" tolerate="${3:-0}"
   : > "$OUT/count.log"
   rm -rf "$b"
-  nice -n 10 make -f "$mk" -j8 BUILD="$b" KERNELS_GEN="bash $OUT/gen-counted.sh" \
-    "$b/omxdsp_suite" perturb > "$OUT/$2.out" 2>&1 || { echo "gen-once.sh: FAIL — the $2 build failed:"; tail -20 "$OUT/$2.out"; exit 1; }
+  if ! nice -n 10 make -f "$mk" -j8 BUILD="$b" KERNELS_GEN="bash $OUT/gen-counted.sh" \
+    "$b/omxdsp_suite" perturb > "$OUT/$2.out" 2>&1 && [ "$tolerate" -eq 0 ]; then
+    echo "gen-once.sh: FAIL — the $2 build failed:" >&2
+    tail -20 "$OUT/$2.out" >&2
+    exit 1
+  fi
   wc -l < "$OUT/count.log"
 }
 
@@ -41,7 +48,7 @@ n="$(count_runs Makefile real)"
 # Sabotage: re-add the generator call to the suite recipe, as the bug had it.
 sed 's|^\t\$(CC) \$(TESTFLAGS) -I\$(BUILD) -o \$@ test/omxdsp_suite.c|\t$(KERNELS_GEN) $(BUILD)\n&|' Makefile > "$OUT/Makefile.sab"
 cmp -s Makefile "$OUT/Makefile.sab" && { echo "gen-once.sh: FAIL — the sabotage changed nothing"; exit 1; }
-s="$(count_runs "$OUT/Makefile.sab" sab)"
+s="$(count_runs "$OUT/Makefile.sab" sab 1)"
 [ "$s" -gt 1 ] || { echo "gen-once.sh: FAIL — the sabotaged Makefile (generator re-added to a recipe) ran it $s time(s): the count is blind"; exit 1; }
 
 # test-fx's split must run every binary of FX_BINS (the loops' set), each as a recipe command. Both
