@@ -139,7 +139,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -245,6 +245,10 @@ $(BUILD)/eq_bandwidth_q_table: test/eq_bandwidth_q_table.c $(LIB) $(HEADERS) | $
 bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 	./$(BUILD)/eq_bandwidth_q_table | diff -u test/golden/eq_bandwidth_q.json -
 	@echo "bandwidth-q-table: test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s"
+
+# The generator runs once under make -j8 (test/gen-once.sh), and a Makefile that calls it from a recipe again turns it red.
+gen-once: $(HEADERS) test/gen-once.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/gen-once.sh $(BUILD)/gen-once
 
 perturb: $(HEADERS) $(KERNELS) $(KERNELS_INC) test/perturb.sh test/omxdsp_perturb.c | $(BUILD)
 	OMXDSP_GEN="$(CURDIR)/$(BUILD)" CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
