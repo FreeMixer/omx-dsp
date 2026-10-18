@@ -441,8 +441,10 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
 # and requires the golden digests of that kernel to move.
 # hrp_lv2_rates holds the live HRP shell's own decisions (the hop, when the worker is asked for, the
-# cursor, the adopted band's transfer function, the walk out) to closed forms at the nine RME rates;
-# test/analysis/hrp-lv2-rates-sabotage.sh breaks each of them once and requires its arm to fail.
+# cursor, the adopted band's transfer function, the walk out) and the calls a plugin face drives it
+# through (the analysis block, the control snapshot, the pass counters, wants and answer, clear and
+# restart) to closed forms at the nine RME rates; test/analysis/hrp-lv2-rates-sabotage.sh breaks each
+# of them once and requires its arm to fail.
 # The room analysis, the Farina sweep and the alignment fit (moved from core's TypeScript) run on the same
 # thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h;
 # align_fit, room and sweep hold them to closed forms at the nine RME rates and count allocations;

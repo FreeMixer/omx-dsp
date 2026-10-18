@@ -58,8 +58,23 @@
  *   settled      the settled-silence test over every combination of five values (0, −0, 1e-30,
  *                0.5, NaN) in its four arguments
  *   lcr_clev     the LCR fold's centre level, and a level times the cue's fold switch times it
+ *
+ * The bus stages (mix/omx_bus_stage.h) have a third engine build, -DOMX_GOLDEN_ENGINE_STRIP: the
+ * engine copies of these three outlived all the rest (OpenMixer's mix_dsp.h at engine commit
+ * 108aa0952, which takes everything else from this library), and they keep the same names here, so
+ * only the header differs between the two builds:
+ *
+ *   mix_strip      a run of blocks of noise summed into a stereo bus that already holds noise, mono
+ *                  and stereo sources, the targets moving between blocks (a polarity invert, +10 dB,
+ *                  NaN and infinite targets, poisoned cursors, an empty block): both legs and both
+ *                  cursors
+ *   bus_out_gain   a run of blocks through a stereo and a mono bus's out gain, fader (to +10 dB),
+ *                  mute and balance moving between blocks, an empty block: both legs and the cursors
+ *   bus_out_stage  the same run through the whole out stage, the meter slots held across blocks and
+ *                  cleared every fifth: both legs, the cursors and both slots
  */
 #include <math.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,8 +82,8 @@
 
 #include <omxdsp/omxdsp_definitions.h>
 
-#if defined(OMX_GOLDEN_ENGINE) && defined(OMX_GOLDEN_ENGINE_REST)
-#error "one engine build at a time: OMX_GOLDEN_ENGINE (the first kernels) or OMX_GOLDEN_ENGINE_REST"
+#if defined(OMX_GOLDEN_ENGINE) + defined(OMX_GOLDEN_ENGINE_REST) + defined(OMX_GOLDEN_ENGINE_STRIP) > 1
+#error "one engine build at a time: OMX_GOLDEN_ENGINE (the first kernels), OMX_GOLDEN_ENGINE_REST or OMX_GOLDEN_ENGINE_STRIP"
 #endif
 
 #ifdef OMX_GOLDEN_ENGINE
@@ -81,6 +96,11 @@
 #include "mix_dsp.h"
 #include "mix_sum.h"
 #else
+#ifdef OMX_GOLDEN_ENGINE_STRIP
+#include "mix_dsp.h" /* the engine's omx_mix_strip, omx_bus_out_gain and omx_bus_out_stage */
+#else
+#include <omxdsp/mix/omx_bus_stage.h>
+#endif
 #include <omxdsp/mix/omx_route_gain.h>
 #endif
 #include <omxdsp/mix/omx_bus_sum.h>
@@ -666,12 +686,81 @@ static void render_rest(const char *k, uint32_t rate) {
 
 #endif /* !OMX_GOLDEN_ENGINE */
 
+/* ---- the bus stages: the same calls in the library build and the bus stages' engine build ---- */
+#if !defined(OMX_GOLDEN_ENGINE) && !defined(OMX_GOLDEN_ENGINE_REST)
+
+static void render_strip(const char *k, uint32_t rate) {
+  const uint32_t m = rate / 100u;
+  static float bl[BLOCK_MAX], br[BLOCK_MAX];
+  if (strcmp(k, "mix_strip") == 0) {
+    static const float tgts[] = {1.0f, 0.5f, 0.0f, -0.5f, 3.1623f, NAN, 0.25f, INFINITY, 0.0f, 0.70710678f, -INFINITY, 1.0f};
+    uint32_t s = rate ^ 0x5717u;
+    float cl = 0.0f, cr = 0.0f;
+    for (uint32_t blk = 0; blk < 36u; blk++) {
+      const uint32_t n = blk == 11u ? 0u : m - (blk % 5u);
+      for (uint32_t i = 0; i < n; i++) {
+        g_a[i] = lcg_noise(&s);
+        g_b[i] = 0.5f * lcg_noise(&s);
+        bl[i] = 0.25f * lcg_noise(&s);
+        br[i] = 0.25f * lcg_noise(&s);
+      }
+      if (blk == 19u) cl = NAN;
+      if (blk == 20u) cr = -INFINITY;
+      const float *inr = (blk % 4u == 1u) ? g_a : g_b; /* a mono source passes its one leg twice */
+      omx_mix_strip(g_a, inr, bl, br, n, tgts[blk % 12u], tgts[(blk + 5u) % 12u], &cl, &cr);
+      put(bl, n * sizeof(float));
+      put(br, n * sizeof(float));
+      put_f(cl);
+      put_f(cr);
+    }
+  } else if (strcmp(k, "bus_out_gain") == 0 || strcmp(k, "bus_out_stage") == 0) {
+    const int stage = strcmp(k, "bus_out_stage") == 0;
+    uint32_t s = rate ^ (stage ? 0x0b57u : 0x0b56u);
+    for (int ch = 1; ch <= 2; ch++) {
+      float cl = 1.0f, cr = 1.0f;
+      _Atomic float pl = 0.0f, pr = 0.0f;
+      for (uint32_t blk = 0; blk < 24u; blk++) {
+        const uint32_t n = blk == 7u ? 0u : m - (blk % 3u);
+        for (uint32_t i = 0; i < n; i++) {
+          g_a[i] = lcg_noise(&s) * (float)(blk % 6u + 1u) / 6.0f;
+          g_b[i] = 0.5f * lcg_noise(&s);
+        }
+        const float fader = (blk % 4u == 3u) ? 3.1623f : (blk == 17u) ? 0.0f : 1.0f - 0.04f * (float)blk;
+        const int mute = blk == 9u || blk == 10u;
+        const float bal = -1.0f + (float)blk / 11.5f;
+        if (stage) {
+          if (blk % 5u == 0u) { /* the reader's clear */
+            atomic_store(&pl, 0.0f);
+            atomic_store(&pr, 0.0f);
+          }
+          omx_bus_out_stage(g_a, g_b, n, ch, fader, mute, bal, &cl, &cr, &pl, &pr);
+        } else {
+          omx_bus_out_gain(g_a, g_b, n, ch, fader, mute, bal, &cl, &cr);
+        }
+        put(g_a, n * sizeof(float));
+        put(g_b, n * sizeof(float));
+        put_f(cl);
+        put_f(cr);
+        if (stage) {
+          put_f(atomic_load(&pl));
+          put_f(atomic_load(&pr));
+        }
+      }
+    }
+  }
+}
+
+#endif /* the bus stages */
+
 static int digest(const char *k, uint32_t rate, char hex[65]) {
   g_len = 0;
   g_overflow = 0;
   render(k, rate);
 #ifndef OMX_GOLDEN_ENGINE
   render_rest(k, rate);
+#endif
+#if !defined(OMX_GOLDEN_ENGINE) && !defined(OMX_GOLDEN_ENGINE_REST)
+  render_strip(k, rate);
 #endif
   if (g_overflow) {
     fprintf(stderr, "mix_golden: the %s record at %u Hz overflows\n", k, rate);
@@ -697,9 +786,12 @@ int main(int argc, char **argv) {
   static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta", "bus_sum", "rt_load"};
 #elif defined(OMX_GOLDEN_ENGINE_REST)
   static const char *const kernels[] = {"split", "route_fill", "route_fold", "fold_fill", "strip_meter", "settled", "lcr_clev"};
+#elif defined(OMX_GOLDEN_ENGINE_STRIP)
+  static const char *const kernels[] = {"mix_strip", "bus_out_gain", "bus_out_stage"};
 #else
   static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta", "bus_sum", "rt_load",
-                                        "split", "route_fill", "route_fold", "fold_fill", "strip_meter", "settled", "lcr_clev"};
+                                        "split", "route_fill", "route_fold", "fold_fill", "strip_meter", "settled", "lcr_clev",
+                                        "mix_strip", "bus_out_gain", "bus_out_stage"};
 #endif
   const unsigned nk = sizeof kernels / sizeof kernels[0];
   int fail = 0, checked = 0;
