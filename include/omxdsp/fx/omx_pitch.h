@@ -111,7 +111,9 @@ static inline float omx_pitch_ratio(float semitones, float cents) {
 #define OMX_CONTRACT_STAGE "pitch/resolve"
 /**
  * @brief Resolve a ratio into the atom at `sr`: the window, the ramp's increment and direction,
- *        and the pre-filter at min(ceiling, sr/(2r)).
+ *        and the pre-filter at min(ceiling, sr/(2r), fraction·sr/2). The last term keeps the
+ *        corner off Nyquist where Nyquist is at or below the ceiling (32 kHz, and a ratio near 1
+ *        there); at every declared rate it is above the other two and moves nothing.
  * @param p The atom.
  * @param enabled The stage's switch.
  * @param r The shift ratio, positive.
@@ -131,7 +133,8 @@ static inline void omx_pitch_resolve_ratio(struct omx_pitch *p, int enabled, flo
   const double inc = fabs(1.0 - (double)r) / ((double)OMX_PITCH_WINDOW_MS * 1e-3 * (double)sr);
   p->step = inc < 0.5 ? (uint32_t)llround(ldexp(inc, 32)) : 0u;
   p->mix = omx_unit(mix);
-  const double fc = fmin((double)OMX_PITCH_PREFILTER_CEILING_HZ, (double)sr / (2.0 * (double)r));
+  const double fc = fmin(fmin((double)OMX_PITCH_PREFILTER_CEILING_HZ, (double)sr / (2.0 * (double)r)),
+                         OMX_PITCH_PREFILTER_NYQUIST_FRACTION_DOUBLE * 0.5 * (double)sr);
   omx_eq_design_f(OMX_EQ_LOWPASS, fc, (double)OMX_PITCH_PREFILTER_Q, 0.0, (double)sr, p->lp);
   OMX_POST(p->step < 0x80000000u, "an-increment-is-inside-half-a-turn");
 }
