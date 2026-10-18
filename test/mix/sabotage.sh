@@ -112,6 +112,17 @@ run bus_sum mix_bus_sum omx_bus_sum.h 's|  for (uint32_t i = 0; i < n; i++) y\[i
 run bus_sum mix_bus_sum omx_bus_sum.h 's|  for (uint32_t i = 0; i < n; i++) y\[i\] += (a\[i\] + b\[i\]) \* (g0 + step \* (float)i);|  for (uint32_t i = 0; i < n; i++) y[i] += (a[i] + 0.5f * b[i]) * (g0 + step * (float)i);|'
 run_arm bus_sum_heal mix_bus_sum omx_bus_sum.h 's|  const float g1 = isfinite(e->g_cur) ? e->g_cur : 0.0f;|  const float g1 = e->g_cur;|'
 run_arm bus_sum_heal_prev mix_bus_sum omx_bus_sum.h 's|  const float g0 = isfinite(e->g_prev) ? e->g_prev : 0.0f;|  const float g0 = e->g_prev;|'
+# a contract check that only a broken body can trip: the sabotage breaks the body, and the arm must
+# fail with the ledger naming the check (the arm prints what it got)
+run_token() { # $1 = label, $2 = arm, $3 = header under omxdsp/mix/, $4 = sed expression, $5 = "stage kind token"
+  run_arm "$1" "$2" "$3" "$4"
+  if ! grep -qF "got [${5%% *}] ${5#* }" "$OUT/$1/suite.log"; then
+    echo "mix-sabotage: FAIL — the $1 sabotage did not trip $5"
+    exit 1
+  fi
+  echo "mix-sabotage: $1 — the ledger names $5"
+}
+
 run rt_load mix_rt_load omx_rt_load.h 's|#define OMX_RT_LOAD_SMOOTHING 0.9f|#define OMX_RT_LOAD_SMOOTHING 0.8f|'
 run rt_load mix_rt_load omx_rt_load.h 's|  return (seeded \&\& xrun_ns > seen_ns) ? 1u : 0u;|  return (seeded \&\& xrun_ns >= seen_ns) ? 1u : 0u;|'
 run split mix_coef omx_mix_coef.h 's|    omx_pan_gains(l, pan, divergence, img);|    omx_pan_gains(l, -pan, divergence, img);|'
@@ -121,4 +132,11 @@ run fold_fill mix_route_gain omx_route_gain.h 's|    cr += stepR;|    cr += step
 run strip_meter mix_meter omx_meter.h 's|  return omx_meter_block_peak(inL, inR, n) \* level;|  return omx_meter_block_peak(inL, inR, n) * level * 0.9999f;|'
 run settled mix_coef omx_mix_coef.h 's|  return tgtL == 0.0f \&\& tgtR == 0.0f \&\& curL == 0.0f \&\& curR == 0.0f;|  return tgtL == 0.0f \&\& tgtR == 0.0f \&\& curL == 0.0f \&\& curR < 1.0f;|'
 run lcr_clev mix_pan_law omx_pan_law.h 's|#define OMX_PAN_LCR_FOLD_CLEV 0.70710678f|#define OMX_PAN_LCR_FOLD_CLEV 0.7071068f|'
+run mix_strip mix_bus_stage omx_bus_stage.h 's|  \*curL = el.g_cur;|  *curL = tgtL;|'
+run_token ramp_self_heals mix_bus_stage omx_bus_stage.h 's|  \*curL = el.g_cur;|  *curL = tgtL;|' "bus/mix-strip post ramp-self-heals-to-finite"
+run_arm finite_coef mix_bus_stage omx_bus_stage.h 's|  OMX_PRE(tgtL - tgtL == 0.0f \&\& tgtR - tgtR == 0.0f, "finite-coef");|  OMX_PRE(1, "finite-coef");|'
+run bus_out_gain mix_bus_stage omx_bus_stage.h 's|  omx_bus_out_apply(busL, busR, n, tgtL, tgtR, curL, curR);|  omx_bus_out_apply(busL, busR, n, tgtR, tgtL, curL, curR);|'
+run_arm balance_range mix_bus_stage omx_bus_stage.h 's|  OMX_PRE(balance >= -1.0f \&\& balance <= 1.0f, "balance-within-declared-range");|  OMX_PRE(1, "balance-within-declared-range");|'
+run_arm fold_range mix_bus_stage omx_bus_stage.h 's|  OMX_POST(tgtL >= -1e-6f \&\& |  OMX_POST(1 ? 1 : |'
+run bus_out_stage mix_bus_stage omx_bus_stage.h 's|  const float next_l = omx_meter_hold_peak(held_l, mL);|  const float next_l = omx_meter_hold_peak(held_l, mR);|'
 echo "mix-sabotage: every kernel's sabotage turns its oracle and its digests red"

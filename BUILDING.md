@@ -20,6 +20,8 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make lint` | the doc check, the source scan, the log10f guard, tools/contract-single-source.sh (no name omx-contract defines is defined again here) and tools/face-conformance.sh (every instance face's resolve takes its kernel's contract controls by name, order and kind); both check their own sabotage |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
 | `make engine-kernels-identity OPENMIXER=<checkout>` | renders those digests again through the copies OpenMixer's engine still carries (`mix_src.h`, `mix_dsp.h`), and checks that each of its sabotages goes red; a desk check, not run in CI |
+| `make test-mix` | the mix module's golden digests at the nine RME rates (`test/golden/mix.sha256`, written by the engine's own copies), and a break in each kernel and in each of the bus stages' contract checks that must turn its arm red; alone |
+| `make mix-engine-identity OPENMIXER=<checkout>` | renders the mix digests again through each set of copies OpenMixer's engine still carries (the bus stages' `omx_mix_strip`, `omx_bus_out_gain` and `omx_bus_out_stage` in `mix_dsp.h`, under the same names as `mix/omx_bus_stage.h`), and checks that each of its sabotages goes red; a desk check, not run in CI |
 | `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
 | `make analysis-engine-identity OPENMIXER=<checkout>` | builds the analysis golden against the engine's own `mix_dsp.h`, `hrp_render.h` and `hrp_lv2.h` and requires the committed digests, then its sabotage; a desk check, not run in CI |
 | `make room-ts-golden OPENMIXER=<checkout>` | runs core's room analysis and alignment fit from an OpenMixer checkout under node (22.6 or later) and requires the committed parity table `test/analysis/fixtures/room_ts.h`; a desk check, not run in CI |
@@ -255,7 +257,7 @@ The facts no single package implements (the declared sample rates, the parameter
 FreeMixer/omx-contract, read through `<omxcontract/omx_contract_limits.h>`, which the definitions
 header includes. That dependency is declared once, in the packaging: `packaging/omx-dsp.spec`
 (`BuildRequires`, `Requires`) and `debian/control` (`Build-Depends`, `Depends`) carry the same floor
-and no upper bound (`>= 2.15.0`), and `omxdsp.pc` requires the same floor. Install
+and no upper bound (`>= 2.16.0`), and `omxdsp.pc` requires the same floor. Install
 it from the FreeMixer channel with the rest of the build dependencies:
 
     dnf builddep packaging/omx-dsp.spec     # Fedora, with the FreeMixer repository added
