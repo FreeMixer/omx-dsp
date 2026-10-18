@@ -264,9 +264,9 @@ fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kern
 note-map-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/note-map-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/note-map-sabotage.sh $(BUILD)/note-map-sabotage
 
-# omx_pole_rescale's checks in the onepole arm against four sabotaged copies of the include tree (the
-# law, its rate <= 0 fixed point, the delay's and the reverb's call): each must go red on that arm
-# (test/onepole-sabotage.sh). The tree is never edited.
+# omx_pole_rescale's checks in the onepole arm against five sabotaged copies of the include tree (the
+# law, its running-rate and reference-rate <= 0 fixed points, the delay's and the reverb's call): each
+# must go red on that arm (test/onepole-sabotage.sh). The tree is never edited.
 onepole-sabotage: $(HEADERS) $(FX_HEADERS) $(KERNELS) $(SRC) test/onepole-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/onepole-sabotage.sh $(BUILD)/onepole-sabotage
 
