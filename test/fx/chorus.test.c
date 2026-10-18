@@ -90,9 +90,9 @@ static void drain_violations(const char *where) {
   omx_contract_log.count = 0u;
 }
 
-/* The floor rates every oracle runs at, as fx_rates.h holds them: the contract's list, never a local one. */
-#define NRATES OMX_ORACLE_FLOOR_RATES_COUNT
-#define RATES OMX_FX_RATE_FLOOR
+/* The nine oracle rates, as fx_rates.h holds them (the contract's list, never a local one). */
+#define NRATES OMX_FX_ORACLE_RATE_COUNT
+#define RATES OMX_FX_ORACLE_RATES
 
 /* The rings, once: the stage allocates nothing, and neither does this file per arm. */
 static float g_ring_l[OMX_CHORUS_CAP], g_ring_r[OMX_CHORUS_CAP];
