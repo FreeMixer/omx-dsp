@@ -2,16 +2,18 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * @file omx_meter.h
- * @brief The measure half of the console's meters: a block's peak, the per-leg post-coefficient
- *        peaks, the sustained-over clip run, the peak hold's comparison, and the gain-reduction
- *        reading's hold and recovery.
+ * @brief The measure half of the console's meters: a block's peak, a level meter's dBFS reading,
+ *        the per-leg post-coefficient peaks, the sustained-over clip run, the peak hold's
+ *        comparison, and the gain-reduction reading's hold and recovery.
  *
  * Meters are two halves. Measure
  * is here: pure functions over the block a lane hands in, and over a state struct the engine owns
  * and passes in. Publish (the tap point, the atomic slots, the stores into them, the cadence, the
  * clip latch, the watched test) stays in the engine. Moved unchanged from the engine's
  * `omx_block_peak`, `omx_strip_meter`, `omx_strip_meter_legs`, `omx_sustained_over` and the comparison inside
- * `omx_meter_hold` (OpenMixer's mix_dsp.h), and `omx_gr_meter_step` (its mix_gr_meter.h).
+ * `omx_meter_hold` (OpenMixer's mix_dsp.h), and `omx_gr_meter_step` (its mix_gr_meter.h). The
+ * level reading is moved unchanged from the `g_level_db` the omx-plugins faces carry (omx-comp,
+ * omx-deesser).
  *
  * Pure, header-only. Not in omxdsp.h: include <omxdsp/mix/omx_meter.h>.
  */
@@ -56,6 +58,28 @@ static inline float omx_meter_block_peak(const float *a, const float *b, uint32_
     }
   }
   return peak;
+}
+
+/**
+ * @brief A level meter's reading: one leg's peak over the block, in dBFS, never below the meter's
+ *        display minimum (silence reads the minimum).
+ *
+ * The peak is max |sample| in float; the dB value is `20·log10(peak)` in double. A NaN sample
+ * never becomes the peak; an infinite one reads +inf.
+ * @param x The leg, `n` samples.
+ * @param n Samples in the block; 0 reads the minimum.
+ * @param min The meter's display minimum, dBFS.
+ * @return The peak in dBFS, or `min` when that is lower than `min` or the block is silent.
+ * @note RT-safe: one pass and one log10, no allocation. Thread-safe: reads only.
+ */
+static inline double omx_meter_level_db(const float *x, uint32_t n, double min) {
+  float peak = 0.0f;
+  for (uint32_t i = 0; i < n; ++i) {
+    const float a = fabsf(x[i]);
+    if (a > peak) peak = a;
+  }
+  const double db = peak > 0.0f ? 20.0 * log10((double)peak) : min;
+  return db > min ? db : min;
 }
 
 /**

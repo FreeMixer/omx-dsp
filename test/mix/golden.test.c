@@ -72,6 +72,27 @@
  *                  mute and balance moving between blocks, an empty block: both legs and the cursors
  *   bus_out_stage  the same run through the whole out stage, the meter slots held across blocks and
  *                  cleared every fifth: both legs, the cursors and both slots
+ *
+ * A dynamics slot's key (mix/omx_key.h) and the source switch (mix/omx_src_blend.h) each have an
+ * engine build of their own, -DOMX_GOLDEN_ENGINE_KEY and -DOMX_GOLDEN_ENGINE_PB: the engine's
+ * omx_key_build (OpenMixer's mix_lane.h) and omx_src_blend (its mix_pb.h), cut out of those
+ * headers by tools/mix-engine-identity.sh into the header the build includes in place of the
+ * library's (the rest of mix_lane.h needs the engine's plugin host). They keep the same names, so
+ * only that header differs between the builds; everything else is the library's:
+ *
+ *   key    runs of blocks of noise keyed from the lane's two legs, from one leg and from another
+ *          lane's block, the high-pass and low-pass edges switched on and off and their sections
+ *          swapped between blocks, listen-only keys, no-key slots and an empty block: what the
+ *          call returns, whether it built, the key buffer and both sections' history
+ *   pb     a run of blocks of noise switched between live and track, settled and ramping, with no
+ *          live input, NaN and infinite targets, a poisoned cursor and an empty block: the track
+ *          and the cursor
+ *
+ * The level meter's reading (omx_meter_level_db) has no engine copy: it is the omx-plugins faces'
+ * g_level_db, and its digests are the library's own:
+ *
+ *   level  blocks of noise from silence to +10 dB, NaN and infinite samples among them, an empty
+ *          block, at five display minimums: each reading, in double
  */
 #include <math.h>
 #include <stdatomic.h>
@@ -82,8 +103,13 @@
 
 #include <omxdsp/omxdsp_definitions.h>
 
-#if defined(OMX_GOLDEN_ENGINE) + defined(OMX_GOLDEN_ENGINE_REST) + defined(OMX_GOLDEN_ENGINE_STRIP) > 1
-#error "one engine build at a time: OMX_GOLDEN_ENGINE (the first kernels), OMX_GOLDEN_ENGINE_REST or OMX_GOLDEN_ENGINE_STRIP"
+#if defined(OMX_GOLDEN_ENGINE) + defined(OMX_GOLDEN_ENGINE_REST) + defined(OMX_GOLDEN_ENGINE_STRIP) + \
+        defined(OMX_GOLDEN_ENGINE_KEY) + defined(OMX_GOLDEN_ENGINE_PB) > 1
+#error "one engine build at a time: OMX_GOLDEN_ENGINE (the first kernels), OMX_GOLDEN_ENGINE_REST, OMX_GOLDEN_ENGINE_STRIP, OMX_GOLDEN_ENGINE_KEY or OMX_GOLDEN_ENGINE_PB"
+#endif
+#if !defined(OMX_GOLDEN_ENGINE) && !defined(OMX_GOLDEN_ENGINE_REST) && !defined(OMX_GOLDEN_ENGINE_STRIP) && \
+    !defined(OMX_GOLDEN_ENGINE_KEY) && !defined(OMX_GOLDEN_ENGINE_PB)
+#define GOLDEN_LIBRARY 1 /* the library build: every kernel, none through an engine copy */
 #endif
 
 #ifdef OMX_GOLDEN_ENGINE
@@ -110,6 +136,16 @@
 #include <omxdsp/mix/omx_mix_coef.h>
 #include <omxdsp/mix/omx_pan_law.h>
 #include <omxdsp/mix/omx_rta_tap.h>
+#ifdef OMX_GOLDEN_ENGINE_KEY
+#include "mix_key_engine.h" /* the engine's struct omx_key and omx_key_build, cut out of mix_lane.h */
+#elif defined(GOLDEN_LIBRARY)
+#include <omxdsp/mix/omx_key.h>
+#endif
+#ifdef OMX_GOLDEN_ENGINE_PB
+#include "mix_src_blend_engine.h" /* the engine's omx_src_blend, cut out of mix_pb.h */
+#elif defined(GOLDEN_LIBRARY)
+#include <omxdsp/mix/omx_src_blend.h>
+#endif
 #endif
 
 #include "../fx/sha256.h"
@@ -752,6 +788,104 @@ static void render_strip(const char *k, uint32_t rate) {
 
 #endif /* the bus stages */
 
+/* ---- a slot's key: the same calls in the library build and the key's engine build ------------ */
+#if defined(GOLDEN_LIBRARY) || defined(OMX_GOLDEN_ENGINE_KEY)
+
+/* RBJ sections, Butterworth Q, designed at 48 kHz and written out, so the stimulus makes no libm
+ * call: high-pass at 200 Hz and 80 Hz, low-pass at 5 kHz and 12 kHz. The key runs them as given
+ * at every rate. */
+static const float KEY_HP[2][5] = {{0.981658268f, -1.96331654f, 0.981658268f, -1.96298009f, 0.963652984f},
+                                   {0.992622543f, -1.98524509f, 0.992622543f, -1.98519066f, 0.985299513f}};
+static const float KEY_LP[2][5] = {{0.0722308753f, 0.144461751f, 0.0722308753f, -1.10922879f, 0.398152293f},
+                                   {0.292893219f, 0.585786437f, 0.292893219f, -7.17381485e-17f, 0.171572874f}};
+
+static void render_key(const char *k, uint32_t rate) {
+  if (strcmp(k, "key") != 0) return;
+  const uint32_t m = rate / 100u;
+  static float l[BLOCK_MAX], r[BLOCK_MAX], src[BLOCK_MAX], buf[BLOCK_MAX];
+  uint32_t s = rate ^ 0x4e7u;
+  /* 0 = self on a stereo lane, 1 = self on a mono lane, 2 = another lane's block */
+  for (uint32_t mode = 0; mode < 3u; mode++) {
+    float hs[4] = {0.0f, 0.0f, 0.0f, 0.0f}, ls[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    for (uint32_t blk = 0; blk < 24u; blk++) {
+      const uint32_t n = blk == 9u ? 0u : m - (blk % 5u);
+      for (uint32_t i = 0; i < n; i++) {
+        l[i] = lcg_noise(&s);
+        r[i] = 0.5f * lcg_noise(&s);
+        src[i] = 0.25f * lcg_noise(&s) + 0.5f * l[i];
+      }
+      for (uint32_t i = 0; i < m; i++) buf[i] = -7.0f; /* what the call leaves unwritten shows */
+      struct omx_key key;
+      memset(&key, 0, sizeof key);
+      key.src = mode == 2u ? src : NULL;
+      key.buf = (blk % 11u == 10u) ? NULL : buf; /* a slot with no key */
+      key.hp_on = (int)(blk % 4u) & 1;
+      key.lp_on = (int)((blk % 4u) >> 1);
+      memcpy(key.hp_c, KEY_HP[(blk / 4u) & 1u], sizeof key.hp_c);
+      memcpy(key.lp_c, KEY_LP[(blk / 8u) & 1u], sizeof key.lp_c);
+      key.to_detector = blk % 3u != 1u; /* a listen-only key every third block */
+      const float *got = omx_key_build(blk == 21u ? NULL : &key, l, mode == 1u ? NULL : r, n, hs, ls);
+      put_u32(got == NULL ? 0u : got == buf ? 1u : 2u);
+      put_u32((uint32_t)key.built);
+      put(buf, m * sizeof(float));
+      put(hs, sizeof hs);
+      put(ls, sizeof ls);
+    }
+  }
+}
+
+#endif /* a slot's key */
+
+/* ---- the source switch: the same call in the library build and the switch's engine build ----- */
+#if defined(GOLDEN_LIBRARY) || defined(OMX_GOLDEN_ENGINE_PB)
+
+static void render_pb(const char *k, uint32_t rate) {
+  if (strcmp(k, "pb") != 0) return;
+  const uint32_t m = rate / 100u;
+  static float live[BLOCK_MAX], track[BLOCK_MAX];
+  static const float tgts[] = {1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.5f, NAN, 1.0f,
+                               INFINITY, 0.0f, 0.25f, 1.0f, 1.0f, 0.0f, -INFINITY, 1.0f};
+  uint32_t s = rate ^ 0x9b1u;
+  float cur = 0.0f;
+  for (uint32_t blk = 0; blk < 40u; blk++) {
+    const uint32_t n = blk == 13u ? 0u : m - (blk % 6u);
+    for (uint32_t i = 0; i < n; i++) {
+      live[i] = lcg_noise(&s);
+      track[i] = 0.5f * lcg_noise(&s);
+    }
+    if (blk == 27u) cur = NAN; /* a poisoned cursor */
+    omx_src_blend((blk % 5u == 3u) ? NULL : live, track, n, tgts[blk % 16u], &cur);
+    put(track, n * sizeof(float));
+    put_f(cur);
+  }
+}
+
+#endif /* the source switch */
+
+/* ---- the level meter's reading: the library build only ------------------------------------- */
+#ifdef GOLDEN_LIBRARY
+
+static void render_level(const char *k, uint32_t rate) {
+  if (strcmp(k, "level") != 0) return;
+  const uint32_t m = rate / 100u;
+  static const float scales[] = {1.0f, 0.5f, 0.001f, 1e-4f, 3.1623f, 0.0f, 1e-6f, 0.70794578f};
+  static const double mins[] = {-60.0, -90.0, -144.0, 6.0, 0.0};
+  uint32_t s = rate ^ 0x1e7du;
+  for (uint32_t blk = 0; blk < 32u; blk++) {
+    const uint32_t n = blk == 4u ? 0u : m - (blk % 7u);
+    for (uint32_t i = 0; i < n; i++) g_a[i] = lcg_noise(&s) * scales[blk % 8u];
+    if (n > 0u && blk == 17u) g_a[n / 2u] = NAN;
+    if (n > 0u && blk == 23u) g_a[n / 3u] = INFINITY;
+    if (n > 0u && blk == 29u) g_a[n / 4u] = -INFINITY;
+    for (uint32_t v = 0; v < 5u; v++) {
+      const double db = omx_meter_level_db(g_a, n, mins[v]);
+      put(&db, sizeof db);
+    }
+  }
+}
+
+#endif /* the level meter's reading */
+
 static int digest(const char *k, uint32_t rate, char hex[65]) {
   g_len = 0;
   g_overflow = 0;
@@ -761,6 +895,15 @@ static int digest(const char *k, uint32_t rate, char hex[65]) {
 #endif
 #if !defined(OMX_GOLDEN_ENGINE) && !defined(OMX_GOLDEN_ENGINE_REST)
   render_strip(k, rate);
+#endif
+#if defined(GOLDEN_LIBRARY) || defined(OMX_GOLDEN_ENGINE_KEY)
+  render_key(k, rate);
+#endif
+#if defined(GOLDEN_LIBRARY) || defined(OMX_GOLDEN_ENGINE_PB)
+  render_pb(k, rate);
+#endif
+#ifdef GOLDEN_LIBRARY
+  render_level(k, rate);
 #endif
   if (g_overflow) {
     fprintf(stderr, "mix_golden: the %s record at %u Hz overflows\n", k, rate);
@@ -788,10 +931,14 @@ int main(int argc, char **argv) {
   static const char *const kernels[] = {"split", "route_fill", "route_fold", "fold_fill", "strip_meter", "settled", "lcr_clev"};
 #elif defined(OMX_GOLDEN_ENGINE_STRIP)
   static const char *const kernels[] = {"mix_strip", "bus_out_gain", "bus_out_stage"};
+#elif defined(OMX_GOLDEN_ENGINE_KEY)
+  static const char *const kernels[] = {"key"};
+#elif defined(OMX_GOLDEN_ENGINE_PB)
+  static const char *const kernels[] = {"pb"};
 #else
   static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta", "bus_sum", "rt_load",
                                         "split", "route_fill", "route_fold", "fold_fill", "strip_meter", "settled", "lcr_clev",
-                                        "mix_strip", "bus_out_gain", "bus_out_stage"};
+                                        "mix_strip", "bus_out_gain", "bus_out_stage", "key", "pb", "level"};
 #endif
   const unsigned nk = sizeof kernels / sizeof kernels[0];
   int fail = 0, checked = 0;
