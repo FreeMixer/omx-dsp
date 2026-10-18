@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "omx_contract.h"
+#include "omxdsp_definitions.h"
 
 /**
  * @brief Decibels to linear amplitude, `10^(dB/20)`.
@@ -25,13 +26,13 @@ static inline float omx_db_to_lin(float db) {
 
 /**
  * @brief Linear amplitude to decibels, floored so silence stays finite.
- * @param lin Amplitude, linear; values below 1e-9 read as 1e-9.
- * @return `20·log10(max(lin, 1e-9))`: silence is −180 dB, never −inf or NaN.
+ * @param lin Amplitude, linear; values below OMX_LIN_TO_DB_FLOOR_LIN (1e-9) read as the floor.
+ * @return `20·log10(max(lin, OMX_LIN_TO_DB_FLOOR_LIN))`: silence is OMX_LIN_TO_DB_FLOOR_DB (−180 dB), never −inf or NaN.
  * @note RT-safe: one `log10f`, on the RT-safe allowlist (a pure function of its argument: no allocation,
  *       lock or errno write on a finite positive input). Thread-safe: pure.
  */
 static inline float omx_lin_to_db(float lin) {
-  const float floor_lin = 1e-9f;
+  const float floor_lin = OMX_LIN_TO_DB_FLOOR_LIN;
   return 20.0f * log10f(lin < floor_lin ? floor_lin : lin);
 }
 
@@ -68,13 +69,13 @@ static inline double omx_lin_to_db_d(double lin, double floor_lin) {
  * `|t| ≤ 0.1716`, summed to `t⁹/9` (the first term left out is below 4e-10). Unity is exactly
  * 0 dB. Against omx_lin_to_db(): within 1e-4 dB over [1e-9, 1e24] (−180 to +480 dB), and within
  * 4 ulp of the result over every float above the floor (the omxdsp suite's units arm measures both).
- * @param lin Amplitude, linear, finite; values below 1e-9 read as 1e-9.
- * @return `20·log10(max(lin, 1e-9))` to the declared tolerance: silence is −180 dB.
+ * @param lin Amplitude, linear, finite; values below OMX_LIN_TO_DB_FLOOR_LIN (1e-9) read as the floor.
+ * @return `20·log10(max(lin, OMX_LIN_TO_DB_FLOOR_LIN))` to the declared tolerance: silence is −180 dB.
  * @post `finite`.
  * @note RT-safe: one divide, no call, no branch but the floor. Thread-safe: pure.
  */
 static inline float omx_lin_to_db_poly(float lin) {
-  const float x = lin < 1e-9f ? 1e-9f : lin;
+  const float x = lin < OMX_LIN_TO_DB_FLOOR_LIN ? OMX_LIN_TO_DB_FLOOR_LIN : lin;
   uint32_t u;
   memcpy(&u, &x, sizeof u);
   u += 0x3f800000u - 0x3f3504f3u; /* re-centre so the mantissa lands in [√½, √2) */
