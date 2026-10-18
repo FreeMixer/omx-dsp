@@ -62,12 +62,13 @@
 #   make test-mix  the mix module's golden digests (pan law, LCR, strip and fold coefficients, bus
 #               out stage, peak, clip, peak hold, gain-reduction reading, analyser tap, bus sum,
 #               real-time load meter, factored strip coefficient, route gain stages, strip meter
-#               reading, settled silence, LCR fold level) and a sabotage of each kernel against its
-#               oracle and digests
+#               reading, settled silence, LCR fold level, bus stages, a dynamics slot's key, the
+#               source switch, a level meter's dBFS reading) and a sabotage of each kernel against
+#               its oracle and digests
 #   make mix-engine-identity OPENMIXER=<checkout>  the same digests rendered through the engine's own
 #               copies, each set the checkout carries (mix_dsp.h, mix_lcr.h, mix_bus.h,
-#               mix_gr_meter.h; mix_dsp.h, mix_sum.h), and the check's sabotages
-#               (tools/mix-engine-identity.sh)
+#               mix_gr_meter.h; mix_dsp.h, mix_sum.h; mix_dsp.h; mix_lane.h; mix_pb.h), and the
+#               check's sabotages (tools/mix-engine-identity.sh)
 
 CC      ?= cc
 AR      ?= ar
@@ -530,9 +531,11 @@ engine-kernels-identity:
 # ---- the mix module -------------------------------------------------------------------------
 # The pan law, the strip and fold coefficients of G, a bus's out stage, the meters' measure half, one
 # analyser tap's reading, one source's contribution to a summing bus, the real-time load meter, the
-# factored strip coefficient, an output route's gain stages, the settled-silence test and the LCR
-# fold's centre level (include/omxdsp/mix/, FreeMixer/omx-dsp#98 and #140): their oracles are suite arms (test/kernels/mix_*.c);
-# here are their golden digests at the nine oracle rates, which the engine's own copies wrote
+# factored strip coefficient, an output route's gain stages, the settled-silence test, the LCR
+# fold's centre level, the bus stages, a dynamics slot's key, the source switch and a level meter's
+# dBFS reading (include/omxdsp/mix/, FreeMixer/omx-dsp#98 and #140): their oracles are suite arms (test/kernels/mix_*.c);
+# here are their golden digests at the nine oracle rates, which the engine's own copies wrote (the
+# level reading's, which has no engine copy, the library's own)
 # (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
 # Compiled with log10f replaced by the correctly rounded omx_log10f (test/support), as the FX goldens
 # are: the gain-reduction reading's log10f otherwise moves its digests on glibc 2.36 and 2.39.
