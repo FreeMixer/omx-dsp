@@ -38,7 +38,7 @@ run() { # $1 = name, $2 = sed expression
     exit 1
   fi
   local arms
-  arms="$(grep -oE '^FAIL \[magnitude(-ts)?\]' "$log" | sort -u | tr '\n' ' ')"
+  arms="$(grep -oE '^FAIL \[magnitude(-ts)?\]' "$log" | LC_ALL=C sort -u | tr '\n' ' ')"
   if [ "$arms" != "FAIL [magnitude-ts] FAIL [magnitude] " ]; then
     echo "magnitude-sabotage: FAIL — the $1 sabotage was not caught by both magnitude arms (caught by: ${arms:-none})"
     exit 1
