@@ -41,8 +41,13 @@ register('./ts-golden-hooks.mjs', import.meta.url, { data: { openmixer, contract
 const eq = await import(pathToFileURL(`${openmixer}/packages/core/src/eq.ts`).href);
 const commit = execFileSync('git', ['-C', openmixer, 'rev-parse', 'HEAD']).toString().trim();
 
-/** The nine rates an RME interface clocks at (omx-contract's OMX_RME_RATES). */
-const RME_RATES = [32000, 44100, 48000, 64000, 88200, 96000, 128000, 176400, 192000];
+/** The nine rates every oracle runs at, read from the contract render the tool is given
+ * (omx-contract's ORACLE_FULL_RATES): never a list typed here. */
+const { ORACLE_FULL_RATES } = await import(pathToFileURL(`${contractTs}/omx-contract.js`).href);
+if (!Array.isArray(ORACLE_FULL_RATES) || ORACLE_FULL_RATES.length === 0) {
+  console.error(`ts-golden: ${contractTs}/omx-contract.js exports no ORACLE_FULL_RATES (omx-contract 2.16.0 or later)`);
+  process.exit(2);
+}
 
 /** The C kind each drawn-band type designs as (enum omx_eq_kind). */
 const KIND = {
@@ -86,7 +91,7 @@ function curve() {
   const curves = [];
   const fs = [];
   const dbs = [];
-  for (const sr of RME_RATES) {
+  for (const sr of ORACLE_FULL_RATES) {
     for (const c of CORPUS) {
       const pts = eq.eqCurveDb(c.bands, { sampleRate: sr, points: POINTS });
       curves.push({ sr, c, off: fs.length, n: pts.length });
@@ -217,7 +222,7 @@ async function design() {
   // rbjCoeffs; complementSection of each bandpass and bell it designed (the de-esser's remainder).
   const design = [];
   const complement = [];
-  for (const sr of RME_RATES) {
+  for (const sr of ORACLE_FULL_RATES) {
     for (const r of designRows()) {
       const c = eq.rbjCoeffs(r.kind, r.f, r.q, r.g, sr);
       design.push(`{${CORE_KIND[r.kind]}, ${num(r.f)}, ${num(r.q)}, ${num(r.g)}, ${num(sr)}, ${c5(c)}}`);
@@ -274,7 +279,7 @@ async function design() {
   const seatF = [];
   const seatDb = [];
   const win = geom.axisWindow();
-  for (const sr of RME_RATES) {
+  for (const sr of ORACLE_FULL_RATES) {
     for (let s = 0; s < states.length; s++) {
       const st = states[s].eq;
       const bank = eq.eqCoeffs(st, sr);
@@ -329,7 +334,7 @@ async function design() {
     { type: 'highpass', freq: 40, gainDb: 0, q: 0.5411961 }, { type: 'allpass2', freq: 900, gainDb: 0, q: 3 },
   ];
   const bandmag = [];
-  for (const sr of RME_RATES) {
+  for (const sr of ORACLE_FULL_RATES) {
     for (const b of drawnBands) {
       for (const f of [-5, 0, 10, 130, 1000, 15990, sr * 0.49975, sr * 0.5, 30000]) {
         bandmag.push(`{{${KIND[b.type]}, ${num(b.freq)}, ${num(b.gainDb)}, ${num(b.q)}, 1}, ${num(sr)}, ${num(f)}, ${num(eq.biquadMagnitudeDb(b, f, sr))}}`);
@@ -343,7 +348,7 @@ async function design() {
   const comp = [];
   let compF = null;
   const compDb = [];
-  for (const sr of RME_RATES) {
+  for (const sr of ORACLE_FULL_RATES) {
     const pts = geom.compositeCurveDb(drawnBands.slice(0, 3), filters, sr);
     const fs = pts.map((p) => num(p.f));
     if (compF === null) compF = fs;
