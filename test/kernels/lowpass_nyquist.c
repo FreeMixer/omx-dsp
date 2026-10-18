@@ -51,7 +51,7 @@
  * operations: measured 2.8e-14 dB apart at most. A tie within this is a tie. */
 #define LPN_TIE_DB 1e-9
 
-static const float LPN_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float LPN_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 static const double LPN_Q[2] = {0.70710678118654752, 0.54119610014619698};
 
 /* The matched low-pass as omx_eq_design ran it before #105, the reference the `below` and `low`
@@ -123,7 +123,7 @@ static void lpn_declared_space(void) {
   uint32_t nc = 0;
   for (double f = OMX_EQ_FREQ_RANGE_MIN; f <= OMX_EQ_FREQ_RANGE_MAX; f *= 1.5) corners[nc++] = f;
   corners[nc++] = OMX_EQ_FREQ_RANGE_MAX;
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const double sr = LPN_RATES[ri], nyq = sr * 0.5;
     uint32_t points = 0, further = 0, nulls = 0;
     double worst_ratio = 0.0, at_f0 = 0.0, at_q = 0.0, excess = 0.0;
@@ -180,7 +180,7 @@ static void arm_lowpass_nyquist(void) {
   g_arm = "lowpass_nyquist";
   double r[128];
   const uint32_t nr = lpn_corners(r);
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const double sr = LPN_RATES[ri], nyq = sr * 0.5;
     for (uint32_t qi = 0; qi < 2; qi++) {
       const double q = LPN_Q[qi];

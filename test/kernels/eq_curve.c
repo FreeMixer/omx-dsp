@@ -3,7 +3,7 @@
 
 /* ---- the EQ bank, the head filters and the drawn curve  ------------------- */
 
-static const float EQ_CURVE_RME_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float EQ_CURVE_ORACLE_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 /* The ledger after one rate's checks, emptied: at a rate outside the declaration the all-pass
  * designs' `rate-is-declared` precondition is the contract saying so, and is explained; every other
@@ -50,8 +50,8 @@ static void arm_eq_curve(void) {
     ok(!omx_eq_band_is_identity((enum omx_eq_kind)k, 0.1) && !omx_eq_band_is_identity((enum omx_eq_kind)k, -1e-9),
        "a band off 0 dB is not identity", k, 0.0);
   }
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
-    const double sr = EQ_CURVE_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
+    const double sr = EQ_CURVE_ORACLE_RATES[ri];
     double c[5], k[5], kk[5];
     /* The identity a parked band rests on: numerator and denominator equal, term for term. */
     for (int kind = OMX_EQ_PEAKING; kind <= OMX_EQ_HIGHSHELF; kind++) {

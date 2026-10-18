@@ -10,7 +10,7 @@
 //             sweep from 1e-10 to 1e3;
 //   KERNEL    omx_dynamics_keyed, mono, stereo and keyed, peak and RMS, with and without a dry
 //             share, against a per-sample reference that runs the gain computer on every sample,
-//             at the nine RME rates;
+//             at the nine oracle rates;
 //   CALLS     log10f and powf per 128-sample block with the gate open and on its floor: the flat
 //             path calls them a handful of times per block, not once per sample.
 // Release flags: the calls are counted through the two names below, ahead of the headers.
@@ -242,11 +242,11 @@ static void arm_calls(float sr) {
 int main(void) {
   omx_fx_require_rate_floor();
   arm_selector();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     arm_kernel(sr);
     arm_calls(sr);
   }
-  printf("fx/dyn_flat: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_RME_RATE_COUNT);
+  printf("fx/dyn_flat: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_ORACLE_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }

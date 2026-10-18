@@ -4,7 +4,7 @@
 #include <omxdsp/mix/omx_pan_law.h>
 
 /* ---- the layout-driven pan law (mix/omx_pan_law.h, FreeMixer/omx-dsp#98). At each of the nine
- * RME rates, one second of a pan sweep (pan = 1.25·sin(2π·5·i/sr), the clamp on the path) over
+ * oracle rates, one second of a pan sweep (pan = 1.25·sin(2π·5·i/sr), the clamp on the path) over
  * every layout: stereo, LCR at three centre widths and four divergences, and two wider axes. The
  * gains' power sums to 1 at every position of every layout; no gain is inverted; only the
  * adjacent pair (and the centre) carry the source. Stereo: −3 dB per leg at centre, the hard legs,
@@ -12,7 +12,7 @@
  * takes the whole source at pan 0. The LCR fold's centre level is the float nearest 1/√2, −3.01 dB,
  * and a centre folded onto a pair at it carries half its power into each leg. ------------------------ */
 
-static const float MIX_PAN_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_PAN_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 struct mix_pan_case {
   struct omx_pan_layout l;
@@ -72,7 +72,7 @@ static void arm_mix_pan_law(void) {
   omx_pan_gains(&lcr, 0.75f, 0.0f, g3);
   ok(g3[2] == 0.0f, "LCR: past the centre window C is 0", g3[2], 0.0);
 
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const float sr = MIX_PAN_RATES[ri];
     const uint32_t n = (uint32_t)sr;
     uint32_t power_bad = 0, inverted = 0, stray = 0, stereo_bits = 0, lcr_div1_bits = 0;

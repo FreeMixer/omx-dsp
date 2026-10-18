@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The reverb kernel's oracle (omx_reverb.h), every arm at each of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them). The
+ * The reverb kernel's oracle (omx_reverb.h), every arm at each of the nine oracle rates (OMX_FX_ORACLE_RATES, 32 to 192 kHz; the six declared ones are among them). The
  * arms' frame counts are written at 48 kHz and read through at(), so a window is the same stretch
  * of time at every rate:
  *   make test-fx
@@ -579,8 +579,8 @@ int main(void) {
   omx_fx_require_rate_floor();
   omx_fx_require_full_rates_cover_declared();
   reverb_runs_no_room_cut_at_another_rate();
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = OMX_FX_RME_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_ORACLE_RATES[ri];
     fprintf(stderr, "fx/reverb at %.0f Hz\n", (double)g_sr);
     test_decaying_diffuse_tail_both();
     test_plate_damping_never_shortens_the_tail();
@@ -597,6 +597,6 @@ int main(void) {
     test_reenable_clears_stale_tail();
     test_exhausted_pool_is_inert_not_a_crash();
   }
-  printf("fx/reverb: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_FX_RME_RATE_COUNT);
+  printf("fx/reverb: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_FX_ORACLE_RATE_COUNT);
   return g_fail == 0 ? 0 : 1;
 }

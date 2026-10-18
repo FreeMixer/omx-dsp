@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * align_fit.test.c — the cross-spectrum accumulator and the alignment fit
- * (<omxdsp/analysis/omx_align_fit.h>) against closed forms, at the nine RME rates on the RTA's own
+ * (<omxdsp/analysis/omx_align_fit.h>) against closed forms, at the nine oracle rates on the RTA's own
  * frame size for each rate (analysis_rates.h), with core's declarations from the parity table.
  *
  * Every run pairs a reference of seeded noise with a target that is the reference through a known
