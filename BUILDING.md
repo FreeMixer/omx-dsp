@@ -257,7 +257,7 @@ The facts no single package implements (the declared sample rates, the parameter
 FreeMixer/omx-contract, read through `<omxcontract/omx_contract_limits.h>`, which the definitions
 header includes. That dependency is declared once, in the packaging: `packaging/omx-dsp.spec`
 (`BuildRequires`, `Requires`) and `debian/control` (`Build-Depends`, `Depends`) carry the same floor
-and no upper bound (`>= 2.15.0`), and `omxdsp.pc` requires the same floor. Install
+and no upper bound (`>= 2.16.0`), and `omxdsp.pc` requires the same floor. Install
 it from the FreeMixer channel with the rest of the build dependencies:
 
     dnf builddep packaging/omx-dsp.spec     # Fedora, with the FreeMixer repository added
