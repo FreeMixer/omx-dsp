@@ -164,6 +164,21 @@ static inline int omx_rate_is_declared(float sr) {
 }
 
 /**
+ * @brief Whether a sample rate is one of the nine the contract's full oracle grid lists
+ *        (`OMX_ORACLE_FULL_RATES_INIT`, 32 to 192 kHz), which holds every declared rate and also
+ *        32, 64 and 128 kHz. The rule the instance faces apply at init.
+ * @param sr Sample rate, Hz.
+ * @return 1 when `sr` is one of the nine, else 0.
+ * @note RT-safe and thread-safe: a read of a constant table.
+ */
+static inline int omx_rate_is_oracle_full(float sr) {
+  static const float rates[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
+  for (uint32_t i = 0; i < OMX_ORACLE_FULL_RATES_COUNT; i++)
+    if (rates[i] == sr) return 1;
+  return 0;
+}
+
+/**
  * @brief Whether every sample of a block is finite.
  * @param b The block, or NULL (a block a function was not handed promises nothing).
  * @param n Samples in the block.

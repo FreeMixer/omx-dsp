@@ -63,7 +63,7 @@ typedef struct {
 static inline int omx_rotary_instance_init(OmxRotaryInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr)) return 0;
+  if (!omx_rate_is_oracle_full(sr)) return 0;
   if (omx_rotary_init(&s->state) != OMX_FDELAY_OK) return 0;
   s->sr = sr;
   s->atom.enabled = 0;

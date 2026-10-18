@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * drive_instance.test.c — the drive instance face (omx_drive_instance.h), every arm at every rate
- * in OMX_DECLARED_RATES:
- *   A  a rate the console does not declare is refused and the face is the identity; init resolves
+ * of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
+ *   A  a rate outside the nine is refused and the face is the identity; init resolves
  *      the contract's defaults: engaged, the default factor (4x), the latency the kernel declares;
  *   B  bypassed is the identity byte for byte, in place and out of place, with no latency;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_drive_process on the atom the
@@ -32,6 +32,12 @@
 #include <omxdsp/fx/omx_drive_instance.h>
 
 #include "instance_harness.h"
+
+/* Outside the console's declaration each call below records its kernels' `rate-is-declared`; the ledger is taken after every call. */
+#define omx_drive_instance_run(...) OMX_FX_CHECKPOINTED(omx_drive_instance_run, __VA_ARGS__)
+#define omx_drive_instance_init(...) OMX_FX_CHECKPOINTED_INT(omx_drive_instance_init, __VA_ARGS__)
+#define omx_drive_instance_resolve(...) OMX_FX_CHECKPOINTED(omx_drive_instance_resolve, __VA_ARGS__)
+#define omx_drive_process(...) OMX_FX_CHECKPOINTED(omx_drive_process, __VA_ARGS__)
 
 #define BLK 256u
 #define NBLK 12
@@ -110,14 +116,16 @@ static void arm_init(void) {
   OmxDriveInstance *s = inst();
   ok(omx_drive_instance_init(s, 0.0f) == 0, "A: rate 0 refused");
   ok(omx_drive_instance_init(s, NAN) == 0, "A: NaN rate refused");
-  ok(omx_drive_instance_init(s, g_sr + 1.0f) == 0, "A: an undeclared rate refused");
+  ok(omx_drive_instance_init(s, g_sr + 1.0f) == 0, "A: a rate outside the nine refused");
+  ok(omx_drive_instance_init(s, 22050.0f) == 0, "A: 22.05 kHz, below the nine, refused");
+  ok(omx_drive_instance_init(s, 384000.0f) == 0, "A: 384 kHz, above the nine, refused");
   resolve(s, 0, &DEFAULTS);
   float l[BLK], r[BLK], ol[BLK], or_[BLK];
   programme(l, r, BLK, 0);
   omx_drive_instance_run(s, l, r, ol, or_, BLK);
   ok(same_bytes(l, ol, BLK) && same_bytes(r, or_, BLK), "A: a refused instance is the identity");
   ok(omx_drive_instance_latency(s) == 0u, "A: a refused instance declares no latency");
-  ok(omx_drive_instance_init(s, g_sr) == 1, "A: the declared rate is accepted");
+  ok(omx_drive_instance_init(s, g_sr) == 1, "A: the rate is accepted");
   ok(s->atom.enabled == 1, "A: an instance a host racks is engaged");
   ok(s->atom.os_factor == OMX_DRIVE_OVERSAMPLES_DEFAULT && s->state.factor == s->atom.os_factor,
      "A: the factor is the contract's default, the state built for it");
@@ -493,19 +501,17 @@ static void arm_oversample(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  omx_fx_require_full_rates_cover_declared();
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_RME_RATES[ri];
     arm_init();
     arm_bypass();
     arm_is_the_kernel();
     arm_clamps();
     arm_alias_and_independence();
     arm_no_allocation();
-  }
-  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = OMX_FX_RME_RATES[ri];
     arm_oversample();
   }
-  printf("fx/drive_instance: arm O at the %d RME rates\n", (int)OMX_FX_RME_RATE_COUNT);
+  printf("fx/drive_instance: %d RME rates\n", (int)OMX_FX_RME_RATE_COUNT);
   return finish("drive_instance");
 }

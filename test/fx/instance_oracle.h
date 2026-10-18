@@ -27,16 +27,12 @@ static void ok(int cond, const char *what, double measured, double limit) {
   }
 }
 
-/** Every contract record since the last call is a failure of the current arm. */
+/** Every contract record since the last call is a failure of the current arm, but for the
+ * `rate-is-declared` preconditions an undeclared rate (32, 64 or 128 kHz) explains
+ * (omx_fx_drain_ledger). */
 static void expect_clean(void) {
-  const uint32_t seen = omx_contract_log.count;
-  const uint32_t kept = seen < OMX_CONTRACT_MAX ? seen : OMX_CONTRACT_MAX;
-  for (uint32_t i = 0; i < kept; i++) {
-    const struct omx_contract_record *r = &omx_contract_log.rec[i];
-    if (omx_contract_record_ready(r)) printf("VIOLATION [%s] %s %s %s\n", g_arm, r->stage, r->kind, r->token);
-  }
-  ok(seen == 0u, "no contract violation in this arm", (double)seen, 0.0);
-  omx_contract_reset();
+  const uint32_t unexplained = omx_fx_drain_ledger(g_sr);
+  ok(unexplained == 0u, "no contract violation in this arm", (double)unexplained, 0.0);
 }
 
 /** The stimulus: integer-generated noise, L at half scale, R inverted at quarter scale, with a
@@ -65,7 +61,7 @@ static double rms(const float *x, uint32_t from, uint32_t n) {
 }
 
 static int instance_oracle_end(const char *name) {
-  printf("fx/%s: %d checks, %d failed, %u declared rates\n", name, g_checks, g_failed, OMX_DECLARED_RATE_COUNT);
+  printf("fx/%s: %d checks, %d failed\n", name, g_checks, g_failed);
   return g_failed == 0 ? 0 : 1;
 }
 

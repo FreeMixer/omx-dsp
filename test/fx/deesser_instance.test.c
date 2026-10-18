@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * deesser_instance.test.c — the de-esser instance core (omx_deesser_instance.h), every arm at
- * every rate in OMX_DECLARED_RATES:
- *   A  a refused init (no rate, a rate the console does not declare) is the identity; every
- *      declared rate is accepted; the published latency is zero;
+ * every rate of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
+ *   A  a refused init (no rate, a rate outside the nine) is the identity; each of the
+ *      nine rates is accepted; the published latency is zero;
  *   B  bypassed is the identity byte for byte, in place and out of place;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_deess_process on the atom the
  *      console's resolve_fx_deess loads, its band the section core's deEsserBandSection designs
@@ -29,6 +29,12 @@
 #include <omxdsp/fx/omx_deesser_instance.h>
 
 #include "instance_harness.h"
+
+/* Outside the console's declaration each call below records its kernels' `rate-is-declared`; the ledger is taken after every call. */
+#define omx_deesser_instance_run(...) OMX_FX_CHECKPOINTED(omx_deesser_instance_run, __VA_ARGS__)
+#define omx_deesser_instance_init(...) OMX_FX_CHECKPOINTED_INT(omx_deesser_instance_init, __VA_ARGS__)
+#define omx_deesser_instance_resolve(...) OMX_FX_CHECKPOINTED(omx_deesser_instance_resolve, __VA_ARGS__)
+#define omx_deess_process(...) OMX_FX_CHECKPOINTED(omx_deess_process, __VA_ARGS__)
 
 #define BLK 256u
 #define NBLK 12
@@ -77,7 +83,10 @@ static void voice(float *l, float *r, uint32_t n, uint32_t t0) {
 /* core's deEsserBandSection (eq.ts: bandwidthOctavesQ then rbjSection('bandpass')), transcribed. */
 static void console_band(float freq, float width, float sr, float out[5]) {
   const double nyq = (double)sr * 0.5;
-  const double f0 = fmin(fmax((double)freq, 1.0), nyq * 0.999);
+  /* The console's design, but for the face's cap: the centre stays under DEESS_NYQUIST_FRACTION of Nyquist,
+   * which is above the travel's 16 kHz at every declared rate (the console's design there) and below Nyquist
+   * at 32 kHz, where the travel's top is Nyquist itself. */
+  const double f0 = fmin(fmin(fmax((double)freq, 1.0), nyq * 0.999), nyq * OMX_DEESSER_INSTANCE_NYQUIST_FRACTION);
   const double w0 = (2.0 * 3.141592653589793 * f0) / (double)sr;
   const double q = 1.0 / (2.0 * sinh(((0.6931471805599453 / 2.0) * (double)width * w0) / sin(w0)));
   const double alpha = sin(w0) / (2.0 * q);
@@ -144,13 +153,15 @@ static void arm_refused(void) {
   OmxDeesserInstance s;
   ok(omx_deesser_instance_init(&s, 0.0f) == 0, "A: rate 0 refused");
   ok(omx_deesser_instance_init(&s, NAN) == 0, "A: NaN rate refused");
-  ok(omx_deesser_instance_init(&s, g_sr + 1.0f) == 0, "A: an undeclared rate refused");
+  ok(omx_deesser_instance_init(&s, g_sr + 1.0f) == 0, "A: a rate outside the nine refused");
+  ok(omx_deesser_instance_init(&s, 22050.0f) == 0, "A: 22.05 kHz, below the nine, refused");
+  ok(omx_deesser_instance_init(&s, 384000.0f) == 0, "A: 384 kHz, above the nine, refused");
   resolve(&s, 0, KNOBS, OMX_DEESS_WIDEBAND);
   float l[BLK], r[BLK], ol[BLK], or_[BLK];
   voice(l, r, BLK, 0);
   omx_deesser_instance_run(&s, l, r, ol, or_, BLK);
   ok(same_bytes(l, ol, BLK) && same_bytes(r, or_, BLK), "A: a refused instance is the identity");
-  ok(omx_deesser_instance_init(&s, g_sr) == 1, "A: the declared rate is accepted");
+  ok(omx_deesser_instance_init(&s, g_sr) == 1, "A: the rate is accepted");
   ok(omx_deesser_instance_latency(&s) == 0u, "A: the published latency is zero frames");
   drain_violations("A: no contract broken");
 }
@@ -290,6 +301,30 @@ static void arm_alias_and_independence(void) {
   drain_violations("F/G: no contract broken");
 }
 
+/* The centre's cap moves nothing at a declared rate: it sits above the travel's top there, so the
+ * console's design is the knob's; at 32 kHz the top is Nyquist and the cap is what holds the band's poles. */
+static void arm_nyquist_cap(void) {
+  const double cap = OMX_DEESSER_INSTANCE_NYQUIST_FRACTION * 0.5 * (double)g_sr;
+  if (omx_rate_is_declared(g_sr)) {
+    ok(cap > (double)OMX_DEESS_FREQ_RANGE_MAX, "P: at a declared rate the cap is above the travel's top");
+  } else {
+    ok(cap < 0.5 * (double)g_sr && cap > 0.0, "P: the cap is inside Nyquist");
+  }
+  OmxDeesserInstance s;
+  omx_deesser_instance_init(&s, g_sr);
+  float k[NKNOBS];
+  memcpy(k, KNOBS, sizeof k);
+  k[0] = OMX_DEESS_FREQ_RANGE_MAX;
+  for (int w = 0; w < 3; w++) {
+    k[1] = w == 0 ? OMX_DEESS_WIDTH_RANGE_MIN : (w == 1 ? OMX_DEESS_WIDTH_RANGE_DEFAULT : OMX_DEESS_WIDTH_RANGE_MAX);
+    resolve(&s, 0, k, OMX_DEESS_SPLIT);
+    char what[96];
+    snprintf(what, sizeof what, "P: the top of the travel at width %g designs a stable band", (double)k[1]);
+    ok(omx_biquad_stable((const double[5]){s.atom.bp_c[0], s.atom.bp_c[1], s.atom.bp_c[2], s.atom.bp_c[3], s.atom.bp_c[4]}), what);
+  }
+  drain_violations("P: no contract broken");
+}
+
 static void arm_no_allocation(void) {
   static OmxDeesserInstance s;
   float l[BLK], r[BLK];
@@ -320,14 +355,16 @@ static void arm_no_allocation(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  omx_fx_require_full_rates_cover_declared();
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_RME_RATES[ri];
     arm_refused();
     arm_bypass();
     arm_is_the_kernel();
     arm_clamps();
     arm_reengage_keeps();
     arm_alias_and_independence();
+    arm_nyquist_cap();
     arm_no_allocation();
   }
   return finish("deesser_instance");

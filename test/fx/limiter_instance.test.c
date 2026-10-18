@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * limiter_instance.test.c — the precision limiter instance core (omx_limiter_instance.h), every
- * arm at every rate in OMX_DECLARED_RATES:
- *   A  a refused init (no rate, a rate the console does not declare) is the identity and publishes
- *      no latency; every declared rate is accepted, its longest look-ahead inside the instance's
+ * arm at every rate of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
+ *   A  a refused init (no rate, a rate outside the nine) is the identity and publishes
+ *      no latency; each of the nine rates is accepted, its longest look-ahead inside the instance's
  *      own rings;
  *   B  bypassed is the identity byte for byte, in place and out of place, and publishes no latency;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_limiter_process on a state armed
@@ -28,6 +28,12 @@
 #include <omxdsp/fx/omx_limiter_instance.h>
 
 #include "instance_harness.h"
+
+/* Outside the console's declaration each call below records its kernels' `rate-is-declared`; the ledger is taken after every call. */
+#define omx_limiter_instance_run(...) OMX_FX_CHECKPOINTED(omx_limiter_instance_run, __VA_ARGS__)
+#define omx_limiter_instance_init(...) OMX_FX_CHECKPOINTED_INT(omx_limiter_instance_init, __VA_ARGS__)
+#define omx_limiter_instance_resolve(...) OMX_FX_CHECKPOINTED(omx_limiter_instance_resolve, __VA_ARGS__)
+#define omx_limiter_process(...) OMX_FX_CHECKPOINTED(omx_limiter_process, __VA_ARGS__)
 
 #define BLK 256u
 #define NBLK 12
@@ -89,14 +95,16 @@ static void arm_refused(void) {
   OmxLimiterInstance s;
   ok(omx_limiter_instance_init(&s, 0.0f) == 0, "A: rate 0 refused");
   ok(omx_limiter_instance_init(&s, NAN) == 0, "A: NaN rate refused");
-  ok(omx_limiter_instance_init(&s, g_sr + 1.0f) == 0, "A: an undeclared rate refused");
+  ok(omx_limiter_instance_init(&s, g_sr + 1.0f) == 0, "A: a rate outside the nine refused");
+  ok(omx_limiter_instance_init(&s, 22050.0f) == 0, "A: 22.05 kHz, below the nine, refused");
+  ok(omx_limiter_instance_init(&s, 384000.0f) == 0, "A: 384 kHz, above the nine, refused");
   omx_limiter_instance_resolve(&s, 0, -6.0f, 2.0f, 50.0f);
   float l[BLK], r[BLK], ol[BLK], or_[BLK];
   loud(l, r, BLK, 0);
   omx_limiter_instance_run(&s, l, r, ol, or_, BLK);
   ok(same_bytes(l, ol, BLK) && same_bytes(r, or_, BLK), "A: a refused instance is the identity");
   ok(omx_limiter_instance_latency(&s) == 0u, "A: a refused instance publishes no latency");
-  ok(omx_limiter_instance_init(&s, g_sr) == 1, "A: the declared rate is accepted");
+  ok(omx_limiter_instance_init(&s, g_sr) == 1, "A: the rate is accepted");
   ok(s.cap == omx_limiter_instance_cap_for(g_sr) && s.cap <= OMX_LIMITER_INSTANCE_CAP &&
          omx_limiter_mem_floats(s.cap) <= 4u * OMX_LIMITER_INSTANCE_CAP,
      "A: the kernel's rings hold the longest look-ahead, inside the instance's own");
@@ -270,8 +278,9 @@ static void arm_no_allocation(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  omx_fx_require_full_rates_cover_declared();
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_RME_RATES[ri];
     arm_refused();
     arm_bypass();
     arm_is_the_kernel();
