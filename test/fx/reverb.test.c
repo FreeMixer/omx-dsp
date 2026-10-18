@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The reverb kernel's oracle (omx_reverb.h), every arm at every rate in OMX_DECLARED_RATES. The
+ * The reverb kernel's oracle (omx_reverb.h), every arm at each of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them). The
  * arms' frame counts are written at 48 kHz and read through at(), so a window is the same stretch
  * of time at every rate:
  *   make test-fx
@@ -422,8 +422,13 @@ static void test_lowcut_attenuates_low_leaves_mid(void) {
   float midCut = sine_out_rms(3000.0f, LOWCUT, sr, N);// 3 kHz, low-cut at 800 Hz
   // the low tone is strongly attenuated (well below half its uncut level)...
   check(lowCut < lowNo * 0.5f, "lowcut attenuates a 40 Hz component");
-  // ...while the mid tone (well above the corner) is essentially unchanged.
-  check(midCut > midNo * 0.9f, "lowcut leaves a 3 kHz component ~unchanged");
+  // ...while the mid tone (well above the corner) is essentially unchanged: the low-cut is the wet
+  // path's one-pole high-pass, x - lowpass(x) with the pole exp(-2*pi*fc/sr), whose gain at f is
+  // |p (1 - z^-1) / (1 - p z^-1)|. It is 0.892 at 3 kHz for an 800 Hz corner at 32 kHz and 0.954 at
+  // 192 kHz, so the level is held to that closed form at each rate, not to one number for all.
+  const double pole = exp(-2.0 * M_PI * (double)LOWCUT / (double)sr), w3 = 2.0 * M_PI * 3000.0 / (double)sr;
+  const double hp = pole * 2.0 * sin(w3 / 2.0) / hypot(1.0 - pole * cos(w3), pole * sin(w3));
+  check(fabs((double)(midCut / midNo) - hp) < 0.01 * hp, "lowcut leaves a 3 kHz component at the one-pole high-pass's gain");
   // and the low tone is far more affected than the mid tone.
   check((lowCut / lowNo) < (midCut / midNo) * 0.5f, "lowcut is frequency-selective (low << mid)");
 }
@@ -572,9 +577,10 @@ static void reverb_runs_no_room_cut_at_another_rate(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
+  omx_fx_require_full_rates_cover_declared();
   reverb_runs_no_room_cut_at_another_rate();
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_RME_RATES[ri];
     fprintf(stderr, "fx/reverb at %.0f Hz\n", (double)g_sr);
     test_decaying_diffuse_tail_both();
     test_plate_damping_never_shortens_the_tail();
@@ -591,6 +597,6 @@ int main(void) {
     test_reenable_clears_stale_tail();
     test_exhausted_pool_is_inert_not_a_crash();
   }
-  printf("fx/reverb: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_DECLARED_RATE_COUNT);
+  printf("fx/reverb: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_FX_RME_RATE_COUNT);
   return g_fail == 0 ? 0 : 1;
 }

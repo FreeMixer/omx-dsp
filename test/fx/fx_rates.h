@@ -34,6 +34,19 @@ static inline void omx_fx_require_rate_floor(void) {
 #define OMX_FX_RME_RATE_COUNT OMX_RME_RATES_COUNT
 static const float OMX_FX_RME_RATES[OMX_FX_RME_RATE_COUNT] = OMX_RME_RATES_INIT;
 
+/** The nine cover every declared rate, so an oracle that loops over the nine tests no less than the
+ * declaration; a declared rate missing from them stops the suite (exit 2). */
+static inline void omx_fx_require_full_rates_cover_declared(void) {
+  for (unsigned k = 0; k < OMX_DECLARED_RATE_COUNT; k++) {
+    int found = 0;
+    for (unsigned i = 0; i < OMX_FX_RME_RATE_COUNT; i++) found |= OMX_FX_RME_RATES[i] == OMX_DECLARED_RATES[k];
+    if (!found) {
+      fprintf(stderr, "OMX_FX_RME_RATES lacks the declared %.0f Hz\n", (double)OMX_DECLARED_RATES[k]);
+      exit(2);
+    }
+  }
+}
+
 #ifdef OMX_CONTRACTS
 /**
  * Print and forget the ledger after an arm run at `sr`, and return how many violations `sr` does

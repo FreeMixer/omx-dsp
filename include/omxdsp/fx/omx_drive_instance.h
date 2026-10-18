@@ -196,7 +196,7 @@ static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, f
 static inline int omx_drive_instance_init(OmxDriveInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr)) return 0;
+  if (!omx_rate_is_oracle_full(sr)) return 0;
   s->rate = (uint32_t)sr;
   omx_drive_time_constants(&s->atom, sr);
   s->atom.os_factor = OMX_DRIVE_INSTANCE_OVERSAMPLE_DEFAULT;

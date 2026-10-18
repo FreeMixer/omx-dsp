@@ -16,7 +16,8 @@
  *      omx_pole_from_time_ms. The detector band is the section the console's controller designs
  *      (core's `deEsserBandSection`): the cookbook bandpass at the frequency, its Q from the
  *      width by omx_eq_bandwidth_q, designed by omx_eq_design_f — only when the frequency or the
- *      width MOVED.
+ *      width MOVED. The centre is capped at DEESS_NYQUIST_FRACTION of Nyquist: at 32 kHz the
+ *      travel's top is Nyquist itself, and the cap moves no design at a declared rate.
  *   2. IN -> OUT. The kernel works IN PLACE; run() copies in to out where they differ (they may
  *      alias) and runs the kernel on out. Identity when bypassed or not ready.
  *
@@ -37,6 +38,9 @@
 #include <omxdsp/omx_param.h>
 
 #define OMX_DEESSER_INSTANCE_CHANNELS 2
+
+/** The detector band's centre is held under this share of Nyquist (DEESS_NYQUIST_FRACTION). */
+#define OMX_DEESSER_INSTANCE_NYQUIST_FRACTION OMX_DEESS_NYQUIST_FRACTION_DOUBLE
 
 /** Port defaults: the declaration's (DEESS_*_RANGE.default). The mode set declares no default;
  * the stage comes up at `split`, the set's first member. */
@@ -67,7 +71,7 @@ typedef struct {
 static inline int omx_deesser_instance_init(OmxDeesserInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr)) return 0;
+  if (!omx_rate_is_oracle_full(sr)) return 0;
   omx_deess_state_init(&s->state);
   s->sr = sr;
   s->atom.enabled = 0;
@@ -122,8 +126,11 @@ static inline void omx_deesser_instance_resolve(OmxDeesserInstance *s, int bypas
   o->dyn.attack_coeff = omx_pole_from_time_ms(deess_attack, s->sr);
   o->dyn.release_coeff = omx_pole_from_time_ms(deess_release, s->sr);
   if (!s->designed || deess_freq != s->freq || deess_width != s->width) {
-    const double q = omx_eq_bandwidth_q((double)deess_freq, (double)deess_width, (double)s->sr);
-    omx_eq_design_f(OMX_EQ_BANDPASS, (double)deess_freq, q, 0.0, (double)s->sr, o->bp_c);
+    /* The centre stays off Nyquist (OMX_DEESS_NYQUIST_FRACTION): the travel's 16 kHz is Nyquist at 32 kHz.
+     * At every declared rate it is above the travel's top, so the design there is the knob's. */
+    const double fc = fmin((double)deess_freq, OMX_DEESSER_INSTANCE_NYQUIST_FRACTION * 0.5 * (double)s->sr);
+    const double q = omx_eq_bandwidth_q(fc, (double)deess_width, (double)s->sr);
+    omx_eq_design_f(OMX_EQ_BANDPASS, fc, q, 0.0, (double)s->sr, o->bp_c);
     s->freq = deess_freq;
     s->width = deess_width;
     s->designed = 1;

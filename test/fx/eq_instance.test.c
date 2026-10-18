@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The strip EQ's instance oracle (omx_eq_instance.h), built at 32 bands so a full bank (32 bands +
-// 4 pass sections) is wider than OMX_EQ_MAX_BANDS and the chunked walk is exercised, at every
-// declared rate:
+// 4 pass sections) is wider than OMX_EQ_MAX_BANDS and the chunked walk is exercised, at each of the nine RME rates
+// (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
 //   A  the instance IS the bank: bit-identical to a chunk-free reference that designs each section
 //      with omx_eq_design_f and runs it with omx_biquad, in `eqCoeffs` order (bands, HPF, LPF), in
 //      odd block sizes, separate and aliased buffers;
@@ -265,7 +265,7 @@ static void arm_face(void) {
   const uint32_t nb = full_bank(b);
   face_args();
   static OmxEqInstance s;
-  ok(omx_eq_instance_init(&s, g_sr) == 1, "init at a declared rate", 0, 1);
+  ok(omx_eq_instance_init(&s, g_sr) == 1, "init at each of the nine rates", 0, 1);
   face_resolve(&s, 0);
   face_blocks(&s, in_l, in_r);
   reference(b, nb);
@@ -284,7 +284,9 @@ static void arm_face(void) {
   face_blocks(&by, in_l, in_r);
   ok(memcmp(out, in_l, sizeof out) == 0 && memcmp(out_r, in_r, sizeof out_r) == 0, "bypassed is a wire", 0, 0);
   static OmxEqInstance bad;
-  ok(omx_eq_instance_init(&bad, g_sr + 1.0f) == 0, "an undeclared rate is refused", 0, 0);
+  ok(omx_eq_instance_init(&bad, g_sr + 1.0f) == 0, "a rate outside the nine is refused", 0, 0);
+  ok(omx_eq_instance_init(&bad, 22050.0f) == 0, "22.05 kHz, below the nine, is refused", 0, 0);
+  ok(omx_eq_instance_init(&bad, 384000.0f) == 0, "384 kHz, above the nine, is refused", 0, 0);
   face_blocks(&bad, in_l, in_r);
   ok(memcmp(out, in_l, sizeof out) == 0 && memcmp(out_r, in_r, sizeof out_r) == 0, "a refused instance is a wire", 0, 0);
   ok(omx_eq_instance_latency(&s) == 0u && OMX_EQ_INSTANCE_LATENCY_FRAMES == 0.0f, "latency zero", 0, 0);
@@ -353,8 +355,9 @@ int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
   wire();
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  omx_fx_require_full_rates_cover_declared();
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_RME_RATES[ri];
     stimulus(in_l, in_r, N, 0x1234567u, 0u);
     arm_identity();
     arm_clamps();

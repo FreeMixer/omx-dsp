@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * reverb_instance.test.c — the reverb instance core (omx_reverb_instance.h), every arm at every
- * rate in OMX_DECLARED_RATES:
- *   A  a refused init (no rate, a rate the console does not declare) is the identity; every
- *      declared rate is accepted, its layout inside the instance's own pool;
+ * rate of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
+ *   A  a refused init (no rate, a rate outside the nine) is the identity; each of the
+ *      nine rates is accepted, its layout inside the instance's own pool;
  *   B  bypassed is the identity byte for byte, in place and out of place;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_reverb_process on the atom the
  *      console's resolve_fx_reverb loads from the same ports, all five configurations;
@@ -30,6 +30,12 @@
 #include <omxdsp/fx/omx_reverb_instance.h>
 
 #include "instance_harness.h"
+
+/* Outside the console's declaration each call below records its kernels' `rate-is-declared`; the ledger is taken after every call. */
+#define omx_reverb_instance_run(...) OMX_FX_CHECKPOINTED(omx_reverb_instance_run, __VA_ARGS__)
+#define omx_reverb_instance_init(...) OMX_FX_CHECKPOINTED_INT(omx_reverb_instance_init, __VA_ARGS__)
+#define omx_reverb_instance_resolve(...) OMX_FX_CHECKPOINTED(omx_reverb_instance_resolve, __VA_ARGS__)
+#define omx_reverb_process(...) OMX_FX_CHECKPOINTED(omx_reverb_process, __VA_ARGS__)
 
 #define BLK 256u
 #define NBLK 8
@@ -135,7 +141,9 @@ static struct omx_reverb console_atom(const struct ports *p) {
 
 static void arm_refused(void) {
   static OmxReverbInstance s;
-  ok(omx_reverb_instance_init(&s, 50000.0f) == 0, "A: an undeclared rate refused");
+  ok(omx_reverb_instance_init(&s, 50000.0f) == 0, "A: a rate outside the nine refused");
+  ok(omx_reverb_instance_init(&s, 22050.0f) == 0, "A: 22.05 kHz, below the nine, refused");
+  ok(omx_reverb_instance_init(&s, 384000.0f) == 0, "A: 384 kHz, above the nine, refused");
   ok(omx_reverb_instance_init(&s, NAN) == 0, "A: a NaN rate refused");
   ok(omx_reverb_instance_init(&s, 0.0f) == 0, "A: rate 0 refused");
   struct ports p = defaults();
@@ -145,7 +153,7 @@ static void arm_refused(void) {
   programme(l, r, BLK, 0);
   omx_reverb_instance_run(&s, l, r, ol, or_, BLK);
   ok(same_bytes(l, ol, BLK) && same_bytes(r, or_, BLK), "A: a refused instance is the identity");
-  ok(omx_reverb_instance_init(&s, g_sr) == 1, "A: the declared rate is accepted");
+  ok(omx_reverb_instance_init(&s, g_sr) == 1, "A: the rate is accepted");
   ok(!s.state._exhausted && s.state.sr == g_sr, "A: the layout fits the instance's own pool");
   drain_violations("A: no contract broken");
 }
@@ -314,8 +322,9 @@ static void arm_no_allocation(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  omx_fx_require_full_rates_cover_declared();
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_RME_RATES[ri];
     arm_refused();
     arm_bypass();
     arm_is_the_kernel();
