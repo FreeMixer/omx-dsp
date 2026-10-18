@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 2.15.0"
+  },
+  "controls": [
+    {
+      "name": "outputDelay",
+      "kind": "travel",
+      "global": "OUTPUT_DELAY_RANGE",
+      "source": {
+        "impl": "include/omxdsp/omx_idelay.h#OMX_IDELAY_MAX_MS"
+      },
+      "doc": "The per-destination output delay travel, the whole-sample delay a route leg or a bus output is aligned with (omx-dsp's omx_idelay.h). max is the delay ring's ceiling: 1000 ms is the live-console norm and a distance ceiling, about 343 m of throw. A surface that offered more than the ring holds would draw travel the DSP clamps away.",
+      "travel": {
+        "min": 0,
+        "max": 1000,
+        "step": 1,
+        "unit": "ms"
+      }
+    }
+  ]
+}

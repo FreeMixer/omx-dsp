@@ -54,9 +54,9 @@ static void in_band(double v, double lo, double hi, const char *what) {
   }
 }
 
-#define NRATES 4
+#define NRATES ((int)OMX_ORACLE_FLOOR_RATES_COUNT)
 /* Arm A's band on T30 / RT60_DC, set below from the measured spread. */
-static const float RATE[NRATES] = { 44100.0f, 48000.0f, 96000.0f, 192000.0f };
+#define RATE OMX_FX_RATE_FLOOR /* the contract's floor rates, fx_rates.h */
 static const char *ANAME[5] = { "room", "plate", "hall", "reverse", "gated" };
 
 static struct omx_reverb_state *mk(float sr) {
@@ -402,9 +402,11 @@ static uint64_t fnv1a(uint64_t h, const float *x, int n) {
   for (size_t i = 0; i < (size_t)n * sizeof(float); i++) { h ^= b[i]; h *= 1099511628211ull; }
   return h;
 }
-static const uint64_t PLATE_PRE_FIELD_HASH[NRATES] = {
+static const uint64_t PLATE_PRE_FIELD_HASH[] = {
   0x53514955905f3f42ull, 0x21bfa6bf5c5f3ac9ull, 0x0ee3e56e55398f4dull, 0x1d668a86f3822907ull,
 };
+_Static_assert(sizeof PLATE_PRE_FIELD_HASH / sizeof PLATE_PRE_FIELD_HASH[0] == NRATES,
+               "one pinned field hash per floor rate: a changed floor list needs new hashes");
 static void test_plate_mod_depth_is_a_field(void) {
   static const float DEPTHS[4] = { 0.0f, 50.0f, 100.0f, 400.0f };
   for (int ri = 0; ri < NRATES; ri++) {

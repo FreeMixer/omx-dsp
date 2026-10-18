@@ -90,7 +90,9 @@ static void drain_violations(const char *where) {
   omx_contract_log.count = 0u;
 }
 
-static const double RATES[4] = {44100.0, 48000.0, 96000.0, 192000.0};
+/* The floor rates every oracle runs at, as fx_rates.h holds them: the contract's list, never a local one. */
+#define NRATES OMX_ORACLE_FLOOR_RATES_COUNT
+#define RATES OMX_FX_RATE_FLOOR
 
 /* The rings, once: the stage allocates nothing, and neither does this file per arm. */
 static float g_ring_l[OMX_CHORUS_CAP], g_ring_r[OMX_CHORUS_CAP];
@@ -153,7 +155,7 @@ static double voice0_delay(const struct omx_chorus *p, double phase) {
 
 static void arm_a_delay_follows(void) {
   double worst = 0.0, worst_control = 1e9;
-  for (int ri = 0; ri < 4; ri++) {
+  for (unsigned ri = 0; ri < NRATES; ri++) {
     const double sr = RATES[ri];
     /* The vocal template ofWET path's alone. */
     const struct omx_chorus p = atom(sr, OMX_CHORUS_BASE_MS, 4.0, 1, 1.0);
@@ -190,7 +192,7 @@ static void arm_a_delay_follows(void) {
 
 static void arm_b_swept_comb(void) {
   double worst = 0.0, worst_notch_rel = 0.0;
-  for (int ri = 0; ri < 4; ri++) {
+  for (unsigned ri = 0; ri < NRATES; ri++) {
     const double sr = RATES[ri];
     const struct omx_chorus p = atom(sr, OMX_CHORUS_BASE_MS, 4.0, 1, 0.5);
     for (int i = 0; i < 8; i++) {
@@ -347,7 +349,7 @@ static float g_cl[CLEN], g_cr[CLEN], g_zoh[CLEN];
 
 static void arm_e_no_click(void) {
   const double f = 1000.0, A = 0.5;
-  for (int ri = 0; ri < 4; ri++) {
+  for (unsigned ri = 0; ri < NRATES; ri++) {
     const double sr = RATES[ri];
     const double wt = 2.0 * M_PI * f / sr;
     /* The deepest, fastest modulation the row's travel allows — the worst case for a
@@ -616,16 +618,15 @@ static int golden_run(double sr, int voices, double depth_ms, double lfo_hz, dou
 }
 
 static void arm_h_golden_identity(void) {
-  static const double rates[] = {44100.0, 48000.0, 96000.0, 192000.0};
   static const double depths[] = {0.0, 4.0, OMX_CHORUS_MAX_DEPTH_MS};
   static const double lfos[] = {0.1, 0.6, 5.0};
   int runs = 0, identical = 0;
-  for (int ri = 0; ri < 4; ri++)
+  for (unsigned ri = 0; ri < NRATES; ri++)
     for (int v = 1; v <= OMX_CHORUS_MAX_VOICES; v++)
       for (int di = 0; di < 3; di++)
         for (int li = 0; li < 3; li++) {
           runs++;
-          identical += golden_run(rates[ri], v, depths[di], lfos[li], (li == 1) ? 0.35 : 1.0, 0);
+          identical += golden_run(RATES[ri], v, depths[di], lfos[li], (li == 1) ? 0.35 : 1.0, 0);
         }
   ok(identical == runs,
      "arm H: the kernel is memcmp-identical (output and state) to the pre-lane kernel",
@@ -655,7 +656,7 @@ static double centroid(const float *h) {
 static void arm_i_spread(void) {
   int identity_ok = 1, control_differs = 1;
   double worst_cf = 0.0, worst_null = 0.0, worst_quad = 0.0, worst_opp = 0.0, worst_oppc = -2.0;
-  for (int ri = 0; ri < 4; ri++) {
+  for (unsigned ri = 0; ri < NRATES; ri++) {
     const double sr = RATES[ri];
 
     /* I1 — identity at the default: the kernel at spread 0 against the frozen one-phase stage,

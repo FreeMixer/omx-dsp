@@ -298,6 +298,8 @@ checks:
 	bash tools/umbrella-check.sh --self-test
 	bash tools/face-conformance.sh
 	bash tools/face-conformance.sh --self-test
+	bash tools/rate-list-check.sh
+	bash tools/rate-list-check.sh --self-test
 
 lint: checks
 
