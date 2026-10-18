@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# instance-rates-sabotage.sh <dir> <archive> — the instance oracles at the nine RME rates are not blind
+# instance-rates-sabotage.sh <dir> <archive> — the instance oracles at the nine oracle rates are not blind
 # to the declared-only gate (FreeMixer/omx-dsp#179). Each sabotage builds one face's oracle against a
 # SABOTAGED COPY of the headers placed ahead of the real include directory, with the face's init put
 # back to omx_rate_is_declared(sr); the build must go red on the init arm at 32 kHz (the first of the

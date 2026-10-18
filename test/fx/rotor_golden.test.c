@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The rotor word's golden digests (golden.h), at the nine RME rates: the stimulus through one
+ * The rotor word's golden digests (golden.h), at the nine oracle rates: the stimulus through one
  * rotor on two order-3 lines, resolved every 128 frames. It starts settled at the horn's slow
  * speed and spins up toward the fast one for the first half, then the drum's constants take over
  * and it slows toward a stop, so the Doppler read, the amplitude swing, the spin-up and the
@@ -10,7 +10,7 @@
  *   make test-fx                     compare
  *   build/fx_rotor_golden --write    print the lines test/golden/rotor.sha256 holds
  */
-#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
+#define OMX_FX_GOLDEN_ORACLE_RATES 1 /* held at the nine oracle rates */
 
 #include <stdint.h>
 #include <string.h>

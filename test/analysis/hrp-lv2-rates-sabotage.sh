@@ -38,7 +38,7 @@ CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2 -ffp-contract=off}"
 : "${CONTRACT_INC:?CONTRACT_INC is not set}"
 cd "$PKG"
 HDR=include/omxdsp/analysis/omx_hrp_lv2.h
-nrates="$(printf '#include <omxcontract/omx_contract_limits.h>\nOMX_RME_RATES_COUNT\n' |
+nrates="$(printf '#include <omxcontract/omx_contract_limits.h>\nOMX_ORACLE_FULL_RATES_COUNT\n' |
   $CC -E -P -isystem "$CONTRACT_INC" - | tail -1 | tr -d '() uU')"
 rm -rf "$OUT" && mkdir -p "$OUT"
 

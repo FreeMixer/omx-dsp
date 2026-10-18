@@ -3,7 +3,7 @@
 
 #include <omxdsp/mix/omx_bus_stage.h>
 
-/* ---- the bus stages (mix/omx_bus_stage.h, FreeMixer/omx-dsp#185). At each of the nine RME rates,
+/* ---- the bus stages (mix/omx_bus_stage.h, FreeMixer/omx-dsp#185). At each of the nine oracle rates,
  * a 10 ms block. omx_mix_strip: a settled source is bus + in × gain on each leg exactly; a 0 → 1
  * move ramps linearly across the block and the cursors end on the targets; the sum is linear in
  * its inputs; a mono source passed twice lands the same on both legs; a NaN target mutes the
@@ -15,7 +15,7 @@
  * `bus/output-gain post fold-coefficient-in-range`. omx_bus_out_stage: the legs and cursors of
  * omx_bus_out_run(), each slot holding the loudest peak since the reader's clear. ------------- */
 
-static const float MIX_BUS_STAGE_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_BUS_STAGE_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 /* Exactly one violation is on the ledger, with this stage, kind and token; otherwise each record
  * is printed (test/mix/sabotage.sh reads them). The ledger is then cleared. */
@@ -39,7 +39,7 @@ static void arm_mix_bus_stage(void) {
   g_arm = "mix_bus_stage";
   static float a[1920], b[1920], bl[1920], br[1920], l1[1920], r1[1920], l2[1920], r2[1920];
   uint32_t seed = 0x0b5u;
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const uint32_t n = (uint32_t)(MIX_BUS_STAGE_RATES[ri] / 100.0f);
     for (uint32_t i = 0; i < n; i++) {
       seed = seed * 1664525u + 1013904223u;

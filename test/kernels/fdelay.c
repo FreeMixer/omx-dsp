@@ -56,10 +56,10 @@ static void arm_fdelay(void) {
     struct omx_fdelay l;
     ok(omx_fdelay_init(&l, ring, 4096u, order) == OMX_FDELAY_OK, "a legal order arms", order, 0.0);
     ok(l.order == order && l.cap == 4096u, "an armed line carries what it was given", l.order, order);
-    /* a whole-sample delay is an exact copy, for any input, at each of the nine RME rates (the
+    /* a whole-sample delay is an exact copy, for any input, at each of the nine oracle rates (the
      * strip alignment line rides this primitive at every rate the interface clocks) */
-    for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-      const float sr = OMX_FX_RME_RATES[ri];
+    for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+      const float sr = OMX_FX_ORACLE_RATES[ri];
       memset(ring, 0, sizeof ring);
       l.wpos = 0u;
       const uint32_t n = 256u, d = (uint32_t)(sr * 0.001f); /* 1 ms */
@@ -153,12 +153,12 @@ static void fd_arm_tick_pair(void) {
  *
  *   A — EXACT COPY: orders 3 and 5, every integer delay 0..64, BOTH doors, input below the flush
  *       floor; plus the memcmp ruler's positive control.
- *   B — THE §2 TABLE at the nine RME rates: a 20 kHz tone (15 kHz at 32 kHz, whose Nyquist is
+ *   B — THE §2 TABLE at the nine oracle rates: a 20 kHz tone (15 kHz at 32 kHz, whose Nyquist is
  *       16 kHz), 101 fractions, loss and GROUP DELAY measured by DFT against the closed form
  *       within 0.01 dB / 0.001 sample; the ruled figures at the six rates it quotes, 0.01 dB /
  *       0.01 µs; the band sweep 1-20 kHz; and the REFUSED linear row from the closed form.
  *   C — NO CLICK: a 1 kHz tone under a slewed delay steps no more than the derived bound, with a
- *       nearest-sample slew as the positive control, at the nine RME rates.
+ *       nearest-sample slew as the positive control, at the nine oracle rates.
  *   D — THE RING: geometry helpers, the shortest legal delay over many laps of a short ring
  *       between guard words, presence AND absence of a poisoned slot, a zero tap skipped over a
  *       non-finite slot, the refusals with their codes, and cap_for's promise.
@@ -254,7 +254,7 @@ static void fd_arm_a_exact_copy(void) {
 
 /* ---- arm B: the §2 table, measured --------------------------------------------------------- */
 
-/* A 5 Hz bin is a whole number of samples at every RME rate (all nine are multiples of 5 Hz),
+/* A 5 Hz bin is a whole number of samples at every oracle rate (all nine are multiples of 5 Hz),
  * and every tone injected here (the kHz-round tones and the 50 Hz group-delay offsets) is a
  * multiple of 5 Hz: the window holds whole cycles and the DFT leaks nothing. The window length
  * is computed per rate; the arrays are sized for 192 kHz's 38 400 and a longer one is refused. */
@@ -322,7 +322,7 @@ static const struct {
 #define FD_TABLE_ROWS (sizeof FD_TABLE / sizeof FD_TABLE[0])
 
 static void fd_arm_b_the_table(double sr) {
-  const uint32_t win = (uint32_t)llround(sr / 5.0); /* a 5 Hz bin, exact at every RME rate */
+  const uint32_t win = (uint32_t)llround(sr / 5.0); /* a 5 Hz bin, exact at every oracle rate */
   ok(win <= FD_BWIN_MAX, "the 5 Hz window fits the arrays", (double)win, (double)FD_BWIN_MAX);
   if (win > FD_BWIN_MAX) return;
   const double f0 = fd_b_tone(sr);
@@ -403,7 +403,7 @@ static void fd_arm_b_the_table(double sr) {
 /* §2's table is two points at 20 kHz; this walks the band a strip actually carries — 1, 2, 5,
  * 10, 15 and 20 kHz — at both orders, worst loss over the same 101 fractions against the same
  * closed form at the same 0.01 dB. The engine ran it at 96 kHz (the graph rate); it runs here at
- * every RME rate, each tone below that rate's Nyquist. No delay-error column: the ruling only
+ * every oracle rate, each tone below that rate's Nyquist. No delay-error column: the ruling only
  * ever quoted delay error at 20 kHz, and this sweep does not widen that claim. */
 static void fd_arm_b_band_sweep(double sr) {
   const double freqs[6] = {1000.0, 2000.0, 5000.0, 10000.0, 15000.0, 20000.0};
@@ -464,7 +464,7 @@ static void fd_arm_b_the_refused_row(double sr) {
   if (sr == 48000.0)
     ok(fabs(worst[0] - (-11.74)) <= 0.01, "48 kHz: linear's loss IS the ruled figure", worst[0], -11.74);
   /* THE ORDERING THE RULING TURNS ON: linear the worst row of the three and order 5 the best, in
-   * loss AND in delay error (the engine asserted it at 96 and 48 kHz; here at every RME rate). */
+   * loss AND in delay error (the engine asserted it at 96 and 48 kHz; here at every oracle rate). */
   snprintf(what, sizeof what, "%.0f Hz: linear loses more than Lagrange-3, which loses more than Lagrange-5",
            sr);
   ok(worst[0] < worst[1] && worst[1] < worst[2], what, worst[0], worst[2]);
@@ -477,12 +477,12 @@ static void fd_arm_b(void) {
   /* Every row the ruling quotes is compared: a table rate that left the RME set would drop a row. */
   for (unsigned r = 0; r < FD_TABLE_ROWS; r++) {
     int found = 0;
-    for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++)
-      if (OMX_FX_RME_RATES[ri] == FD_TABLE[r].sr) found = 1;
-    ok(found, "every §2 table rate is an RME rate this arm runs", FD_TABLE[r].sr, 0.0);
+    for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++)
+      if (OMX_FX_ORACLE_RATES[ri] == FD_TABLE[r].sr) found = 1;
+    ok(found, "every §2 table rate is an oracle rate this arm runs", FD_TABLE[r].sr, 0.0);
   }
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const double sr = (double)OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const double sr = (double)OMX_FX_ORACLE_RATES[ri];
     fd_arm_b_the_table(sr);
     fd_arm_b_band_sweep(sr);
     fd_arm_b_the_refused_row(sr);
@@ -514,8 +514,8 @@ static void fd_arm_c_no_click(void) {
    * all nine rates. The no-click assertion's own margin is the same at every span tried. */
   const double d0 = 4.0, d1 = 36.0;
   const double dd = (d1 - d0) / (double)FD_CLEN; /* the slew, in samples per sample — rate-free */
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const double sr = (double)OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const double sr = (double)OMX_FX_ORACLE_RATES[ri];
     const double wt = 2.0 * M_PI * f / sr;
     for (int oi = 0; oi < 2; oi++) {
       const int order = FD_ORDER[oi];
@@ -589,12 +589,12 @@ static void fd_arm_d_the_ring(void) {
     /* A SHORT ring with POISON on both sides: a tap that walked out of the line's own slots would
      * pick up 1e20 and miss the closed form by fifteen orders of magnitude. 4096 samples over a
      * ring of a few floats is hundreds of laps. The geometry is in samples; the tone is played
-     * at every RME rate only because it is cheap. */
+     * at every oracle rate only because it is cheap. */
     const uint32_t cap = omx_fdelay_cap_for((float)d, order);
     static float buf[FD_DGUARD + 64u + FD_DGUARD];
     float *ring = buf + FD_DGUARD;
-    for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-      const double sr = (double)OMX_FX_RME_RATES[ri];
+    for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+      const double sr = (double)OMX_FX_ORACLE_RATES[ri];
       for (uint32_t i = 0; i < FD_DGUARD + 64u + FD_DGUARD; i++) buf[i] = 1e20f;
       memset(ring, 0, cap * sizeof(float));
       struct omx_fdelay l;

@@ -4,13 +4,13 @@
 #include <omxdsp/mix/omx_rta_tap.h>
 
 /* ---- one analyser tap's reading (mix/omx_rta_tap.h, FreeMixer/omx-dsp#98). At each of the nine
- * RME rates, at the rate's own window: a bin-aligned 0.5 sine on both legs reads 0.5 in its bin;
+ * oracle rates, at the rate's own window: a bin-aligned 0.5 sine on both legs reads 0.5 in its bin;
  * the same sine against its own inverse on the other leg sums to silence and reads 0 in every bin;
  * a 0.5 sine bin-aligned on the low zoom's grid reads 0.5 in its low bin after the three ÷2
  * stages; asking for the zoom never moves the main spectrum, and not asking for it leaves the low
  * bins untouched. ------------------------------------------------------------------------------ */
 
-static const float MIX_RTA_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_RTA_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 static void arm_mix_rta_tap(void) {
   g_arm = "mix_rta_tap";
@@ -19,7 +19,7 @@ static void arm_mix_rta_tap(void) {
   static struct omx_rta_tap_work scr;
   static struct omx_rta_tap_reading out;
   const uint32_t lw = OMX_RTA_LOW_WINDOW, lowk = 64u;
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const uint32_t n = omx_rta_fft_size_for((uint32_t)MIX_RTA_RATES[ri]);
     const uint32_t k0 = n / 8u + 3u;
 

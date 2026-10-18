@@ -4,7 +4,7 @@
  * The multiband compressor's golden digests (test/golden/mbcomp.sha256), through the driver in
  * golden.h: the standard impulse+noise stimulus, both legs, through a 4-band stage at its come-up
  * corners, every band compressing (RMS, -30 dB, 4:1, 6 dB knee), the third band off and the stage's
- * detector at 4x, at the nine RME rates.
+ * detector at 4x, at the nine oracle rates.
  */
 #include <stdint.h>
 #include <stdlib.h>
@@ -13,7 +13,7 @@
 #include <omxdsp/fx/omx_mbcomp.h>
 #include <omxdsp/omx_onepole.h>
 
-#define OMX_FX_GOLDEN_RME
+#define OMX_FX_GOLDEN_ORACLE_RATES
 #include "golden.h"
 
 #define FRAMES OMX_FX_GOLDEN_FRAMES

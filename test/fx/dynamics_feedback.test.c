@@ -5,7 +5,7 @@
  * omx_gaincomp_db_fb) against its math (bus compressor design
  * §5: every O-row but O6, which waits for the `auto` release word, and O9, the drive's own latency
  * oracle). Contracts on; after each rate no violation the rate does not explain (fx_rates.h).
- * Every arm runs at the nine RME rates (OMX_FX_RME_RATES), the dynamics tier's set, which holds
+ * Every arm runs at the nine oracle rates (OMX_FX_ORACLE_RATES), the dynamics tier's set, which holds
  * every declared rate; no rate is typed here.
  *
  * The stimulus for the static and timing rows is DC, not the design's 1 kHz sine: a peak detector
@@ -35,7 +35,7 @@ static void check(int ok, const char *what, float sr) {
   if (!ok) { g_fail++; fprintf(stderr, "FAIL @ %.0f Hz: %s\n", (double)sr, what); }
 }
 
-/* omx_pole_from_time_ms with the ledger drained after it: at an RME rate outside the declaration
+/* omx_pole_from_time_ms with the ledger drained after it: at an oracle rate outside the declaration
  * every pole records `rate-is-declared`, which the rate explains, and the arms make more poles than
  * the ledger holds. Whatever the rate does not explain is counted. */
 static float pole_ms(float ms, float sr) {
@@ -424,12 +424,12 @@ static double o10_worst_alias_dbc(float sr) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  /* O10's pinned figures, one per OMX_FX_RME_RATES entry, in its order — measured by this file
+  /* O10's pinned figures, one per OMX_FX_ORACLE_RATES entry, in its order — measured by this file
    * and recorded, not a target (ssl-bus-compressor §5 O10). */
-  static const double O10_PINNED_DBC[OMX_FX_RME_RATE_COUNT] = {-26.33, -57.37, -33.19, -38.67, -57.31, -70.19, -58.16, -64.57, -80.90};
+  static const double O10_PINNED_DBC[OMX_FX_ORACLE_RATE_COUNT] = {-26.33, -57.37, -33.19, -38.67, -57.31, -70.19, -58.16, -64.57, -80.90};
   printf("fx/dynamics_feedback: the feedback detector against its math\n");
-  for (unsigned k = 0; k < OMX_FX_RME_RATE_COUNT; k++) {
-    const float sr = OMX_FX_RME_RATES[k];
+  for (unsigned k = 0; k < OMX_FX_ORACLE_RATE_COUNT; k++) {
+    const float sr = OMX_FX_ORACLE_RATES[k];
     o1_feedforward_is_untouched(sr);
     o1b_keyed_stays_feedforward(sr);
     o2_static_curve_hard_knee(sr);

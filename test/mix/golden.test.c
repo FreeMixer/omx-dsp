@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The golden digests of the mix module (include/omxdsp/mix/, FreeMixer/omx-dsp#98): hashed per
- * kernel and per rate at the nine RME rates and compared with test/golden/mix.sha256.
+ * kernel and per rate at the nine oracle rates and compared with test/golden/mix.sha256.
  *
  *   make test-mix                     compare
  *   build/mix_golden --write          print the lines the digest file holds
@@ -114,7 +114,7 @@
 
 #include "../fx/sha256.h"
 
-static const float GOLDEN_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float GOLDEN_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 /* The centre window's half width: the console's limit in the engine, a layout parameter here. */
 #define GOLDEN_CENTRE_HALF_WIDTH 0.5f
@@ -796,7 +796,7 @@ int main(int argc, char **argv) {
   const unsigned nk = sizeof kernels / sizeof kernels[0];
   int fail = 0, checked = 0;
   for (unsigned ki = 0; ki < nk; ki++)
-    for (uint32_t r = 0; r < OMX_RME_RATES_COUNT; r++) {
+    for (uint32_t r = 0; r < OMX_ORACLE_FULL_RATES_COUNT; r++) {
       const uint32_t rate = (uint32_t)GOLDEN_RATES[r];
       char hex[65];
       if (digest(kernels[ki], rate, hex) != 0) return 2;
@@ -816,6 +816,6 @@ int main(int argc, char **argv) {
     }
   if (f) fclose(f);
   if (!write) printf("mix_golden: %d digests (%u kernels at %u rates), %d moved\n", checked, nk,
-                     (unsigned)OMX_RME_RATES_COUNT, fail);
+                     (unsigned)OMX_ORACLE_FULL_RATES_COUNT, fail);
   return fail == 0 ? 0 : 1;
 }
