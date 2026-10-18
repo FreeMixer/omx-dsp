@@ -49,6 +49,7 @@
 #include <time.h>
 
 #include <omxdsp/fx/omx_drive.h>
+#include <omxdsp/omx_matched_pair.h>
 
 #include "fx_rates.h"
 
@@ -125,9 +126,12 @@ static double bin_mag(const float *x, uint32_t n, double f) {
 }
 static double db(double x) { return 20.0 * log10(x < 1e-30 ? 1e-30 : x); }
 
-/* RBJ low-pass, the cookbook @freemixer/core's rbjSection transcribes, normalised to a0. */
+/* RBJ low-pass, the cookbook @freemixer/core's rbjSection transcribes, normalised to a0. The
+ * corner is held in [1, 0.999*Nyquist] as rbjSection holds it: at Nyquist itself (exciterAir's
+ * 16 kHz at 32 kHz) the cookbook gives {1, 2, 1, 2, 1}, a double pole ON the unit circle at
+ * z = -1 that integrates the shaper's last-ulp rounding instead of passing the band. */
 static void rbj_lowpass(float c[5], double f0, double q, double sr) {
-  double w = 2.0 * M_PI * f0 / sr, cw = cos(w), sw = sin(w), alpha = sw / (2.0 * q);
+  double w = 2.0 * M_PI * omx_matched_f0(f0, sr) / sr, cw = cos(w), sw = sin(w), alpha = sw / (2.0 * q);
   double b0 = (1.0 - cw) / 2.0, b1 = 1.0 - cw, b2 = b0;
   double a0 = 1.0 + alpha, a1 = -2.0 * cw, a2 = 1.0 - alpha;
   c[0] = (float)(b0 / a0); c[1] = (float)(b1 / a0); c[2] = (float)(b2 / a0);
