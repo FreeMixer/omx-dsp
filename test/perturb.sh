@@ -22,8 +22,10 @@ CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2}"
 : "${CONTRACT_INC:=$(sh "$PKG/tools/contract-include.sh")}"   # make exports it
 rm -rf "$OUT" && mkdir -p "$OUT/omxcontract" "$OUT/omxdsp"
-# the case list into the scratch dir, never build/: a parallel make builds the suite from build/'s
-bash "$PKG/tools/kernels-gen.sh" "$OUT/gen" >/dev/null
+# The generated case list: make passes the directory its one generation rule wrote (OMXDSP_GEN);
+# run by hand, the script generates into its own scratch, never into build/ beside a parallel make.
+GEN="${OMXDSP_GEN:-$OUT/gen}"
+[ -n "${OMXDSP_GEN:-}" ] || bash "$PKG/tools/kernels-gen.sh" "$GEN" >/dev/null
 cp "$CONTRACT_INC"/omxcontract/*.h "$OUT/omxcontract/"
 LIMITS=omxcontract/omx_contract_limits.h
 DEFS=omxdsp/omxdsp_definitions.h
@@ -60,9 +62,9 @@ if cmp -s "$REAL" "$OUT/$DEFS"; then echo "perturb.sh: FAIL — the perturbation
 grep -q "96000.0f" "$OUT/$LIMITS" && { echo "perturb.sh: FAIL — 96000 is still declared in the perturbed header"; exit 1; }
 
 # shellcheck disable=SC2086
-$CC $CFLAGS $PDEFS -I"$OUT" $CINC -I"$OUT/gen" -DOMX_CONTRACTS -DOMXDSP_PERTURBED=1 -o "$OUT/perturbed" "$HERE/omxdsp_perturb.c" -lm
+$CC $CFLAGS $PDEFS -I"$OUT" $CINC -I"$GEN" -DOMX_CONTRACTS -DOMXDSP_PERTURBED=1 -o "$OUT/perturbed" "$HERE/omxdsp_perturb.c" -lm
 # shellcheck disable=SC2086
-$CC $CFLAGS $PDEFS $CINC -I"$OUT/gen" -DOMX_CONTRACTS -o "$OUT/control" "$HERE/omxdsp_perturb.c" -lm
+$CC $CFLAGS $PDEFS $CINC -I"$GEN" -DOMX_CONTRACTS -o "$OUT/control" "$HERE/omxdsp_perturb.c" -lm
 "$OUT/perturbed"
 "$OUT/control"
 
@@ -76,7 +78,7 @@ perturb_one() { # <name> <sed expression> <define>
   sed -i "$2" "$dir/$DEFS"
   if cmp -s "$REAL" "$dir/$DEFS"; then echo "perturb.sh: FAIL — the $1 perturbation changed nothing"; exit 1; fi
   # shellcheck disable=SC2086
-  $CC $CFLAGS $PDEFS -I"$dir" $CINC -I"$OUT/gen" -DOMX_CONTRACTS -D"$3"=1 -o "$dir/perturbed" "$HERE/omxdsp_perturb.c" -lm
+  $CC $CFLAGS $PDEFS -I"$dir" $CINC -I"$GEN" -DOMX_CONTRACTS -D"$3"=1 -o "$dir/perturbed" "$HERE/omxdsp_perturb.c" -lm
   "$dir/perturbed"
 }
 perturb_one xover-q 's|^#define OMX_XOVER_LR4_SECTION_Q_DOUBLE .*|#define OMX_XOVER_LR4_SECTION_Q_DOUBLE 0.6|' OMXDSP_PERTURBED_XOVER_Q
