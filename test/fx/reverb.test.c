@@ -488,7 +488,7 @@ static void review_ok(int cond, const char *what, double measured, double limit)
   snprintf(b, sizeof b, "%s — measured %.9g, limit %.9g", what, measured, limit);
   check(cond, b);
 }
-static const float REVIEW_RATES[4] = {44100.0f, 48000.0f, 96000.0f, 192000.0f};
+#define REVIEW_RATES OMX_FX_RATE_FLOOR /* the contract's floor rates, fx_rates.h */
 
 /* ---- F1 --------------------------------------------------------------------------------------- */
 
@@ -514,8 +514,8 @@ static float *new_pool(struct omx_reverb_state *s, float sr) {
 static void reverb_runs_no_room_cut_at_another_rate(void) {
   static const int ALGOS[5] = {OMX_REVERB_ROOM, OMX_REVERB_PLATE, OMX_REVERB_HALL,
                                OMX_REVERB_REVERSE, OMX_REVERB_GATED};
-  for (int from = 0; from < 4; from++) {
-    for (int to = 0; to < 4; to++) {
+  for (unsigned from = 0; from < OMX_ORACLE_FLOOR_RATES_COUNT; from++) {
+    for (unsigned to = 0; to < OMX_ORACLE_FLOOR_RATES_COUNT; to++) {
       /* from == to is the PRESENCE CONTROL: the same comparison must pass on a matched layout,
        * or a red below would only prove the comparison cannot pass. */
       const float sr = REVIEW_RATES[to];
