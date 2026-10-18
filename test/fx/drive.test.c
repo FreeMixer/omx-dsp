@@ -854,8 +854,8 @@ static void test_enhancer_presets_closed_form(void) {
   const double tol_db = 0.1, floor_db = -80.0;
   double worst = 0.0;
   int asserted = 0;
-  for (uint32_t r = 0; r < OMX_DECLARED_RATE_COUNT; r++) {
-    const double sr = (double)OMX_DECLARED_RATES[r];
+  for (uint32_t r = 0; r < OMX_FX_RME_RATE_COUNT; r++) {
+    const double sr = (double)OMX_FX_RME_RATES[r];
     for (int e = 0; e < 3; e++) {
       const struct omx_drive p = preset_atom(&EXCITER_PRESETS[e], sr);
       for (int t = 0; t < 3; t++) {
@@ -866,6 +866,8 @@ static void test_enhancer_presets_closed_form(void) {
         free(s);
         double a = (double)p.drive_lin * amp * band_gain(&p, f, sr);
         for (int h = 2; h <= 3; h++) {
+          /* a harmonic at or above Nyquist is not in the output: 18 kHz of a 6 kHz tone at 32 kHz */
+          if ((double)h * f >= 0.5 * sr) continue;
           double want = (double)p.mix * shaper_harmonic(&p, a, h) * dc_gain(&p, h * f, sr) *
                         hf_gain(&p, h * f, sr);
           double want_db = db(want / amp);
@@ -883,16 +885,16 @@ static void test_enhancer_presets_closed_form(void) {
     }
   }
   printf("  arm A: %d harmonics above %.0f dB re the tone at %u rates, worst error %.4f dB (tol %.2f)\n",
-         asserted, floor_db, OMX_DECLARED_RATE_COUNT, worst, tol_db);
-  check(asserted >= 3 * (int)OMX_DECLARED_RATE_COUNT, "arm A asserted harmonics at every declared rate");
+         asserted, floor_db, OMX_FX_RME_RATE_COUNT, worst, tol_db);
+  check(asserted >= 3 * (int)OMX_FX_RME_RATE_COUNT, "arm A asserted harmonics at every RME rate");
 }
 
 /* ARM B: exciterAir leaves a 100 Hz tone within mix·G·|HP(100 Hz)| of dry, + 1 dB. */
 static void test_enhancer_untouched_band(void) {
   static float x[NB], y[NB];
   const double amp = pow(10.0, -12.0 / 20.0);
-  for (uint32_t r = 0; r < OMX_DECLARED_RATE_COUNT; r++) {
-    const double sr = (double)OMX_DECLARED_RATES[r];
+  for (uint32_t r = 0; r < OMX_FX_RME_RATE_COUNT; r++) {
+    const double sr = (double)OMX_FX_RME_RATES[r];
     const struct omx_drive p = preset_atom(&EXCITER_PRESETS[0], sr);
     int k = tone_at(x, NB, 100.0, amp, sr);
     double f = (double)k * sr / (double)NB;

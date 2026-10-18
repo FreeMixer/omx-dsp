@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The FX delay against its declared numbers at every rate in OMX_DECLARED_RATES: an impulse lands
+ * The FX delay against its declared numbers at each of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them): an impulse lands
  * on the declared sample and nowhere else, the feedback clamp the audio obeys, and the tone knob
  * as one filter at every clock (R-058). Contracts are compiled in and the last arm asserts the
  * ledger came out empty.
@@ -27,6 +27,17 @@ static int g_fail = 0, g_checks = 0;
 static void check(int cond, const char *what) {
   g_checks++;
   if (!cond) { g_fail++; fprintf(stderr, "FAIL: %s\n", what); }
+}
+
+/* At 32, 64 and 128 kHz, outside the console's declaration, every block records the delay's
+ * `rate-is-declared` precondition, which the rate explains (omx_fx_drain_ledger). The ledger keeps
+ * OMX_CONTRACT_MAX records and counts the lost ones as unexplained, so it is taken after every block;
+ * what the rate does not explain is summed here and read by the last arm. */
+static uint32_t g_unexplained = 0;
+static void delay_block(float *l, float *r, uint32_t n, const struct omx_fx_delay *p,
+                        struct omx_fx_delay_state *s, float sr) {
+  omx_fx_delay_process(l, r, n, p, s, sr);
+  g_unexplained += omx_fx_drain_ledger(sr);
 }
 /* A band, because a one-sided bound on a measured quantity catches only one of its two ways of
  * being wrong — the same discipline mix_reverb_math.test.c takes. */
@@ -58,8 +69,8 @@ static double rms(const float *b, int from, int to) {
  */
 static void test_an_impulse_through_the_fx_delay_lands_on_the_declared_sample(void) {
   static const float MS[] = { 0.0f, 1.0f, 5.0f, 23.5f, 120.0f, 750.0f };
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    float sr = OMX_DECLARED_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    float sr = OMX_FX_RME_RATES[ri];
     for (size_t k = 0; k < sizeof MS / sizeof MS[0]; k++) {
       uint32_t d = omx_fxdelay_ms_to_samples(MS[k], sr);
       int n = (int)d + 64;
@@ -76,7 +87,7 @@ static void test_an_impulse_through_the_fx_delay_lands_on_the_declared_sample(vo
       l[0] = 1.0f; r[0] = 1.0f;
       for (int o = 0; o < n; o += 128) {
         int q = (n - o) < 128 ? (n - o) : 128;
-        omx_fx_delay_process(l + o, r + o, (uint32_t)q, &p, &s, sr);
+        delay_block(l + o, r + o, (uint32_t)q, &p, &s, sr);
       }
       int landed = peak_index(l, n);
       int clean = 1;
@@ -107,8 +118,8 @@ static void test_an_impulse_through_the_fx_delay_lands_on_the_declared_sample(vo
  * implies.
  */
 static void test_the_feedback_clamp_is_the_bodys_figure_not_the_contracts(void) {
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    float sr = OMX_DECLARED_RATES[ri];
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    float sr = OMX_FX_RME_RATES[ri];
     uint32_t d = omx_fxdelay_ms_to_samples(10.0f, sr);
     int reps = 40;
     int total = (int)d * (reps + 1) + 64;
@@ -127,7 +138,7 @@ static void test_the_feedback_clamp_is_the_bodys_figure_not_the_contracts(void) 
     l[0] = 1.0f; r[0] = 1.0f;
     for (int o = 0; o < total; o += 256) {
       int q = (total - o) < 256 ? (total - o) : 256;
-      omx_fx_delay_process(l + o, r + o, (uint32_t)q, &p, &s, sr);
+      delay_block(l + o, r + o, (uint32_t)q, &p, &s, sr);
     }
     double first = fabs((double)l[d]);
     double tenth = fabs((double)l[(int)d * 10]);
@@ -173,9 +184,9 @@ static void test_the_feedback_clamp_is_the_bodys_figure_not_the_contracts(void) 
  */
 static void test_the_tone_pole_is_rate_normalised_to_the_desks_own_rate(void) {
   const double PROBE_HZ = 8000.0, P = 0.6, FB = 0.9;
-  double measured[OMX_DECLARED_RATE_COUNT];
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    float sr = OMX_DECLARED_RATES[ri];
+  double measured[OMX_FX_RME_RATE_COUNT];
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    float sr = OMX_FX_RME_RATES[ri];
     uint32_t d = omx_fxdelay_ms_to_samples(10.0f, sr);
     int total = (int)d * 4;
     float *l = calloc((size_t)total, sizeof(float));
@@ -196,7 +207,7 @@ static void test_the_tone_pole_is_rate_normalised_to_the_desks_own_rate(void) {
     }
     for (int o = 0; o < total; o += 256) {
       int q = (total - o) < 256 ? (total - o) : 256;
-      omx_fx_delay_process(l + o, r + o, (uint32_t)q, &p, &s, sr);
+      delay_block(l + o, r + o, (uint32_t)q, &p, &s, sr);
     }
     /* the middle half of each repeat, so the burst's rectangular edges stay out of the figure */
     int q1 = (int)d / 4, q3 = 3 * (int)d / 4;
@@ -234,10 +245,16 @@ static void test_the_tone_pole_is_rate_normalised_to_the_desks_own_rate(void) {
    * frequency warping, worst right at the corner — which is where 8 kHz was deliberately put.
    * R-058 adopts that same approximation: its own gate asks for a decay within 1 %, not a
    * magnitude to the digit. */
-  double lo = measured[0], hi = measured[0];
-  for (int ri = 1; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    if (measured[ri] < lo) lo = measured[ri];
-    if (measured[ri] > hi) hi = measured[ri];
+  /* Over the console's declared clocks. Each of the nine rates is held to its own closed form above;
+   * the spread of that form itself grows below 44.1 kHz, where 8 kHz is half of Nyquist and the
+   * one-pole's warping is larger (1.09 at 32 kHz), which is the warping and not a miss. */
+  double lo = 0.0, hi = 0.0;
+  int seen = 0;
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    if (!omx_rate_is_declared(OMX_FX_RME_RATES[ri])) continue;
+    if (!seen || measured[ri] < lo) lo = measured[ri];
+    if (!seen || measured[ri] > hi) hi = measured[ri];
+    seen = 1;
   }
   in_band(hi / lo, 1.0, 1.06,
           "the tone knob is ONE filter across 44.1 / 48 / 96 / 192 kHz to within 5 % at its own "
@@ -257,24 +274,20 @@ static void test_the_contract_ledger_came_out_empty(void) {
 #ifdef OMX_CONTRACTS
   check(omx_contract_log.checks > 0u, "the contracts were REACHED (a zero ledger proves nothing "
                                       "unless something evaluated)");
-  if (omx_contract_log.count != 0u) {
-    for (uint32_t i = 0; i < omx_contract_log.count && i < OMX_CONTRACT_MAX; i++)
-      fprintf(stderr, "  contract: %s/%s (%s) at frame %u\n", omx_contract_log.rec[i].stage,
-              omx_contract_log.rec[i].token, omx_contract_log.rec[i].kind,
-              omx_contract_log.rec[i].frame);
-  }
-  check(omx_contract_log.count == 0u, "no contract on the delay path was violated");
-  printf("fx/delay_math: %u contracts evaluated, %u violated\n", omx_contract_log.checks,
-         omx_contract_log.count);
+  /* each block's violations were printed by omx_fx_drain_ledger as it was taken */
+  check(g_unexplained == 0u, "no contract on the delay path was violated that the rate does not explain");
+  printf("fx/delay_math: %u contracts evaluated, %u violated that the rate does not explain\n",
+         omx_contract_log.checks, g_unexplained);
 #endif
 }
 
 int main(void) {
   omx_fx_require_rate_floor();
+  omx_fx_require_full_rates_cover_declared();
   test_an_impulse_through_the_fx_delay_lands_on_the_declared_sample();
   test_the_feedback_clamp_is_the_bodys_figure_not_the_contracts();
   test_the_tone_pole_is_rate_normalised_to_the_desks_own_rate();
   test_the_contract_ledger_came_out_empty();
-  printf("fx/delay_math: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_DECLARED_RATE_COUNT);
+  printf("fx/delay_math: %d checks, %d failures (%d rates)\n", g_checks, g_fail, (int)OMX_FX_RME_RATE_COUNT);
   return g_fail == 0 ? 0 : 1;
 }
