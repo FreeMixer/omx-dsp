@@ -300,6 +300,8 @@ checks:
 	bash tools/face-conformance.sh --self-test
 	bash tools/rate-list-check.sh
 	bash tools/rate-list-check.sh --self-test
+	bash tools/gen-scratch-check.sh
+	bash tools/gen-scratch-check.sh --self-test
 
 lint: checks
 
