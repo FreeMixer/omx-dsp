@@ -12,7 +12,9 @@
  * running trips it. The peak hold, fed the tone's 10 ms block peaks, ends on the whole second's
  * peak; a smaller, an equal (+0 against −0) or a NaN peak leaves the slot as it is. The strip's
  * post-fader reading is the block peak times its level, bit for bit, and follows gain, fader and
- * mute. ---------------------------------------------------------------------------------------- */
+ * mute. A level reading is 20·log10 of the block peak, in double, and reads the display minimum
+ * for silence, an empty block and anything below it; a NaN sample never becomes the peak and an
+ * infinite one reads +inf. ------------------------------------------------------------------ */
 
 static const float MIX_METER_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
 
@@ -62,6 +64,27 @@ static void arm_mix_meter(void) {
     ok(omx_meter_hold_peak(0.25f, 0.5f) == 0.5f, "a greater peak replaces it", omx_meter_hold_peak(0.25f, 0.5f), 0.5);
     ok(!signbit(omx_meter_hold_peak(0.0f, -0.0f)), "an equal peak is not stored (+0 stays +0)", 0, 0);
     ok(omx_meter_hold_peak(0.5f, NAN) == 0.5f, "a NaN peak never lands in the slot", omx_meter_hold_peak(0.5f, NAN), 0.5);
+
+    /* a level meter's reading: the block peak in dBFS, held at the display minimum */
+    static float z[192000];
+    /* volatile: the libm log10 at run time, as the kernel calls it, never a value the compiler folded */
+    volatile float loud = 0.95f, quiet = 1e-4f * 0.95f;
+    const double loud_db = 20.0 * log10((double)loud);
+    ok(omx_meter_level_db(a, n, -60.0) == loud_db, "the level reading is 20 log10 of the block peak",
+       omx_meter_level_db(a, n, -60.0), loud_db);
+    ok(omx_meter_level_db(z, n, -60.0) == -60.0, "silence reads the minimum", omx_meter_level_db(z, n, -60.0), -60.0);
+    ok(omx_meter_level_db(a, 0, -90.0) == -90.0, "an empty block reads the minimum", omx_meter_level_db(a, 0, -90.0), -90.0);
+    for (uint32_t i = 0; i < n; i++) z[i] = 1e-4f * a[i];
+    ok(omx_meter_level_db(z, n, -60.0) == -60.0, "a reading below the minimum is held at it", omx_meter_level_db(z, n, -60.0), -60.0);
+    const double quiet_db = 20.0 * log10((double)quiet); /* the scaled block's peak, about −80 dB */
+    ok(omx_meter_level_db(z, n, -144.0) == quiet_db, "and read through above it", omx_meter_level_db(z, n, -144.0), quiet_db);
+    z[n / 5u] = NAN;
+    ok(omx_meter_level_db(z, n, -144.0) == quiet_db, "a NaN sample never becomes the peak", omx_meter_level_db(z, n, -144.0),
+       quiet_db);
+    z[n / 7u] = INFINITY;
+    ok(isinf(omx_meter_level_db(z, n, -60.0)) && omx_meter_level_db(z, n, -60.0) > 0.0, "an infinite sample reads +inf",
+       omx_meter_level_db(z, n, -60.0), INFINITY);
+    memset(z, 0, n * sizeof(float));
 
     /* the strip's post-fader reading: block peak × level */
     static const float levels[] = {1.0f, 2.0f, 0.5f, 0.70794578f, 0.0f};
