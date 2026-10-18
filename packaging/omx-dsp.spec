@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.23.0
+Version: 0.24.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -73,6 +73,26 @@ library exists.
 %{_datadir}/omxdsp/
 
 %changelog
+* Sun Oct 18 2026 Pau Aliagas <linuxnow@gmail.com> - 0.24.0-1
+- Nine instance faces (drive, rotary, reverb, chorus, deesser, delay, eq,
+  flanger and limiter) accept the nine oracle rates from 32 to 192 kHz, the
+  contract's OMX_ORACLE_FULL_RATES, as the pitch faces do; at 32, 64 and
+  128 kHz they used to pass the signal through. Their oracles run every
+  arm at the nine rates.
+- The deesser designs its detector band at no more than
+  DEESS_NYQUIST_FRACTION (0.91, declared in data/kernels/deesser.json) of
+  Nyquist, so at 32 kHz the band-pass keeps stable poles. No design at a
+  declared rate moves.
+- The cookbook low-pass holds its corner below Nyquist, so exciterAir's
+  16 kHz roll-off at 32 kHz no longer puts a double pole on the unit
+  circle.
+- The output delay is declared in data/kernels/idelay.json, and
+  omx_idelay.h gains OMX_IDELAY_MAX_MS, the rendered
+  OMX_OUTPUT_DELAY_RANGE_MAX.
+- No test or tool types a rate list the contract declares: they read the
+  contract's lists, and make lint checks it.
+- omx-contract-devel >= 2.16.0.
+
 * Sun Oct 18 2026 Pau Aliagas <linuxnow@gmail.com> - 0.23.0-1
 - New header omxdsp/mix/omx_bus_stage.h with omx_mix_strip,
   omx_bus_out_gain and omx_bus_out_stage, the console engine's strip and
