@@ -7,9 +7,12 @@
  * file adds no DSP to it. It adds what a host's port model needs and the atom does not carry:
  *
  *   1. RINGS. `struct omx_pitch_state` reads two rings; the instance OWNS them, inline, sized for
- *      the window at the highest declared rate (OMX_PITCH_INSTANCE_RING_FLOATS per leg), and arms
- *      the kernel over the first omx_pitch_cap_for(sr) floats of each. Nothing is allocated, at
- *      init or after; a rate the inline rings cannot serve is refused at init.
+ *      the window at the highest rate it accepts (OMX_PITCH_INSTANCE_RING_FLOATS per leg), and
+ *      arms the kernel over the first omx_pitch_cap_for(sr) floats of each. Nothing is allocated,
+ *      at init or after. It accepts the contract's nine full-oracle rates, 32 to 192 kHz
+ *      ({@link omx_pitch_instance_rate_ok}): the console's six declared rates and 32, 64 and
+ *      128 kHz, where a host may run it although the console never does. Any other rate, and one
+ *      the inline rings cannot serve, is refused at init.
  *   2. RESOLVE. {@link omx_pitch_instance_resolve} takes the kernel's contract controls in their
  *      declared order and user units (semitones, cents, percent), clamps each into its declared
  *      travel (OMX_PITCH_*, omxdsp_definitions.h; a non-finite word reads as the declared
@@ -43,7 +46,7 @@
 
 #define OMX_PITCH_INSTANCE_CHANNELS 2
 
-/** The highest rate, Hz, the inline rings are sized for: the top of the declared rate set. */
+/** The highest rate, Hz, the inline rings are sized for: the top of the nine accepted rates. */
 #define OMX_PITCH_INSTANCE_RATE_MAX 192000u
 /** Floats per inline ring: the window at OMX_PITCH_INSTANCE_RATE_MAX plus the read's lookbehind
  * and guard, with room to spare; init refuses a rate whose omx_pitch_cap_for() exceeds it. */
@@ -69,14 +72,29 @@ typedef struct {
 static inline uint32_t omx_pitch_instance_cap_for(float sr) { return omx_pitch_cap_for(sr); }
 
 /**
+ * @brief Whether the instance runs at `sr`: one of omx-contract's nine full-oracle rates, 32 to
+ *        192 kHz (they hold every declared rate), so 32, 64 and 128 kHz too. The rule
+ *        {@link omx_pitch_instance_init} applies.
+ * @param sr The sample rate, Hz.
+ * @return 1 when accepted, 0 when not.
+ * @note Thread-safe: a read of a constant table.
+ */
+static inline int omx_pitch_instance_rate_ok(float sr) {
+  static const float rates[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
+  for (uint32_t i = 0; i < OMX_ORACLE_FULL_RATES_COUNT; i++)
+    if (rates[i] == sr) return 1;
+  return 0;
+}
+
+/**
  * Bind an instance to its rate, over its own rings. Returns 1 when usable, 0 when not (a refused
- * init leaves `ready` clear and run() is the identity). A rate that is not declared, or whose
- * window the inline rings cannot hold, is refused. Allocates nothing.
+ * init leaves `ready` clear and run() is the identity). A rate {@link omx_pitch_instance_rate_ok}
+ * refuses, or whose window the inline rings cannot hold, is refused. Allocates nothing.
  */
 static inline int omx_pitch_instance_init(OmxPitchInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr)) return 0;
+  if (!omx_pitch_instance_rate_ok(sr)) return 0;
   const uint32_t cap = omx_pitch_instance_cap_for(sr);
   if (cap > OMX_PITCH_INSTANCE_RING_FLOATS) return 0;
   s->sr = sr;

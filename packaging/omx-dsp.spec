@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.15.0
+BuildRequires: omx-contract-devel >= 2.16.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -34,7 +34,7 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.15.0
+Requires: omx-contract-devel >= 2.16.0
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -85,7 +85,7 @@ library exists.
   from omx-contract's header, which it includes.
 - Each definition names the code that implements it, and where the console
   engine declared it when it was first imported.
-- omx-contract-devel >= 2.15.0.
+- omx-contract-devel >= 2.16.0.
 
 * Fri Oct 16 2026 Pau Aliagas <linuxnow@gmail.com> - 0.21.0-1
 - The mix maths the engine used to carry now lives here: the pan laws and
