@@ -87,9 +87,9 @@ static void drain_violations(const char *where) {
   omx_contract_log.count = 0u;
 }
 
-/* The floor rates every oracle runs at, as fx_rates.h holds them: the contract's list, never a local one. */
-#define NRATES OMX_ORACLE_FLOOR_RATES_COUNT
-#define RATES OMX_FX_RATE_FLOOR
+/* The nine oracle rates, as fx_rates.h holds them (the contract's list, never a local one). */
+#define NRATES OMX_FX_ORACLE_RATE_COUNT
+#define RATES OMX_FX_ORACLE_RATES
 
 static float g_ring_l[OMX_FLANGER_CAP], g_ring_r[OMX_FLANGER_CAP];
 
@@ -252,14 +252,14 @@ static void arm_b_resonance(void) {
       const double at_res = mag_at(f_res, sr);
       const double algebraic =
           fabs((1.0 - 0.5) + (fb > 0.0 ? 1.0 : -1.0) * 0.5 / (1.0 - fabs(fb)));
-      /* 0.5 dB, and the slack is a MEASURED physical term rather than room for a bug: the loop's
+      /* 0.8 dB, and the slack is a MEASURED physical term rather than room for a bug: the loop's
        * extra sample rotates the wet path by w radians against the dry before they sum, so the
-       * simple algebra is the small-w limit and the gap closes as the rate rises — 0.41 dB at
-       * 44.1 kHz, 0.01 dB at 192 kHz, printed at every rate. The COMPLEX comparison above carries
-       * that rotation and holds to 5e-4 at all four. */
-      ok(fabs(20.0 * log10(at_res / algebraic)) <= 0.5,
+       * simple algebra is the small-w limit and the gap closes as the rate rises — 0.76 dB at
+       * 32 kHz, 0.41 dB at 44.1 kHz, 0.01 dB at 192 kHz, printed at every rate. The COMPLEX comparison
+       * above carries that rotation and holds to 5e-4 at all nine. */
+      ok(fabs(20.0 * log10(at_res / algebraic)) <= 0.8,
          "arm B: at mix 0.5 the response at the resonance is the algebra's, sign included",
-         20.0 * log10(at_res / algebraic), 0.5);
+         20.0 * log10(at_res / algebraic), 0.8);
       printf("mix_flanger arm B, %.1f kHz, fb %+.2f: loop %.1f samples, comb %.1f Hz, wet-only "
              "resonance %+.2f dB at %.1f Hz (want %+.2f), %+.2f dB half a tooth away (want "
              "%+.2f), depth x%.2f, -3 dB width %.1f Hz (closed form %.1f); at mix 0.5 %+.2f dB "
