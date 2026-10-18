@@ -2,10 +2,10 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * pitch_instance.test.c — the pitch shifter instance core (omx_pitch_instance.h), every arm at
- * every rate in OMX_DECLARED_RATES:
- *   A  a refused init (no rate, a rate the console does not declare) is the identity; every
- *      declared rate is accepted, its window inside the instance's own rings; a refused, a
- *      fresh and a bypassed instance publish no latency;
+ * each of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the declared rates are six of them):
+ *   A  a refused init (no rate, a rate outside the nine) is the identity; each of the nine rates
+ *      is accepted, its window inside the instance's own rings; a refused, a fresh and a bypassed
+ *      instance publish no latency;
  *   B  bypassed is the identity byte for byte, in place and out of place;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_pitch_process on the atom the
  *      kernel's own omx_pitch_resolve builds from the same knobs;
@@ -18,7 +18,9 @@
  *   H  init, resolve (re-engage included) and run allocate nothing: malloc, calloc, realloc and
  *      free are wrapped at link time and counted across the instance's whole life;
  *   I  at 100 % mix the output is the pre-filtered input delayed by the published latency,
- *      d_min + W/2 frames, measured on an impulse at the defaults and at a shift; below 100 % the
+ *      d_min + W/2 frames, measured on an impulse at the defaults and at a shift, and equal to
+ *      the closed form (order - 1)/2 + WINDOW_MS·sr/2000 worked in whole numbers, never
+ *      through the kernel's words (1921 frames at 96 kHz); below 100 % the
  *      published latency is zero and the dry path is undelayed; the mix crossing 100 % either way
  *      moves the published latency at the resolve that crosses it.
  *   make test-fx
@@ -79,13 +81,15 @@ static void arm_refused(void) {
   OmxPitchInstance s;
   ok(omx_pitch_instance_init(&s, 0.0f) == 0, "A: rate 0 refused");
   ok(omx_pitch_instance_init(&s, NAN) == 0, "A: NaN rate refused");
-  ok(omx_pitch_instance_init(&s, g_sr + 1.0f) == 0, "A: an undeclared rate refused");
+  ok(omx_pitch_instance_init(&s, g_sr + 1.0f) == 0, "A: a rate outside the nine refused");
+  ok(omx_pitch_instance_init(&s, 22050.0f) == 0, "A: 22.05 kHz, below the nine, refused");
+  ok(omx_pitch_instance_init(&s, 384000.0f) == 0, "A: 384 kHz, above the rings, refused");
   omx_pitch_instance_resolve(&s, 0, 7.0f, 0.0f, 100.0f);
   float l[BLK], r[BLK], ol[BLK], or_[BLK];
   programme(l, r, BLK, 0);
   omx_pitch_instance_run(&s, l, r, ol, or_, BLK);
   ok(same_bytes(l, ol, BLK) && same_bytes(r, or_, BLK), "A: a refused instance is the identity");
-  ok(omx_pitch_instance_init(&s, g_sr) == 1, "A: the declared rate is accepted");
+  ok(omx_pitch_instance_init(&s, g_sr) == 1, "A: the rate is accepted");
   ok(s.cap == omx_pitch_instance_cap_for(g_sr) && s.cap <= OMX_PITCH_INSTANCE_RING_FLOATS,
      "A: the kernel's ring is the window's, inside the instance's own");
   ok(omx_pitch_instance_latency(&s) == 0u, "A: a fresh instance publishes no latency");
@@ -291,6 +295,13 @@ static void arm_latency(void) {
   snprintf(what, sizeof what, "I: at 100 %% the published latency is d_min + W/2 = %u frames (got %u)",
            (unsigned)want, (unsigned)published);
   ok(published == want, what);
+  /* The closed form in whole numbers: d_min = (order - 1)/2 frames, W/2 = WINDOW_MS·sr/2000
+   * frames, whole at each of the nine rates (1 + sr/50 at order 3 and 40 ms; 1921 at 96 kHz). */
+  const uint64_t half_w = (uint64_t)OMX_PITCH_WINDOW_MS * (uint64_t)g_sr;
+  const uint32_t closed = (uint32_t)((OMX_PITCH_ORDER - 1) / 2) + (uint32_t)(half_w / 2000u);
+  snprintf(what, sizeof what, "I: at 100 %% the published latency is (order-1)/2 + W/2 = %u frames (got %u)",
+           (unsigned)closed, (unsigned)published);
+  ok(half_w % 2000u == 0u && (OMX_PITCH_ORDER - 1) % 2 == 0 && published == closed, what);
 
   double resid = 0.0;
   const uint32_t d = measure_defaults(n, &resid);
@@ -337,8 +348,17 @@ static void arm_latency(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  /* The nine cover every declared rate, so this loop tests no less than the declaration. */
+  for (int k = 0; k < (int)OMX_DECLARED_RATE_COUNT; k++) {
+    int found = 0;
+    for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) found |= OMX_FX_RME_RATES[ri] == OMX_DECLARED_RATES[k];
+    if (!found) {
+      fprintf(stderr, "OMX_FX_RME_RATES lacks the declared %.0f Hz\n", (double)OMX_DECLARED_RATES[k]);
+      return 2;
+    }
+  }
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_RME_RATES[ri];
     arm_refused();
     arm_bypass();
     arm_is_the_kernel();
@@ -348,5 +368,6 @@ int main(void) {
     arm_no_allocation();
     arm_latency();
   }
+  printf("fx/pitch_instance: %d RME rates\n", (int)OMX_FX_RME_RATE_COUNT);
   return finish("pitch_instance");
 }
