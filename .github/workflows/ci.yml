@@ -19,7 +19,7 @@ permissions:
 env:
   # omx-contract's reader, render and install script, which data/ is read back through and the definitions header
   # rendered by, from this release tag: the floor the packaging declares
-  OMX_CONTRACT_REF: v2.15.0
+  OMX_CONTRACT_REF: v2.16.0
 
 jobs:
   # A commit message is published like a file. A pull request's own commits must name no private

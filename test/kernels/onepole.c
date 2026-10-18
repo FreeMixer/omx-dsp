@@ -294,6 +294,55 @@ static void onepole_rescale_rme(void) {
   }
 }
 
+/* THE REFERENCE RATE IS A RATE TOO (omx_pole_rescale, FreeMixer/omx-dsp#148). The law is
+ * q = p^(ref/sr) = exp((ref/sr)·ln p), defined for an exponent in [0, +inf]; a reference rate that is not
+ * above 0 gives an exponent that is NaN (ref NaN: q NaN), negative (ref < 0: q > 1, an unstable pole) or
+ * -inf (q = +inf). Such a reference is one the caller could not supply, so it leaves the pole as it is,
+ * bit for bit, exactly as a running rate not above 0 does. Around those inputs, every reference above 0
+ * (FLT_MIN, 1 Hz, half, twice, FLT_MAX, +inf) and the extreme running rates (FLT_MIN, FLT_MAX, +inf)
+ * give the closed form in double, to the float's own bound (FLT_MIN, not a subnormal: the suite thread
+ * runs with denormals-are-zero, under which a subnormal rate is read as 0, one of the cases above):
+ * a few ulps of q from powf and the stored pole, plus |ln q|·2^-23 from the rounded exponent ref/sr.
+ * Every result is in [0, 1], never NaN. At each of the nine RME rates, as the running rate and as the
+ * reference. */
+static void onepole_rescale_reference_rme(void) {
+  const float POLES[3] = { 0.25f, 0.6f, 0.98f };
+  const double ULP = 5.96046448e-8; /* 2^-24 */
+  int unusable_ok = 1, closed_ok = 1, stable = 1;
+  double worst = 0.0;
+  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_RME_RATES[ri];
+    const float UNUSABLE[6] = { NAN, -NAN, 0.0f, -0.0f, -sr, -INFINITY };
+    const float REFS[6] = { FLT_MIN, 1.0f, 0.5f * sr, 2.0f * sr, FLT_MAX, INFINITY };
+    const float RUN[3] = { FLT_MIN, FLT_MAX, INFINITY };
+    for (int k = 0; k < 3; k++) {
+      const float p = POLES[k];
+      for (int u = 0; u < 6; u++) {
+        if (!onepole_same_bits(omx_pole_rescale(p, UNUSABLE[u], sr), p)) unusable_ok = 0;
+        if (!onepole_same_bits(omx_pole_rescale(p, UNUSABLE[u], NAN), p)) unusable_ok = 0;
+      }
+      /* the reference sweep at the running rate sr, then sr as the reference at the extreme running rates */
+      for (int r = 0; r < 6 + 3; r++) {
+        const float ref = r < 6 ? REFS[r] : sr;
+        const float run = r < 6 ? sr : RUN[r - 6];
+        const float q = omx_pole_rescale(p, ref, run);
+        if (!(q >= 0.0f && q <= 1.0f)) stable = 0;
+        const double want = exp(((double)ref / (double)run) * log((double)p));
+        const double tol = 8.0 * ULP + (want > 0.0 ? want * -log(want) : 0.0) * 2.0 * ULP;
+        const double err = fabs((double)q - want);
+        if (!(err <= tol)) closed_ok = 0;
+        if (err > worst) worst = err;
+      }
+    }
+    onepole_drain(sr);
+  }
+  ok(unusable_ok, "a reference rate not above 0 (NaN, -NaN, 0, -0, negative, -inf) leaves the pole as it is",
+     unusable_ok, 1.0);
+  ok(closed_ok, "every reference above 0 and every extreme running rate give p^(ref/sr) in closed form",
+     worst, 8.0 * ULP);
+  ok(stable, "every rescaled pole stays in [0, 1], never NaN", stable, 1.0);
+}
+
 /* THE ONE SITE THE FOLD DID NOT TOUCH: the drive's DC blocker takes its pole as the first-order
  * approximation `1 - 2π·5/sr` rather than exp(-2π·5/sr) — same CONVENTION, different VALUE. Its corner,
  * -ln(p)·sr/2π, is within 0.01 Hz of 5 Hz at every rate; the approximation is what
@@ -407,6 +456,7 @@ static void arm_onepole(void) {
   onepole_fixed_point();
   onepole_folded_sites();
   onepole_rescale_rme();
+  onepole_rescale_reference_rme();
   onepole_dc_blocker();
   expect_clean();
 }

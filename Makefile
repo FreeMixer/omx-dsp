@@ -35,6 +35,7 @@
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
 #   make delay-taps-sabotage  the FX delay's read-tap oracle fails against ten sabotages
 #   make align-fdelay-sabotage  the strip alignment stage's oracle fails against five sabotages
+#   make pitch-rates-sabotage  the pitch oracles fail at 32, 64 and 128 kHz against two sabotages
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
 #   make public-sources-messages  the same over the commit messages of origin/main..HEAD (RANGE=a..b to choose)
@@ -137,7 +138,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -254,6 +255,12 @@ delay-taps-sabotage: test/fx/delay_taps.test.c test/fx/delay-taps-sabotage.sh $(
 align-fdelay-sabotage: test/fx/align_fdelay.test.c test/fx/align-fdelay-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/align-fdelay-sabotage.sh $(BUILD)/align-fdelay-sabotage $(LIB_CONTRACTS)
 
+# The pitch oracles against two sabotaged copies of the pitch headers (the instance face's rate
+# gate, the pre-filter's Nyquist term), each red on its named arm at 32, 64 or 128 kHz
+# (test/fx/pitch-rates-sabotage.sh); the real oracles in test-fx are the control.
+pitch-rates-sabotage: test/fx/pitch_instance.test.c test/fx/pitch_math.test.c test/fx/pitch-rates-sabotage.sh $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/pitch-rates-sabotage.sh $(BUILD)/pitch-rates-sabotage $(LIB_CONTRACTS)
+
 # The fractional delay line's suite arm against four sabotaged copies of omx_fdelay.h: each must
 # go red on that arm (test/fdelay-sabotage.sh). The tree is never edited.
 fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kernels-gen.sh | $(BUILD)
@@ -264,9 +271,9 @@ fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kern
 note-map-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/note-map-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/note-map-sabotage.sh $(BUILD)/note-map-sabotage
 
-# omx_pole_rescale's checks in the onepole arm against four sabotaged copies of the include tree (the
-# law, its rate <= 0 fixed point, the delay's and the reverb's call): each must go red on that arm
-# (test/onepole-sabotage.sh). The tree is never edited.
+# omx_pole_rescale's checks in the onepole arm against five sabotaged copies of the include tree (the
+# law, its running-rate and reference-rate <= 0 fixed points, the delay's and the reverb's call): each
+# must go red on that arm (test/onepole-sabotage.sh). The tree is never edited.
 onepole-sabotage: $(HEADERS) $(FX_HEADERS) $(KERNELS) $(SRC) test/onepole-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/onepole-sabotage.sh $(BUILD)/onepole-sabotage
 
@@ -329,8 +336,8 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 # ---- the effect kernels ------------------------------------------------------------------------
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if
 # 44.1, 48, 96 or 192 kHz is missing; the golden digests hold the kernel's output bit for bit.
-# The dynamics, balance, rotor, limiter, loudness and multiband oracles and digests, and the fractional delay
-# line's exact-copy and tone arms, run at the nine RME rates instead
+# The dynamics, balance, rotor, limiter, loudness and multiband oracles and digests, the pitch kernel's and
+# instance face's oracles, and the fractional delay line's exact-copy and tone arms, run at the nine RME rates instead
 # (OMX_FX_RME_RATES in test/fx/fx_rates.h), 32, 64 and 128 kHz included.
 
 # One list, one set of rules: a kernel lane adds its name to FX_KERNELS and its three sources,
@@ -442,8 +449,10 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
 # and requires the golden digests of that kernel to move.
 # hrp_lv2_rates holds the live HRP shell's own decisions (the hop, when the worker is asked for, the
-# cursor, the adopted band's transfer function, the walk out) to closed forms at the nine RME rates;
-# test/analysis/hrp-lv2-rates-sabotage.sh breaks each of them once and requires its arm to fail.
+# cursor, the adopted band's transfer function, the walk out) and the calls a plugin face drives it
+# through (the analysis block, the control snapshot, the pass counters, wants and answer, clear and
+# restart) to closed forms at the nine RME rates; test/analysis/hrp-lv2-rates-sabotage.sh breaks each
+# of them once and requires its arm to fail.
 # The room analysis, the Farina sweep and the alignment fit (moved from core's TypeScript) run on the same
 # thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h;
 # align_fit, room and sweep hold them to closed forms at the nine RME rates and count allocations;
@@ -532,7 +541,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks copy-check suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks copy-check suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
