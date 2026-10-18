@@ -346,8 +346,8 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if
 # 44.1, 48, 96 or 192 kHz is missing; the golden digests hold the kernel's output bit for bit.
 # The dynamics, balance, rotor, limiter, loudness and multiband oracles and digests, the pitch kernel's and
-# instance face's oracles, and the fractional delay line's exact-copy and tone arms, run at the nine RME rates instead
-# (OMX_FX_RME_RATES in test/fx/fx_rates.h), 32, 64 and 128 kHz included.
+# instance face's oracles, and the fractional delay line's exact-copy and tone arms, run at the nine oracle rates instead
+# (OMX_FX_ORACLE_RATES in test/fx/fx_rates.h), 32, 64 and 128 kHz included.
 
 # One list, one set of rules: a kernel lane adds its name to FX_KERNELS and its three sources,
 #   test/fx/<k>.test.c         the oracle, release flags against the plain archive unless the
@@ -450,7 +450,7 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # a control thread, never in the audio callback. omx_rta.h is the capture ring
 # and the spectrum they read. Each test/analysis/<t>.test.c is one program at
 # release flags against the plain archive; -Isrc lets a test include the compiled unit it checks.
-# rates runs the HRP chain at the nine RME rates and counts allocations through wrapped allocators;
+# rates runs the HRP chain at the nine oracle rates and counts allocations through wrapped allocators;
 # golden compares every answer of both engines with test/golden/analysis.sha256, which the engine's
 # own copy of this code wrote before it moved here; its log10f is the correctly rounded omx_log10f of test/support, wrapped in at link time.
 # make analysis-engine-identity OPENMIXER=<checkout> writes the rta, render and live digests again from
@@ -460,11 +460,11 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # hrp_lv2_rates holds the live HRP shell's own decisions (the hop, when the worker is asked for, the
 # cursor, the adopted band's transfer function, the walk out) and the calls a plugin face drives it
 # through (the analysis block, the control snapshot, the pass counters, wants and answer, clear and
-# restart) to closed forms at the nine RME rates; test/analysis/hrp-lv2-rates-sabotage.sh breaks each
+# restart) to closed forms at the nine oracle rates; test/analysis/hrp-lv2-rates-sabotage.sh breaks each
 # of them once and requires its arm to fail.
 # The room analysis, the Farina sweep and the alignment fit (moved from core's TypeScript) run on the same
 # thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h;
-# align_fit, room and sweep hold them to closed forms at the nine RME rates and count allocations;
+# align_fit, room and sweep hold them to closed forms at the nine oracle rates and count allocations;
 # test/analysis/room-sabotage.sh breaks each of their kernels once and requires both kinds to fail.
 ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 hrp_lv2_rates rates golden \
                  room_ts align_fit room sweep
@@ -505,7 +505,7 @@ room-ts-golden: | $(BUILD)
 # ---- the kernels moved from the engine ---------------------------------------------------------
 # The sample-rate converter, the generators and the analyser's readings (moved from the engine):
 # their oracles are suite arms (test/kernels/src.c, gen.c, rta.c); here are their golden digests at
-# the nine RME rates, which the engine's own copies wrote (test/golden/engine_kernels.sha256), and
+# the nine oracle rates, which the engine's own copies wrote (test/golden/engine_kernels.sha256), and
 # a break in each kernel that must move its own digests and no other's.
 $(BUILD)/engine_kernels_golden: test/engine_kernels/golden.test.c test/fx/sha256.h $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
@@ -526,7 +526,7 @@ engine-kernels-identity:
 # analyser tap's reading, one source's contribution to a summing bus, the real-time load meter, the
 # factored strip coefficient, an output route's gain stages, the settled-silence test and the LCR
 # fold's centre level (include/omxdsp/mix/, FreeMixer/omx-dsp#98 and #140): their oracles are suite arms (test/kernels/mix_*.c);
-# here are their golden digests at the nine RME rates, which the engine's own copies wrote
+# here are their golden digests at the nine oracle rates, which the engine's own copies wrote
 # (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
 # Compiled with log10f replaced by the correctly rounded omx_log10f (test/support), as the FX goldens
 # are: the gain-reduction reading's log10f otherwise moves its digests on glibc 2.36 and 2.39.
