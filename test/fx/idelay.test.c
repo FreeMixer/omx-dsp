@@ -24,9 +24,9 @@
 
 #include "fx_rates.h"
 
-/* The console's output delay ring: its 1000 ms ceiling at the highest graph rate, +1 so the
+/* The console's output delay ring: its ceiling (OMX_IDELAY_MAX_MS) at the highest graph rate, +1 so the
  * full ceiling is a tap strictly inside the ring. */
-#define MAX_MS 1000
+#define MAX_MS OMX_IDELAY_MAX_MS /* the contract's OUTPUT_DELAY_RANGE.max, through the header */
 #define MAX_RATE OMX_RT_HARD_TARGET_RATE
 #define CAP (((MAX_RATE / 1000) * MAX_MS) + 1)
 
