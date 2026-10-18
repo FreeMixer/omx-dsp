@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * flanger_instance.test.c — the flanger instance core (omx_flanger_instance.h), every arm at every
- * rate in OMX_DECLARED_RATES:
- *   A  a refused init (no rate, a rate the console does not declare) is the identity; every
- *      declared rate is accepted, its deepest sweep inside the instance's own rings;
+ * rate of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the six declared ones are among them):
+ *   A  a refused init (no rate, a rate outside the nine) is the identity; each of the
+ *      nine rates is accepted, its deepest sweep inside the instance's own rings;
  *   B  bypassed is the identity byte for byte, in place and out of place;
  *   C  engaged, the instance IS the kernel: bit-identical to omx_flanger_process on the atom the
  *      console's resolve_fx_flanger builds from the same knobs;
@@ -75,13 +75,15 @@ static void arm_refused(void) {
   static OmxFlangerInstance s;
   ok(omx_flanger_instance_init(&s, 0.0f) == 0, "A: rate 0 refused");
   ok(omx_flanger_instance_init(&s, NAN) == 0, "A: NaN rate refused");
-  ok(omx_flanger_instance_init(&s, g_sr + 1.0f) == 0, "A: an undeclared rate refused");
+  ok(omx_flanger_instance_init(&s, g_sr + 1.0f) == 0, "A: a rate outside the nine refused");
+  ok(omx_flanger_instance_init(&s, 22050.0f) == 0, "A: 22.05 kHz, below the nine, refused");
+  ok(omx_flanger_instance_init(&s, 384000.0f) == 0, "A: 384 kHz, above the nine, refused");
   omx_flanger_instance_resolve(&s, 0, 5.0f, 5.0f, 0.95f, 100.0f);
   float l[BLK], r[BLK], ol[BLK], or_[BLK];
   programme(l, r, BLK, 0);
   omx_flanger_instance_run(&s, l, r, ol, or_, BLK);
   ok(same_bytes(l, ol, BLK) && same_bytes(r, or_, BLK), "A: a refused instance is the identity");
-  ok(omx_flanger_instance_init(&s, g_sr) == 1, "A: the declared rate is accepted");
+  ok(omx_flanger_instance_init(&s, g_sr) == 1, "A: the rate is accepted");
   ok(s.cap == omx_flanger_instance_cap_for(g_sr) && s.cap <= OMX_FLANGER_CAP,
      "A: the kernel's ring is the deepest sweep's, inside the instance's own");
   drain_violations("A: no contract broken");
@@ -251,8 +253,9 @@ static void arm_no_allocation(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  for (int ri = 0; ri < (int)OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  omx_fx_require_full_rates_cover_declared();
+  for (int ri = 0; ri < (int)OMX_FX_RME_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_RME_RATES[ri];
     arm_refused();
     arm_bypass();
     arm_is_the_kernel();

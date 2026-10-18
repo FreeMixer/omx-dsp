@@ -451,7 +451,7 @@ typedef struct {
 static inline int omx_eq_instance_init(OmxEqInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr)) return 0;
+  if (!omx_rate_is_oracle_full(sr)) return 0;
   s->sr = sr;
   omx_eq_lv2_init(&s->leg[0], (double)sr);
   omx_eq_lv2_init(&s->leg[1], (double)sr);

@@ -72,7 +72,7 @@ static inline uint32_t omx_flanger_instance_cap_for(float sr) {
 static inline int omx_flanger_instance_init(OmxFlangerInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr)) return 0;
+  if (!omx_rate_is_oracle_full(sr)) return 0;
   const uint32_t cap = omx_flanger_instance_cap_for(sr);
   if (cap > OMX_FLANGER_CAP) return 0;
   s->sr = sr;

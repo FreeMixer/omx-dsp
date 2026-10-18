@@ -32,8 +32,8 @@
  * the sibilant hot enough to hold the stage at its floor so `g` is a constant and the measurement
  * is linear (a moving g would put intermodulation on the probe's own bin).
  *
- * EVERY DECLARED RATE, every arm (OMX_DECLARED_RATES: 44 100, 48 000, 88 200, 96 000, 176 400 and
- * 192 000 Hz, the four floor rates among them). The reductions are also asserted to AGREE across
+ * EVERY RME RATE, every arm (OMX_FX_RME_RATES: 32 to 192 kHz; the six declared rates, with the four
+ * floor rates among them, are part of it). The reductions are also asserted to AGREE across
  * them, which is the four-rate law's real content — a detector whose milliseconds silently became
  * samples passes at one rate and fails here.
  *
@@ -101,7 +101,7 @@ static void check_near(double got, double want, double tol, const char *what) {
 
 /* Every declared rate (OMX_DECLARED_RATES): the four floor rates and 88.2 and 176.4 kHz. Every arm
  * runs at every one of them. */
-#define NRATES ((int)OMX_DECLARED_RATE_COUNT)
+#define NRATES ((int)OMX_FX_RME_RATE_COUNT)
 
 #define NB 16384u /* the measurement block; two passes are run and the SECOND is measured */
 
@@ -531,10 +531,11 @@ static void test_stereo_takes_one_gain(double sr) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  printf("fx/deesser: the band-limited detector, %d declared rates\n", NRATES);
+  omx_fx_require_full_rates_cover_declared();
+  printf("fx/deesser: the band-limited detector, %d RME rates\n", NRATES);
   double split_at_rate[NRATES], deviation[NRATES];
   for (int k = 0; k < NRATES; k++) {
-    double sr = OMX_DECLARED_RATES[k];
+    double sr = OMX_FX_RME_RATES[k];
     test_bypass_is_bit_identical(sr);
     test_below_threshold_passes(sr);
     split_at_rate[k] = test_split_reduces_the_band_only(sr, &deviation[k]);
@@ -566,8 +567,8 @@ int main(void) {
    *
    * What the kernel ADDS to the closed form — the detector's envelope cascade settling a few
    * percent under the two-tone PEAK the closed form assumes — is PINNED, not tolerated: +0.69 …
-   * +0.74 dB, the same at every rate to 0.05 dB. A 1 dB tolerance on the split arm alone would
-   * let a detector change of that size through; this arm is what sees it. (The number moved from
+   * +0.77 dB (+0.69 … +0.74 at the declared rates, +0.77 at 64 kHz), within 0.08 dB across the nine.
+   * A 1 dB tolerance on the split arm alone would let a detector change of that size through; this arm is what sees it. (The number moved from
    * +0.34 … +0.36 under the highpass·lowpass band to +0.69 … +0.74 under the bandpass: the offset
    * scales with how far above the knee the detector sits, and the bandpass reads the sibilant
    * 1.9 dB hotter at the centre — which is the point of it.)
@@ -580,14 +581,14 @@ int main(void) {
     if (deviation[k] > dhi) dhi = deviation[k];
   }
   printf("  rate spread: raw reduction %.3f dB (", hi - lo);
-  for (int k = 0; k < NRATES; k++) printf("%s%.1f %.3f", k ? " | " : "", OMX_DECLARED_RATES[k] / 1000.0, split_at_rate[k]);
+  for (int k = 0; k < NRATES; k++) printf("%s%.1f %.3f", k ? " | " : "", OMX_FX_RME_RATES[k] / 1000.0, split_at_rate[k]);
   printf(")\n  rate spread: kernel deviation from its closed form %.3f dB (", dhi - dlo);
   for (int k = 0; k < NRATES; k++) printf("%s%+.3f", k ? " | " : "", deviation[k]);
   printf(")\n");
-  check(dhi - dlo <= 0.1, "every declared rate: the kernel's deviation from its closed form agrees within 0.1 dB");
+  check(dhi - dlo <= 0.1, "every RME rate: the kernel's deviation from its closed form agrees within 0.1 dB");
   for (int k = 0; k < NRATES; k++)
-    check_near(deviation[k], 0.715, 0.05,
-               "every declared rate: the kernel's offset from its closed form is the pinned +0.69 ... +0.74 dB");
+    check_near(deviation[k], 0.731, 0.05,
+               "every RME rate: the kernel's offset from its closed form is the pinned +0.69 ... +0.77 dB");
   check(hi - lo <= 1.0, "every declared rate: the raw reduction stays within 1 dB across them");
 
   printf("%s: %d checks, %d failures\n", g_fail ? "FAIL" : "PASS", g_checks, g_fail);

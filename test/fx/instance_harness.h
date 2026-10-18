@@ -33,17 +33,31 @@ static void ok(int cond, const char *what) {
   }
 }
 
-/** Every contract the instance and its kernel stated in the arm just run held. */
+/** Violations the rate does not explain, taken off the ledger since the last drain_violations. */
+static uint32_t g_unexplained = 0;
+
+/** Take the ledger's violations after one call. At 32, 64 and 128 kHz (outside the console's
+ * declaration) every call records its kernels' `rate-is-declared` precondition, which the rate
+ * explains and omx_fx_drain_ledger does not count; but the ledger keeps OMX_CONTRACT_MAX records and
+ * counts the lost ones as unexplained, so an arm of many blocks calls this after each. */
+static inline void ledger_checkpoint(void) { g_unexplained += omx_fx_drain_ledger(g_sr); }
+
+/** Every contract the instance and its kernel stated in the arm just run held, but for the
+ * `rate-is-declared` preconditions an undeclared rate explains (omx_fx_drain_ledger). */
 static void drain_violations(const char *where) {
-  uint32_t seen = omx_contract_log.count;
-  uint32_t kept = seen < OMX_CONTRACT_MAX ? seen : OMX_CONTRACT_MAX;
-  for (uint32_t i = 0; i < kept; i++)
-    printf("VIOLATION [%s] %s %s (frame %u)\n", omx_contract_log.rec[i].stage,
-           omx_contract_log.rec[i].kind, omx_contract_log.rec[i].token,
-           omx_contract_log.rec[i].frame);
-  ok(seen == 0u, where);
-  omx_contract_log.count = 0u;
+  const uint32_t unexplained = g_unexplained + omx_fx_drain_ledger(g_sr);
+  g_unexplained = 0u;
+  ok(unexplained == 0u, where);
 }
+
+/** The same, passing an init's result through. */
+static inline int ledger_checkpoint_int(int v) { ledger_checkpoint(); return v; }
+
+/** Wrap a void call so the ledger is taken after it:
+ * `#define omx_x_instance_run(...) OMX_FX_CHECKPOINTED(omx_x_instance_run, __VA_ARGS__)`; an init
+ * that returns an int is wrapped with OMX_FX_CHECKPOINTED_INT. */
+#define OMX_FX_CHECKPOINTED(fn, ...) ((void)(fn)(__VA_ARGS__), ledger_checkpoint())
+#define OMX_FX_CHECKPOINTED_INT(fn, ...) ledger_checkpoint_int((fn)(__VA_ARGS__))
 
 /** A programme block: two detuned partials per leg, a different pair on each, phase `t0`. */
 static void programme(float *l, float *r, uint32_t n, uint32_t t0) {
@@ -75,8 +89,7 @@ static const float HOSTILE[] = {NAN, INFINITY, -INFINITY, 1e30f, -1e30f, -1.0f, 
 #define HOSTILE_COUNT ((int)(sizeof(HOSTILE) / sizeof(HOSTILE[0])))
 
 static int finish(const char *name) {
-  printf("fx/%s: %d checks, %d failures (%d rates)\n", name, g_checks, g_failed,
-         (int)OMX_DECLARED_RATE_COUNT);
+  printf("fx/%s: %d checks, %d failures\n", name, g_checks, g_failed);
   return g_failed == 0 ? 0 : 1;
 }
 
