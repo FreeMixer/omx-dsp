@@ -190,6 +190,15 @@
       "doc": "The knee, in dB — a CONSTANT of the stage and not a row field: a de-esser without a soft knee latches audibly on the first sibilant of a phrase, and no other value of this number is a de-esser anyone would dial. The controller pushes it to the node and this is the same number; a second spelling would be a picture that disagrees with the audio about where the reduction starts.",
       "unit": "dB",
       "value": 6
+    },
+    "DEESS_NYQUIST_FRACTION": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#OMX_DEESSER_INSTANCE_NYQUIST_FRACTION"
+      },
+      "doc": "The highest share of Nyquist the detector band's centre may sit at. The frequency travel tops out at 16 kHz, which is Nyquist at 32 kHz, where a band-pass designed on it has no stable poles; the face designs at min(freq, fraction x sample rate / 2). At 0.91 that is 14.56 kHz at 32 kHz, and above the travel's own 16 kHz at every declared rate (0.91 of 22.05 kHz is 20.06 kHz), so it moves no design there.",
+      "unit": "",
+      "value": 0.91
     }
   }
 }

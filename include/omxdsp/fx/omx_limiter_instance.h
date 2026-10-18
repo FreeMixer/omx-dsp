@@ -76,7 +76,7 @@ static inline uint32_t omx_limiter_instance_cap_for(float sr) { return omx_limit
 static inline int omx_limiter_instance_init(OmxLimiterInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_declared(sr)) return 0;
+  if (!omx_rate_is_oracle_full(sr)) return 0;
   const uint32_t cap = omx_limiter_instance_cap_for(sr);
   if (cap > OMX_LIMITER_INSTANCE_CAP || omx_limiter_mem_floats(cap) > 4u * OMX_LIMITER_INSTANCE_CAP) return 0;
   s->sr = sr;
