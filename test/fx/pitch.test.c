@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The dual-tap pitch shifter's oracle (omx_pitch.h): bypass, finite/flush and thread arms, at
- * each of the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz; the declared rates among them).
+ * each of the nine oracle rates (OMX_FX_ORACLE_RATES, 32 to 192 kHz; the declared rates among them).
  * Contracts are compiled in and every arm
  * drains the ledger empty.
  *
@@ -93,8 +93,8 @@ static void arm_e_bypass(void) {
   enum { N = 1024 };
   static float x[N], l[N], rr[N];
   for (int i = 0; i < N; i++) x[i] = (i % 7 == 3) ? 1e-40f : (float)sin(0.05 * i) * 0.7f;
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const double sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const double sr = OMX_FX_ORACLE_RATES[ri];
     for (int c = 0; c < 2; c++) {
       struct run R;
       setup(&R, sr, 0.5, c == 0 ? 1.0 : 0.0);
@@ -110,8 +110,8 @@ static void arm_e_bypass(void) {
 }
 
 static void arm_g_finite_and_flush(void) {
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const double sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const double sr = OMX_FX_ORACLE_RATES[ri];
     const size_t n = (size_t)(3.0 * o_window(sr)) + 4096u, half = n / 3u;
     float *l = calloc(n, sizeof(float)), *rr = calloc(n, sizeof(float));
     if (l == NULL || rr == NULL) abort();
@@ -168,8 +168,8 @@ static void *h_run(void *arg) {
 
 static void arm_h_threads(void) {
   static struct h_worker ref, w[H_THREADS];
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const double sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const double sr = OMX_FX_ORACLE_RATES[ri];
     ref.sr = sr;
     h_run(&ref);
     pthread_t t[H_THREADS];
@@ -219,7 +219,7 @@ static void arm_i_refused_init(void) {
 
 int main(void) {
   float top = 0.0f;
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) top = fmaxf(top, OMX_FX_RME_RATES[ri]);
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) top = fmaxf(top, OMX_FX_ORACLE_RATES[ri]);
   g_ring_cap = omx_pitch_cap_for(top);
   g_ring = calloc(2u * g_ring_cap, sizeof(float));
   if (g_ring == NULL) return 2;
@@ -229,6 +229,6 @@ int main(void) {
   arm_h_threads();
   arm_i_refused_init();
   free(g_ring);
-  printf("fx/pitch: %d checks, %d failed (%d rates)\n", g_checks, g_failed, (int)OMX_FX_RME_RATE_COUNT);
+  printf("fx/pitch: %d checks, %d failed (%d rates)\n", g_checks, g_failed, (int)OMX_FX_ORACLE_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }

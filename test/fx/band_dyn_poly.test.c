@@ -3,7 +3,7 @@
 /**
  * @file band_dyn_poly.test.c
  * @brief The band-dynamics loop (the de-esser's and the dynamic EQ band's) against the same loop on
- *        the libm pair, frozen in fixtures/band_dyn_libm.h, at the nine RME rates.
+ *        the libm pair, frozen in fixtures/band_dyn_libm.h, at the nine oracle rates.
  *
  * The declared bound: `g` within `s·1e-4 + 2e-5` dB of the libm loop's, `s` the characteristic's
  * steepest slope (`1 − 1/ratio` above, `ratio − 1` below) — 1e-4 dB is omx_lin_to_db_poly()'s
@@ -42,7 +42,7 @@
 #define LIN_TO_DB_BOUND 1e-4
 /** @brief omx_db_to_lin_poly()'s declared 2e-6 relative bound, in dB (rounded up). */
 #define DB_TO_LIN_BOUND 2e-5
-/** @brief The signal: 0.4 s at the highest RME rate. */
+/** @brief The signal: 0.4 s at the highest oracle rate. */
 #define MAXN 76800u
 
 static int g_fail = 0, g_checks = 0;
@@ -244,10 +244,10 @@ static void arm_kernel(double sr) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  printf("fx/band_dyn_poly: the libm-free band-dynamics loop against the libm loop, %d RME rates\n",
-         (int)OMX_FX_RME_RATE_COUNT);
+  printf("fx/band_dyn_poly: the libm-free band-dynamics loop against the libm loop, %d oracle rates\n",
+         (int)OMX_FX_ORACLE_RATE_COUNT);
   arm_gain();
-  for (int k = 0; k < (int)OMX_FX_RME_RATE_COUNT; k++) arm_kernel(OMX_FX_RME_RATES[k]);
+  for (int k = 0; k < (int)OMX_FX_ORACLE_RATE_COUNT; k++) arm_kernel(OMX_FX_ORACLE_RATES[k]);
   printf("  worst gain error %.3g of the bound; worst sample error %.3g of the bound\n", g_worst_gain, g_worst_out);
   printf("%s: %d checks, %d failures\n", g_fail ? "FAIL" : "PASS", g_checks, g_fail);
   return g_fail ? 1 : 0;

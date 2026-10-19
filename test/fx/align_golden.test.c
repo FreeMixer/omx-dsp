@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The input alignment delay's golden digests (golden.h), at the nine RME rates.
+ * The input alignment delay's golden digests (golden.h), at the nine oracle rates.
  *
  * One digest per rate covers three renders laid end to end:
  *   - a stereo strip: the stimulus (an impulse, then noise for the whole run) through
@@ -37,7 +37,7 @@
 #include <omxdsp/omx_align.h>
 #endif
 
-#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
+#define OMX_FX_GOLDEN_ORACLE_RATES 1 /* held at the nine oracle rates */
 #include "golden.h"
 
 #define SEG 1024

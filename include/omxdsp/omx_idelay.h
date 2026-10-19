@@ -30,6 +30,15 @@
 
 /** @brief The line's ceiling, ms: the contract's output delay travel top (OUTPUT_DELAY_RANGE.max). */
 #define OMX_IDELAY_MAX_MS OMX_OUTPUT_DELAY_RANGE_MAX
+/** @brief The highest graph sample rate the line's ring is sized for, Hz: the contract's hard target rate.
+ *  The ring is sized for this rate so OMX_IDELAY_MAX_MS is reachable at every declared rate alike; at a lower
+ *  rate the reachable ms is unchanged (fewer samples per ms) and the ring is just not full. */
+#define OMX_IDELAY_MAX_RATE OMX_RT_HARD_TARGET_RATE
+/** @brief The ring's capacity, samples, per leg: OMX_IDELAY_MAX_MS at OMX_IDELAY_MAX_RATE, plus one so the
+ *  full ceiling is a tap strictly inside the ring (a read at exactly `cap` would alias the write cursor). */
+#define OMX_IDELAY_CAP (((OMX_IDELAY_MAX_RATE / 1000) * OMX_IDELAY_MAX_MS) + 1)
+_Static_assert(OMX_IDELAY_CAP == (OMX_IDELAY_MAX_RATE / 1000) * OMX_IDELAY_MAX_MS + 1,
+               "the ring holds the ceiling at the highest rate, plus one");
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "idelay/samples"

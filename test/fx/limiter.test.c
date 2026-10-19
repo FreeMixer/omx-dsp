@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-/* The precision limiter's oracle (omx_limiter.h, formerly mix_limiter.test.c) at the nine RME rates — the design.
+/* The precision limiter's oracle (omx_limiter.h, formerly mix_limiter.test.c) at the nine oracle rates — the design.
  * Contracts on; after each rate no violation the rate does not explain (fx_rates.h). */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omx_contract.h>
@@ -81,8 +81,8 @@ static void *worker(void *arg) {
 
 int main(void) {
   const float c = omx_db_to_lin(OMX_LIMITER_CEILING_DB_DEFAULT);
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     g_sr = sr;
     const uint32_t unexplained_before = g_unexplained;
     const uint32_t n = (uint32_t)(sr * 0.5f) < MAXN ? (uint32_t)(sr * 0.5f) : MAXN;
@@ -226,7 +226,7 @@ int main(void) {
     check(same, "N threads on distinct state produce the one-thread bytes", sr, 0.0);
 
     /* cost: ns per stereo frame at the default travels, limiting noise at +12 dBFS, at the top rate */
-    if (ri + 1u == OMX_FX_RME_RATE_COUNT) {
+    if (ri + 1u == OMX_FX_ORACLE_RATE_COUNT) {
       struct timespec a, b;
       arm(&st, THREADS, sr);
       memcpy(g_y, g_x, sizeof g_y);
@@ -247,6 +247,6 @@ int main(void) {
           g_unexplained - unexplained_before);
   }
   printf("mix_limiter: %d checks, %d failed, %u rates; %u contracts evaluated, %u violations the rate does not explain\n",
-         g_checks, g_fail, OMX_FX_RME_RATE_COUNT, omx_contract_log.checks, g_unexplained);
+         g_checks, g_fail, OMX_FX_ORACLE_RATE_COUNT, omx_contract_log.checks, g_unexplained);
   return g_fail == 0 && g_unexplained == 0u ? 0 : 1;
 }

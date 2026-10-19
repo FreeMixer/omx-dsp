@@ -10,8 +10,8 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make test` | the whole suite: every primitive's and kernel's oracle at every declared rate with contracts on, the negative, perturbation and thread arms, the writable-data and doc checks, and the golden digests |
 | `make test-fx` | the effect kernels' oracles and golden digests alone |
 | `make consumer` | the stateful stages built the way a consumer builds them (release flags, `-Werror`, states on the stack that only their init or settle writes) and run |
-| `make test-analysis` | the feedback detector's, the RTA ring and spectrum's and HRP's oracles (the HRP render and live core among them) at the nine RME rates (32 to 192 kHz), their no-allocation arm, golden digests and one sabotage per kernel; the room analysis, Farina sweep and alignment fit against closed forms at the nine rates and against core's TypeScript (the parity table), and one sabotage per kernel that both must catch; alone |
-| `make test-engine-kernels` | the golden digests of the sample-rate converter, the generators and the analyser's readings at the nine RME rates, which the engine's own copies wrote, and a break in each that must move its own digests and no other's |
+| `make test-analysis` | the feedback detector's, the RTA ring and spectrum's and HRP's oracles (the HRP render and live core among them) at the nine oracle rates (32 to 192 kHz), their no-allocation arm, golden digests and one sabotage per kernel; the room analysis, Farina sweep and alignment fit against closed forms at the nine rates and against core's TypeScript (the parity table), and one sabotage per kernel that both must catch; alone |
+| `make test-engine-kernels` | the golden digests of the sample-rate converter, the generators and the analyser's readings at the nine oracle rates, which the engine's own copies wrote, and a break in each that must move its own digests and no other's |
 | `make install PREFIX=/usr LIBDIR=/usr/lib64 DESTDIR=…` | headers, the three archives and `omxdsp.pc`, `omxdsp-contracts.pc`, `omxdsp-tsan.pc` |
 | `make flavours` | each archive carries its flavour, and a contracts consumer reads a violation raised inside the compiled code only through the contracts archive |
 | `make docs` | the API reference with doxygen |
@@ -20,13 +20,22 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make lint` | the doc check, the source scan, the log10f guard, tools/contract-single-source.sh (no name omx-contract defines is defined again here) and tools/face-conformance.sh (every instance face's resolve takes its kernel's contract controls by name, order and kind); both check their own sabotage |
 | `make test-tsan` | the thread arm under ThreadSanitizer, where the toolchain has it |
 | `make engine-kernels-identity OPENMIXER=<checkout>` | renders those digests again through the copies OpenMixer's engine still carries (`mix_src.h`, `mix_dsp.h`), and checks that each of its sabotages goes red; a desk check, not run in CI |
-| `make test-mix` | the mix module's golden digests at the nine RME rates (`test/golden/mix.sha256`, written by the engine's own copies), and a break in each kernel and in each of the bus stages' contract checks that must turn its arm red; alone |
+| `make test-mix` | the mix module's golden digests at the nine oracle rates (`test/golden/mix.sha256`, written by the engine's own copies), and a break in each kernel and in each of the bus stages' contract checks that must turn its arm red; alone |
 | `make mix-engine-identity OPENMIXER=<checkout>` | renders the mix digests again through each set of copies OpenMixer's engine still carries (the bus stages' `omx_mix_strip`, `omx_bus_out_gain` and `omx_bus_out_stage` in `mix_dsp.h`, under the same names as `mix/omx_bus_stage.h`), and checks that each of its sabotages goes red; a desk check, not run in CI |
 | `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
 | `make analysis-engine-identity OPENMIXER=<checkout>` | builds the analysis golden against the engine's own `mix_dsp.h`, `hrp_render.h` and `hrp_lv2.h` and requires the committed digests, then its sabotage; a desk check, not run in CI |
 | `make room-ts-golden OPENMIXER=<checkout>` | runs core's room analysis and alignment fit from an OpenMixer checkout under node (22.6 or later) and requires the committed parity table `test/analysis/fixtures/room_ts.h`; a desk check, not run in CI |
 | `make eq-sabotage` | the EQ bank, head-filter and drawn-curve arms (`eq-curve`, `eq-design-ts`) against nine sabotaged copies of the headers; each must fail both arms (part of `make test`) |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
+
+`make -jN test` is supported. `tools/kernels-gen.sh` runs once, as the Make rule that produces
+`build/kernels-suite.inc.c` and `build/kernels-perturb.inc.c`; every target that reads them lists
+them as a prerequisite and no recipe or script calls the generator into `build/`. `make test-fx`
+is one target per kernel, instance, oracle, golden and perturbation script (`fx-run-*`), so `-j`
+runs them side by side; the set run and each assertion are the same as serially.
+`make gen-once` (`test/gen-once.sh`, part of `make test`) counts the generations under `-j8` and
+must see exactly one; it then re-adds the generator call to a recipe in a scratch copy of the
+Makefile, which must turn it red.
 
 Consumers compile the kernels through `pkg-config --cflags omxdsp`, which carries
 `-ffp-contract=off`: the kernels are inline, and without it an architecture with fused
@@ -96,7 +105,7 @@ checks that the goldens agree across glibc versions, or uses a libm-free word.
 
 The console declares six rates (`OMX_DECLARED_RATES`), and the kernels' contracts refuse any other
 with a `rate-is-declared` precondition. The dynamics, balance, rotor and limiter oracles also run at
-32, 64 and 128 kHz, the other rates of an RME interface (`OMX_FX_RME_RATES` in
+32, 64 and 128 kHz, the other rates of the oracle set (`OMX_FX_ORACLE_RATES` in
 `test/fx/fx_rates.h`), with contracts still on: there the `rate-is-declared` precondition is
 expected, and every other law must hold. Their golden digest files carry all nine rates.
 
@@ -105,7 +114,7 @@ expected, and every other law must hold. Their golden digest files carry all nin
 The sample-rate converter (`omx_src.h`), the generators (`omx_gen.h`) and the analyser's spectrum
 readings and half-band decimator (`analysis/omx_rta.h`) moved here from OpenMixer's engine unchanged in
 behaviour. Their oracles are suite arms (`test/kernels/src.c`, `gen.c`,
-`rta.c`); `test/engine_kernels/golden.test.c` hashes their output per kernel at the nine RME rates,
+`rta.c`); `test/engine_kernels/golden.test.c` hashes their output per kernel at the nine oracle rates,
 and `test/golden/engine_kernels.sha256` holds the digests the engine's own copies gave, written by
 `tools/engine-kernels-identity.sh --write`. `make engine-kernels-identity OPENMIXER=<checkout>`
 compiles the program again with those copies in place of the three headers, against the
@@ -152,7 +161,7 @@ bounds are omx-contract's (`OMX_FBS_MAX_NOTCH_DEPTH_DB`, `OMX_EQ_GAIN_RANGE_*`,
 `OMX_EQ_Q_RANGE_*`).
 
 Two kinds of oracle hold them. `test/analysis/align_fit.test.c`, `room.test.c` and
-`sweep.test.c` check closed forms at the nine RME rates (a known delay, gain, reflection,
+`sweep.test.c` check closed forms at the nine oracle rates (a known delay, gain, reflection,
 decay, set of resonances, sweep law) and count allocations. `test/analysis/room_ts.test.c` holds
 every result to what core's TypeScript computes on fixed inputs, from the parity table
 `test/analysis/fixtures/room_ts.h`: integers exactly, reals within 1e-9 relative (measured gap
@@ -186,7 +195,7 @@ here computes the same results, so the engine and the server can take them from 
 | catalog `octavesToQ` (catalog `eq.ts`) | `omx_eq_octaves_q` |
 
 `test/kernels/fixtures/eq_design_ts.h` is what that TypeScript computes on fixed inputs at the nine
-RME rates, written by `tools/ts-golden.mjs design <openmixer> <contract-ts>` (Node 22.7 or later;
+oracle rates, written by `tools/ts-golden.mjs design <openmixer> <contract-ts>` (Node 22.7 or later;
 `<contract-ts>` is omx-contract's TypeScript render, `omx-contract render --target ts --out <dir>`
 from a checkout of the installed release). The `eq-design-ts` arm holds the C to it: a coefficient, a Q or
 a frequency of the drawn grid within 4 ulp, a magnitude within 1e-9 dB, the bank's order, count and
@@ -209,7 +218,7 @@ them, and no other code computes them.
   through omx_biquad_d(), double history.
 - **Blocks.** The K-weighted squares, each leg weighted (1.0 for L, R, C; 1.41 for the surrounds;
   0 drops a leg, the LFE), are summed in 10 ms sub-blocks (`rate / 100` samples, a whole number at
-  each of the nine RME rates). Momentary loudness is the last 40 sub-blocks (400 ms), short-term
+  each of the nine oracle rates). Momentary loudness is the last 40 sub-blocks (400 ms), short-term
   the last 300 (3 s); a window that has not yet filled counts the missing time as silence.
 - **Gating.** Every 100 ms a full 400 ms block joins the integrated measurement and, once 3 s have
   passed, the short-term value joins the range. Neither keeps the blocks: each keeps a histogram of
@@ -228,7 +237,7 @@ computed at init, and a reading calls `pow` and `log10` at most twice. The state
 without pointers, exported with OMXDSP_STATE_LAYOUT.
 
 The oracle (`test/fx/loudness.test.c`) generates EBU Tech 3341's and 3342's test signals from
-their closed forms at each of the nine RME rates and holds the readings to the tolerances the
+their closed forms at each of the nine oracle rates and holds the readings to the tolerances the
 documents give: momentary, short-term and integrated ±0.1 LU, true peak +0.2/−0.4 dB, loudness
 range ±1 LU. Generated: 3341 signals 1 to 6, 9, 12 and 15 to 19, and 3342 signals 1 to 4. In
 place of the burst signals 10 and 13, a burst of exactly one window (3 s, 400 ms) at −23 dBFS is

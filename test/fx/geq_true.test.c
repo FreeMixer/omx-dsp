@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The graphic EQ's `true` mode oracle (omx_geq_instance_design / omx_geq_true_gains), at the nine
-// RME rates. The measured curve is the CASCADE the kernel runs: the
+// oracle rates. The measured curve is the CASCADE the kernel runs: the
 // sum of the designed sections' magnitudes, from the coefficients in the design, never the
 // solve's own matrix.
 //   T  at every rate the instance accepts, the designed cascade meets every fader at every ISO
@@ -292,12 +292,12 @@ static void arm_no_alloc(void) {
 int main(void) {
   (void)expect_clean;        /* the ledger is drained per rate below: 32, 64 and 128 kHz are undeclared */
   (void)sine;
-  (void)instance_oracle_end; /* the summary names the RME rates, not the declared ones */
+  (void)instance_oracle_end; /* the summary names the oracle rates, not the declared ones */
   omx_fx_require_rate_floor();
   omx_contract_reset();
   uint32_t unexplained = 0;
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_ORACLE_RATES[ri];
     arm_target();
     arm_teeth();
     arm_standard_identity();
@@ -310,6 +310,6 @@ int main(void) {
   }
   g_arm = "ledger";
   ok(unexplained == 0u, "no unexplained contract violation at any rate", unexplained, 0);
-  printf("fx/geq_true: %d checks, %d failed, %u RME rates\n", g_checks, g_failed, OMX_FX_RME_RATE_COUNT);
+  printf("fx/geq_true: %d checks, %d failed, %u oracle rates\n", g_checks, g_failed, OMX_FX_ORACLE_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }

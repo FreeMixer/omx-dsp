@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * The analysis engines' golden digests: every field FBS and the HRP chain answer, over fixed
- * spectra at the nine RME rates, hashed per engine and per rate and compared with
+ * spectra at the nine oracle rates, hashed per engine and per rate and compared with
  * test/golden/analysis.sha256.
  *
  *   make test-analysis                        compare
