@@ -74,8 +74,8 @@ library exists.
 
 %changelog
 * Mon Oct 19 2026 Pau Aliagas <linuxnow@gmail.com> - 0.24.1-1
-- The package build runs the tests one job per CPU, so the DEB build of a
-  release fits its time limit on the arm64 runners (0.24.0 has no arm64 DEB).
+- 0.24.0 has no arm64 DEB: its trixie arm64 build passed the release's job time
+  limit, which is now 90 minutes.
 - A release dispatched by hand builds the arm64 and aarch64 packages too.
 
 * Sun Oct 18 2026 Pau Aliagas <linuxnow@gmail.com> - 0.24.0-1

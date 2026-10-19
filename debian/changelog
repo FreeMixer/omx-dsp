@@ -1,7 +1,7 @@
 omx-dsp (0.24.1) unstable; urgency=medium
 
-  * The package build runs the tests one job per CPU, so the DEB build of a
-    release fits its time limit on the arm64 runners (0.24.0 has no arm64 DEB).
+  * 0.24.0 has no arm64 DEB: its trixie arm64 build passed the release's job
+    time limit, which is now 90 minutes.
   * A release dispatched by hand builds the arm64 and aarch64 packages too.
 
  -- Pau Aliagas <linuxnow@gmail.com>  Mon, 19 Oct 2026 06:00:00 +0000
