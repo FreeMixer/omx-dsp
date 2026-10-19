@@ -15,7 +15,10 @@ override_dh_auto_build:
 override_dh_auto_install:
 	dh_auto_install -- PREFIX=/usr LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH) INCLUDEDIR=/usr/include
 
+# the oracles run at nine rates: one job per CPU (make -j test is safe since the kernel lists are generated once)
+NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	$(MAKE) test
+	$(MAKE) -j$(or $(NUMJOBS),$(shell nproc)) test
 endif
