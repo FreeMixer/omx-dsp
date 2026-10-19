@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.24.0
+Version: 0.24.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -73,6 +73,11 @@ library exists.
 %{_datadir}/omxdsp/
 
 %changelog
+* Mon Oct 19 2026 Pau Aliagas <linuxnow@gmail.com> - 0.24.1-1
+- The package build runs the tests one job per CPU, so the DEB build of a
+  release fits its time limit on the arm64 runners (0.24.0 has no arm64 DEB).
+- A release dispatched by hand builds the arm64 and aarch64 packages too.
+
 * Sun Oct 18 2026 Pau Aliagas <linuxnow@gmail.com> - 0.24.0-1
 - Nine instance faces (drive, rotary, reverb, chorus, deesser, delay, eq,
   flanger and limiter) accept the nine oracle rates from 32 to 192 kHz, the
