@@ -16,6 +16,10 @@ on:
         description: 'Sign and publish; only a run on a tag publishes'
         type: boolean
         default: false
+      arm:
+        description: 'Build the arm64/aarch64 packages too (a dispatched release needs them, as a tag push does)'
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       publish:
