@@ -34,6 +34,10 @@ static void arm_units(void) {
      "omx_log10f: 0, negative, +inf, NaN", omx_log10f(0.0f), -INFINITY);
   ok(omx_lin_to_db(0.0f) == -180.0f, "silence is a finite -180 dB", omx_lin_to_db(0.0f), -180.0);
   ok(omx_lin_to_db(1e-12f) == -180.0f, "below the floor reads as the floor", omx_lin_to_db(1e-12f), -180.0);
+  ok(OMX_LIN_TO_DB_FLOOR_LIN == 1e-9f && OMX_LIN_TO_DB_FLOOR_DB == -180, "the declared floor is 1e-9 linear and -180 dB",
+     OMX_LIN_TO_DB_FLOOR_LIN, 1e-9);
+  ok(omx_lin_to_db(0.0f) == (float)OMX_LIN_TO_DB_FLOOR_DB && omx_lin_to_db_poly(0.0f) == omx_lin_to_db_poly(OMX_LIN_TO_DB_FLOOR_LIN),
+     "silence reads the declared floor in both conversions", omx_lin_to_db(0.0f), OMX_LIN_TO_DB_FLOOR_DB);
   /* The double-precision analysis word: floored where the CALLER says, exact against its closed form. */
   ok(omx_lin_to_db_d(1.0, 1e-12) == 0.0, "lin_to_db_d: unity is 0 dB", omx_lin_to_db_d(1.0, 1e-12), 0.0);
   ok(omx_lin_to_db_d(0.0, 1e-12) == -240.0, "lin_to_db_d: silence reads as the named floor", omx_lin_to_db_d(0.0, 1e-12), -240.0);

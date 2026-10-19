@@ -165,7 +165,7 @@ static inline void omx_loudness_reset(struct omx_loudness *s) {
  * @brief Arm a measurement of `channels` legs at `sr`: the K-weighting designed, the bin edges laid
  *        out, the weights taken, everything else cleared.
  * @param s The state.
- * @param sr The rate, Hz; 100 times a whole number of samples per 10 ms (every RME rate).
+ * @param sr The rate, Hz; 100 times a whole number of samples per 10 ms (every oracle rate).
  * @param channels The legs, 1 to OMX_LOUDNESS_MAX_CHANNELS; more are clamped.
  * @param weight Each leg's weight (BS.1770: 1.0 for L, R and C, 1.41 for the surrounds, 0 for
  *        the LFE); NULL for 1.0 on every leg.

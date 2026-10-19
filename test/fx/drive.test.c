@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * Oracle for the native DRIVE stage (omx_drive.h), every arm at every rate in OMX_FX_RME_RATES (the nine RME rates):
+ * Oracle for the native DRIVE stage (omx_drive.h), every arm at every rate in OMX_FX_ORACLE_RATES (the nine oracle rates):
  *   make test-fx
  *
  * WHAT THIS FILE IS FOR. A saturator's whole job is the harmonics it adds, so a test that only
@@ -67,13 +67,13 @@ static void check_num(int cond, const char *what, double got, double want) {
   if (!cond) { g_fail++; fprintf(stderr, "FAIL: %s — got %.4f, want %.4f\n", what, got, want); }
 }
 
-/* The rate the fixed-rate arms run at: main() walks it over OMX_FX_RME_RATES. */
+/* The rate the fixed-rate arms run at: main() walks it over OMX_FX_ORACLE_RATES. */
 static double g_sr = 96000.0;
 #define SR g_sr
 
 /*
  * THE MARKS, DECLARED PER RATE (omx-dsp#68, operator 2026-10-17). Two claims are asserted at each of
- * the nine RME rates, 32..192 kHz, against the mark that rate can hold. The stage stays 4x at every
+ * the nine oracle rates, 32..192 kHz, against the mark that rate can hold. The stage stays 4x at every
  * rate: 8x below 88.2 kHz costs 2.1 times the CPU and 12 more samples of latency and does not make one
  * set of marks hold (measured), so the marks differ by rate and each has its reason.
  *
@@ -858,8 +858,8 @@ static void test_enhancer_presets_closed_form(void) {
   const double tol_db = 0.1, floor_db = -80.0;
   double worst = 0.0;
   int asserted = 0;
-  for (uint32_t r = 0; r < OMX_FX_RME_RATE_COUNT; r++) {
-    const double sr = (double)OMX_FX_RME_RATES[r];
+  for (uint32_t r = 0; r < OMX_FX_ORACLE_RATE_COUNT; r++) {
+    const double sr = (double)OMX_FX_ORACLE_RATES[r];
     for (int e = 0; e < 3; e++) {
       const struct omx_drive p = preset_atom(&EXCITER_PRESETS[e], sr);
       for (int t = 0; t < 3; t++) {
@@ -889,16 +889,16 @@ static void test_enhancer_presets_closed_form(void) {
     }
   }
   printf("  arm A: %d harmonics above %.0f dB re the tone at %u rates, worst error %.4f dB (tol %.2f)\n",
-         asserted, floor_db, OMX_FX_RME_RATE_COUNT, worst, tol_db);
-  check(asserted >= 3 * (int)OMX_FX_RME_RATE_COUNT, "arm A asserted harmonics at every RME rate");
+         asserted, floor_db, OMX_FX_ORACLE_RATE_COUNT, worst, tol_db);
+  check(asserted >= 3 * (int)OMX_FX_ORACLE_RATE_COUNT, "arm A asserted harmonics at every oracle rate");
 }
 
 /* ARM B: exciterAir leaves a 100 Hz tone within mix·G·|HP(100 Hz)| of dry, + 1 dB. */
 static void test_enhancer_untouched_band(void) {
   static float x[NB], y[NB];
   const double amp = pow(10.0, -12.0 / 20.0);
-  for (uint32_t r = 0; r < OMX_FX_RME_RATE_COUNT; r++) {
-    const double sr = (double)OMX_FX_RME_RATES[r];
+  for (uint32_t r = 0; r < OMX_FX_ORACLE_RATE_COUNT; r++) {
+    const double sr = (double)OMX_FX_ORACLE_RATES[r];
     const struct omx_drive p = preset_atom(&EXCITER_PRESETS[0], sr);
     int k = tone_at(x, NB, 100.0, amp, sr);
     double f = (double)k * sr / (double)NB;
@@ -1061,9 +1061,9 @@ static void report_cost(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  printf("fx/drive oracle — chunk %u, %u RME rates\n", OMX_DRIVE_CHUNK, (unsigned)OMX_FX_RME_RATE_COUNT);
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    g_sr = (double)OMX_FX_RME_RATES[ri];
+  printf("fx/drive oracle — chunk %u, %u oracle rates\n", OMX_DRIVE_CHUNK, (unsigned)OMX_FX_ORACLE_RATE_COUNT);
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = (double)OMX_FX_ORACLE_RATES[ri];
     printf(" rate %.0f Hz\n", SR);
     test_control_analyser();
     test_bypass_is_untouched();
@@ -1083,6 +1083,6 @@ int main(void) {
   test_enhancer_untouched_band();
   g_sr = 96000.0; /* the cost is quoted at the rate the rig runs */
   report_cost();
-  printf("fx/drive: %d checks, %d failures (%u rates)\n", g_checks, g_fail, (unsigned)OMX_FX_RME_RATE_COUNT);
+  printf("fx/drive: %d checks, %d failures (%u rates)\n", g_checks, g_fail, (unsigned)OMX_FX_ORACLE_RATE_COUNT);
   return g_fail == 0 ? 0 : 1;
 }

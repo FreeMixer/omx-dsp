@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * @file mbcomp.test.c
- * @brief The multiband compressor's oracle at the nine RME rates (OMX_FX_RME_RATES, fx_rates.h),
+ * @brief The multiband compressor's oracle at the nine oracle rates (OMX_FX_ORACLE_RATES, fx_rates.h),
  *        every band count OMX_MBC_MIN_BANDS … OMX_MBC_MAX_BANDS at its come-up corners:
  *   O1 the sum at rest is flat (±0.01 dB);
  *   O2 the rest response is the product of the crossovers' allpasses (1e-5 per sample, float vs double);
@@ -374,8 +374,8 @@ static void arm_no_alloc(float sr) {
 int main(void) {
   omx_fx_require_rate_floor();
   omx_denormals_off();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     for (uint32_t b = OMX_MBC_MIN_BANDS; b <= OMX_MBC_MAX_BANDS; b++) {
       arm_rest(sr, b, OMX_DYN_OVS_OFF);
       drain(sr);
@@ -402,7 +402,7 @@ int main(void) {
   const uint32_t evaluated = omx_contract_log.checks;
   ok(g_unexplained == 0u, "contracts", "no unexplained contract violation", g_unexplained, 0, 0.0f, 0u);
   ok(evaluated >= 1000u, "contracts", "the run evaluated the stage's contracts", evaluated, 1000, 0.0f, 0u);
-  printf("fx/mbcomp: %d checks, %d failed, %u contracts evaluated (%u RME rates, bands %u..%u)\n", g_checks, g_failed,
-         evaluated, (unsigned)OMX_FX_RME_RATE_COUNT, (unsigned)OMX_MBC_MIN_BANDS, (unsigned)OMX_MBC_MAX_BANDS);
+  printf("fx/mbcomp: %d checks, %d failed, %u contracts evaluated (%u oracle rates, bands %u..%u)\n", g_checks, g_failed,
+         evaluated, (unsigned)OMX_FX_ORACLE_RATE_COUNT, (unsigned)OMX_MBC_MIN_BANDS, (unsigned)OMX_MBC_MAX_BANDS);
   return g_failed == 0 ? 0 : 1;
 }

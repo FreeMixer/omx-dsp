@@ -28,20 +28,20 @@ static inline void omx_fx_require_rate_floor(void) {
   }
 }
 
-/** The nine rates an RME interface clocks at, 32 to 192 kHz. The console declares six of them
+/** The nine rates of the oracle set, 32 to 192 kHz. The console declares six of them
  * (OMX_DECLARED_RATES); an oracle that runs here also covers 32, 64 and 128 kHz, where a kernel
  * still has to meet its closed form even though the console never asks for them. */
-#define OMX_FX_RME_RATE_COUNT OMX_RME_RATES_COUNT
-static const float OMX_FX_RME_RATES[OMX_FX_RME_RATE_COUNT] = OMX_RME_RATES_INIT;
+#define OMX_FX_ORACLE_RATE_COUNT OMX_ORACLE_FULL_RATES_COUNT
+static const float OMX_FX_ORACLE_RATES[OMX_FX_ORACLE_RATE_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 /** The nine cover every declared rate, so an oracle that loops over the nine tests no less than the
  * declaration; a declared rate missing from them stops the suite (exit 2). */
 static inline void omx_fx_require_full_rates_cover_declared(void) {
   for (unsigned k = 0; k < OMX_DECLARED_RATE_COUNT; k++) {
     int found = 0;
-    for (unsigned i = 0; i < OMX_FX_RME_RATE_COUNT; i++) found |= OMX_FX_RME_RATES[i] == OMX_DECLARED_RATES[k];
+    for (unsigned i = 0; i < OMX_FX_ORACLE_RATE_COUNT; i++) found |= OMX_FX_ORACLE_RATES[i] == OMX_DECLARED_RATES[k];
     if (!found) {
-      fprintf(stderr, "OMX_FX_RME_RATES lacks the declared %.0f Hz\n", (double)OMX_DECLARED_RATES[k]);
+      fprintf(stderr, "OMX_FX_ORACLE_RATES lacks the declared %.0f Hz\n", (double)OMX_DECLARED_RATES[k]);
       exit(2);
     }
   }

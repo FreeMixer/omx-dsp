@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * align_fdelay.test.c (formerly the console's mix_align_fdelay.test.c) — the STRIP ALIGNMENT stage
- * (omx_align.h) on the fractional line, against closed forms, at the nine RME rates
- * (32 / 44.1 / 48 / 64 / 88.2 / 96 / 128 / 176.4 / 192 kHz, OMX_FX_RME_RATES): 64 and 128 kHz
+ * (omx_align.h) on the fractional line, against closed forms, at the nine oracle rates
+ * (32 / 44.1 / 48 / 64 / 88.2 / 96 / 128 / 176.4 / 192 kHz, OMX_FX_ORACLE_RATES): 64 and 128 kHz
  * sit either side of OMX_ALIGN_FRACTION_MIN_RATE, and 32 kHz is where the ring is least used.
  *
  * The primitive's own oracle is test/kernels/fdelay.c; this file
@@ -84,9 +84,9 @@ static void check(int ok, const char *what) {
   }
 }
 
-/* The nine RME rates (OMX_FX_RME_RATES, test/fx/fx_rates.h, generated — never a local list). */
-#define NRATES ((int)OMX_FX_RME_RATE_COUNT)
-#define RATE(i) ((double)OMX_FX_RME_RATES[(i)])
+/* The nine oracle rates (OMX_FX_ORACLE_RATES, test/fx/fx_rates.h, generated — never a local list). */
+#define NRATES ((int)OMX_FX_ORACLE_RATE_COUNT)
+#define RATE(i) ((double)OMX_FX_ORACLE_RATES[(i)])
 
 static float g_rl[OMX_ALIGN_CAP], g_rr[OMX_ALIGN_CAP];
 

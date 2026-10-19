@@ -11,7 +11,7 @@
  *   make test-fx                             compare
  *   build/fx_dynamics_golden --write         print the lines test/golden/dynamics.sha256 holds
  */
-#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
+#define OMX_FX_GOLDEN_ORACLE_RATES 1 /* held at the nine oracle rates */
 
 #include <stdint.h>
 

@@ -55,7 +55,7 @@ static void arm_magnitude_ts(void) {
     }
     magnitude_drain(tc->sr);
   }
-  printf("magnitude-ts: %u curves at the nine RME rates (%u with a low-pass past the hand-over left out, omx-dsp#105), "
+  printf("magnitude-ts: %u curves at the nine oracle rates (%u with a low-pass past the hand-over left out, omx-dsp#105), "
          "largest gap from eqCurveDb %.3g dB (bound %.0e)\n", ncurves, skipped, worst, MAGNITUDE_TS_TOL_DB);
   ok(skipped < ncurves / 2u, "the hand-over leaves most curves held", (double)skipped, (double)ncurves);
   expect_clean();

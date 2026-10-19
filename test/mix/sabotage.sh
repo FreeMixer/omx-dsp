@@ -139,4 +139,7 @@ run bus_out_gain mix_bus_stage omx_bus_stage.h 's|  omx_bus_out_apply(busL, busR
 run_arm balance_range mix_bus_stage omx_bus_stage.h 's|  OMX_PRE(balance >= -1.0f \&\& balance <= 1.0f, "balance-within-declared-range");|  OMX_PRE(1, "balance-within-declared-range");|'
 run_arm fold_range mix_bus_stage omx_bus_stage.h 's|  OMX_POST(tgtL >= -1e-6f \&\& |  OMX_POST(1 ? 1 : |'
 run bus_out_stage mix_bus_stage omx_bus_stage.h 's|  const float next_l = omx_meter_hold_peak(held_l, mL);|  const float next_l = omx_meter_hold_peak(held_l, mR);|'
+run key mix_key omx_key.h 's|    omx_rta_tap_mono_sum(kb, l, r, n);|    omx_rta_tap_mono_sum(kb, l, l, n);|'
+run pb mix_src_blend omx_src_blend.h 's|    track\[i\] = l + a \* (track\[i\] - l);|    track[i] = l + a * (track[i] + l);|'
+run level mix_meter omx_meter.h 's|  const double db = peak > 0.0f ? 20.0 \* log10((double)peak) : min;|  const double db = peak > 0.0f ? 20.0001 * log10((double)peak) : min;|'
 echo "mix-sabotage: every kernel's sabotage turns its oracle and its digests red"

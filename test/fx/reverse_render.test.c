@@ -13,7 +13,7 @@
  * The live `reverse` voice is the control arm on the SAME click: it must put its energy on the
  * other side of the hit. One kernel, two placements — that is the design.
  *
- * Every arm runs at the nine RME rates (OMX_FX_RME_RATES, 32 to 192 kHz) over a 2 s region with
+ * Every arm runs at the nine oracle rates (OMX_FX_ORACLE_RATES, 32 to 192 kHz) over a 2 s region with
  * the click at 1 s.
  */
 #include <math.h>
@@ -222,8 +222,8 @@ static void test_the_regions_last_sample_is_covered(void) {
 }
 
 int main(void) {
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    SR = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    SR = OMX_FX_ORACLE_RATES[ri];
     N = 2u * (uint32_t)SR;
     HIT = (uint32_t)SR;
     printf(" %.0f Hz\n", (double)SR);
@@ -233,6 +233,6 @@ int main(void) {
     test_mix_zero_is_bit_identical_and_off_refuses();
     test_the_regions_last_sample_is_covered();
   }
-  printf("fx/reverse_render: %d checks, %d failed, %u rates\n", g_checks, g_fail, (unsigned)OMX_FX_RME_RATE_COUNT);
+  printf("fx/reverse_render: %d checks, %d failed, %u rates\n", g_checks, g_fail, (unsigned)OMX_FX_ORACLE_RATE_COUNT);
   return g_fail ? 1 : 0;
 }
