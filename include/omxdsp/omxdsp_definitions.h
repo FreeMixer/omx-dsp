@@ -154,34 +154,6 @@
 #define OMX_TRANSIENT_OUTPUT_DB_MAX 12.0f
 #define OMX_TRANSIENT_OUTPUT_DB_DEFAULT 0.0f
 
-/* The second C spelling of a travel, its item's `c.alias` { fact, field }:
- * OMX_<FACT>_<FIELD>_MIN/_MAX/_DEFAULT. Removed by a MAJOR release once no consumer reads it. */
-#define OMX_PAN_PAN_MIN -1.0f
-#define OMX_PAN_PAN_MAX 1.0f
-
-#define OMX_DELAY_TIME_MS_MIN 0.0f
-#define OMX_DELAY_TIME_MS_MAX 2000.0f
-#define OMX_DELAY_TIME_MS_DEFAULT 300.0f
-#define OMX_DELAY_TAPS_MIN 1.0f
-#define OMX_DELAY_TAPS_MAX 4.0f
-#define OMX_DELAY_TAPS_DEFAULT 1.0f
-
-#define OMX_DRIVE_DRIVE_DB_MIN 0.0f
-#define OMX_DRIVE_DRIVE_DB_MAX 36.0f
-#define OMX_DRIVE_DRIVE_DB_DEFAULT 0.0f
-#define OMX_DRIVE_CHARACTER_MIN -1.0f
-#define OMX_DRIVE_CHARACTER_MAX 1.0f
-#define OMX_DRIVE_CHARACTER_DEFAULT 0.0f
-#define OMX_DRIVE_BAND_HZ_MIN 20.0f
-#define OMX_DRIVE_BAND_HZ_MAX 20000.0f
-#define OMX_DRIVE_BAND_HZ_DEFAULT 2000.0f
-#define OMX_DRIVE_MIX_MIN 0.0f
-#define OMX_DRIVE_MIX_MAX 100.0f
-#define OMX_DRIVE_MIX_DEFAULT 100.0f
-#define OMX_DRIVE_TRIM_DB_MIN -24.0f
-#define OMX_DRIVE_TRIM_DB_MAX 12.0f
-#define OMX_DRIVE_TRIM_DB_DEFAULT 0.0f
-
 /* Every scalar, sheet leaf and single travel's numbers, one block sorted by macro. An integer value
  * is an integer literal, any other a float literal AND its OMX_<macro>_DOUBLE spelling. */
 #define OMX_ALLPASS_UNITY_TOLERANCE 0.0001f

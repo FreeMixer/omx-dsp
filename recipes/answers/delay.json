@@ -21,13 +21,7 @@
         "default": 300,
         "defaultFrom": "desk"
       },
-      "doc": "The FX delay's time travel. `max` is the NATIVE ring's ceiling — the same number as `OMX_FXDELAY_MAX_MS` in `omx_delay.h`, pinned to it by the engine's conformance test. Distinct from the per-route ALIGNMENT delay (`OUTPUT_DELAY_RANGE`, 1 s, `OMX_DELAY_MAX_MS`): one is a musical echo with feedback and mix, the other is a pure latency. Two facts, two rings, two ceilings — sharing the word \"delay\" is why they keep being confused for each other.",
-      "c": {
-        "alias": {
-          "fact": "delay",
-          "field": "timeMs"
-        }
-      }
+      "doc": "The FX delay's time travel. `max` is the NATIVE ring's ceiling — the same number as `OMX_FXDELAY_MAX_MS` in `omx_delay.h`, pinned to it by the engine's conformance test. Distinct from the per-route ALIGNMENT delay (`OUTPUT_DELAY_RANGE`, 1 s, `OMX_DELAY_MAX_MS`): one is a musical echo with feedback and mix, the other is a pure latency. Two facts, two rings, two ceilings — sharing the word \"delay\" is why they keep being confused for each other."
     },
     {
       "name": "FX_DELAY_FEEDBACK_RANGE",
@@ -122,13 +116,7 @@
         "defaultFrom": "desk"
       },
       "doc": "How many integer read taps of the FX delay's one ring are engaged. 1 is the one-tap delay, bit for bit; `max` is the tap-array ceiling the kernel sizes its arrays by, so the arrays and the travel are one fact. An array extent is an integer constant: the C reader takes OMX_FX_DELAY_TAPS_RANGE_MAX (4) for `OMX_FXDELAY_MAX_TAPS` in `omx_delay.h`, never the alias OMX_DELAY_TAPS_MAX, which is the float 4.0f.",
-      "since": "2.14.0",
-      "c": {
-        "alias": {
-          "fact": "delay",
-          "field": "taps"
-        }
-      }
+      "since": "2.14.0"
     },
     {
       "name": "DELAY_TAP_LIMITS",
