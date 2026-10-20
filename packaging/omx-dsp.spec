@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.24.1
+Version: 0.25.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 2.16.0
+BuildRequires: omx-contract-devel >= 3.0.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -34,7 +34,7 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 2.16.0
+Requires: omx-contract-devel >= 3.0.0
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -73,6 +73,20 @@ library exists.
 %{_datadir}/omxdsp/
 
 %changelog
+* Tue Oct 20 2026 Pau Aliagas <linuxnow@gmail.com> - 0.25.0-1
+- Built against omx-contract 3.0.0, the schema's major 3: data/ installs
+  under contract.d/3/omx-dsp/ and every definition file requires
+  omx-contract-schema >= 3.0.0.
+- The second C spellings of eight travels (their c.alias) are gone:
+  OMX_PAN_PAN_*, OMX_DELAY_TIME_MS_*, OMX_DELAY_TAPS_* and OMX_DRIVE_*_*.
+  Read PAN_RANGE as OMX_PAN_RANGE_MIN/MAX and the others by their
+  travels' own names.
+- New header omxdsp/omx_eq_defaults.h: omx_eq_default_centres and
+  omx_eq_default_type, the one default rule for the bands of a fresh EQ,
+  moved from omx-contract's header with the same results for every band
+  count; make eq-default-bands holds them to the rule's answers.
+- omx-contract-devel >= 3.0.0.
+
 * Mon Oct 19 2026 Pau Aliagas <linuxnow@gmail.com> - 0.24.1-1
 - 0.24.0 has no arm64 DEB: its trixie arm64 build passed the release's job time
   limit, which is now 90 minutes.
