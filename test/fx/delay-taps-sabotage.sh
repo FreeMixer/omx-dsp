@@ -65,7 +65,7 @@ run no-clamp "D" 's|    td\[k\] = omx_fxdelay_clamp(t->d\[k\], cap);|    td[k] =
 run tap0-gain "A" 's|  gl\[0\] = ntaps == 0u ? 1.0f : omx_fxdelay_tap_gain(t->gl\[0\]);|  gl[0] = ntaps == 0u ? 1.0f : 0.999f * omx_fxdelay_tap_gain(t->gl[0]);|' & pids+=($!)
 run no-ms-clamp "D" 's|  const float out = over ? (float)top : (float)ms;|  const float out = (float)ms;|' & pids+=($!)
 run rounded-base "F" 's|(double)base_ms \* (double)num / (double)den|(double)roundf(base_ms) * (double)num / (double)den|' & pids+=($!)
-run constant-power "G" 's|  omx_balance_law(omx_clamp_or(pan, OMX_PAN_PAN_MIN, OMX_PAN_PAN_MAX, 0.0f), &bl, &br);|  { const float q = (omx_clamp_or(pan, OMX_PAN_PAN_MIN, OMX_PAN_PAN_MAX, 0.0f) + 1.0f) * 0.785398163f; bl = cosf(q); br = sinf(q); }|' & pids+=($!)
+run constant-power "G" 's|  omx_balance_law(omx_clamp_or(pan, (float)OMX_PAN_RANGE_MIN, (float)OMX_PAN_RANGE_MAX, 0.0f), &bl, &br);|  { const float q = (omx_clamp_or(pan, (float)OMX_PAN_RANGE_MIN, (float)OMX_PAN_RANGE_MAX, 0.0f) + 1.0f) * 0.785398163f; bl = cosf(q); br = sinf(q); }|' & pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 if [ "$failed" -ne 0 ]; then
