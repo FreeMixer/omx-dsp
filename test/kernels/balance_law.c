@@ -23,8 +23,8 @@ static void arm_balance_law(void) {
     ok(bl == table[i].bl, "the table's left leg, bit for bit", bl, table[i].bl);
     ok(br == table[i].br, "the table's right leg, bit for bit", br, table[i].br);
   }
-  ok(omx_clamp_pan(2.0f) == OMX_PAN_PAN_MAX, "the clamp holds the declared maximum", omx_clamp_pan(2.0f), OMX_PAN_PAN_MAX);
-  ok(omx_clamp_pan(-2.0f) == OMX_PAN_PAN_MIN, "the clamp holds the declared minimum", omx_clamp_pan(-2.0f), OMX_PAN_PAN_MIN);
+  ok(omx_clamp_pan(2.0f) == (float)OMX_PAN_RANGE_MAX, "the clamp holds the declared maximum", omx_clamp_pan(2.0f), (float)OMX_PAN_RANGE_MAX);
+  ok(omx_clamp_pan(-2.0f) == (float)OMX_PAN_RANGE_MIN, "the clamp holds the declared minimum", omx_clamp_pan(-2.0f), (float)OMX_PAN_RANGE_MIN);
   ok(omx_clamp_pan(0.3f) == 0.3f, "the clamp passes an in-range pan", omx_clamp_pan(0.3f), 0.3);
 
   for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
