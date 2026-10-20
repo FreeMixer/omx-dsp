@@ -200,6 +200,9 @@ jobs:
       - name: make contract-dir
         run: make contract-dir OMX_CONTRACT=/tmp/omx-contract
 
+      - name: make eq-defaults-table
+        run: make eq-defaults-table
+
   docs:
     name: make docs (the public headers are fully documented)
     runs-on: ubuntu-latest
