@@ -51,6 +51,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_denormal.h"
 #include "omx_divider.h"
 #include "omx_envelope.h"
+#include "omx_eq_defaults.h"
 #include "omx_eq_design.h"
 #include "omx_fader_law.h"
 #include "omx_fdelay.h"
