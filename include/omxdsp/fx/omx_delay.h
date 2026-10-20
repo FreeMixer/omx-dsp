@@ -210,7 +210,7 @@ static inline void omx_fxdelay_tap_legs(float gain, float pan, float *gl, float 
   const float g = omx_clamp_or(gain, 0.0f, 1.0f, 0.0f);
   /* A non-finite pan is centre: the balance law would carry a NaN into both legs' gains. */
   float bl, br;
-  omx_balance_law(omx_clamp_or(pan, OMX_PAN_PAN_MIN, OMX_PAN_PAN_MAX, 0.0f), &bl, &br);
+  omx_balance_law(omx_clamp_or(pan, (float)OMX_PAN_RANGE_MIN, (float)OMX_PAN_RANGE_MAX, 0.0f), &bl, &br);
   *gl = g * bl;
   *gr = g * br;
   OMX_POST(*gl >= 0.0f && *gl <= 1.0f && *gr >= 0.0f && *gr <= 1.0f, "a-tap-gain-is-inside-unity");
