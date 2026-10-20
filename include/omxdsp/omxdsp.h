@@ -16,9 +16,9 @@
 /** @brief API major version: a symbol's meaning changes only with a bump here. */
 #define OMXDSP_VERSION_MAJOR 0
 /** @brief API minor version: additions only. */
-#define OMXDSP_VERSION_MINOR 24
+#define OMXDSP_VERSION_MINOR 25
 /** @brief Patch version: no API change. */
-#define OMXDSP_VERSION_PATCH 1
+#define OMXDSP_VERSION_PATCH 0
 
 /**
  * @brief The library version as one word, `major << 16 | minor << 8 | patch`.
@@ -51,6 +51,7 @@ static inline uint32_t omxdsp_version(void) {
 #include "omx_denormal.h"
 #include "omx_divider.h"
 #include "omx_envelope.h"
+#include "omx_eq_defaults.h"
 #include "omx_eq_design.h"
 #include "omx_fader_law.h"
 #include "omx_fdelay.h"

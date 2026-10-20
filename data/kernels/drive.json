@@ -1,7 +1,7 @@
 {
   "$schema": "../../schema/omx-contract.schema.json",
   "requires": {
-    "omx-contract-schema": ">= 2.15.0"
+    "omx-contract-schema": ">= 3.0.0"
   },
   "controls": [
     {
@@ -22,12 +22,6 @@
         "unit": "dB",
         "default": 0,
         "defaultFrom": "desk"
-      },
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "driveDb"
-        }
       }
     },
     {
@@ -48,12 +42,6 @@
         "unit": "",
         "default": 0,
         "defaultFrom": "desk"
-      },
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "character"
-        }
       }
     },
     {
@@ -74,12 +62,6 @@
         "unit": "Hz",
         "default": 2000,
         "defaultFrom": "desk"
-      },
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "bandHz"
-        }
       }
     },
     {
@@ -100,12 +82,6 @@
         "unit": "%",
         "default": 100,
         "defaultFrom": "desk"
-      },
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "mix"
-        }
       }
     },
     {
@@ -126,12 +102,6 @@
         "unit": "dB",
         "default": 0,
         "defaultFrom": "desk"
-      },
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "trimDb"
-        }
       }
     },
     {

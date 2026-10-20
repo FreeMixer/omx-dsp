@@ -38,6 +38,10 @@
 #   make pitch-rates-sabotage  the pitch oracles fail at 32, 64 and 128 kHz against two sabotages
 #   make instance-rates-sabotage  the nine instance faces' oracles fail at 32, 64 and 128 kHz against the declared-only gate put back, and the deesser's against its Nyquist cap removed
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
+#   make eq-default-bands  omx_eq_default_centres() and omx_eq_default_type() give test/golden/eq_default_bands.txt
+#               for 1..62 bands, and every count EQ_BAND_COUNTS declares has its default bands
+#   make eq-defaults-table  test/golden/eq_default_bands.txt is the rule's JavaScript spelling over data/
+#               (tools/eq-defaults-golden.mjs, node)
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
 #   make public-sources-messages  the same over the commit messages of origin/main..HEAD (RANGE=a..b to choose)
 #   make docs   the API reference by doxygen (build-time only)
@@ -144,7 +148,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -250,6 +254,17 @@ $(BUILD)/eq_bandwidth_q_table: test/eq_bandwidth_q_table.c $(LIB) $(HEADERS) | $
 bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 	./$(BUILD)/eq_bandwidth_q_table | diff -u test/golden/eq_bandwidth_q.json -
 	@echo "bandwidth-q-table: test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s"
+
+# THE default EQ rule (omx_eq_defaults.h, moved from omx-contract's C render at 3.0.0) against its
+# JavaScript spelling's answers (tools/eq-defaults-golden.mjs writes the golden; no node here).
+$(BUILD)/eq_default_bands: test/eq_default_bands.c $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
+
+eq-default-bands: $(BUILD)/eq_default_bands
+	./$(BUILD)/eq_default_bands test/golden/eq_default_bands.txt
+
+eq-defaults-table:
+	node tools/eq-defaults-golden.mjs --check
 
 # The generator runs once under make -j8 (test/gen-once.sh), and a Makefile that calls it from a recipe again turns it red.
 gen-once: $(HEADERS) test/gen-once.sh | $(BUILD)
@@ -592,7 +607,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks copy-check gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks copy-check gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
