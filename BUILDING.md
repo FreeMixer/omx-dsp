@@ -25,6 +25,9 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make strip-input-identity OMX_PLUGINS=<checkout>` | renders omx-plugins' channel strip's own input stage (`plugins/omx-strip/omx_strip.h`) and requires the trim face's golden digests, then its sabotage; a desk check, not run in CI |
 | `make analysis-engine-identity OPENMIXER=<checkout>` | builds the analysis golden against the engine's own `mix_dsp.h`, `hrp_render.h` and `hrp_lv2.h` and requires the committed digests, then its sabotage; a desk check, not run in CI |
 | `make room-ts-golden OPENMIXER=<checkout>` | runs core's room analysis and alignment fit from an OpenMixer checkout under node (22.6 or later) and requires the committed parity table `test/analysis/fixtures/room_ts.h`; a desk check, not run in CI |
+| `make ts-golden-curve OPENMIXER=<checkout>` | runs core's TypeScript `eqCurveDb` from an OpenMixer checkout under node (22.6 or later) and requires the committed fixture `test/kernels/fixtures/eq_curve_ts.h`; a desk check, not run in CI |
+| `make ts-golden-design OPENMIXER=<checkout>` | runs every EQ design and curve function openmixer's TypeScript computes from an OpenMixer checkout under node (22.7 or later) and requires the committed fixture `test/kernels/fixtures/eq_design_ts.h`; a desk check, not run in CI |
+| `make ts-golden-bandwidth-q OPENMIXER=<checkout>` | holds openmixer's TypeScript `bandwidthOctavesQ` to the committed law table `test/golden/eq_bandwidth_q.json` within `MAX_ULPS`; a desk check, not run in CI |
 | `make eq-sabotage` | the EQ bank, head-filter and drawn-curve arms (`eq-curve`, `eq-design-ts`) against nine sabotaged copies of the headers; each must fail both arms (part of `make test`) |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
@@ -202,8 +205,14 @@ a frequency of the drawn grid within 4 ulp, a magnitude within 1e-9 dB, the bank
 parked sections exactly. Two families of coefficient pass 4 ulp, both a cancellation that turns one
 ulp of V8's `exp` or `cos` into many (a matched bell or shelf at a low corner or a wide Q, and the
 fitted low-pass's b2 far below Nyquist); they are held to 1e-13 absolute, and the arm prints the
-largest gap of each kind. Regenerate the fixture when openmixer's TypeScript changes, until it is
-deleted. The `eq-curve` arm holds the same functions to closed forms.
+largest gap of each kind. `make ts-golden-design OPENMIXER=<checkout>` writes the fixture again and
+requires the committed file; run it whenever openmixer's TypeScript changes, until it is deleted.
+The `eq-curve` arm holds the same functions to closed forms, against the fixture
+`test/kernels/fixtures/eq_curve_ts.h` that `make ts-golden-curve OPENMIXER=<checkout>` writes again
+(`tools/ts-golden.mjs curve <openmixer> <contract-ts>`). `make ts-golden-bandwidth-q
+OPENMIXER=<checkout>` holds `bandwidthOctavesQ` to the committed law table
+`test/golden/eq_bandwidth_q.json` (`tools/ts-golden.mjs bandwidth-q <openmixer> <contract-ts>
+test/golden/eq_bandwidth_q.json`, FreeMixer/omx-dsp#41).
 
 ## Loudness
 
