@@ -1,7 +1,7 @@
 {
   "$schema": "../../schema/omx-contract.schema.json",
   "requires": {
-    "omx-contract-schema": ">= 2.15.0"
+    "omx-contract-schema": ">= 3.0.0"
   },
   "controls": [
     {
@@ -23,12 +23,6 @@
         "unit": "ms",
         "default": 300,
         "defaultFrom": "desk"
-      },
-      "c": {
-        "alias": {
-          "fact": "delay",
-          "field": "timeMs"
-        }
       }
     },
     {
@@ -129,12 +123,6 @@
         "unit": "",
         "default": 1,
         "defaultFrom": "desk"
-      },
-      "c": {
-        "alias": {
-          "fact": "delay",
-          "field": "taps"
-        }
       }
     },
     {

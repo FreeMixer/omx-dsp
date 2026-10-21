@@ -63,6 +63,7 @@
 
 #include <omxdsp/omx_biquad.h>
 #include <omxdsp/omxdsp_definitions.h>
+#include <omxdsp/omx_eq_defaults.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_param.h>
 
@@ -350,14 +351,14 @@ static inline void omx_eq_lv2_run(struct omx_eq_lv2 *e, const float *in, float *
 
 /** The defaults a word reads when its port is not connected (eq_lv2.c's `ctl(…, dflt)` arguments),
  * all declared in omx-contract: the pass filters' corners, a band's gain and Q, all off. A band's
- * type and centre are the contract's one default rule for a bank of OMX_EQ_LV2_BANDS bands
- * (omx_eq_default_type, omx_eq_default_centres). */
+ * type and centre are the one default rule for a bank of OMX_EQ_LV2_BANDS bands (omx_eq_defaults.h:
+ * omx_eq_default_type, omx_eq_default_centres). */
 #define OMX_EQ_LV2_HPF_FREQ_DEFAULT ((float)OMX_EQ_PASS_FILTER_DEFAULTS_HPF_FREQ_HZ)
 #define OMX_EQ_LV2_LPF_FREQ_DEFAULT ((float)OMX_EQ_PASS_FILTER_DEFAULTS_LPF_FREQ_HZ)
 #define OMX_EQ_LV2_BAND_GAIN_DEFAULT ((float)OMX_EQ_BAND_DEFAULTS_GAIN_DB)
 #define OMX_EQ_LV2_BAND_Q_DEFAULT ((float)OMX_EQ_BAND_DEFAULTS_Q)
 
-/** Band `i`'s default centre in a bank of OMX_EQ_LV2_BANDS bands, Hz: the contract's rule. Run only
+/** Band `i`'s default centre in a bank of OMX_EQ_LV2_BANDS bands, Hz: omx_eq_default_centres(). Run only
  * for an unconnected frequency port, so a plugin host (every port connected) never pays for it. */
 static inline float omx_eq_lv2_band_freq_default(uint32_t i) {
   float centres[OMX_EQ_LV2_BANDS];
@@ -429,7 +430,7 @@ static inline void omx_eq_lv2_set_controls(struct omx_eq_lv2 *e, const struct om
  *
  * Every travel is clamped into its declared range, a non-finite word reading as the declared
  * default (the pass filters' corners EQ_PASS_FILTER_DEFAULTS, a band's gain and Q
- * EQ_BAND_DEFAULTS, its centre the contract's default rule for the band count); a switch, slope or
+ * EQ_BAND_DEFAULTS, its centre the default rule for the band count (omx_eq_defaults.h)); a switch, slope or
  * type outside its ids reads as its declared default (off, 12 dB/oct, bell). The setters redesign a
  * section only when it moved. Bypass empties the bank (a wire); the section histories are kept
  * across it, as the mono core keeps them. LATENCY IS ZERO.

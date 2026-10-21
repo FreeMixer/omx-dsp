@@ -1,3 +1,20 @@
+omx-dsp (0.25.0) unstable; urgency=medium
+
+  * Built against omx-contract 3.0.0, the schema's major 3: data/ installs
+    under contract.d/3/omx-dsp/ and every definition file requires
+    omx-contract-schema >= 3.0.0.
+  * The second C spellings of eight travels (their c.alias) are gone:
+    OMX_PAN_PAN_*, OMX_DELAY_TIME_MS_*, OMX_DELAY_TAPS_* and OMX_DRIVE_*_*.
+    Read PAN_RANGE as OMX_PAN_RANGE_MIN/MAX and the others by their
+    travels' own names.
+  * New header omxdsp/omx_eq_defaults.h: omx_eq_default_centres and
+    omx_eq_default_type, the one default rule for the bands of a fresh EQ,
+    moved from omx-contract's header with the same results for every band
+    count; make eq-default-bands holds them to the rule's answers.
+  * libomx-contract-dev (>= 3.0.0).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 20 Oct 2026 20:00:00 +0000
+
 omx-dsp (0.24.1) unstable; urgency=medium
 
   * 0.24.0 has no arm64 DEB: its trixie arm64 build passed the release's job
