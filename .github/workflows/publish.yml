@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+name: Publish the TypeScript twins to npm
+
+# Publishes @openmixer/omx-dsp (ts/: the TypeScript twins of omx-dsp kernels) to
+# npmjs.org by npm trusted publishing (OIDC, no token anywhere), modelled on omx-contract's publish.yml. npmjs.com
+# trusts the CALLER of the publish by repository + workflow filename (+ environment when one is set there; none is):
+#   Repository: FreeMixer/omx-dsp    Workflow filename: publish.yml    Environment: (none)
+# A version tag publishes (the library's own tag: ts/package.json carries the library version); a manual dispatch
+# is a dry run unless asked otherwise. Only the public repository publishes.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Pack and run `npm publish --dry-run` only (npm skips the OIDC exchange on a dry run)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.repository == 'FreeMixer/omx-dsp'
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    # job-level: a workflow-level id-token grant does not reliably reach the job
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Install the build tools
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf dpkg-dev
+      - uses: actions/checkout@v4
+      - name: Install the build dependencies from the FreeMixer channel
+        run: |
+          set -euo pipefail
+          install -d /etc/apt/keyrings
+          curl -fsSL -o /etc/apt/keyrings/freemixer.asc https://freemixer.github.io/deb/freemixer.asc
+          echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] https://freemixer.github.io/deb/debian/trixie ./" > /etc/apt/sources.list.d/freemixer.list
+          apt-get update -qq
+          apt-get build-dep -y --no-install-recommends ./
+      - name: The library the twins are checked against
+        run: make -j"$(nproc)" lib
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - name: npm 11 (trusted publishing needs >= 11.5.1)
+        run: |
+          npm install -g npm@'^11'
+          npm --version
+      - name: The twins agree with the kernels before they are published
+        working-directory: ts
+        run: |
+          set -o pipefail
+          npm ci
+          npm test 2>&1 | tee /tmp/ts-test.log
+          grep -q 'linked against the tree' /tmp/ts-test.log
+      - name: The package version is the library version (and the tag)
+        working-directory: ts
+        run: |
+          v=$(node -p "require('./package.json').version")
+          [ "$v" = "$(make -s -C .. version)" ] || { echo "ts/package.json $v is not the library's $(make -s -C .. version)"; exit 1; }
+          if [ "${GITHUB_REF_TYPE}" = tag ]; then [ "${GITHUB_REF_NAME}" = "v$v" ] || { echo "tag ${GITHUB_REF_NAME} is not v$v"; exit 1; }; fi
+      - name: Publish @openmixer/omx-dsp
+        working-directory: ts
+        env:
+          DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run && '--dry-run' || '' }}
+        run: npm publish --provenance --access public $DRY
