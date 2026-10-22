@@ -22,12 +22,12 @@
  *
  *   A — THE DELAY FOLLOWS THE LFO. The wet-only impulse response's CENTROID is the delay the
  *       stage is reading at (an order-N Lagrange kernel reproduces a linear function exactly, so
- *       its coefficients' first moment IS the read point). Sixteen phases across the turn, four
+ *       its coefficients' first moment IS the read point). Sixteen phases across the turn, nine
  *       rates, against `base + depth·(1 + s(φ))/2`. A positive control requires the same measure
  *       to REJECT a prediction half a sample away, so "it follows" is not a claim a blunt ruler
  *       would also make.
  *   B — THE SWEPT COMB. |H(f)| across the band against the closed form, complex, at eight phases
- *       and four rates; then the NOTCH FREQUENCY ITSELF, found by scanning the measured response
+ *       and nine rates; then the NOTCH FREQUENCY ITSELF, found by scanning the measured response
  *       for its minimum and compared against (2m+1)/(2d(φ)) — the notch MOVES with the phase, and
  *       the arm measures where it moved to rather than that it is deep where it was predicted.
  *   C — THE VOICES. N = 1..4: the same complex comparison, which is what proves the sum is at
@@ -36,7 +36,7 @@
  *   D — AGAINST TIME. The oscillator RUNNING: a 1 kHz tone, a short-window Goertzel envelope, and
  *       the closed form at each window's own phase. The positive control is the same comparison
  *       against a quarter-turn-shifted phase, which must fail.
- *   E — NO CLICK, at the four rates, the fdelay arm C derivation: the tone's own step plus the
+ *   E — NO CLICK, at the nine rates, the fdelay arm C derivation: the tone's own step plus the
  *       interpolator's error, with a NEAREST-SAMPLE modulation as the control that must break it.
  *   F — BYPASS IDENTITY. `enabled = 0` and `mix = 0`, memcmp-identical, over a block that carries
  *       words below the flush floor.
@@ -45,7 +45,7 @@
  *   H — THE GOLDEN IDENTITY of the cost lane (lane/kernel-cost-chorus): `omx_chorus_process` is
  *       memcmp-identical, output AND state, to the kernel as it stood before the lane
  *       (`chorus_ref_process` below, the pre-lane body verbatim: two `omx_fdelay_read`s per voice,
- *       the offset divided per sample) at four rates, N = 1..4, three depths, three LFO rates,
+ *       the offset divided per sample) at nine rates, N = 1..4, three depths, three LFO rates,
  *       block sizes that cross every boundary, distinct legs. The positive control flips ONE
  *       input LSB and requires the comparison to see it.
  *   J — A REFUSED INIT leaves both lines defined: the left line refuses a missing ring, the right
@@ -90,9 +90,9 @@ static void drain_violations(const char *where) {
   omx_contract_log.count = 0u;
 }
 
-/* The floor rates every oracle runs at, as fx_rates.h holds them: the contract's list, never a local one. */
-#define NRATES OMX_ORACLE_FLOOR_RATES_COUNT
-#define RATES OMX_FX_RATE_FLOOR
+/* The nine oracle rates, as fx_rates.h holds them (the contract's list, never a local one). */
+#define NRATES OMX_FX_ORACLE_RATE_COUNT
+#define RATES OMX_FX_ORACLE_RATES
 
 /* The rings, once: the stage allocates nothing, and neither does this file per arm. */
 static float g_ring_l[OMX_CHORUS_CAP], g_ring_r[OMX_CHORUS_CAP];
@@ -754,7 +754,7 @@ static void arm_i_spread(void) {
            sr / 1000.0, worst_null, lr / sqrt(ll * rr), oppc, worst_opp,
            (double)(6.0 * sr / 1000.0));
   }
-  ok(identity_ok, "arm I: spread 0 IS the one-phase stage, memcmp, running LFO, four rates", 0.0, 0.0);
+  ok(identity_ok, "arm I: spread 0 IS the one-phase stage, memcmp, running LFO, nine rates", 0.0, 0.0);
   ok(control_differs, "arm I control: spread 0.01 moves the right leg — the memcmp can see it", 0.0,
      0.0);
   ok(worst_cf <= 2e-4, "arm I: the right leg is §2's closed form at phase + spread", worst_cf, 2e-4);

@@ -13,7 +13,7 @@ from this library, so an effect sounds the same on the console and in any other 
   absent from a release build.
 - Every kernel is tested against its closed form at 44.1, 48, 88.2, 96, 176.4 and 192 kHz, and
   its output is held bit for bit by golden digests. The dynamics, balance, rotor, limiter and
-  loudness are also tested at 32, 64 and 128 kHz, the other rates an RME interface runs at.
+  loudness are also tested at 32, 64 and 128 kHz, the other rates of the oracle set.
 - Build time only: headers and a static library. Nothing is installed that a running program
   loads.
 

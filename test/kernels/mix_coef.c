@@ -6,7 +6,7 @@
 /* ---- the coefficients of G (mix/omx_mix_coef.h, FreeMixer/omx-dsp#98). A mono strip's gains are
  * its level times the pan law, bit for bit; a stereo strip's are its level times the linear
  * balance, which never boosts and is unity per leg at centre; an unassigned or muted strip is 0.
- * The fold's gain is level × coefficient, 0 when not finite. At each of the nine RME rates a
+ * The fold's gain is level × coefficient, 0 when not finite. At each of the nine oracle rates a
  * one-second 997 Hz tone goes through omx_mixmatrix_sparse() over the entries the fillers write:
  * a mono strip lands on each speaker as gain × x exactly, and a correlated stereo source folded at
  * 0.5 lands on the mono output at unity, bit for bit. The silent-source test reads the block
@@ -15,7 +15,7 @@
  * divergences, and an unassigned strip's image is zero; the settled-silence test holds only when
  * both targets and both cursors are 0. --------------------------------------------------------- */
 
-static const float MIX_COEF_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_COEF_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 static void arm_mix_coef(void) {
   g_arm = "mix_coef";
@@ -87,7 +87,7 @@ static void arm_mix_coef(void) {
   ok(!omx_mix_settled_silent(0.3f, 0.0f, 0.0f, 0.0f), "settled: a live target is not silent", 0, 0);
   ok(!omx_mix_settled_silent(0.0f, NAN, 0.0f, 0.0f), "settled: a NaN target is not silent", 0, 0);
 
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const float sr = MIX_COEF_RATES[ri];
     const uint32_t n = (uint32_t)sr;
     static float x[192000], y[3][192000];

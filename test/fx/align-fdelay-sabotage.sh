@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # align-fdelay-sabotage.sh <dir> <archive> — the strip alignment stage's oracle
-# (test/fx/align_fdelay.test.c, the nine RME rates) is not blind. It is built once per sabotage
+# (test/fx/align_fdelay.test.c, the nine oracle rates) is not blind. It is built once per sabotage
 # against a SABOTAGED COPY of omx_align.h placed ahead of the real include directory, and each build
 # must go red on the arm named beside it, never on a compiler error:
 #   integer      the target rounded at every rate: 88.2 kHz and up settle on a whole sample   (A)

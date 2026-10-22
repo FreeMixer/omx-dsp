@@ -4,7 +4,7 @@
  * The FX delay's read taps (FreeMixer/omx-dsp#132, #147): up to OMX_FXDELAY_MAX_TAPS integer reads of
  * the one ring per leg, read by omx_fx_delay_process_taps from the taps snapshot beside the atom,
  * gain x balance-law pan per tap, feedback from the longest engaged tap. Every arm
- * runs at the nine RME rates (OMX_FX_RME_RATES), contracts compiled in, each rate's ledger drained
+ * runs at the nine oracle rates (OMX_FX_ORACLE_RATES), contracts compiled in, each rate's ledger drained
  * (a `rate-is-declared` PRE at 32, 64 or 128 kHz is the contract saying so; any other violation
  * counts, except arm D's one deliberate refusal, which it counts itself).
  *
@@ -492,8 +492,8 @@ static void arm_g_tap_legs_are_gain_times_the_balance_law(float sr) {
 
 int main(void) {
   omx_fx_require_rate_floor();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     arm_a_one_tap_is_the_plain_delay(sr);
     arm_b_every_tap_lands_on_its_closed_form(sr);
     arm_c_feedback_regenerates_from_the_longest_tap(sr);
@@ -509,6 +509,6 @@ int main(void) {
   }
   check(omx_contract_log.checks > 0u, "ledger", "the contracts were REACHED");
   printf("fx/delay_taps: %d checks, %d failures (%d rates), %u contracts evaluated\n", g_checks, g_fail,
-         (int)OMX_FX_RME_RATE_COUNT, omx_contract_log.checks);
+         (int)OMX_FX_ORACLE_RATE_COUNT, omx_contract_log.checks);
   return g_fail == 0 ? 0 : 1;
 }

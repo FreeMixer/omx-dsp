@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
 // The gate's key filter (omx-contract 2.7.0: hpHz, lpHz), through omx_gate.h's omx_gate_key_*
-// and the instance face fx/omx_gate_instance.h. At the nine RME rates, contracts on, an empty
+// and the instance face fx/omx_gate_instance.h. At the nine oracle rates, contracts on, an empty
 // ledger after each arm:
 //   A  neutral: both edges at 0, and edges that are NaN, negative or infinite (out), are the gate
 //      before the key filter: omx_gate_resolve over controls with no edges + omx_gate_run, bit for
@@ -349,8 +349,8 @@ static void arm_no_alloc(float sr) {
 int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     arm_neutral(sr);
     expect_clean(sr);
     arm_closed_form(sr);
@@ -362,6 +362,6 @@ int main(void) {
     arm_no_alloc(sr);
     expect_clean(sr);
   }
-  printf("fx/gate_keyfilter: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_RME_RATE_COUNT);
+  printf("fx/gate_keyfilter: %d checks, %d failed, %u rates\n", g_checks, g_failed, (unsigned)OMX_FX_ORACLE_RATE_COUNT);
   return g_failed == 0 ? 0 : 1;
 }

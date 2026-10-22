@@ -3,7 +3,7 @@
 
 /* ---- the magnitude evaluator (FreeMixer/omx-dsp#69) ------------------------------------------ */
 
-static const float MAGNITUDE_RME_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MAGNITUDE_ORACLE_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 /* A log grid of `n` points from 10 Hz to just under Nyquist. */
 static void magnitude_grid(double sr, double *f, uint32_t n) {
@@ -35,8 +35,8 @@ static void arm_magnitude(void) {
   g_arm = "magnitude";
   enum { N = 64 };
   double f[N];
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
-    const double sr = MAGNITUDE_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
+    const double sr = MAGNITUDE_ORACLE_RATES[ri];
     magnitude_grid(sr, f, N);
     /* A pure gain and a pure delay: 20·log10(g), and 0 dB. */
     const double gain[5] = {0.5, 0.0, 0.0, 0.0, 0.0}, delay[5] = {0.0, 0.0, 1.0, 0.0, 0.0};

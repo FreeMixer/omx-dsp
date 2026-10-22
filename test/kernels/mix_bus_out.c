@@ -3,14 +3,14 @@
 
 #include <omxdsp/mix/omx_bus_out.h>
 
-/* ---- a bus's out stage (mix/omx_bus_out.h, FreeMixer/omx-dsp#98). At each of the nine RME rates,
+/* ---- a bus's out stage (mix/omx_bus_out.h, FreeMixer/omx-dsp#98). At each of the nine oracle rates,
  * a 10 ms block of a 0.8 DC bus on both legs through the stage: settled at a target, each leg is
  * in × gain exactly and the measured peak is 0.8 × gain; at centre balance the gain is the fader
  * on both legs; the linear balance never boosts a leg above the fader across a sweep; the mute
  * settles at 0; a move from 0 to 1 ramps linearly across the block (in × i/n) and the cursors end
  * on the targets. A mono bus takes the stereo pan law instead. ---------------------------------- */
 
-static const float MIX_BUS_OUT_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_BUS_OUT_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 static void mix_bus_out_fill(float *l, float *r, uint32_t n, float v) {
   for (uint32_t i = 0; i < n; i++) l[i] = r[i] = v;
@@ -19,7 +19,7 @@ static void mix_bus_out_fill(float *l, float *r, uint32_t n, float v) {
 static void arm_mix_bus_out(void) {
   g_arm = "mix_bus_out";
   static float l[1920], r[1920];
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const float sr = MIX_BUS_OUT_RATES[ri];
     const uint32_t n = (uint32_t)(sr / 100.0f);
     uint32_t settled_bits = 0, boost = 0, peak_bits = 0;

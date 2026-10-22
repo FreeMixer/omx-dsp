@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * hrp_lv2_rates.test.c — the live HRP shell (omx_hrp_lv2.h) at the nine RME rates.
+ * hrp_lv2_rates.test.c — the live HRP shell (omx_hrp_lv2.h) at the nine oracle rates.
  *
  * hrp_lv2.test.c holds the shell's behaviour on real material at 48 kHz, and rates.test.c holds the
  * HRP chain beneath it at every rate. This holds what the shell itself decides, at every rate, to

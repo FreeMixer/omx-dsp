@@ -14,9 +14,9 @@
 
 #include <omxdsp/omxdsp_definitions.h>
 
-#define OMX_ANALYSIS_RATE_COUNT ((int)OMX_RME_RATES_COUNT)
+#define OMX_ANALYSIS_RATE_COUNT ((int)OMX_ORACLE_FULL_RATES_COUNT)
 
-static const double OMX_ANALYSIS_RATES[OMX_ANALYSIS_RATE_COUNT] = OMX_RME_RATES_INIT;
+static const double OMX_ANALYSIS_RATES[OMX_ANALYSIS_RATE_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 static inline void omx_analysis_require_rates(void) {
   for (uint32_t k = 0; k < OMX_DECLARED_RATE_COUNT; k++) {

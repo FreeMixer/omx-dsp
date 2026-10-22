@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * sweep.test.c — the Farina sweep and its deconvolution (<omxdsp/analysis/omx_sweep.h>) against
- * closed forms, at the nine RME rates, with core's default fade fraction from the parity table.
+ * closed forms, at the nine oracle rates, with core's default fade fraction from the parity table.
  * A half-second sweep from 40 Hz to 0.45 of the rate at every rate:
  *
  *   1. the length is round(T·rate); L = T/ln(f1/f0) for the realised T; between the fades every

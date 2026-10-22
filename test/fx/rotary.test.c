@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * mix_rotary.test.c — the rotary stage's oracle, the design
- * arms A and H, at the nine RME rates (32 to 192 kHz), closed forms in double.
+ * arms A and H, at the nine oracle rates (32 to 192 kHz), closed forms in double.
  *
  *   A  frozen rotors: `speed: stop` with both rotors settled at rate 0 at 8 phases each; the
  *      stage is LTI and its impulse response's DTFT on a 200-point grid equals
@@ -163,9 +163,9 @@ static void arm_h(double sr) {
 int main(void) {
   omx_fx_require_rate_floor();
   omx_contract_reset();
-  for (uint32_t k = 0; k < OMX_FX_RME_RATE_COUNT; k++) {
-    arm_a(OMX_FX_RME_RATES[k]);
-    arm_h(OMX_FX_RME_RATES[k]);
+  for (uint32_t k = 0; k < OMX_FX_ORACLE_RATE_COUNT; k++) {
+    arm_a(OMX_FX_ORACLE_RATES[k]);
+    arm_h(OMX_FX_ORACLE_RATES[k]);
   }
   printf("mix_rotary: %d checks, %d failed\n", g_checks - g_failed, g_failed);
   return g_failed ? 1 : 0;

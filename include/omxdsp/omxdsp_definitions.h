@@ -154,34 +154,6 @@
 #define OMX_TRANSIENT_OUTPUT_DB_MAX 12.0f
 #define OMX_TRANSIENT_OUTPUT_DB_DEFAULT 0.0f
 
-/* The second C spelling of a travel, its item's `c.alias` { fact, field }:
- * OMX_<FACT>_<FIELD>_MIN/_MAX/_DEFAULT. Removed by a MAJOR release once no consumer reads it. */
-#define OMX_PAN_PAN_MIN -1.0f
-#define OMX_PAN_PAN_MAX 1.0f
-
-#define OMX_DELAY_TIME_MS_MIN 0.0f
-#define OMX_DELAY_TIME_MS_MAX 2000.0f
-#define OMX_DELAY_TIME_MS_DEFAULT 300.0f
-#define OMX_DELAY_TAPS_MIN 1.0f
-#define OMX_DELAY_TAPS_MAX 4.0f
-#define OMX_DELAY_TAPS_DEFAULT 1.0f
-
-#define OMX_DRIVE_DRIVE_DB_MIN 0.0f
-#define OMX_DRIVE_DRIVE_DB_MAX 36.0f
-#define OMX_DRIVE_DRIVE_DB_DEFAULT 0.0f
-#define OMX_DRIVE_CHARACTER_MIN -1.0f
-#define OMX_DRIVE_CHARACTER_MAX 1.0f
-#define OMX_DRIVE_CHARACTER_DEFAULT 0.0f
-#define OMX_DRIVE_BAND_HZ_MIN 20.0f
-#define OMX_DRIVE_BAND_HZ_MAX 20000.0f
-#define OMX_DRIVE_BAND_HZ_DEFAULT 2000.0f
-#define OMX_DRIVE_MIX_MIN 0.0f
-#define OMX_DRIVE_MIX_MAX 100.0f
-#define OMX_DRIVE_MIX_DEFAULT 100.0f
-#define OMX_DRIVE_TRIM_DB_MIN -24.0f
-#define OMX_DRIVE_TRIM_DB_MAX 12.0f
-#define OMX_DRIVE_TRIM_DB_DEFAULT 0.0f
-
 /* Every scalar, sheet leaf and single travel's numbers, one block sorted by macro. An integer value
  * is an integer literal, any other a float literal AND its OMX_<macro>_DOUBLE spelling. */
 #define OMX_ALLPASS_UNITY_TOLERANCE 0.0001f
@@ -512,6 +484,9 @@
 #define OMX_INPUT_ALIGN_DELAY_RANGE_MIN 0
 #define OMX_INPUT_ALIGN_DELAY_RANGE_STEP 0.0001f
 #define OMX_INPUT_ALIGN_DELAY_RANGE_STEP_DOUBLE 0.0001
+#define OMX_LIN_TO_DB_FLOOR_DB -180
+#define OMX_LIN_TO_DB_FLOOR_LIN 1e-9f
+#define OMX_LIN_TO_DB_FLOOR_LIN_DOUBLE 1e-9
 #define OMX_LOWPASS_HANDOVER_HI_AT_HI_Q 0.85f
 #define OMX_LOWPASS_HANDOVER_HI_AT_HI_Q_DOUBLE 0.85
 #define OMX_LOWPASS_HANDOVER_HI_AT_LO_Q 0.9f
@@ -1013,45 +988,5 @@ enum omx_limiter_readouts {
 #define OMX_LIMITER_READOUT_GAIN_REDUCTION_DB_RATE_HZ 50
 #define OMX_LIMITER_READOUT_GAIN_REDUCTION_DB_SCALE OMX_PARAM_SCALES_LINEAR
 #define OMX_LIMITER_READOUT_GAIN_REDUCTION_DB_UNIT "dB"
-
-/* The default bands of an EQ with `count` bands: THE one rule, for every strip, host and count (omx-contract's
- * lib/eq-defaults.mjs; the ts render exports the same as eqDefaultCentres and eqDefaultTypes). Needs -lm. */
-static inline unsigned omx_eq_default_centres(unsigned count, float *out) {
-  static const double r10[] = OMX_ISO_THIRD_OCTAVE_CENTRES_HZ_INIT;
-  static const double r20[] = OMX_EQ_CENTRE_SERIES_R20_HZ_INIT;
-  static const double four[] = OMX_EQ_DEFAULT_CENTRES_FOUR_BAND_HZ_INIT;
-  if (count == 0) return 0;
-  if (count == 4) {
-    for (unsigned i = 0; i < 4; i++) out[i] = (float)four[i];
-    return 4;
-  }
-  const double lo = log((double)OMX_EQ_FREQ_RANGE_MIN);
-  const double span = log((double)OMX_EQ_FREQ_RANGE_MAX / (double)OMX_EQ_FREQ_RANGE_MIN);
-  for (unsigned s = 0; s < 2; s++) {
-    const double *series = s ? r20 : r10;
-    const unsigned n = s ? OMX_EQ_CENTRE_SERIES_R20_HZ_COUNT : OMX_ISO_THIRD_OCTAVE_CENTRES_HZ_COUNT;
-    int distinct = count <= n;
-    for (unsigned i = 0; distinct && i < count; i++) {
-      const double t = lo + span * ((double)i + 0.5) / (double)count;
-      unsigned best = 0;
-      double best_d = 1e300;
-      for (unsigned k = 0; k < n; k++) {
-        const double d = fabs(log(series[k]) - t);
-        if (d < best_d) { best_d = d; best = k; }
-      }
-      out[i] = (float)series[best];
-      if (i > 0 && out[i] == out[i - 1]) distinct = 0;
-    }
-    if (distinct) return count;
-  }
-  return 0;
-}
-
-/* The default type of band `index` of an EQ with `count` bands: a low shelf first, a high shelf last, bells
- * between (a single band is a bell). An OMX_EQ_BAND_TYPES_* member. */
-static inline int omx_eq_default_type(unsigned index, unsigned count) {
-  if (count < 2) return OMX_EQ_BAND_TYPES_BELL;
-  return index == 0 ? OMX_EQ_BAND_TYPES_LOW_SHELF : index == count - 1 ? OMX_EQ_BAND_TYPES_HIGH_SHELF : OMX_EQ_BAND_TYPES_BELL;
-}
 
 #endif /* OMXDSP_DEFINITIONS_H */
