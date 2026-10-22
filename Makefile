@@ -38,6 +38,10 @@
 #   make pitch-rates-sabotage  the pitch oracles fail at 32, 64 and 128 kHz against two sabotages
 #   make instance-rates-sabotage  the nine instance faces' oracles fail at 32, 64 and 128 kHz against the declared-only gate put back, and the deesser's against its Nyquist cap removed
 #   make bandwidth-q-table  test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s
+#   make eq-default-bands  omx_eq_default_centres() and omx_eq_default_type() give test/golden/eq_default_bands.txt
+#               for 1..62 bands, and every count EQ_BAND_COUNTS declares has its default bands
+#   make eq-defaults-table  test/golden/eq_default_bands.txt is the rule's JavaScript spelling over data/
+#               (tools/eq-defaults-golden.mjs, node)
 #   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
 #   make public-sources-messages  the same over the commit messages of origin/main..HEAD (RANGE=a..b to choose)
 #   make docs   the API reference by doxygen (build-time only)
@@ -49,6 +53,10 @@
 #               1024 frames
 #   make bench-gate  omx_dynamics as a gate, ns/sample/lane at every declared rate (open, slope, floor);
 #               tools/gate-cost-ab.sh <rev> compares a revision's kernel with this tree's, interleaved
+#   make bench-drive  omx_drive_process at the come-up atom, and its oversampler and shaper halves, ns/sample
+#               at every declared rate;  make bench-flanger  omx_flanger_process, default and max
+#               tools/kernel-cost-ab.sh <bench> <rev> [rounds] [quantum] [blocks] is the same
+#               interleaved before/after for any of the three benches (gate-cost-bench, drive-cost, flanger-cost)
 #   make strip-input-identity OMX_PLUGINS=<checkout>  the trim and eq faces against omx-plugins'
 #               omx_strip.h input stage, and the check's sabotage (tools/strip-input-identity.sh)
 #   make analysis-engine-identity OPENMIXER=<checkout>  the RTA, HRP render and HRP live core against
@@ -58,12 +66,13 @@
 #   make test-mix  the mix module's golden digests (pan law, LCR, strip and fold coefficients, bus
 #               out stage, peak, clip, peak hold, gain-reduction reading, analyser tap, bus sum,
 #               real-time load meter, factored strip coefficient, route gain stages, strip meter
-#               reading, settled silence, LCR fold level) and a sabotage of each kernel against its
-#               oracle and digests
+#               reading, settled silence, LCR fold level, bus stages, a dynamics slot's key, the
+#               source switch, a level meter's dBFS reading) and a sabotage of each kernel against
+#               its oracle and digests
 #   make mix-engine-identity OPENMIXER=<checkout>  the same digests rendered through the engine's own
 #               copies, each set the checkout carries (mix_dsp.h, mix_lcr.h, mix_bus.h,
-#               mix_gr_meter.h; mix_dsp.h, mix_sum.h), and the check's sabotages
-#               (tools/mix-engine-identity.sh)
+#               mix_gr_meter.h; mix_dsp.h, mix_sum.h; mix_dsp.h; mix_lane.h; mix_pb.h), and the
+#               check's sabotages (tools/mix-engine-identity.sh)
 
 CC      ?= cc
 AR      ?= ar
@@ -139,7 +148,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -174,8 +183,17 @@ $(LIB_TSAN): $(OBJ_TSAN)
 # omxdsp_suite.c #includes — a kernel lane adds ONE file and never touches this Makefile or
 # omxdsp_suite.c's main().
 
-$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) $(MIX_HEADERS) tools/kernels-gen.sh | $(BUILD)
-	bash tools/kernels-gen.sh $(BUILD)
+# The generation is ONE rule: both files come from one run (a grouped target), and every target that
+# reads either lists them, so `make -jN` runs the generator once and never reads a half-written file.
+# No recipe and no script calls the generator into $(BUILD) (make gen-once, test/gen-once.sh).
+# KERNELS_GEN is the command, overridable so the test can count its runs.
+KERNELS_GEN = bash tools/kernels-gen.sh
+KERNELS_INC = $(BUILD)/kernels-suite.inc.c $(BUILD)/kernels-perturb.inc.c
+
+$(KERNELS_INC) &: $(wildcard test/kernels/*.c) tools/kernels-gen.sh | $(BUILD)
+	$(KERNELS_GEN) $(BUILD)
+
+$(BUILD)/omxdsp_suite: test/omxdsp_suite.c $(KERNELS) $(KERNELS_INC) $(LIB_CONTRACTS) $(HEADERS) $(MIX_HEADERS)
 	$(CC) $(TESTFLAGS) -I$(BUILD) -o $@ test/omxdsp_suite.c $(LIB_CONTRACTS) -lm
 
 $(BUILD)/omxdsp_threads: test/omxdsp_threads.c $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
@@ -237,8 +255,23 @@ bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
 	./$(BUILD)/eq_bandwidth_q_table | diff -u test/golden/eq_bandwidth_q.json -
 	@echo "bandwidth-q-table: test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s"
 
-perturb: $(HEADERS) $(KERNELS) tools/kernels-gen.sh | $(BUILD)
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
+# THE default EQ rule (omx_eq_defaults.h, moved from omx-contract's C render at 3.0.0) against its
+# JavaScript spelling's answers (tools/eq-defaults-golden.mjs writes the golden; no node here).
+$(BUILD)/eq_default_bands: test/eq_default_bands.c $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
+
+eq-default-bands: $(BUILD)/eq_default_bands
+	./$(BUILD)/eq_default_bands test/golden/eq_default_bands.txt
+
+eq-defaults-table:
+	node tools/eq-defaults-golden.mjs --check
+
+# The generator runs once under make -j8 (test/gen-once.sh), and a Makefile that calls it from a recipe again turns it red.
+gen-once: $(HEADERS) test/gen-once.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/gen-once.sh $(BUILD)/gen-once
+
+perturb: $(HEADERS) $(KERNELS) $(KERNELS_INC) test/perturb.sh test/omxdsp_perturb.c | $(BUILD)
+	OMXDSP_GEN="$(CURDIR)/$(BUILD)" CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
 
 # The graphic EQ's true-mode oracle against seven sabotaged copies of omx_geq_instance.h, each red on
 # its named arm (test/fx/geq-true-sabotage.sh); the real oracle in test-fx is the control.
@@ -300,6 +333,8 @@ checks:
 	bash tools/face-conformance.sh --self-test
 	bash tools/rate-list-check.sh
 	bash tools/rate-list-check.sh --self-test
+	bash tools/gen-scratch-check.sh
+	bash tools/gen-scratch-check.sh --self-test
 
 lint: checks
 
@@ -346,8 +381,8 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 # Each kernel's oracle runs every arm at every rate in OMX_DECLARED_RATES and refuses to run if
 # 44.1, 48, 96 or 192 kHz is missing; the golden digests hold the kernel's output bit for bit.
 # The dynamics, balance, rotor, limiter, loudness and multiband oracles and digests, the pitch kernel's and
-# instance face's oracles, and the fractional delay line's exact-copy and tone arms, run at the nine RME rates instead
-# (OMX_FX_RME_RATES in test/fx/fx_rates.h), 32, 64 and 128 kHz included.
+# instance face's oracles, and the fractional delay line's exact-copy and tone arms, run at the nine oracle rates instead
+# (OMX_FX_ORACLE_RATES in test/fx/fx_rates.h), 32, 64 and 128 kHz included.
 
 # One list, one set of rules: a kernel lane adds its name to FX_KERNELS and its three sources,
 #   test/fx/<k>.test.c         the oracle, release flags against the plain archive unless the
@@ -411,24 +446,44 @@ FX_BINS = $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k) $(if $(wildcard test/fx/$(k
           $(foreach k,$(FX_INSTANCE_GOLDENS),$(BUILD)/fx_$(k)_instance_golden) \
           $(foreach o,$(FX_ORACLE_GOLDENS),$(BUILD)/fx_$(o)_golden)
 
-test-fx: $(FX_BINS)
-	@set -e; for k in $(FX_KERNELS); do \
-	  echo "./$(BUILD)/fx_$$k"; ./$(BUILD)/fx_$$k; \
-	  if [ -f test/fx/$${k}_math.test.c ]; then echo "./$(BUILD)/fx_$${k}_math"; ./$(BUILD)/fx_$${k}_math; fi; \
-	  echo "./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256"; ./$(BUILD)/fx_$${k}_golden test/golden/$$k.sha256; \
-	done
-	@set -e; for k in $(FX_INSTANCES); do echo "./$(BUILD)/fx_$${k}_instance"; ./$(BUILD)/fx_$${k}_instance; done
-	@set -e; for o in $(FX_ORACLES); do echo "./$(BUILD)/fx_$$o"; ./$(BUILD)/fx_$$o; done
-	@set -e; for k in $(FX_INSTANCE_GOLDENS); do \
-	  echo "./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256"; \
-	  ./$(BUILD)/fx_$${k}_instance_golden test/golden/$${k}_instance.sha256; \
-	done
-	@set -e; for o in $(FX_ORACLE_GOLDENS); do \
-	  echo "./$(BUILD)/fx_$${o}_golden test/golden/$$o.sha256"; ./$(BUILD)/fx_$${o}_golden test/golden/$$o.sha256; \
-	done
-	@set -e; for p in $(FX_PERTURB); do \
-	  echo "bash $$p"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash $$p $(BUILD)/fx-perturb/$$(basename $$p .sh); \
-	done
+# test-fx is one phony target per thing it runs, so `make -jN test-fx` runs them side by side. The
+# targets and the order of the prerequisites are the loops' that stood here: the same binaries, with
+# the same arguments, and a binary that exits non-zero fails its target and so test-fx.
+FX_RUN_KERNELS  = $(addprefix fx-run-kernel-,$(FX_KERNELS))
+FX_RUN_MATHS    = $(foreach k,$(FX_KERNELS),$(if $(wildcard test/fx/$(k)_math.test.c),fx-run-math-$(k)))
+FX_RUN_INSTANCES = $(addprefix fx-run-instance-,$(FX_INSTANCES))
+FX_RUN_ORACLES  = $(addprefix fx-run-oracle-,$(FX_ORACLES))
+FX_RUN_INSTGOLD = $(addprefix fx-run-instance-golden-,$(FX_INSTANCE_GOLDENS))
+FX_RUN_ORAGOLD  = $(addprefix fx-run-oracle-golden-,$(FX_ORACLE_GOLDENS))
+FX_RUN_PERTURB  = $(addprefix fx-run-perturb-,$(notdir $(basename $(FX_PERTURB))))
+FX_RUN_ALL      = $(FX_RUN_KERNELS) $(FX_RUN_MATHS) $(FX_RUN_INSTANCES) $(FX_RUN_ORACLES) $(FX_RUN_INSTGOLD) $(FX_RUN_ORAGOLD) $(FX_RUN_PERTURB)
+.PHONY: $(FX_RUN_ALL)
+
+test-fx: $(FX_RUN_ALL)
+
+$(FX_RUN_KERNELS): fx-run-kernel-%: $(BUILD)/fx_% $(BUILD)/fx_%_golden
+	@echo "./$(BUILD)/fx_$*"; ./$(BUILD)/fx_$*
+	@echo "./$(BUILD)/fx_$*_golden test/golden/$*.sha256"; ./$(BUILD)/fx_$*_golden test/golden/$*.sha256
+
+$(FX_RUN_MATHS): fx-run-math-%: $(BUILD)/fx_%_math
+	@echo "./$(BUILD)/fx_$*_math"; ./$(BUILD)/fx_$*_math
+
+$(FX_RUN_INSTANCES): fx-run-instance-%: $(BUILD)/fx_%_instance
+	@echo "./$(BUILD)/fx_$*_instance"; ./$(BUILD)/fx_$*_instance
+
+$(FX_RUN_ORACLES): fx-run-oracle-%: $(BUILD)/fx_%
+	@echo "./$(BUILD)/fx_$*"; ./$(BUILD)/fx_$*
+
+$(FX_RUN_INSTGOLD): fx-run-instance-golden-%: $(BUILD)/fx_%_instance_golden
+	@echo "./$(BUILD)/fx_$*_instance_golden test/golden/$*_instance.sha256"; \
+	  ./$(BUILD)/fx_$*_instance_golden test/golden/$*_instance.sha256
+
+$(FX_RUN_ORAGOLD): fx-run-oracle-golden-%: $(BUILD)/fx_%_golden
+	@echo "./$(BUILD)/fx_$*_golden test/golden/$*.sha256"; ./$(BUILD)/fx_$*_golden test/golden/$*.sha256
+
+$(foreach p,$(FX_PERTURB),$(eval fx-run-perturb-$(notdir $(basename $(p))): $(p) $(LIB) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)))
+$(FX_RUN_PERTURB): fx-run-perturb-%:
+	@echo "bash test/fx/$*.sh"; CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fx/$*.sh $(BUILD)/fx-perturb/$*
 
 # The trim and eq faces against omx-plugins' channel strip's own input stage (omx_strip.h): a desk
 # check, the strip lives in another repository (tools/strip-input-identity.sh).
@@ -450,7 +505,7 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # a control thread, never in the audio callback. omx_rta.h is the capture ring
 # and the spectrum they read. Each test/analysis/<t>.test.c is one program at
 # release flags against the plain archive; -Isrc lets a test include the compiled unit it checks.
-# rates runs the HRP chain at the nine RME rates and counts allocations through wrapped allocators;
+# rates runs the HRP chain at the nine oracle rates and counts allocations through wrapped allocators;
 # golden compares every answer of both engines with test/golden/analysis.sha256, which the engine's
 # own copy of this code wrote before it moved here; its log10f is the correctly rounded omx_log10f of test/support, wrapped in at link time.
 # make analysis-engine-identity OPENMIXER=<checkout> writes the rta, render and live digests again from
@@ -460,11 +515,11 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # hrp_lv2_rates holds the live HRP shell's own decisions (the hop, when the worker is asked for, the
 # cursor, the adopted band's transfer function, the walk out) and the calls a plugin face drives it
 # through (the analysis block, the control snapshot, the pass counters, wants and answer, clear and
-# restart) to closed forms at the nine RME rates; test/analysis/hrp-lv2-rates-sabotage.sh breaks each
+# restart) to closed forms at the nine oracle rates; test/analysis/hrp-lv2-rates-sabotage.sh breaks each
 # of them once and requires its arm to fail.
 # The room analysis, the Farina sweep and the alignment fit (moved from core's TypeScript) run on the same
 # thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h;
-# align_fit, room and sweep hold them to closed forms at the nine RME rates and count allocations;
+# align_fit, room and sweep hold them to closed forms at the nine oracle rates and count allocations;
 # test/analysis/room-sabotage.sh breaks each of their kernels once and requires both kinds to fail.
 ANALYSIS_TESTS = fbs_detect rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 hrp_lv2_rates rates golden \
                  room_ts align_fit room sweep
@@ -505,7 +560,7 @@ room-ts-golden: | $(BUILD)
 # ---- the kernels moved from the engine ---------------------------------------------------------
 # The sample-rate converter, the generators and the analyser's readings (moved from the engine):
 # their oracles are suite arms (test/kernels/src.c, gen.c, rta.c); here are their golden digests at
-# the nine RME rates, which the engine's own copies wrote (test/golden/engine_kernels.sha256), and
+# the nine oracle rates, which the engine's own copies wrote (test/golden/engine_kernels.sha256), and
 # a break in each kernel that must move its own digests and no other's.
 $(BUILD)/engine_kernels_golden: test/engine_kernels/golden.test.c test/fx/sha256.h $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
@@ -524,9 +579,11 @@ engine-kernels-identity:
 # ---- the mix module -------------------------------------------------------------------------
 # The pan law, the strip and fold coefficients of G, a bus's out stage, the meters' measure half, one
 # analyser tap's reading, one source's contribution to a summing bus, the real-time load meter, the
-# factored strip coefficient, an output route's gain stages, the settled-silence test and the LCR
-# fold's centre level (include/omxdsp/mix/, FreeMixer/omx-dsp#98 and #140): their oracles are suite arms (test/kernels/mix_*.c);
-# here are their golden digests at the nine RME rates, which the engine's own copies wrote
+# factored strip coefficient, an output route's gain stages, the settled-silence test, the LCR
+# fold's centre level, the bus stages, a dynamics slot's key, the source switch and a level meter's
+# dBFS reading (include/omxdsp/mix/, FreeMixer/omx-dsp#98 and #140): their oracles are suite arms (test/kernels/mix_*.c);
+# here are their golden digests at the nine oracle rates, which the engine's own copies wrote (the
+# level reading's, which has no engine copy, the library's own)
 # (test/golden/mix.sha256), and a break in each kernel that must turn its arm and its digests red.
 # Compiled with log10f replaced by the correctly rounded omx_log10f (test/support), as the FX goldens
 # are: the gain-reduction reading's log10f otherwise moves its digests on glibc 2.36 and 2.39.
@@ -550,7 +607,7 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks copy-check suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+test: lib checks copy-check gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 	@echo "omxdsp: make test green"
 
 # ---- install ------------------------------------------------------------------------------------
@@ -586,6 +643,7 @@ install: $(LIBS_ALL) $(PC_ALL) $(EXPORTS)
 	  { echo "install: the installed omx-contract names no contract directory, installer or schema major (contractdir and datadir of omx-contract.pc): data/ cannot be installed" >&2; exit 1; }
 	sh $(CONTRACT_INSTALLER) omx-dsp $(VERSION) $(CONTRACT_MAJOR) data $(DESTDIR)$(CONTRACTDIR) data
 	install -m 0644 $(EXPORTS) $(DESTDIR)$(DATADIR)/omxdsp/
+	install -m 0644 test/analysis/hrp_peaking_corpus.h $(DESTDIR)$(DATADIR)/omxdsp/
 	install -m 0755 tools/omx-dsp-copy-check.sh $(DESTDIR)$(BINDIR)/omx-dsp-copy-check
 	install -m 0644 omx-dsp-copy-check.1 $(DESTDIR)$(MANDIR)/man1/
 
@@ -618,3 +676,11 @@ bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
 bench-gate: tools/gate-cost-bench.c $(LIB) $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/gate-cost-bench tools/gate-cost-bench.c $(LIB) -lm
 	./$(BUILD)/gate-cost-bench
+
+bench-drive: tools/drive-cost.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/drive-cost tools/drive-cost.c $(LIB) -lm
+	./$(BUILD)/drive-cost
+
+bench-flanger: tools/flanger-cost.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/flanger-cost tools/flanger-cost.c $(LIB) -lm
+	./$(BUILD)/flanger-cost

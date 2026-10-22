@@ -100,15 +100,15 @@ static void arm_oversampler_parallel(float sr) {
   }
 }
 
-/* ---- the element's four promises, at the nine RME rates --------------------------------------
+/* ---- the element's four promises, at the nine oracle rates --------------------------------------
  * Moved from the engine's omx_oversampler.test.c. The four things this element
  * has to get right: the round trip returns the input delayed by EXACTLY the declared latency
  * (measured, not read back); its residual is far below anything a caller hears; the quantum is
  * not observable, bit for bit; and interpolation leaves no zero-stuffing image. The engine ran
  * these at 96 kHz only -- the half-band is normalised, but the LATENCY is in samples, so the
  * figure being checked does not move with the rate. Here the latency and quantum arms run at the
- * nine RME rates anyway (the signal is band-limited differently at each, so a rate is a different
- * input); the residual and image arms keep the engine's tones in Hz and run at every RME rate whose
+ * nine oracle rates anyway (the signal is band-limited differently at each, so a rate is a different
+ * input); the residual and image arms keep the engine's tones in Hz and run at every oracle rate whose
  * half-band passband holds the top tone (ovs_eng_in_band) -- eight of the nine, 96 kHz among them. */
 #define OVS_EN 4096u
 
@@ -231,11 +231,11 @@ static void arm_oversampler_factor_and_dot(void) {
 
   const uint32_t reach = 2u * OMX_HALFBAND_ODD_TAPS; /* the kernel reads 2T-1 either side */
   static float buf[4096];
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
     uint32_t seed = 0x5eed1234u;
     for (uint32_t i = 0; i < 4096u; i++) {
       seed = seed * 1664525u + 1013904223u;
-      const double t = (double)i / (double)OMX_FX_RME_RATES[ri];
+      const double t = (double)i / (double)OMX_FX_ORACLE_RATES[ri];
       buf[i] = (float)(((double)(seed >> 8) / 8388608.0 - 1.0) * 0.5 + 0.4 * sin(2.0 * M_PI * 997.0 * t) + 0.1 * sin(2.0 * M_PI * 31013.0 * t));
     }
     int eq_ovs = 1, eq_rta = 1;
@@ -254,8 +254,8 @@ static void arm_oversampler_factor_and_dot(void) {
       if (memcmp(&shared, &was_ovs, sizeof shared) != 0) eq_ovs = 0;
       if (memcmp(&shared, &was_rta, sizeof shared) != 0) eq_rta = 0;
     }
-    ok(eq_ovs, "omx_halfband_dot is BIT-identical to the oversampler's former dot", 0.0, OMX_FX_RME_RATES[ri]);
-    ok(eq_rta, "omx_halfband_dot is BIT-identical to the RTA decimator's former dot", 0.0, OMX_FX_RME_RATES[ri]);
+    ok(eq_ovs, "omx_halfband_dot is BIT-identical to the oversampler's former dot", 0.0, OMX_FX_ORACLE_RATES[ri]);
+    ok(eq_rta, "omx_halfband_dot is BIT-identical to the RTA decimator's former dot", 0.0, OMX_FX_ORACLE_RATES[ri]);
   }
   static float sym[4096];
   const uint32_t mid = 2048u;
@@ -354,7 +354,7 @@ static void arm_oversampler(void) {
     }
   }
   for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) arm_oversampler_parallel(OMX_DECLARED_RATES[ri]);
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) arm_oversampler_promises(OMX_FX_RME_RATES[ri]);
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) arm_oversampler_promises(OMX_FX_ORACLE_RATES[ri]);
   arm_oversampler_factor_and_dot();
   arm_oversampler_table();
   expect_clean();

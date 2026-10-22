@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# pitch-rates-sabotage.sh <dir> <archive> — the pitch oracles at the nine RME rates are not blind to
+# pitch-rates-sabotage.sh <dir> <archive> — the pitch oracles at the nine oracle rates are not blind to
 # the two things that make the pitch faces work at 32, 64 and 128 kHz (FreeMixer/omx-dsp#91). Each
 # sabotage builds the named oracle against a SABOTAGED COPY of the headers placed ahead of the real
 # include directory, and each build must go red on the arm and rate named beside it, never on a

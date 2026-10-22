@@ -22,11 +22,11 @@
  * ## The arms
  *
  *   A — THE DELAY FOLLOWS THE LFO, with the loop open (fb = 0): the impulse response's centroid
- *       against `base + depth·(1 + s(φ))/2`, 16 phases, four rates, with the same half-a-sample
+ *       against `base + depth·(1 + s(φ))/2`, 16 phases, nine rates, with the same half-a-sample
  *       control the chorus arm uses.
  *   B — THE RESONANCE. Peak height, notch depth and the −3 dB WIDTH around f = m/(d+1), at
  *       fb = +0.6 and fb = −0.6 (which swaps peaks and notches — the hollow flange), against the
- *       closed form, at four rates. The peak height is also compared with the algebraic
+ *       closed form, at nine rates. The peak height is also compared with the algebraic
  *       (1 − mix) + mix/(1 − fb), the IDEAL comb's tooth (the `output-le-input-plus` law's
  *       sample-peak bound carries the read kernel's Λ on top —G).
  *   C — THE CLAMP. fb asked for ±1.5 is clamped to ±0.95, where `omx_flanger_gain_bound`
@@ -36,13 +36,13 @@
  *   D — TAIL DECAYS. The input stops; the output falls below −100 dBFS within the loop count the
  *       feedback implies, and the feedback state word reaches EXACTLY zero rather than trickling
  *       down into subnormals.
- *   E — NO CLICK, four rates, the chorus arm's bound (ω(1 + dd), both directions of the sweep),
+ *   E — NO CLICK, nine rates, the chorus arm's bound (ω(1 + dd), both directions of the sweep),
  *       with the nearest-sample control that must break it.
  *   F — BYPASS IDENTITY: `enabled = 0` and `mix = 0`, memcmp-identical, below the flush floor.
  *   G — `chorus_flanger_stay_inside_their_bound` (F6 of docs/audits/2026-09-25-native-fx-rt-
  *       review.md): a full-scale fs/4 pattern read half a sample off — the Lagrange-3
  *       kernel's worst case, Σ|c| = Λ = OMX_FDELAY_READ_L1_NORM — stays inside
- *       `omx_chorus_gain_bound` and `omx_flanger_gain_bound`, four rates, with the whole-sample
+ *       `omx_chorus_gain_bound` and `omx_flanger_gain_bound`, nine rates, with the whole-sample
  *       control; plus the evidence that the ruled Λ/(1 − |fb|) form is NOT a bound.
  *   H — A REFUSED INIT leaves both lines defined: the left line refuses a missing ring, the right
  *       one arms over its own, and the stage passes the block through untouched.
@@ -87,9 +87,9 @@ static void drain_violations(const char *where) {
   omx_contract_log.count = 0u;
 }
 
-/* The floor rates every oracle runs at, as fx_rates.h holds them: the contract's list, never a local one. */
-#define NRATES OMX_ORACLE_FLOOR_RATES_COUNT
-#define RATES OMX_FX_RATE_FLOOR
+/* The nine oracle rates, as fx_rates.h holds them (the contract's list, never a local one). */
+#define NRATES OMX_FX_ORACLE_RATE_COUNT
+#define RATES OMX_FX_ORACLE_RATES
 
 static float g_ring_l[OMX_FLANGER_CAP], g_ring_r[OMX_FLANGER_CAP];
 
@@ -252,14 +252,14 @@ static void arm_b_resonance(void) {
       const double at_res = mag_at(f_res, sr);
       const double algebraic =
           fabs((1.0 - 0.5) + (fb > 0.0 ? 1.0 : -1.0) * 0.5 / (1.0 - fabs(fb)));
-      /* 0.5 dB, and the slack is a MEASURED physical term rather than room for a bug: the loop's
+      /* 0.8 dB, and the slack is a MEASURED physical term rather than room for a bug: the loop's
        * extra sample rotates the wet path by w radians against the dry before they sum, so the
-       * simple algebra is the small-w limit and the gap closes as the rate rises — 0.41 dB at
-       * 44.1 kHz, 0.01 dB at 192 kHz, printed at every rate. The COMPLEX comparison above carries
-       * that rotation and holds to 5e-4 at all four. */
-      ok(fabs(20.0 * log10(at_res / algebraic)) <= 0.5,
+       * simple algebra is the small-w limit and the gap closes as the rate rises — 0.76 dB at
+       * 32 kHz, 0.41 dB at 44.1 kHz, 0.01 dB at 192 kHz, printed at every rate. The COMPLEX comparison
+       * above carries that rotation and holds to 5e-4 at all nine. */
+      ok(fabs(20.0 * log10(at_res / algebraic)) <= 0.8,
          "arm B: at mix 0.5 the response at the resonance is the algebra's, sign included",
-         20.0 * log10(at_res / algebraic), 0.5);
+         20.0 * log10(at_res / algebraic), 0.8);
       printf("mix_flanger arm B, %.1f kHz, fb %+.2f: loop %.1f samples, comb %.1f Hz, wet-only "
              "resonance %+.2f dB at %.1f Hz (want %+.2f), %+.2f dB half a tooth away (want "
              "%+.2f), depth x%.2f, -3 dB width %.1f Hz (closed form %.1f); at mix 0.5 %+.2f dB "

@@ -1,3 +1,70 @@
+omx-dsp (0.25.0) unstable; urgency=medium
+
+  * Built against omx-contract 3.0.0, the schema's major 3: data/ installs
+    under contract.d/3/omx-dsp/ and every definition file requires
+    omx-contract-schema >= 3.0.0.
+  * The second C spellings of eight travels (their c.alias) are gone:
+    OMX_PAN_PAN_*, OMX_DELAY_TIME_MS_*, OMX_DELAY_TAPS_* and OMX_DRIVE_*_*.
+    Read PAN_RANGE as OMX_PAN_RANGE_MIN/MAX and the others by their
+    travels' own names.
+  * New header omxdsp/omx_eq_defaults.h: omx_eq_default_centres and
+    omx_eq_default_type, the one default rule for the bands of a fresh EQ,
+    moved from omx-contract's header with the same results for every band
+    count; make eq-default-bands holds them to the rule's answers.
+  * libomx-contract-dev (>= 3.0.0).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 20 Oct 2026 20:00:00 +0000
+
+omx-dsp (0.24.1) unstable; urgency=medium
+
+  * 0.24.0 has no arm64 DEB: its trixie arm64 build passed the release's job
+    time limit, which is now 90 minutes.
+  * A release dispatched by hand builds the arm64 and aarch64 packages too.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Mon, 19 Oct 2026 06:00:00 +0000
+
+omx-dsp (0.24.0) unstable; urgency=medium
+
+  * Nine instance faces (drive, rotary, reverb, chorus, deesser, delay, eq,
+    flanger and limiter) accept the nine oracle rates from 32 to 192 kHz, the
+    contract's OMX_ORACLE_FULL_RATES, as the pitch faces do; at 32, 64 and
+    128 kHz they used to pass the signal through. Their oracles run every
+    arm at the nine rates.
+  * The deesser designs its detector band at no more than
+    DEESS_NYQUIST_FRACTION (0.91, declared in data/kernels/deesser.json) of
+    Nyquist, so at 32 kHz the band-pass keeps stable poles. No design at a
+    declared rate moves.
+  * The cookbook low-pass holds its corner below Nyquist, so exciterAir's
+    16 kHz roll-off at 32 kHz no longer puts a double pole on the unit
+    circle.
+  * The output delay is declared in data/kernels/idelay.json, and
+    omx_idelay.h gains OMX_IDELAY_MAX_MS, the rendered
+    OMX_OUTPUT_DELAY_RANGE_MAX.
+  * No test or tool types a rate list the contract declares: they read the
+    contract's lists, and make lint checks it.
+  * New headers omxdsp/mix/omx_key.h (omx_key and omx_key_build, a
+    dynamics slot's key) and omxdsp/mix/omx_src_blend.h (omx_src_blend, the
+    switch between a live and a playback source), moved from the console
+    engine bit for bit, and omx_meter_level_db in omxdsp/mix/omx_meter.h, a
+    level meter's dBFS reading. Golden digests at the nine oracle rates,
+    written by the engine's own copies.
+  * The floor of omx_lin_to_db is declared in
+    data/primitives/lin-to-db-floor.json and rendered as
+    OMX_LIN_TO_DB_FLOOR_LIN and OMX_LIN_TO_DB_FLOOR_DB (-180 dB); the value
+    is the same 1e-9 as before (#177).
+  * omx_idelay.h declares its ring size, OMX_IDELAY_MAX_RATE and
+    OMX_IDELAY_CAP (192001 samples).
+  * The tests name the nine rates OMX_ORACLE_FULL_RATES and no vendor (#176);
+    the chorus and flanger kernel oracles run at all nine (#179).
+  * make -jN test generates the kernel lists once and runs test-fx one
+    target per kernel, side by side; perturb.sh writes its case list into its
+    own scratch directory (#153, #163).
+  * Cost benches for the drive and flanger kernels (make bench-drive, make
+    bench-flanger), and one interleaved before/after script for every bench.
+  * libomx-contract-dev (>= 2.16.0).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 18 Oct 2026 20:00:00 +0000
+
 omx-dsp (0.23.0) unstable; urgency=medium
 
   * New header omxdsp/mix/omx_bus_stage.h with omx_mix_strip,

@@ -4,7 +4,7 @@
 #include <omxdsp/mix/omx_bus_sum.h>
 
 /* ---- one source's contribution to a summing bus (mix/omx_bus_sum.h, FreeMixer/omx-dsp#98). At
- * each of the nine RME rates, a 10 ms block: a settled send into a stereo bus is in × level per
+ * each of the nine oracle rates, a 10 ms block: a settled send into a stereo bus is in × level per
  * leg exactly, and a second send adds to it; a move from 0 to 1 ramps linearly across the block;
  * a hard-left image leaves the right leg alone; a correlated source folded into a mono bus at
  * 0.5 lands at unity and both cursors take the fold's target; a silent, settled send writes
@@ -12,12 +12,12 @@
  * finite cursors; the entries through omx_mixmatrix_sparse() give the same bits on a zeroed
  * bus. -------------------------------------------------------------------------------------- */
 
-static const float MIX_BUS_SUM_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_BUS_SUM_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 static void arm_mix_bus_sum(void) {
   g_arm = "mix_bus_sum";
   static float l[1920], r[1920], bl[1920], br[1920], y0[1920], y1[1920];
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const uint32_t n = (uint32_t)(MIX_BUS_SUM_RATES[ri] / 100.0f);
     for (uint32_t i = 0; i < n; i++) {
       l[i] = 0.8f;

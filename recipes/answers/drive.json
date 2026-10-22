@@ -38,12 +38,6 @@
         "defaultFrom": "desk"
       },
       "doc": "The PRE-CURVE gain, in dB. 0 dB is unity into the curve, so a stage switched on at its defaults changes almost nothing — which is what an `on` switch should mean. The ceiling is where every curve is saturating hard on any signal a console carries.",
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "driveDb"
-        }
-      },
       "since": "1.2.0"
     },
     {
@@ -61,12 +55,6 @@
         "defaultFrom": "desk"
       },
       "doc": "The EVEN/ODD harmonic balance. −1 is pure odd (the curve itself), +1 is pure even, 0 an equal blend — the kernel splits its own distortion residue into an odd and an even half and fades between them, so the two ends are exact rather than approximate (`mix_drive.h`, measured: H2 at −317 dBc at −1, H3 at −118 dBc at +1). Unitless, and signed by construction. NOT NORMALIZED_RANGE: this is a BALANCE with a meaningful centre, and a 0..1 travel would put its centre at 0.5 and its neutral nowhere.",
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "character"
-        }
-      },
       "since": "1.2.0"
     },
     {
@@ -84,12 +72,6 @@
         "defaultFrom": "desk"
       },
       "doc": "The band split / tilt corner, in Hz. ONE travel for all three band modes, because the C imposes one constraint on all of them: it is the corner of a single biquad, and the split's other half is `x − LP(x)`. The full audio band, not the channel filters' narrower HPF/LPF pair — the same reasoning REVERB_CUT_RANGE records: a surface narrower than the row removes reach the console genuinely has.",
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "bandHz"
-        }
-      },
       "since": "1.2.0"
     },
     {
@@ -107,12 +89,6 @@
         "defaultFrom": "desk"
       },
       "doc": "The wet/dry, as a PERCENT — the unit a drive control is read in on every desk that has one. Deliberately not NORMALIZED_RANGE (which is unitless 0..1): a mix a surface must label \"0.35\" when the operator thinks in \"35 %\" is a control whose declaration is fighting its reader. The kernel divides by 100 where it resolves the atom, in one place. The come-up is 100 %, not the reverb's modest 30: a saturator's insert use is IN the path. The `exciter` curve seeds itself lower (DRIVE_EXCITER_SEED), because that is a property of the TOPOLOGY and not of the travel.",
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "mix"
-        }
-      },
       "since": "1.2.0"
     },
     {
@@ -130,12 +106,6 @@
         "defaultFrom": "desk"
       },
       "doc": "The POST-stage make-up, in dB. Symmetric enough either way that an operator can null the stage in and out against the bypass, which is how a colour stage is actually judged.",
-      "c": {
-        "alias": {
-          "fact": "drive",
-          "field": "trimDb"
-        }
-      },
       "since": "1.2.0"
     },
     {

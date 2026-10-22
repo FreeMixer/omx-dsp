@@ -1,0 +1,14 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "LIN_TO_DB_FLOOR": {
+    "kind": "sheet",
+    "doc": "The floor of the linear-to-decibel conversions (`omx_lin_to_db`, `omx_lin_to_db_poly`): an amplitude below `lin` reads as `lin`, so silence is `db` dB, never -inf or NaN. `db` is `20·log10(lin)`. A design constant, not a control.",
+    "value": {
+      "lin": 1e-9,
+      "db": -180
+    }
+  }
+}

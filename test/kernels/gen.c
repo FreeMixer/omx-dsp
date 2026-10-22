@@ -11,7 +11,7 @@
  * the waveforms at their cardinal phases, a bin-aligned sine through the analyser, the level ramp,
  * phase continuity across blocks, white noise bounded, zero-mean and replayable, pink noise
  * bounded and tilted, and the frequency guard. The sine, continuity, guard and noise claims then
- * run again at each of the nine RME rates. */
+ * run again at each of the nine oracle rates. */
 
 #define GEN_FFT 8192u
 
@@ -154,8 +154,8 @@ static void arm_gen(void) {
   gen_white(48000.0f);
   gen_pink(48000.0f);
   gen_freq_guard(48000.0f);
-  for (uint32_t ri = 0; ri < OMX_FX_RME_RATE_COUNT; ri++) {
-    const float sr = OMX_FX_RME_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    const float sr = OMX_FX_ORACLE_RATES[ri];
     gen_sine_spectrum(sr, 171u);
     gen_phase_continuity(sr);
     gen_white(sr);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * fbs_detect.test.c — the FBS detector's closed-form oracles, at the nine RME rates
+ * fbs_detect.test.c — the FBS detector's closed-form oracles, at the nine oracle rates
  * (analysis_rates.h).
  *
  * Each case builds its spectra by hand (a tone over a −100 dB floor), so the expected verdict and

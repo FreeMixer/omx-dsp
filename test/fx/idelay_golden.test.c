@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The integer delay line's golden digests (golden.h), at the nine RME rates.
+ * The integer delay line's golden digests (golden.h), at the nine oracle rates.
  *
  * One digest per rate covers three renders laid end to end:
  *   - a stereo pair: the stimulus (an impulse, then noise for the whole run) through the pair in
@@ -43,7 +43,7 @@
 #define PAIR_APPLY omx_idelay_pair_apply
 #endif
 
-#define OMX_FX_GOLDEN_RME 1 /* held at the nine RME rates */
+#define OMX_FX_GOLDEN_ORACLE_RATES 1 /* held at the nine oracle rates */
 #include "golden.h"
 
 /* The ring: 50 ms at the highest graph rate, +1. Short enough that the ceiling request below

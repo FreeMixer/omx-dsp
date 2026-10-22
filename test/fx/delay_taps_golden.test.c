@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The FX delay's read taps, golden digests (golden.h), at the nine RME rates: the stimulus through a
+ * The FX delay's read taps, golden digests (golden.h), at the nine oracle rates: the stimulus through a
  * four-tap ping-pong delay, the tap-delay spec's `tripletCascade` pattern on a 20 ms base (factors
  * 1, 1/3, 2/3, 4/3, gains 1, 0.6, 0.45, 0.3, pans 0, -0.6, +0.6, 0), legs 20 ms / 17.5 ms, feedback
  * 0.25, mix 0.5, tone 0.4, in 128-frame blocks. The taps are resolved the way a caller resolves them:
@@ -10,7 +10,7 @@
  *   make test-fx                            compare
  *   build/fx_delay_taps_golden --write      print the lines test/golden/delay_taps.sha256 holds
  */
-#define OMX_FX_GOLDEN_RME 1
+#define OMX_FX_GOLDEN_ORACLE_RATES 1
 
 #include <stdint.h>
 #include <stdlib.h>

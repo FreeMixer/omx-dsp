@@ -18,14 +18,14 @@
  * @brief Clamp a pan position to the declared [-1, +1] range.
  *
  * A UI or model bug must not drive a pan law outside a quarter turn and flip a leg's sign. The
- * bounds are the contract row's (OMX_PAN_PAN_MIN/MAX), not restated here.
+ * bounds are the contract row's (OMX_PAN_RANGE_MIN/MAX), not restated here.
  * @param pan The pan position; any value.
- * @return `pan` clamped to [OMX_PAN_PAN_MIN, OMX_PAN_PAN_MAX].
+ * @return `pan` clamped to [OMX_PAN_RANGE_MIN, OMX_PAN_RANGE_MAX].
  * @note RT-safe: two compares. Thread-safe: pure.
  */
 static inline float omx_clamp_pan(float pan) {
-  if (pan < OMX_PAN_PAN_MIN) return OMX_PAN_PAN_MIN;
-  if (pan > OMX_PAN_PAN_MAX) return OMX_PAN_PAN_MAX;
+  if (pan < (float)OMX_PAN_RANGE_MIN) return (float)OMX_PAN_RANGE_MIN;
+  if (pan > (float)OMX_PAN_RANGE_MAX) return (float)OMX_PAN_RANGE_MAX;
   return pan;
 }
 

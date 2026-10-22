@@ -8,7 +8,7 @@
 # are listed here and nowhere else.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-exempt='^(LICENSE|debian/(changelog|control|copyright|source/format|libomxdsp-dev\.docs)|test/golden/.*\.(sha256|json)|data/.*\.json|recipes/answers/.*\.json)$'
+exempt='^(LICENSE|debian/(changelog|control|copyright|source/format|libomxdsp-dev\.docs)|test/golden/.*\.(sha256|json)|data/.*\.json|recipes/answers/.*\.json|ts/(package|package-lock|tsconfig)\.json)$'
 missing=0
 while IFS= read -r f; do
   [[ "$f" =~ $exempt ]] && continue

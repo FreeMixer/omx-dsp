@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * rates.test.c — the HRP chain at the nine RME rates, and the no-allocation arm of both engines.
+ * rates.test.c — the HRP chain at the nine oracle rates, and the no-allocation arm of both engines.
  *
  * The ported HRP oracles run at 48 kHz with a 4096-point frame. Here every rate builds its
  * spectra on the RTA's own grid for that rate (analysis_rates.h), so a bin width the detector

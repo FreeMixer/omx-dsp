@@ -4,18 +4,18 @@
 #include <omxdsp/mix/omx_rt_load.h>
 
 /* ---- the real-time load meter's measure half (mix/omx_rt_load.h, FreeMixer/omx-dsp#98). At each
- * of the nine RME rates, over a 10 ms quantum: half the budget reads 0.5, the whole budget reads 1
+ * of the nine oracle rates, over a 10 ms quantum: half the budget reads 0.5, the whole budget reads 1
  * and overruns, just under it does not; a cycle with no frames or no rate reads 0; the smoothed
  * reading starts on the first ratio, holds a constant input, and after k cycles of a unit step
  * reads 1 − 0.9^k; the peak keeps the largest ratio and an equal or NaN one moves nothing; the
  * driver's xrun total counts nothing on its baseline, one event when it grows, none when it holds
  * or falls. ----------------------------------------------------------------------------------- */
 
-static const float MIX_RT_LOAD_RATES[OMX_RME_RATES_COUNT] = OMX_RME_RATES_INIT;
+static const float MIX_RT_LOAD_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
 static void arm_mix_rt_load(void) {
   g_arm = "mix_rt_load";
-  for (uint32_t ri = 0; ri < OMX_RME_RATES_COUNT; ri++) {
+  for (uint32_t ri = 0; ri < OMX_ORACLE_FULL_RATES_COUNT; ri++) {
     const float sr = MIX_RT_LOAD_RATES[ri];
     const uint32_t frames = (uint32_t)(sr / 100.0f); /* 10 ms, a whole number of frames at every rate */
     const float half = omx_rt_load_ratio(5000000u, frames, sr);
