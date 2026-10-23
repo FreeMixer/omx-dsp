@@ -7,15 +7,18 @@
 #   FreeMixer/openmixer, openmixer-ops, openmixer#N, openmixer #N, any <name>-dev#N,
 #   integration/<branch>, packages/<name>/ (a path in the private repository), a .vue file,
 #   docs/design/specs|notes/ (its design documents), `issue #N`, a citation of a private specification
-#   (`spec §N`, `Spec: the X spec`, a dated `YYYY-MM-DD-name.md`).
+#   (`spec §N`, `Spec: the X spec`, a dated `YYYY-MM-DD-name.md`), or a private memory note name
+#   (`feedback_...`, `user_...`, `project_...`, `reference_...`).
 # State the fact itself and cite a public repository (omx-dsp#N, omx-contract, omx-plugins).
 #
 #   tools/public-sources-check.sh              the check
 #   tools/public-sources-check.sh --messages [RANGE]
 #                                              the same patterns over the commit messages of RANGE
 #                                              (default origin/main..HEAD): messages are published too
-#   tools/public-sources-check.sh --self-test  a private name in a header comment, a .md and a .sh
-#                                              must be found; an allowlisted line must not be
+#   tools/public-sources-check.sh --self-test  a private name in a header comment, a .md and a .sh,
+#                                              and a private memory note name, must be found; an
+#                                              allowlisted line and a plain `feedback_` identifier
+#                                              (sabotage control) must not be
 #
 # Only the messages a change adds are checked, never the history already on main: a commit that
 # is on main is published and is not rewritten by this check.
@@ -25,7 +28,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PATTERN='FreeMixer/openmixer|openmixer-ops|openmixer ?#[0-9]|[A-Za-z0-9._]+-dev#[0-9]|integration/[A-Za-z0-9]|packages/[a-z-]+/|\.vue\b|docs/design/(specs|notes)/|issue #[0-9]|[Ss]pec §|(Spec|Design|Law): (the )?[a-z0-9 -]+ (spec|design)|20[0-9]{2}-[0-9]{2}-[0-9]{2}-[a-z][a-z0-9-]*\.md'
+PATTERN='FreeMixer/openmixer|openmixer-ops|openmixer ?#[0-9]|[A-Za-z0-9._]+-dev#[0-9]|integration/[A-Za-z0-9]|packages/[a-z-]+/|\.vue\b|docs/design/(specs|notes)/|issue #[0-9]|[Ss]pec §|(Spec|Design|Law): (the )?[a-z0-9 -]+ (spec|design)|20[0-9]{2}-[0-9]{2}-[0-9]{2}-[a-z][a-z0-9-]*\.md|`(feedback|user|project|reference)_[a-z][a-z0-9_]*`'
 
 ALLOW=$'Makefile\t$(OPENMIXER)/packages/pipewire-native/src
 tools/analysis-engine-identity.sh\t$(cd "$1" && pwd)/packages/pipewire-native/src
@@ -85,13 +88,15 @@ if [ "${1:-}" = --self-test ]; then
   printf '# Design: the dsp primitives spec\n' > "$d/tools/f.sh"
   printf '/* tracked in issue #917 */\n' > "$d/include/g.h"
   printf '/* see 2026-09-25-native-fx-rt-review.md */\n' > "$d/include/h.h"
+  printf '/* memory `feedback_dsp_oracles_measure_four_rates_minimum` */\n' > "$d/include/i.h"
   printf 'x "$(OPENMIXER)/packages/pipewire-native/src"\n' > "$d/Makefile"
   printf 'a clean line about OpenMixer, the product\n' > "$d/clean.md"
-  found="$(printf '%s\n' include/a.h b.md tools/c.sh include/d.c include/e.h tools/f.sh include/g.h include/h.h Makefile clean.md | scan "$d")"
-  for want in include/a.h b.md tools/c.sh include/d.c include/e.h tools/f.sh include/g.h include/h.h; do
+  printf 'static void test_feedback_clamp_prevents_runaway(void) {}\n' > "$d/clean2.c"
+  found="$(printf '%s\n' include/a.h b.md tools/c.sh include/d.c include/e.h tools/f.sh include/g.h include/h.h include/i.h Makefile clean.md clean2.c | scan "$d")"
+  for want in include/a.h b.md tools/c.sh include/d.c include/e.h tools/f.sh include/g.h include/h.h include/i.h; do
     grep -q "^$want:" <<<"$found" || { echo "public-sources-check self-test: $want was NOT found" >&2; exit 1; }
   done
-  if grep -qE '^(Makefile|clean\.md):' <<<"$found"; then
+  if grep -qE '^(Makefile|clean\.md|clean2\.c):' <<<"$found"; then
     echo "public-sources-check self-test: an allowlisted or clean line was reported" >&2; exit 1
   fi
   # commit messages: a private name in a body is found; a clean message is not, even with a private one before the range
