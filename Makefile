@@ -23,7 +23,7 @@
 #   make exports  build/omx-dsp-exports.json: every public export with its fingerprint, literals,
 #               kernels and twins, which omx-dsp-copy-check reads in a consumer (make install ships both)
 #   make copy-check  omx-dsp-copy-check's self-test over planted copies, then each rule broken in turn
-#   make lint   the doc check and the source scan only
+#   make lint   the doc check, the source scan and the duplicate-region check (tools/dup-check.mjs)
 #   make contract-dir OMX_CONTRACT=<checkout>  data/ installed beside omx-contract's own data as a contract
 #               directory and read back through the checkout's reader, and three refusals
 #               (tools/contract-dir-check.sh)
@@ -335,6 +335,8 @@ checks:
 	bash tools/rate-list-check.sh --self-test
 	bash tools/gen-scratch-check.sh
 	bash tools/gen-scratch-check.sh --self-test
+	node tools/dup-check.mjs
+	node tools/dup-check.mjs --self-test
 
 lint: checks
 
