@@ -1,7 +1,7 @@
 {
   "$schema": "../../schema/omx-contract.schema.json",
   "requires": {
-    "omx-contract-schema": ">= 3.0.0"
+    "omx-contract-schema": ">= 3.1.0"
   },
   "controls": [
     {
@@ -150,6 +150,39 @@
         "max": 20000,
         "step": 1,
         "unit": "Hz"
+      }
+    },
+    {
+      "name": "keyListen",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_gate_instance.h#listen_on"
+      },
+      "doc": "While on, both outputs carry what the gate's detector hears: the key (the sidechain, or the gate's own mono sum) after the key filter and the tilt. The gate keeps running underneath. It comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "keyTiltDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_gate_instance.h#tilt_slope"
+      },
+      "doc": "The key's tilt, in dB per octave at KEY_TILT_PIVOT_HZ, after the key filter: positive lets the gate open on a brighter key (a tom, a snare) and stay shut on the low end, negative the other way (omx_tilt, the compressor's key tilt). 0 is flat, the come-up value, bit for bit.",
+      "travel": {
+        "min": -6,
+        "max": 6,
+        "step": 0.5,
+        "unit": "dB/oct",
+        "default": 0,
+        "defaultFrom": "desk"
       }
     }
   ],

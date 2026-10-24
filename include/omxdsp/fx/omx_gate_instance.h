@@ -24,7 +24,8 @@
  *      equal to its end is the hard knee, the gate before the knee range, bit for bit. The key
  *      filter's edges (`hp_hz`, `lp_hz`, omx-contract 2.7.0) reach `omx_gate_resolve` through its
  *      controls, clamped into GATE_KEY_LIMITS, a non-finite edge out; both at 0 is the gate
- *      before the key filter, bit for bit.
+ *      before the key filter, bit for bit. The key listen and the key's tilt (keyListen, keyTiltDb)
+ *      reach the gate's own (omx_gate_key_tilt); off and flat are the gate before them, bit for bit.
  *   3. IN -> OUT. `omx_gate_run` already copies every block (inputs AND key) through its scratch,
  *      so any aliasing a host does (an output on its input, the key on an output) is safe.
  *
@@ -74,7 +75,7 @@ static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int
                                              float threshold_db, float range_db, float knee_start_db,
                                              float knee_end_db, float attack_ms, float hold_ms,
                                              float release_ms, float hysteresis_db, float ratio, float hp_hz,
-                                             float lp_hz);
+                                             float lp_hz, int key_listen, float key_tilt_db);
 
 static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
   if (!s) return 0;
@@ -87,7 +88,8 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
                             OMX_GATE_KNEE_START_DB_DEFAULT, OMX_GATE_KNEE_END_DB_DEFAULT,
                             OMX_GATE_ATTACK_MS_DEFAULT, OMX_GATE_HOLD_MS_DEFAULT, OMX_GATE_RELEASE_MS_DEFAULT,
                             OMX_GATE_HYSTERESIS_DB_DEFAULT, OMX_GATE_RATIO_DEFAULT, OMX_GATE_KEY_HP_HZ_MIN,
-                            OMX_GATE_KEY_LP_HZ_MIN);
+                            OMX_GATE_KEY_LP_HZ_MIN, (int)OMX_GATE_KEY_LISTENS_DEFAULT,
+                            (float)OMX_GATE_KEY_TILT_DB_RANGE_DEFAULT);
   return 1;
 }
 
@@ -115,6 +117,10 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
  * @param ratio The expansion ratio.
  * @param hp_hz The key filter's high-pass corner, Hz; 0 is out.
  * @param lp_hz The key filter's low-pass corner, Hz; 0 is out.
+ * @param key_listen A GATE_KEY_LISTENS index: `on` puts the key the detector hears on both outputs;
+ *        anything else reads as `off`.
+ * @param key_tilt_db The key's tilt, dB per octave at KEY_TILT_PIVOT_HZ, clamped into
+ *        GATE_KEY_TILT_DB_RANGE, a non-finite word reading as 0 (flat).
  * @post `atom-meets-the-kernel-preconditions`: every field inside the declared OMX_GATE_* travel,
  *       and the key filter's edges inside GATE_KEY_LIMITS.
  * @note RT-safe: two expf per call, and the key filter's design when an edge moves. Thread-safe on
@@ -124,7 +130,7 @@ static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int
                                              float threshold_db, float range_db, float knee_start_db,
                                              float knee_end_db, float attack_ms, float hold_ms,
                                              float release_ms, float hysteresis_db, float ratio, float hp_hz,
-                                             float lp_hz) {
+                                             float lp_hz, int key_listen, float key_tilt_db) {
   if (!s || !s->ready) return;
   const float enabled = bypass ? 0.0f : 1.0f;
   s->key_external = key_source ? 1.0f : 0.0f;
@@ -142,6 +148,11 @@ static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int
       omx_clamp_or(hold_ms, OMX_GATE_HOLD_MS_MIN, OMX_GATE_HOLD_MS_MAX, OMX_GATE_HOLD_MS_DEFAULT), s->sr);
   s->atom.hyst_db = omx_clamp_or(hysteresis_db, OMX_GATE_HYSTERESIS_DB_MIN, OMX_GATE_HYSTERESIS_DB_MAX,
                                  OMX_GATE_HYSTERESIS_DB_DEFAULT);
+  const int listen_on = key_listen == OMX_GATE_KEY_LISTENS_ON ? 1 : 0;
+  const float tilt_slope = omx_clamp_or(key_tilt_db, (float)OMX_GATE_KEY_TILT_DB_RANGE_MIN,
+                                        (float)OMX_GATE_KEY_TILT_DB_RANGE_MAX, (float)OMX_GATE_KEY_TILT_DB_RANGE_DEFAULT);
+  s->gate.listen = listen_on;
+  omx_gate_key_tilt(&s->gate, tilt_slope);
   const struct omx_dyn *p = &s->atom;
   (void)p; /* read only by the POST, compiled out of a release build */
   OMX_POST(p->gc.mode == OMX_DYN_BELOW && p->gc.ratio >= OMX_GATE_RATIO_MIN &&
