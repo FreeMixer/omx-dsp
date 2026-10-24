@@ -126,7 +126,9 @@ typedef struct {
  *        Every travel is clamped into its declared range, a non-finite word reading as its default;
  *        a choice outside its ids reads as its default.
  * @post `atom-meets-the-kernel-preconditions`: every field inside the declared OMX_COMP_* travel.
- * @note RT-safe: two expf and one powf per call. Thread-safe on distinct instances.
+ * @note RT-safe and allocation-free: two expf and one powf per call, the key filter's design
+ *       (omx_gate_key_design: cos, sin, exp, sqrt) for each leg whose edge moved, and the tilt's design
+ *       (omx_tilt_design: a tan and a sqrt) when its slope moved. Thread-safe on distinct instances.
  */
 static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
                                              float threshold_db, float ratio, float knee_db,
