@@ -19,6 +19,7 @@
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <omxdsp/omx_denormal.h>
 #include <omxdsp/omx_lfo.h> /* omx_lfo_shape — the tier's ONE oscillator shape, minted 2026-09-22 */
@@ -28,6 +29,8 @@
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_units.h>
 #include <omxdsp/omx_wetdry.h>
+#include <omxdsp/omx_duck.h>
+#include <omxdsp/fx/omx_deesser.h>
 
 /*
  * FIVE configurations over TWO kernels. REVERSE and GATED are the ROOM comb network handed an
@@ -185,6 +188,41 @@ struct omx_reverb_state {
   float *pre; uint32_t pre_cap; uint32_t pre_pos;
   float lc_l, lc_r, hc_l, hc_r; /* one-pole low/high-cut state per leg */
   uint32_t next_free;           /* pool cursor used during layout */
+};
+
+/** The early reflections' tap count, REVERB_EARLY_TAP_MS's. */
+#define OMX_REVERB_EARLY_TAPS OMX_REVERB_EARLY_TAP_MS_COUNT
+_Static_assert(OMX_REVERB_EARLY_TAP_MS_COUNT == OMX_REVERB_EARLY_TAP_GAINS_COUNT, "one gain per early tap");
+
+/*
+ * THE RETURN: early reflections, the tail's level, the wet duck and the wet de-esser, a snapshot
+ * beside the atom so every caller of the atom builds and plays as it did. A NULL return, or no
+ * early reflections, the tail at 1, a 0 dB duck and no de-esser, is the reverb that shipped, bit for
+ * bit.
+ *
+ * The early taps read the pre-delayed mono feed from a ring of the caller's: tap k at `tap_d[k]`
+ * samples with gain `tap_g[k]`, the even taps summed into the left wet and the odd into the right,
+ * scaled by `early_lin`, added to the tail (scaled by `tail_lin`) ahead of the width and the cuts.
+ * The duck (omx_duck_step on the louder dry leg) and the de-esser (omx_deess_process, split, on the
+ * wet legs) come last, after the gate.
+ */
+struct omx_reverb_return {
+  float early_lin;                        /* the early taps' gain; 0 is no early reflections */
+  float tail_lin;                         /* the network's gain; 1 is the tail as it shipped */
+  uint32_t tap_d[OMX_REVERB_EARLY_TAPS];  /* each tap's delay, samples, inside the ring */
+  float tap_g[OMX_REVERB_EARLY_TAPS];     /* each tap's gain, linear */
+  struct omx_duck duck;                   /* the wet duck; a 0 dB depth ducks nothing */
+  const struct omx_deess *deess;          /* the wet de-esser's atom, or NULL for none */
+};
+
+/* The return's state: the early ring (the caller's `cap` floats), its cursor, the duck's follower and
+ * the de-esser's state. */
+struct omx_reverb_return_state {
+  float *ring;
+  uint32_t cap;
+  uint32_t pos;
+  struct omx_duck_state duck;
+  struct omx_deess_state deess;
 };
 
 /*
@@ -567,8 +605,9 @@ static inline void omx_fv_leg_block(float *const *comb, const uint32_t *comb_len
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "reverb"
-static inline void omx_reverb_process(float *l, float *r, uint32_t n,
-                                      const struct omx_reverb *p, struct omx_reverb_state *s, float sr) {
+static inline void omx_reverb_process_return(float *l, float *r, uint32_t n, const struct omx_reverb *p,
+                                             const struct omx_reverb_return *x, struct omx_reverb_return_state *xs,
+                                             struct omx_reverb_state *s, float sr) {
   /* CONTRACT (omx_contract.h). A reverb is a bank of RECURSIVE networks — combs with feedback,
    * allpasses, a predelay line — so its two dangers are both about the recursion: it must not
    * grow without bound, and its tail must not sit in the denormal range costing microcode traps
@@ -686,6 +725,13 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
    * omx_plate_ap_block), and per-sample only what is a recursion across the whole network (the
    * plate's cross-coupled tank) or an output stage. Every state word the per-sample stages touch is
    * held in a local for the chunk and written back once. */
+  /* The return, hoisted: each flag 0 leaves its arithmetic out. */
+  const int ret = x != NULL && xs != NULL;
+  const int early = ret && x->early_lin > 0.0f && xs->ring != NULL && xs->cap > 0u;
+  const int tail_scaled = ret && x->tail_lin != 1.0f;
+  const int ducked = ret && x->duck.depth_db < 0.0f;
+  const int deessed = ret && x->deess != NULL && x->deess->enabled;
+  float el[OMX_REVERB_CHUNK], er[OMX_REVERB_CHUNK];
   const int algo = p->algorithm;
   const float plate_decay = OMX_REVERB_PLATE_DECAY_FLOOR + OMX_REVERB_PLATE_DECAY_SPAN * size01;
   float xin[OMX_REVERB_CHUNK], fed[OMX_REVERB_CHUNK], wl[OMX_REVERB_CHUNK], wr[OMX_REVERB_CHUNK];
@@ -702,6 +748,20 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
       pre_pos = omx_lookahead_fwd(pre_pos, 1u, s->pre_cap);
     }
     s->pre_pos = pre_pos;
+    /* The early taps, on the pre-delayed feed before any network touches it. */
+    if (early) {
+      uint32_t ep = xs->pos;
+      for (uint32_t i = 0; i < k; i++) {
+        xs->ring[ep] = fed[i];
+        float a = 0.0f, b = 0.0f;
+        for (uint32_t t = 0; t < OMX_REVERB_EARLY_TAPS; t += 2u) a += x->tap_g[t] * xs->ring[omx_lookahead_back(ep, x->tap_d[t], xs->cap)];
+        for (uint32_t t = 1; t < OMX_REVERB_EARLY_TAPS; t += 2u) b += x->tap_g[t] * xs->ring[omx_lookahead_back(ep, x->tap_d[t], xs->cap)];
+        el[i] = x->early_lin * a;
+        er[i] = x->early_lin * b;
+        ep = omx_lookahead_fwd(ep, 1u, xs->cap);
+      }
+      xs->pos = ep;
+    }
 
     if (algo == OMX_REVERB_PLATE) {
       /* Dattorro: 4 series input diffusers, then a figure-8 tank with damping + decay. */
@@ -792,6 +852,14 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
         rev_phase = (rev_phase + 1u == rev_h) ? 0u : rev_phase + 1u;
       }
 
+      if (tail_scaled) {
+        wetL *= x->tail_lin;
+        wetR *= x->tail_lin;
+      }
+      if (early) {
+        wetL += el[i];
+        wetR += er[i];
+      }
       /* stereo width: blend the two wet legs toward mono as width->0 */
       float mid = 0.5f * (wetL + wetR), side = 0.5f * (wetL - wetR) * width;
       wetL = mid + side; wetR = mid - side;
@@ -829,7 +897,22 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
         }
         wetL *= gate_env; wetR *= gate_env;
       }
+      if (ducked) {
+        const float g = omx_duck_step(&x->duck, &xs->duck, fabsf(lb[i]) > fabsf(rb[i]) ? lb[i] : rb[i]);
+        wetL *= g;
+        wetR *= g;
+      }
+      if (deessed) {
+        wl[i] = wetL;
+        wr[i] = wetR;
+        continue;
+      }
       omx_wetdry_mix(&lb[i], &rb[i], lb[i], rb[i], wetL, wetR, dry, mix);
+    }
+    /* The wet de-esser runs over the chunk's wet, then the chunk mixes. */
+    if (deessed) {
+      omx_deess_process(wl, wr, k, x->deess, &xs->deess);
+      for (uint32_t i = 0; i < k; i++) omx_wetdry_mix(&lb[i], &rb[i], lb[i], rb[i], wl[i], wr[i], dry, mix);
     }
     s->rev_w = rev_w; s->rev_phase = rev_phase;
     s->gate_env = gate_env; s->gate_hold_left = gate_hold_left;
@@ -838,5 +921,28 @@ static inline void omx_reverb_process(float *l, float *r, uint32_t n,
   OMX_POST(s->gate_env >= 0.0f && s->gate_env <= 1.0f, "gate-envelope-in-unit-range");
 }
 #undef OMX_CONTRACT_STAGE
+
+/**
+ * Process one block IN PLACE with no return: omx_reverb_process_return with the neutral return,
+ * the reverb as it shipped.
+ *
+ * @param l the left leg, `n` frames, processed in place
+ * @param r the right leg, `n` frames, processed in place
+ * @param n frames in the block
+ * @param p the reverb's control atom
+ * @param s the caller-owned pool's lines and the RT state
+ * @param sr the live rate, Hz; the rate the lines were laid out at
+ */
+static inline void omx_reverb_process(float *l, float *r, uint32_t n, const struct omx_reverb *p,
+                                      struct omx_reverb_state *s, float sr) {
+  /* The neutral return (no early taps, the tail at 1, no duck, no de-esser), which leaves out every
+   * step of the return as a NULL one does, handed by address so no NULL reaches the inlined body. */
+  struct omx_reverb_return x;
+  struct omx_reverb_return_state xs;
+  memset(&x, 0, sizeof x);
+  memset(&xs, 0, sizeof xs);
+  x.tail_lin = 1.0f;
+  omx_reverb_process_return(l, r, n, p, &x, &xs, s, sr);
+}
 
 #endif /* OMX_MIX_REVERB_H */
