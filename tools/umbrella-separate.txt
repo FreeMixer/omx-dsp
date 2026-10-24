@@ -6,6 +6,7 @@ analysis/
 fx/
 mix/
 omx_band_dyn.h
+omx_duck.h
 omx_dyn.h
 omx_gate.h
 omx_idelay.h
