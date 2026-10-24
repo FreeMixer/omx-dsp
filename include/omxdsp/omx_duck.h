@@ -60,6 +60,23 @@ static inline float omx_duck_gain_db(const struct omx_duck *d, float level) {
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "duck/step"
+/**
+ * @brief One key sample through the follower: the wet's linear gain for this sample.
+ * @param d The controls; a depth below 0 dB.
+ * @param st The state, the follower advanced.
+ * @param key The key sample.
+ * @return The linear gain, `10^(g/20)` with `g` from omx_duck_gain_db().
+ * @note RT-safe: one follower step, no libm call. Thread-safe on distinct state.
+ */
+static inline float omx_duck_step(const struct omx_duck *d, struct omx_duck_state *st, float key) {
+  const float k = fabsf(key);
+  const float p = k > st->level ? d->attack : d->release;
+  st->level = omx_flush(p * st->level + (1.0f - p) * k);
+  return omx_db_to_lin_poly(omx_duck_gain_db(d, st->level));
+}
+#undef OMX_CONTRACT_STAGE
+
 #define OMX_CONTRACT_STAGE "duck/run"
 /**
  * @brief Duck one block of wet signal by its dry key, in place.
@@ -80,16 +97,11 @@ static inline void omx_duck_run(const struct omx_duck *d, struct omx_duck_state 
   OMX_PRE(d->attack >= 0.0f && d->attack < 1.0f && d->release >= 0.0f && d->release < 1.0f, "poles-in-unit-interval");
   OMX_PRE(omx_block_finite(key, n), "finite-key");
   if (!(d->depth_db < 0.0f)) return;
-  float lv = st->level;
   for (uint32_t i = 0; i < n; i++) {
-    const float k = fabsf(key[i]);
-    const float p = k > lv ? d->attack : d->release;
-    lv = omx_flush(p * lv + (1.0f - p) * k);
-    const float g = omx_db_to_lin_poly(omx_duck_gain_db(d, lv));
+    const float g = omx_duck_step(d, st, key[i]);
     wl[i] *= g;
     if (wr) wr[i] *= g;
   }
-  st->level = lv;
   OMX_POST(st->level - st->level == 0.0f, "finite-state");
 }
 #undef OMX_CONTRACT_STAGE
