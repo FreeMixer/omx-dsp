@@ -77,7 +77,10 @@ static void arm_doppler(void) {
       /* the hand-over between heads is a crossfade, not a jump: no step between samples larger than
        * the detuned sine's own steepest one, the fade's own slope included (10 %) */
       double jump = 0.0;
-      for (uint32_t i = settle + 1u; i < n; i++) jump = fmax(jump, fabs((double)y[i] - y[i - 1u]));
+      for (uint32_t i = settle + 1u; i < n; i++) {
+        const double e = fabs((double)y[i] - y[i - 1u]);
+        if (!(e <= jump)) jump = e;
+      }
       const double slope = 0.5 * 2.0 * M_PI * want / sr;
       ok(jump <= 1.1 * slope, "no step between samples larger than the sine's own, through every hand-over", jump, 1.1 * slope);
     }
