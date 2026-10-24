@@ -30,6 +30,7 @@
 #include <omxdsp/omx_denormal.h>
 #include <omxdsp/omx_dyn.h>
 #include <omxdsp/omx_envelope.h>
+#include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_gaincomp.h>
 #include <omxdsp/omx_units.h>
 
@@ -38,7 +39,7 @@
  *
  * `dyn.gc.mode` is OMX_DYN_ABOVE or OMX_DYN_BELOW; `dyn.gc.range_db` is SIGNED — below zero the
  * deepest cut, above zero the largest boost; `dyn.detect` is OMX_DETECT_PEAK; `dyn.gc.makeup_lin`
- * is 1. `b_c` is `B`, `{b0,b1,b2,a1,a2}`, normalised, a-terms subtracted, designed in TypeScript.
+ * is 1. `b_c` is `B`, `{b0,b1,b2,a1,a2}`, normalised, a-terms subtracted, designed by omx_band_dyn_design().
  */
 struct omx_band_dyn {
   int enabled;        /**< 0: a no-op that touches no sample and no state word. */
@@ -57,6 +58,44 @@ struct omx_band_dyn_state {
 
 _Static_assert(sizeof(struct omx_band_dyn_state) == sizeof(float) * (OMX_DYN_ENV_STAGES + 9u),
                "band-dynamics state must stay plain inline floats - nothing to allocate");
+
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "band-dyn/design"
+/**
+ * @brief Design `B` for a band of shape `kind` at `freq_hz`: the section the detector hears and the
+ *        gain is applied through.
+ *
+ * A bell's `B` is the cookbook constant-0 dB-peak bandpass at the bell's centre and Q, so
+ * `B + N = 1` with `N` its notch and `|B|² + |N|² = 1` on the unit circle. A shelf's `B` is half of
+ * the first-order allpass `A₁` at the shelf's corner, `½(1 + A₁)` under a low shelf (a first-order
+ * low-pass, unity at DC) and `½(1 − A₁)` under a high shelf (a first-order high-pass, unity at
+ * Nyquist): the two halves sum to 1 and their squared magnitudes sum to 1. Either way a cut never
+ * exceeds the input and a boost never exceeds `range_db` at any frequency.
+ * @param kind OMX_EQ_PEAKING, OMX_EQ_LOWSHELF or OMX_EQ_HIGHSHELF; any other kind reads as the bell.
+ * @param freq_hz The band's centre or corner, Hz.
+ * @param q The bell's Q; a shelf's `B` reads none.
+ * @param sample_rate The rate, Hz, positive.
+ * @param c Receives `B`, `{b0, b1, b2, a1, a2}`, normalised, a-terms subtracted.
+ * @post `pole-inside-the-unit-circle`: a shelf's `B` is stable and finite.
+ * @note Control thread: omx_eq_design()'s `exp`, `cos`, `sin`, `sqrt`, no allocation. Thread-safe: pure.
+ */
+static inline void omx_band_dyn_design(enum omx_eq_kind kind, double freq_hz, double q, double sample_rate,
+                                       float c[5]) {
+  if (kind != OMX_EQ_LOWSHELF && kind != OMX_EQ_HIGHSHELF) {
+    omx_eq_design_f(OMX_EQ_BANDPASS, freq_hz, q, 0.0, sample_rate, c);
+    return;
+  }
+  double a[5];
+  omx_eq_design(OMX_EQ_ALLPASS1, freq_hz, q, 0.0, sample_rate, a);
+  const double h = kind == OMX_EQ_LOWSHELF ? 0.5 * (1.0 + a[0]) : 0.5 * (1.0 - a[0]);
+  c[0] = (float)h;
+  c[1] = (float)(kind == OMX_EQ_LOWSHELF ? h : -h);
+  c[2] = 0.0f;
+  c[3] = (float)a[0];
+  c[4] = 0.0f;
+  OMX_POST(fabsf(c[3]) < 1.0f && c[0] - c[0] == 0.0f, "pole-inside-the-unit-circle");
+}
+#undef OMX_CONTRACT_STAGE
 
 /** @brief The samples omx_band_dyn_run() computes the gain for at once. */
 #define OMX_BAND_DYN_CHUNK 64u

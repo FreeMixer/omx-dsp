@@ -390,11 +390,11 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness mbcomp
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness mbcomp dyneq_instance mbcomp_instance
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true dyneq_instance comp_key mbcomp_instance $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
-FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true band_dyn_poly
+FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true band_dyn_poly comp_key
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
@@ -403,7 +403,7 @@ FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter d
 FX_INSTANCE_GOLDENS = pitch
 # The further oracles with golden digests of their own: test/fx/<o>_golden.test.c, compared with
 # test/golden/<o>.sha256.
-FX_ORACLE_GOLDENS = delay_taps
+FX_ORACLE_GOLDENS = delay_taps comp_key
 # A kernel's perturbation arm: test/fx/<k>-perturb.sh builds its oracle against a moved declaration.
 FX_PERTURB = $(wildcard test/fx/*-perturb.sh)
 FX_DEPS = $(LIB) $(LIB_CONTRACTS) $(HEADERS) $(FX_HEADERS) $(FX_TESTS) | $(BUILD)
@@ -436,6 +436,9 @@ FX_LDFLAGS_gate_keyfilter = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_trim_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_loudness = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_mbcomp = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_dyneq_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_comp_key = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_mbcomp_instance = $(FX_NO_ALLOC_LDFLAGS)
 
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
 	$(if $(filter $*,$(FX_CONTRACT_ORACLES)),$(CC) $(TESTFLAGS) -pthread -Itest/fx -o $@ $< $(LIB_CONTRACTS) -lm $(FX_LDFLAGS_$*),$(CC) $(CFLAGS) $(INC) -Itest/fx -o $@ $< $(LIB) -lm $(FX_LDFLAGS_$*))
