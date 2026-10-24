@@ -19,6 +19,14 @@
 
 #include <omxdsp/fx/omx_comp_instance.h>
 
+/* The key path's come-up values, the controls this oracle predates: self, both edges out, flat, no
+ * listen, no hold, linked, no duck. */
+#define KEY_IDLE                                                                                       \
+  (int)OMX_COMP_KEY_SOURCES_DEFAULT, (float)OMX_COMP_KEY_HP_HZ_RANGE_DEFAULT,                          \
+      (float)OMX_COMP_KEY_LP_HZ_RANGE_DEFAULT, (float)OMX_COMP_KEY_TILT_DB_RANGE_DEFAULT,              \
+      (int)OMX_COMP_KEY_LISTENS_DEFAULT, (float)OMX_COMP_HOLD_MS_RANGE_DEFAULT,                        \
+      (int)OMX_COMP_DETECT_LINKS_DEFAULT, (int)OMX_COMP_DUCKS_DEFAULT, (float)OMX_COMP_RANGE_DB_RANGE_DEFAULT
+
 /* The detector the console picks: a comp detects RMS, a limiter peak (COMP_KINDS). */
 #define KIND(rms) ((rms) ? (int)OMX_COMP_KINDS_COMP : (int)OMX_COMP_KINDS_LIMITER)
 
@@ -50,7 +58,7 @@ static void render_one(int which, float sr, float *out) {
   float *ol = alias ? g_l : g_ol, *or_ = alias ? g_r : g_or;
   for (int o = 0, b = 0; o < OMX_FX_GOLDEN_FRAMES; o += HOST_BLOCK, b++) {
     const uint32_t n = OMX_FX_GOLDEN_FRAMES - o < HOST_BLOCK ? (uint32_t)(OMX_FX_GOLDEN_FRAMES - o) : HOST_BLOCK;
-    omx_comp_instance_resolve(&g_inst, toggle && (b & 1), t, ra, k, a, rl, mk, 100.0f, KIND(rms), ovs, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
+    omx_comp_instance_resolve(&g_inst, toggle && (b & 1), t, ra, k, a, rl, mk, 100.0f, KIND(rms), ovs, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD, KEY_IDLE);
     omx_comp_instance_run(&g_inst, g_l + o, g_r + o, ol + o, or_ + o, n);
   }
   for (int i = 0; i < OMX_FX_GOLDEN_FRAMES; i++) { out[2 * i] = ol[i]; out[2 * i + 1] = or_[i]; }

@@ -46,15 +46,13 @@
 #include <omxdsp/omx_units.h>
 #include <omxdsp/omx_xover.h>
 
-/* The multiband limits are omx-contract's: the band count travel OMX_MBC_MIN_BANDS … OMX_MBC_MAX_BANDS,
- * the corner line OMX_MBC_CORNER_MAX_FRACTION (read here as its double twin, _DOUBLE, so the line is
- * 0.45·sr in double as it always was) and the come-up corners by band count,
- * OMX_MBC_CROSSOVER_DEFAULTS_<bands>_INIT. */
+/* The multiband limits are declared in data/kernels/mbcomp.json: the band count travel OMX_MBC_MIN_BANDS
+ * … OMX_MBC_MAX_BANDS, the crossovers of a full tree OMX_MBC_MAX_XOVERS, the corner line
+ * OMX_MBC_CORNER_MAX_FRACTION (read here as its double twin, _DOUBLE, so the line is 0.45·sr in double
+ * as it always was) and the come-up corners by band count, OMX_MBC_CROSSOVER_DEFAULTS_<bands>_INIT. */
 _Static_assert(OMX_MBC_MIN_BANDS >= 2u, "a multiband stage splits at least once");
-_Static_assert(OMX_MBC_MAX_BANDS <= 5u, "the come-up table below has rows up to 5 bands");
+_Static_assert(OMX_MBC_MAX_BANDS == 5u, "the come-up table below has one row per band count, up to 5 bands");
 
-/** @brief Crossovers in a full tree. */
-#define OMX_MBC_MAX_XOVERS (OMX_MBC_MAX_BANDS - 1u)
 
 /**
  * @brief The come-up corners by band count, row `bands`, ascending, Hz: the one C copy of the
@@ -84,6 +82,7 @@ struct omx_mbcomp {
   int ovs_mode;                               /**< OMX_DYN_OVS_AUTO / _OFF / _X4: ONE choice for the stage. */
   struct omx_xover xo[OMX_MBC_MAX_XOVERS];    /**< The LR4 crossovers, ascending; `bands − 1` in use. */
   struct omx_dyn band[OMX_MBC_MAX_BANDS];     /**< Each band's compressor atom; `enabled == 0` is a band that is off. */
+  uint32_t muted;                             /**< Bands left out of the sum, bit k for band k; 0, a zeroed atom, sums every band. */
 };
 
 /** @brief One leg's crossover tree state. */
@@ -225,7 +224,8 @@ static inline void omx_mbcomp_split(const float *x, float band[][OMX_DYN_OVS_CHU
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "mbcomp"
 /**
- * @brief Run the stage on a strip's leg(s) in place.
+ * @brief Run the stage on a strip's leg(s) in place: every band split and compressed, the bands not in
+ *        `muted` summed.
  * @param l Leg L, `n` samples; finite.
  * @param r Leg R, or NULL for a mono strip; finite.
  * @param n Samples.
@@ -255,6 +255,7 @@ static inline void omx_mbcomp_process(float *l, float *r, uint32_t n, const stru
     for (uint32_t i = 0; i < c; i++) {
       float yl = 0.0f, yr = 0.0f;
       for (uint32_t k = 0; k < m->bands; k++) {
+        if (m->muted >> k & 1u) continue;
         yl += bl[k][i];
         yr += r ? br[k][i] : 0.0f;
       }
