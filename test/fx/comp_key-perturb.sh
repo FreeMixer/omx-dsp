@@ -10,6 +10,7 @@
 #   source    — the sidechain never reaches the detector: arm B;
 #   filter    — the key filter's edges never run: arm C;
 #   fold      — mid folds as side: arm F;
+#   linked    — linked folds as the mean of the legs, not the louder: arm A;
 #   listen    — listen puts the unfiltered key on the output: arm D;
 #   hold      — the hold never freezes the cascade: arm E;
 #   floor     — the ducker's floor is never applied: arm G.
@@ -57,6 +58,8 @@ sabotage filter fx/omx_comp_instance.h 's|^  omx_gate_key_run(\&s->filt\[0\], s-
 pids+=($!)
 sabotage fold fx/omx_comp_instance.h 's|      case OMX_COMP_DETECT_LINKS_MID: s->kd\[i\] = mid; break;|      case OMX_COMP_DETECT_LINKS_MID: s->kd[i] = side; break;|' F &
 pids+=($!)
+sabotage linked fx/omx_comp_instance.h 's|      default: s->kd\[i\] = fabsf(a) > fabsf(b) ? fabsf(a) : fabsf(b); break;|      default: s->kd[i] = 0.5f * (fabsf(a) + fabsf(b)); break;|' A &
+pids+=($!)
 sabotage listen fx/omx_comp_instance.h 's|        out_l\[o + i\] = !ms ? a :|        out_l[o + i] = !ms ? in_l[o + i] :|' D &
 pids+=($!)
 sabotage hold omx_dyn.h 's|    else if (st->hold_left > 0u) {|    else if (0) {|' E &
@@ -66,4 +69,4 @@ pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "comp_key-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "comp_key-perturb: the key path oracle sees all eight sabotages"
+echo "comp_key-perturb: the key path oracle sees all nine sabotages"
