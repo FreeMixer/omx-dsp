@@ -6,8 +6,8 @@
 # each defect of the face. Each sabotage is applied to a COPY of the include directory placed ahead of
 # the real one, and the oracle built against it must go red in the named arm:
 #   minbands  — MBC_MIN_BANDS moved from 2 to 3 in omxdsp_definitions.h: arm F;
-#   maxbands  — MBC_MAX_BANDS moved from 5 to 4: the build is refused, the come-up table in omx_mbcomp.h
-#               having rows up to 5 bands;
+#   maxbands  — MBC_MAX_BANDS moved from 5 to 4: the build is refused by omx_mbcomp.h's assertion that
+#               the come-up table has one row per band count up to 5, and the log must name it;
 #   xovers    — MBC_MAX_XOVERS moved from 4 to 5: arm F;
 #   fraction  — MBC_CORNER_MAX_FRACTION moved from 0.45 to 0.4: arms C and F;
 #   comeup    — MBC_CROSSOVER_DEFAULTS_3 moved from 200, 2000 to 250, 2000 Hz: arm F;
@@ -42,7 +42,10 @@ sabotage() { # <name> <header under include/omxdsp> <sed expression> <arm>...
       -o "$d/oracle" "$PKG/test/fx/mbcomp_instance.test.c" "$PKG"/src/*.c -lm >"$d/build.log" 2>&1; then
       echo "mbcomp_instance-perturb: FAIL — sabotage '$name' built"; exit 1
     fi
-    echo "mbcomp_instance-perturb: sabotage '$name' refused at build time"; return 0
+    # the build must stop on the come-up table's own assertion, not on some other breakage of the copy
+    grep -q "the come-up table below has one row per band count" "$d/build.log" \
+      || { echo "mbcomp_instance-perturb: FAIL — sabotage '$name' failed to build, but not on the come-up table's assertion"; head -5 "$d/build.log"; exit 1; }
+    echo "mbcomp_instance-perturb: sabotage '$name' refused at build time by the come-up table's assertion"; return 0
   fi
   # shellcheck disable=SC2086 # CFLAGS is a flag list
   $CC -I"$d" -I"$PKG/include" -isystem "$CONTRACT_INC" -I"$PKG/test/fx" $CFLAGS -DOMX_CONTRACTS -pthread \

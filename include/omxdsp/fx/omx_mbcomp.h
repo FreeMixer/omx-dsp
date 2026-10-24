@@ -51,7 +51,7 @@
  * OMX_MBC_CORNER_MAX_FRACTION (read here as its double twin, _DOUBLE, so the line is 0.45·sr in double
  * as it always was) and the come-up corners by band count, OMX_MBC_CROSSOVER_DEFAULTS_<bands>_INIT. */
 _Static_assert(OMX_MBC_MIN_BANDS >= 2u, "a multiband stage splits at least once");
-_Static_assert(OMX_MBC_MAX_BANDS <= 5u, "the come-up table below has rows up to 5 bands");
+_Static_assert(OMX_MBC_MAX_BANDS == 5u, "the come-up table below has one row per band count, up to 5 bands");
 
 
 /**
