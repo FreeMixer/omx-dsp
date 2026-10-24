@@ -11,6 +11,7 @@
 //   C  the corner line: a 16 kHz corner at 32 kHz is designed at MBC_CORNER_MAX_FRACTION of the rate,
 //      where the split is -6.0206 dB within 0.001 dB;
 //   D  solo: band k alone sums to |B_k(f)| within 0.01 dB; every band soloed is no band soloed, bit for bit;
+//      a solo past the band count is no solo, bit for bit;
 //   E  mix 0 % is the tree at rest bit for bit whatever the bands compress; the output gain is one
 //      multiply by its linear gain, bit for bit; bypass is the identity and moves no state word;
 //   F  the declarations: the band count travel and the corner count as declared, the come-up corners
@@ -272,6 +273,21 @@ static void arm_solo(void) {
   run(&a, g_l, g_r, g_al, g_ar, 20000u);
   ok(memcmp(g_ol, g_al, 20000u * sizeof(float)) == 0 && memcmp(g_or, g_ar, 20000u * sizeof(float)) == 0,
      "every band soloed is no band soloed, bit for bit", 0, 0);
+  /* A solo left on past the band count (five bands down to three, band 5 still soloed) mutes nothing. */
+  struct set t = rest(3);
+  for (uint32_t k = 0; k < NB; k++) {
+    t.by[k] = 0;
+    t.thr[k] = -40.0f;
+  }
+  omx_mbcomp_instance_init(&m, g_sr);
+  apply(&m, 0, &t);
+  run(&m, g_l, g_r, g_ol, g_or, 20000u);
+  t.solo[4] = 1;
+  omx_mbcomp_instance_init(&a, g_sr);
+  apply(&a, 0, &t);
+  run(&a, g_l, g_r, g_al, g_ar, 20000u);
+  ok(memcmp(g_ol, g_al, 20000u * sizeof(float)) == 0 && memcmp(g_or, g_ar, 20000u * sizeof(float)) == 0,
+     "three bands with band 5 soloed: the three bands, bit for bit, not silence", 0, 0);
   clean();
 }
 
