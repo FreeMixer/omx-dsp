@@ -137,42 +137,32 @@ static inline void omx_dyneq_instance_resolve(OmxDyneqInstance *s, int bypass, c
   if (!s || !s->ready || !band_on || !band_type || !freq || !gain || !q || !dyn_mode || !threshold || !ratio || !range ||
       !attack || !release || !listen)
     return;
-  int eq_type[OMX_EQ_INSTANCE_BANDS], eq_on[OMX_EQ_INSTANCE_BANDS];
+  int eq_type[OMX_EQ_INSTANCE_BANDS], eq_on[OMX_EQ_INSTANCE_BANDS], modes[OMX_DYNEQ_INSTANCE_BANDS];
   float eq_freq[OMX_EQ_INSTANCE_BANDS], eq_gain[OMX_EQ_INSTANCE_BANDS], eq_q[OMX_EQ_INSTANCE_BANDS];
+  for (uint32_t i = OMX_DYNEQ_INSTANCE_BANDS; i < (uint32_t)OMX_EQ_INSTANCE_BANDS; i++) {
+    eq_on[i] = 0;
+    eq_type[i] = (int)OMX_EQ_BAND_TYPES_DEFAULT;
+    eq_freq[i] = (float)OMX_EQ_FREQ_RANGE_MIN;
+    eq_gain[i] = 0.0f;
+    eq_q[i] = OMX_EQ_LV2_BAND_Q_DEFAULT;
+  }
   float centres[OMX_DYNEQ_INSTANCE_BANDS];
   const int spread = omx_eq_default_centres(OMX_DYNEQ_INSTANCE_BANDS, centres) == OMX_DYNEQ_INSTANCE_BANDS;
-  for (uint32_t i = 0; i < (uint32_t)OMX_EQ_INSTANCE_BANDS; i++) {
-    const int mine = i < OMX_DYNEQ_INSTANCE_BANDS;
-    eq_on[i] = mine ? omx_dyneq_instance_choice(band_on[i], (int)OMX_DYNEQ_BAND_ONS_COUNT, (int)OMX_DYNEQ_BAND_ONS_DEFAULT) : 0;
-    eq_type[i] = mine ? omx_dyneq_instance_choice(band_type[i], (int)OMX_DYNEQ_BAND_TYPES_COUNT,
-                                                  (int)OMX_DYNEQ_BAND_TYPES_DEFAULT)
-                      : (int)OMX_EQ_BAND_TYPES_DEFAULT;
-    /* A non-finite centre is the band's come-up centre in a bank of six (omx_eq_default_centres). */
-    eq_freq[i] = !mine ? (float)OMX_EQ_FREQ_RANGE_MIN
-                 : freq[i] - freq[i] == 0.0f ? freq[i]
-                 : spread ? centres[i] : (float)OMX_EQ_FREQ_RANGE_MIN;
-    eq_gain[i] = mine ? gain[i] : 0.0f;
-    eq_q[i] = mine ? q[i] : OMX_EQ_LV2_BAND_Q_DEFAULT;
-  }
-  omx_eq_instance_resolve(&s->eq, 0, 0, OMX_EQ_LV2_HPF_FREQ_DEFAULT, (int)OMX_FILTER_SLOPES_DEFAULT, 0,
-                          OMX_EQ_LV2_LPF_FREQ_DEFAULT, (int)OMX_FILTER_SLOPES_DEFAULT, eq_type, eq_freq, eq_gain, eq_q,
-                          eq_on);
-  omx_eq_lv2_publish(&s->eq.leg[0]);
-  omx_eq_lv2_publish(&s->eq.leg[1]);
-  uint32_t k = 0;
   for (uint32_t i = 0; i < OMX_DYNEQ_INSTANCE_BANDS; i++) {
-    const struct omx_eq_lv2_band *eb = &s->eq.leg[0].band[i];
-    s->on[i] = eq_on[i];
-    s->entry[i] = k;
-    k += (uint32_t)s->on[i];
-    const int mode = omx_dyneq_instance_choice(dyn_mode[i], (int)OMX_DYNEQ_DYN_MODES_COUNT, (int)OMX_DYNEQ_DYN_MODES_DEFAULT);
+    const int sw = omx_dyneq_instance_choice(band_on[i], (int)OMX_DYNEQ_BAND_ONS_COUNT, (int)OMX_DYNEQ_BAND_ONS_DEFAULT);
+    const int type = omx_dyneq_instance_choice(band_type[i], (int)OMX_DYNEQ_BAND_TYPES_COUNT, (int)OMX_DYNEQ_BAND_TYPES_DEFAULT);
+    /* A non-finite centre is the band's come-up centre in a bank of six (omx_eq_default_centres). */
+    const float fc = freq[i] - freq[i] == 0.0f
+                         ? omx_clampf(freq[i], (float)OMX_DYNEQ_FREQ_RANGE_MIN, (float)OMX_DYNEQ_FREQ_RANGE_MAX)
+                     : spread ? centres[i]
+                              : (float)OMX_DYNEQ_FREQ_RANGE_MIN;
+    const float g = omx_clamp_or(gain[i], (float)OMX_DYNEQ_GAIN_RANGE_MIN, (float)OMX_DYNEQ_GAIN_RANGE_MAX,
+                                 (float)OMX_DYNEQ_GAIN_RANGE_DEFAULT);
+    const float bq = omx_clamp_or(q[i], (float)OMX_DYNEQ_Q_RANGE_MIN, (float)OMX_DYNEQ_Q_RANGE_MAX,
+                                  (float)OMX_DYNEQ_Q_RANGE_DEFAULT);
+    const int dyn_mode_i = omx_dyneq_instance_choice(dyn_mode[i], (int)OMX_DYNEQ_DYN_MODES_COUNT,
+                                                     (int)OMX_DYNEQ_DYN_MODES_DEFAULT);
     const int lis = omx_dyneq_instance_choice(listen[i], (int)OMX_DYNEQ_LISTENS_COUNT, (int)OMX_DYNEQ_LISTENS_DEFAULT);
-    if (lis && !s->listen[i]) {
-      memset(s->listen_l[i], 0, sizeof s->listen_l[i]);
-      memset(s->listen_r[i], 0, sizeof s->listen_r[i]);
-    }
-    s->listen[i] = lis;
-    struct omx_band_dyn *b = &s->band[i];
     const float thr = omx_clamp_or(threshold[i], (float)OMX_DYNEQ_THRESHOLD_RANGE_MIN, (float)OMX_DYNEQ_THRESHOLD_RANGE_MAX,
                                    (float)OMX_DYNEQ_THRESHOLD_RANGE_DEFAULT);
     const float rat = omx_clamp_or(ratio[i], (float)OMX_DYNEQ_RATIO_RANGE_MIN, (float)OMX_DYNEQ_RATIO_RANGE_MAX,
@@ -183,9 +173,20 @@ static inline void omx_dyneq_instance_resolve(OmxDyneqInstance *s, int bypass, c
                                    (float)OMX_DYNEQ_ATTACK_RANGE_DEFAULT);
     const float rel = omx_clamp_or(release[i], (float)OMX_DYNEQ_RELEASE_RANGE_MIN, (float)OMX_DYNEQ_RELEASE_RANGE_MAX,
                                    (float)OMX_DYNEQ_RELEASE_RANGE_DEFAULT);
-    b->enabled = s->on[i] && mode != OMX_DYNEQ_DYN_MODES_OFF;
+    eq_on[i] = sw;
+    eq_type[i] = type;
+    eq_freq[i] = fc;
+    eq_gain[i] = g;
+    eq_q[i] = bq;
+    modes[i] = dyn_mode_i;
+    if (lis && !s->listen[i]) {
+      memset(s->listen_l[i], 0, sizeof s->listen_l[i]);
+      memset(s->listen_r[i], 0, sizeof s->listen_r[i]);
+    }
+    s->listen[i] = lis;
+    struct omx_band_dyn *b = &s->band[i];
     b->dyn.enabled = 1;
-    b->dyn.gc.mode = mode == OMX_DYNEQ_DYN_MODES_UP ? OMX_DYN_BELOW : OMX_DYN_ABOVE;
+    b->dyn.gc.mode = dyn_mode_i == OMX_DYNEQ_DYN_MODES_UP ? OMX_DYN_BELOW : OMX_DYN_ABOVE;
     b->dyn.gc.thresh_db = thr;
     b->dyn.gc.ratio = rat;
     b->dyn.gc.knee_db = (float)OMX_BAND_DYN_KNEE_DB;
@@ -196,6 +197,21 @@ static inline void omx_dyneq_instance_resolve(OmxDyneqInstance *s, int bypass, c
     b->dyn.attack_ms = att;
     b->dyn.attack_coeff = omx_pole_from_time_ms(att, s->sr);
     b->dyn.release_coeff = omx_pole_from_time_ms(rel, s->sr);
+  }
+  omx_eq_instance_resolve(&s->eq, 0, 0, OMX_EQ_LV2_HPF_FREQ_DEFAULT, (int)OMX_FILTER_SLOPES_DEFAULT, 0,
+                          OMX_EQ_LV2_LPF_FREQ_DEFAULT, (int)OMX_FILTER_SLOPES_DEFAULT, eq_type, eq_freq, eq_gain, eq_q,
+                          eq_on);
+  omx_eq_lv2_publish(&s->eq.leg[0]);
+  omx_eq_lv2_publish(&s->eq.leg[1]);
+  uint32_t k = 0;
+  for (uint32_t i = 0; i < OMX_DYNEQ_INSTANCE_BANDS; i++) {
+    /* The band as the EQ face holds it (its clamps applied), the band B is designed from. */
+    const struct omx_eq_lv2_band *eb = &s->eq.leg[0].band[i];
+    s->on[i] = eq_on[i];
+    s->entry[i] = k;
+    k += (uint32_t)s->on[i];
+    struct omx_band_dyn *b = &s->band[i];
+    b->enabled = s->on[i] && modes[i] != OMX_DYNEQ_DYN_MODES_OFF;
     const int kind = (int)omx_dyneq_instance_kind(eb->type);
     if (!s->designed[i] || kind != s->kind[i] || eb->freq_hz != s->freq[i] || eb->q != s->q[i]) {
       omx_band_dyn_design((enum omx_eq_kind)kind, (double)eb->freq_hz, (double)eb->q, (double)s->sr, b->b_c);
@@ -205,9 +221,10 @@ static inline void omx_dyneq_instance_resolve(OmxDyneqInstance *s, int bypass, c
       s->designed[i] = 1;
     }
   }
-  s->mix = omx_clamp_or(mix_pct, (float)OMX_DYNEQ_MIX_PCT_RANGE_MIN, (float)OMX_DYNEQ_MIX_PCT_RANGE_MAX,
-                        (float)OMX_DYNEQ_MIX_PCT_RANGE_DEFAULT) /
-           100.0f;
+  const float mix_share = omx_clamp_or(mix_pct, (float)OMX_DYNEQ_MIX_PCT_RANGE_MIN, (float)OMX_DYNEQ_MIX_PCT_RANGE_MAX,
+                                       (float)OMX_DYNEQ_MIX_PCT_RANGE_DEFAULT) /
+                          100.0f;
+  s->mix = mix_share;
   s->enabled = bypass ? 0 : 1;
   OMX_POST(k == s->eq.leg[0].count && k == s->eq.leg[1].count, "one-bank-entry-per-band-that-is-on");
   OMX_POST(s->mix >= 0.0f && s->mix <= 1.0f, "mix-in-unit-range");
