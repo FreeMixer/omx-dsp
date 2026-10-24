@@ -38,6 +38,14 @@
  * `knee_shift_db` set by {@link omx_gate_knee}), and fx/omx_gate_instance.h is the face that sets
  * them from the contract's controls (omx-contract#21).
  *
+ * ## The key's tilt and the key listen
+ *
+ * After the key filter the key may tilt ({@link omx_gate_key_tilt}, omx_tilt.h about KEY_TILT_PIVOT_HZ,
+ * a slope in dB per octave), the compressor's own key tilt, run in double like the filter. A tilt of 0
+ * is flat and the key path is as it was. While the key listen is on, both outputs carry the key the
+ * detector hears (the external key or the self key `(l + r) / 2`, filtered and tilted) and the gate
+ * runs underneath on the legs as before.
+ *
  * ## The knee range
  *
  * The contract's gate declares `kneeStartDb` and `kneeEndDb` beside `thresholdDb`: the desk draws
@@ -81,6 +89,7 @@
 #include "omx_dyn.h"
 #include "omx_eq_design.h"
 #include "omx_param.h"
+#include "omx_tilt.h"
 
 /** @brief Frames per pass through the scratch. Nothing observable depends on it (see above). */
 #define OMX_GATE_CHUNK 256u
@@ -113,6 +122,9 @@ struct omx_gate {
   float rate;                 /**< the sample rate the gate is armed at */
   struct omx_dyn_state st;    /**< the dynamics slot's state */
   struct omx_gate_key key;    /**< the detector's key filter */
+  struct omx_tilt tilt;       /**< the key's tilt, after the filter; `a` 1 is flat */
+  double tilt_s[4];           /**< the tilt's history */
+  int listen;                 /**< 1 puts the key the detector hears on both outputs */
   float sl[OMX_GATE_CHUNK];   /**< the left scratch */
   float sr[OMX_GATE_CHUNK];   /**< the right scratch */
   float sk[OMX_GATE_CHUNK];   /**< the key scratch */
@@ -129,6 +141,26 @@ static inline void omx_gate_init(struct omx_gate *g, float rate) {
   g->rate = rate;
   omx_dyn_state_init(&g->st, 1u);
   memset(&g->key, 0, sizeof g->key);
+  memset(&g->tilt, 0, sizeof g->tilt);
+  g->tilt.a = 1.0;
+  g->tilt.c[0] = 1.0; /* flat: the wire */
+  memset(g->tilt_s, 0, sizeof g->tilt_s);
+  g->listen = 0;
+}
+
+/**
+ * @brief The key's tilt: designed for the gate's rate at `db_per_oct` dB per octave about
+ *        KEY_TILT_PIVOT_HZ, only when the slope moved; a tilt that comes in or goes out starts its
+ *        history from silence.
+ * @param g The instance.
+ * @param db_per_oct The slope, dB per octave, inside GATE_KEY_TILT_DB_RANGE; 0 is flat.
+ * @note Control thread: one tan and one sqrt when the slope moved. Thread-safe on distinct instances.
+ */
+static inline void omx_gate_key_tilt(struct omx_gate *g, float db_per_oct) {
+  const double a = omx_tilt_a_of_slope((double)db_per_oct);
+  if (a == g->tilt.a) return;
+  if (a == 1.0 || g->tilt.a == 1.0) memset(g->tilt_s, 0, sizeof g->tilt_s);
+  omx_tilt_design(&g->tilt, a, (double)OMX_KEY_TILT_PIVOT_HZ, (double)g->rate);
 }
 
 /**
@@ -303,22 +335,28 @@ static inline void omx_gate_run(struct omx_gate *g, const struct omx_dyn *p, con
                                 const float *key_external, const float *in_l, const float *in_r,
                                 float *out_l, float *out_r, uint32_t n) {
   const int keyed = key && omx_gate_clampf(key_external, 0.0f, 1.0f, 1.0f) >= 0.5f;
-  const int filtered = omx_gate_key_active(&g->key);
+  const int tilted = g->tilt.a != 1.0;
+  const int filtered = omx_gate_key_active(&g->key) || tilted;
+  const int built = filtered || g->listen;
   for (uint32_t off = 0; off < n;) {
     uint32_t m = n - off < OMX_GATE_CHUNK ? n - off : OMX_GATE_CHUNK;
     memcpy(g->sl, in_l + off, m * sizeof(float));
     memcpy(g->sr, in_r + off, m * sizeof(float));
     if (keyed) memcpy(g->sk, key + off, m * sizeof(float));
-    else if (filtered)
+    else if (built)
       for (uint32_t i = 0; i < m; i++) g->sk[i] = 0.5f * (g->sl[i] + g->sr[i]);
-    if (filtered && p->enabled) omx_gate_key_run(&g->key, g->sk, m);
+    if (built && p->enabled) {
+      omx_gate_key_run(&g->key, g->sk, m);
+      if (tilted)
+        for (uint32_t i = 0; i < m; i++) g->sk[i] = omx_tilt_tick(&g->tilt, g->sk[i], g->tilt_s);
+    }
     omx_dynamics_keyed(g->sl, g->sr, keyed || filtered ? g->sk : NULL, m, p, &g->st);
     /* Disabled is the identity. Checked on the scratch against the input BEFORE the copy-out,
      * so it still means something when the host aliases an output onto its input. */
     OMX_POST(p->enabled || !memcmp(g->sl, in_l + off, m * sizeof(float)), "bypass-identity-l");
     OMX_POST(p->enabled || !memcmp(g->sr, in_r + off, m * sizeof(float)), "bypass-identity-r");
-    memcpy(out_l + off, g->sl, m * sizeof(float));
-    memcpy(out_r + off, g->sr, m * sizeof(float));
+    memcpy(out_l + off, g->listen && p->enabled ? g->sk : g->sl, m * sizeof(float));
+    memcpy(out_r + off, g->listen && p->enabled ? g->sk : g->sr, m * sizeof(float));
     off += m;
   }
 }
