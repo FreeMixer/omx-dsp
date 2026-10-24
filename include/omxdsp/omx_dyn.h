@@ -68,9 +68,11 @@ struct omx_dyn {
    * it (and of the rate); this is the value `auto` compares against a millisecond threshold,
    * which a coefficient cannot answer without knowing the rate it was made at. */
   float attack_ms;
-  /** HOLD (BELOW mode only): frames at the graph's own rate the gate stays open after its level
-   * falls below the close point, with the detector frozen, before the release runs. 0 is no hold.
-   * The derivation from milliseconds is {@link omx_dyn_hold_frames}. */
+  /** HOLD, frames at the graph's own rate. BELOW mode: the gate stays open this long after its level
+   * falls below the close point, with the detector frozen, before the release runs. ABOVE mode: the
+   * detector is frozen this long after it last rose, so the reduction holds before the release
+   * runs ({@link omx_dyn_hold_chain}). 0 is no hold. The derivation from milliseconds is
+   * {@link omx_dyn_hold_frames}. */
   uint32_t hold_frames;
   /** HYSTERESIS (BELOW mode only), dB, not negative: the gate opens when its level reaches
    * `gc.thresh_db` and closes only when it falls below `gc.thresh_db - hyst_db`. 0 is none. */
@@ -87,6 +89,9 @@ struct omx_dyn {
    *  OMX_DETECTOR_TOPOLOGY_FEEDFORWARD (0, a zeroed atom) or OMX_DETECTOR_TOPOLOGY_FEEDBACK —
    *  where the detector listens. A keyed slot detects its key and stays feed-forward. */
   int topology;
+  /** The FLOOR (ABOVE mode only), dB: while below 0 the gain never falls under it, before make-up
+   * (the ducker's range, `max(floor, gain)`). 0, a zeroed atom, is no floor. */
+  float floor_db;
 };
 
 /**
@@ -322,6 +327,61 @@ static inline void omx_dyn_gate_chain(struct omx_dyn_state *st, const struct omx
     g_db = g_db > 0.0f ? 0.0f : g_db;
     buf[k] = omx_db_to_lin(g_db) * p->gc.makeup_lin;
   }
+}
+
+/**
+ * @brief 1 when the atom engages the compressor's hold (ABOVE mode, a hold of at least one frame).
+ *
+ * At hold 0 it answers 0 and the kernel takes the cascade loop it always took, bit for bit.
+ * @param p The atom.
+ * @return 1 or 0.
+ * @note RT-safe. Thread-safe: pure.
+ */
+static inline int omx_dyn_hold_engaged(const struct omx_dyn *p) {
+  return p->gc.mode == OMX_DYN_ABOVE && p->hold_frames > 0u;
+}
+
+/**
+ * @brief The compressor's detector with hold: `buf` holds rectified detector input on entry and
+ *        the detector level on return.
+ *
+ * An input below the cascade's first stage would start a release: while the hold counter runs
+ * such a step is not taken, so the whole cascade stays where it was. An input at or above the
+ * first stage is taken and re-arms the counter. The reduction therefore holds `hold` frames after
+ * the input last reached the detector, and the release then runs from the held state exactly as
+ * it would have run without a hold, `hold` frames late: the gain never steps at the end of a hold.
+ * @param st The slot's state (cascade and hold counter).
+ * @param ep The detector parameters.
+ * @param ac The cascade's per-stage attack pole.
+ * @param rc The cascade's per-stage release pole.
+ * @param buf Rectified detector input in, detector level out, `count` samples.
+ * @param count Samples.
+ * @param hold Hold frames at the running rate.
+ * @note RT-safe: per sample one cascade step and one level read; no allocation.
+ */
+static inline void omx_dyn_hold_chain(struct omx_dyn_state *st, const struct omx_env_params *ep, float ac, float rc,
+                                      float *buf, uint32_t count, uint32_t hold) {
+  for (uint32_t k = 0; k < count; k++) {
+    if (buf[k] >= st->env.stage[0]) st->hold_left = hold;
+    else if (st->hold_left > 0u) {
+      st->hold_left--;
+      buf[k] = omx_env_level(&st->env, ep);
+      continue;
+    }
+    buf[k] = omx_env_step(&st->env, ep, buf[k], ac, rc);
+  }
+}
+
+/**
+ * @brief The floor folded into the gain: `max(floor, g)`, the floor carrying the make-up as the
+ *        gain does.
+ * @param gain The chunk's gains, floored in place.
+ * @param m Samples.
+ * @param floor_lin The floor, linear, make-up included.
+ * @note RT-safe: one compare per sample. Thread-safe on distinct buffers.
+ */
+static inline void omx_dyn_floor_gain(float *gain, uint32_t m, float floor_lin) {
+  for (uint32_t i = 0; i < m; i++) gain[i] = gain[i] < floor_lin ? floor_lin : gain[i];
 }
 
 /**
@@ -594,6 +654,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   /* Hold and hysteresis, when either is set on a gate: the state machine replaces the cascade and
    * gain loops below. Neither set (the neutral values), the loops that shipped run untouched. */
   const int gate_state = omx_dyn_gate_state_engaged(p);
+  const int hold_above = omx_dyn_hold_engaged(p);
   const uint32_t hold = p->hold_frames * st->factor;
   const float credit_pole = (gate_state && p->hyst_db > 0.0f && st->factor != 1u)
                                 ? powf(p->release_coeff, 1.0f / (float)st->factor)
@@ -604,6 +665,9 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   const int flat = p->gc.mode == OMX_DYN_BELOW && !gate_state;
   struct omx_dyn_flat fl = {NAN, NAN, 0.0f, 0.0f};
   if (flat) omx_dyn_flat_bounds(p, &fl);
+
+  const int floored = p->gc.mode == OMX_DYN_ABOVE && p->floor_db < 0.0f;
+  const float floor_lin = floored ? omx_db_to_lin(p->floor_db) * p->gc.makeup_lin : 0.0f;
 
   float gmin = 1.0f; /* the block's deepest applied gain, whatever path produced it */
   /* A keyed slot detects its key, which a loop cannot hear through: feedback is the
@@ -666,7 +730,9 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         memcpy(gain, lev, m * sizeof(float));
         omx_dyn_gate_chain(st, p, &ep, ac, rc, gain, m, hold, credit_pole);
       } else {
-        for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
+        if (hold_above) omx_dyn_hold_chain(st, &ep, ac, rc, lev, m, hold);
+        else
+          for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
         if (flat && p->knee_shift_db == 0.0f) /* the centred knee hoisted, as below */
           for (uint32_t i = 0; i < m; i++)
             gain[i] = lev[i] <= fl.lo ? fl.g_floor : lev[i] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, lev[i]);
@@ -703,7 +769,9 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         }
       if (gate_state) omx_dyn_gate_chain(st, p, &ep, ac, rc, g4, mf, hold, credit_pole);
       else {
-        for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
+        if (hold_above) omx_dyn_hold_chain(st, &ep, ac, rc, g4, mf, hold);
+        else
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
         if (flat && p->knee_shift_db == 0.0f)
           for (uint32_t k = 0; k < mf; k++)
             g4[k] = g4[k] <= fl.lo ? fl.g_floor : g4[k] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, g4[k]);
@@ -735,6 +803,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         else if (gain[i] > p->gc.makeup_lin) gain[i] = p->gc.makeup_lin;
       }
     }
+    /* The FLOOR, before the mix: a floor at 0 dB or above (none, a zeroed atom) never enters here. */
+    if (floored) omx_dyn_floor_gain(gain, m, floor_lin);
     /* MIX after make-up, on either path: 100 % (dry 0) never enters here. */
     if (p->dry > 0.0f) omx_dyn_mix_gain(gain, m, p->dry);
 
