@@ -4,7 +4,8 @@
 // The compressor's key path, hold and ducker (omx_comp_instance.h) at each of the nine oracle rates
 // (OMX_FX_ORACLE_RATES, 32 to 192 kHz):
 //   A  at the come-up values the keyed run is the plain run bit for bit: no key, a key with keySource
-//      self, a sidechain with no key connected;
+//      self, a sidechain with no key connected; and through the engaged key path, the programme as its
+//      own sidechain, linked, is the plain run bit for bit;
 //   B  a keyed sine pair: the programme's gain follows the static law of the KEY's level, not the
 //      programme's, within 0.05 dB, and keyLevelDb reads the key's RMS level within 0.05 dB (attack and
 //      release equal, so the RMS cascade is an unbiased mean of the square);
@@ -138,6 +139,24 @@ static void arm_identity(void) {
                        : "sidechain with no key connected: run_keyed is run, bit for bit",
        c, 0);
   }
+  /* Through the engaged key path: the sidechain is the programme itself, no edge, flat, linked, so
+   * the fold is the louder leg the self detector reads. */
+  memcpy(g_kl, g_pl, n * sizeof(float));
+  memcpy(g_kr, g_pr, n * sizeof(float));
+  omx_comp_instance_init(&a, g_sr);
+  omx_comp_instance_init(&b, g_sr);
+  struct key k = IDLE;
+  k.src = (int)OMX_COMP_KEY_SOURCES_SIDECHAIN;
+  resolve(&a, -30.0f, 4.0f, 6.0f, 5.0f, 200.0f, k);
+  resolve(&b, -30.0f, 4.0f, 6.0f, 5.0f, 200.0f, IDLE);
+  ok(omx_comp_instance_keyed(&a, g_kl), "the sidechain engages the key path", 0, 1);
+  run(&a, g_kl, g_kr, g_pl, g_pr, g_ol, g_or, n);
+  for (uint32_t o = 0; o < n; o += 300u) {
+    omx_comp_instance_run(&b, g_pl + o, g_pr + o, g_rl + o, g_rr + o, n - o < 300u ? n - o : 300u);
+    drain();
+  }
+  ok(memcmp(g_ol, g_rl, n * sizeof(float)) == 0 && memcmp(g_or, g_rr, n * sizeof(float)) == 0,
+     "the engaged key path, keyed by the programme itself, linked: the plain run, bit for bit", 0, 0);
   clean();
 }
 
