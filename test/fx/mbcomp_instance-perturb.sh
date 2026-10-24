@@ -23,6 +23,8 @@ CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2 -ffp-contract=off}"
 : "${CONTRACT_INC:=$(sh "$PKG/tools/contract-include.sh")}"   # make exports it
 rm -rf "$OUT" && mkdir -p "$OUT"
+# The sabotages are independent and run side by side; each is waited for and every one must be seen.
+pids=()
 
 sabotage() { # <name> <header under include/omxdsp> <sed expression> <arm>...
   local name="$1" hdr="$2" expr="$3" d="$OUT/$1"
@@ -55,12 +57,23 @@ sabotage() { # <name> <header under include/omxdsp> <sed expression> <arm>...
 }
 
 D=omxdsp_definitions.h
-sabotage minbands $D 's|^#define OMX_MBC_MIN_BANDS 2$|#define OMX_MBC_MIN_BANDS 3|' F
-sabotage maxbands $D 's|^#define OMX_MBC_MAX_BANDS 5$|#define OMX_MBC_MAX_BANDS 4|' refused
-sabotage xovers $D 's|^#define OMX_MBC_MAX_XOVERS 4$|#define OMX_MBC_MAX_XOVERS 5|' F
-sabotage fraction $D 's|^#define OMX_MBC_CORNER_MAX_FRACTION_DOUBLE 0.45$|#define OMX_MBC_CORNER_MAX_FRACTION_DOUBLE 0.4|' C F
-sabotage comeup $D 's|^#define OMX_MBC_CROSSOVER_DEFAULTS_3_INIT { 200, 2000 }$|#define OMX_MBC_CROSSOVER_DEFAULTS_3_INIT { 250, 2000 }|' F
-sabotage solo fx/omx_mbcomp.h 's|        if (m->muted >> k \& 1u) continue;|        (void)0;|' D
-sabotage mix fx/omx_mbcomp_instance.h 's|    d->dry = omx_dyn_dry_share(mix_share);|    d->dry = 0.0f * mix_share;|' E
-sabotage rising fx/omx_mbcomp_instance.h 's|    hz\[k\] = k > 0u \&\& !(corner > hz\[k - 1u\]) ? nextafterf(hz\[k - 1u\], INFINITY) : corner;|    hz[k] = corner;|' F
+sabotage minbands $D 's|^#define OMX_MBC_MIN_BANDS 2$|#define OMX_MBC_MIN_BANDS 3|' F &
+pids+=($!)
+sabotage maxbands $D 's|^#define OMX_MBC_MAX_BANDS 5$|#define OMX_MBC_MAX_BANDS 4|' refused &
+pids+=($!)
+sabotage xovers $D 's|^#define OMX_MBC_MAX_XOVERS 4$|#define OMX_MBC_MAX_XOVERS 5|' F &
+pids+=($!)
+sabotage fraction $D 's|^#define OMX_MBC_CORNER_MAX_FRACTION_DOUBLE 0.45$|#define OMX_MBC_CORNER_MAX_FRACTION_DOUBLE 0.4|' C F &
+pids+=($!)
+sabotage comeup $D 's|^#define OMX_MBC_CROSSOVER_DEFAULTS_3_INIT { 200, 2000 }$|#define OMX_MBC_CROSSOVER_DEFAULTS_3_INIT { 250, 2000 }|' F &
+pids+=($!)
+sabotage solo fx/omx_mbcomp.h 's|        if (m->muted >> k \& 1u) continue;|        (void)0;|' D &
+pids+=($!)
+sabotage mix fx/omx_mbcomp_instance.h 's|    d->dry = omx_dyn_dry_share(mix_share);|    d->dry = 0.0f * mix_share;|' E &
+pids+=($!)
+sabotage rising fx/omx_mbcomp_instance.h 's|    hz\[k\] = k > 0u \&\& !(corner > hz\[k - 1u\]) ? nextafterf(hz\[k - 1u\], INFINITY) : corner;|    hz[k] = corner;|' F &
+pids+=($!)
+failed=0
+for p in "${pids[@]}"; do wait "$p" || failed=1; done
+[ "$failed" = 0 ] || { echo "mbcomp_instance-perturb: FAIL — a sabotage was not seen"; exit 1; }
 echo "mbcomp_instance-perturb: the multiband face oracle sees all eight sabotages"

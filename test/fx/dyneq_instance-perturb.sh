@@ -20,6 +20,8 @@ CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2 -ffp-contract=off}"
 : "${CONTRACT_INC:=$(sh "$PKG/tools/contract-include.sh")}"   # make exports it
 rm -rf "$OUT" && mkdir -p "$OUT"
+# The sabotages are independent and run side by side; each is waited for and every one must be seen.
+pids=()
 
 sabotage() { # <name> <header under include/omxdsp> <sed expression> <arm>
   local name="$1" hdr="$2" expr="$3" arm="$4" d="$OUT/$1"
@@ -40,10 +42,19 @@ sabotage() { # <name> <header under include/omxdsp> <sed expression> <arm>
   echo "dyneq_instance-perturb: sabotage '$name' turned arm $arm red ($n checks)"
 }
 
-sabotage bands omxdsp_definitions.h 's|^#define OMX_DYNEQ_BANDS 6$|#define OMX_DYNEQ_BANDS 5|' A
-sabotage knee omxdsp_definitions.h 's|^#define OMX_BAND_DYN_KNEE_DB 6$|#define OMX_BAND_DYN_KNEE_DB 3|' B
-sabotage shelf omx_band_dyn.h 's|  if (kind != OMX_EQ_LOWSHELF \&\& kind != OMX_EQ_HIGHSHELF) {|  if (1) {|' B
-sabotage order fx/omx_dyneq_instance.h 's|^    omx_band_dyn_process(l, r, m, \&s->band\[i\], \&s->st\[i\]);$|    (void)0;|; s|^    const uint32_t k = s->entry\[i\];$|    const uint32_t k = s->entry[i]; omx_band_dyn_process(l, r, m, \&s->band[i], \&s->st[i]);|' B
-sabotage listen fx/omx_dyneq_instance.h 's|^    if (s->listen\[i\]) {$|    if (0) {|; s|^    const uint32_t k = s->entry\[i\];$|    const uint32_t k = s->entry[i]; if (s->listen[i]) for (uint32_t j = 0; j < m; j++) { s->sum_l[j] += omx_biquad(l[j], s->band[i].b_c, s->listen_l[i]); s->sum_r[j] += omx_biquad(r[j], s->band[i].b_c, s->listen_r[i]); }|' D
-sabotage mix fx/omx_dyneq_instance.h 's|omx_wetdry_mix(\&l\[j\], \&r\[j\], s->dry_l\[j\], s->dry_r\[j\], l\[j\], r\[j\], dry, s->mix);|omx_wetdry_mix(\&l[j], \&r[j], l[j], r[j], s->dry_l[j], s->dry_r[j], dry, s->mix);|' F
+sabotage bands omxdsp_definitions.h 's|^#define OMX_DYNEQ_BANDS 6$|#define OMX_DYNEQ_BANDS 5|' A &
+pids+=($!)
+sabotage knee omxdsp_definitions.h 's|^#define OMX_BAND_DYN_KNEE_DB 6$|#define OMX_BAND_DYN_KNEE_DB 3|' B &
+pids+=($!)
+sabotage shelf omx_band_dyn.h 's|  if (kind != OMX_EQ_LOWSHELF \&\& kind != OMX_EQ_HIGHSHELF) {|  if (1) {|' B &
+pids+=($!)
+sabotage order fx/omx_dyneq_instance.h 's|^    omx_band_dyn_process(l, r, m, \&s->band\[i\], \&s->st\[i\]);$|    (void)0;|; s|^    const uint32_t k = s->entry\[i\];$|    const uint32_t k = s->entry[i]; omx_band_dyn_process(l, r, m, \&s->band[i], \&s->st[i]);|' B &
+pids+=($!)
+sabotage listen fx/omx_dyneq_instance.h 's|^    if (s->listen\[i\]) {$|    if (0) {|; s|^    const uint32_t k = s->entry\[i\];$|    const uint32_t k = s->entry[i]; if (s->listen[i]) for (uint32_t j = 0; j < m; j++) { s->sum_l[j] += omx_biquad(l[j], s->band[i].b_c, s->listen_l[i]); s->sum_r[j] += omx_biquad(r[j], s->band[i].b_c, s->listen_r[i]); }|' D &
+pids+=($!)
+sabotage mix fx/omx_dyneq_instance.h 's|omx_wetdry_mix(\&l\[j\], \&r\[j\], s->dry_l\[j\], s->dry_r\[j\], l\[j\], r\[j\], dry, s->mix);|omx_wetdry_mix(\&l[j], \&r[j], l[j], r[j], s->dry_l[j], s->dry_r[j], dry, s->mix);|' F &
+pids+=($!)
+failed=0
+for p in "${pids[@]}"; do wait "$p" || failed=1; done
+[ "$failed" = 0 ] || { echo "dyneq_instance-perturb: FAIL — a sabotage was not seen"; exit 1; }
 echo "dyneq_instance-perturb: the dynamic EQ oracle sees all six sabotages"

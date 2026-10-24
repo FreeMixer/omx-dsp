@@ -22,6 +22,8 @@ CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -Wextra -Werror -O2 -ffp-contract=off}"
 : "${CONTRACT_INC:=$(sh "$PKG/tools/contract-include.sh")}"   # make exports it
 rm -rf "$OUT" && mkdir -p "$OUT"
+# The sabotages are independent and run side by side; each is waited for and every one must be seen.
+pids=()
 
 sabotage() { # <name> <header under include/omxdsp> <sed expression> <arm>...
   local name="$1" hdr="$2" expr="$3" d="$OUT/$1"
@@ -45,12 +47,23 @@ sabotage() { # <name> <header under include/omxdsp> <sed expression> <arm>...
   done
 }
 
-sabotage pivot omxdsp_definitions.h 's|^#define OMX_KEY_TILT_PIVOT_HZ 1000$|#define OMX_KEY_TILT_PIVOT_HZ 1200|' C
-sabotage tilt omx_tilt.h 's|  t->c\[1\] = (w - a) / n;|  t->c[1] = (a - w) / n;|' C D
-sabotage source fx/omx_comp_instance.h 's|  const int ext = s->src \&\& key_l;|  const int ext = 0;|' B
-sabotage filter fx/omx_comp_instance.h 's|^  omx_gate_key_run(\&s->filt\[0\], s->ka, m);$|  (void)0;|' C
-sabotage fold fx/omx_comp_instance.h 's|      case OMX_COMP_DETECT_LINKS_MID: s->kd\[i\] = mid; break;|      case OMX_COMP_DETECT_LINKS_MID: s->kd[i] = side; break;|' F
-sabotage listen fx/omx_comp_instance.h 's|        out_l\[o + i\] = !ms ? a :|        out_l[o + i] = !ms ? in_l[o + i] :|' D
-sabotage hold omx_dyn.h 's|    else if (st->hold_left > 0u) {|    else if (0) {|' E
-sabotage floor omx_dyn.h 's|    if (floored) omx_dyn_floor_gain(gain, m, floor_lin);|    (void)floored; (void)floor_lin;|' G
+sabotage pivot omxdsp_definitions.h 's|^#define OMX_KEY_TILT_PIVOT_HZ 1000$|#define OMX_KEY_TILT_PIVOT_HZ 1200|' C &
+pids+=($!)
+sabotage tilt omx_tilt.h 's|  t->c\[1\] = (w - a) / n;|  t->c[1] = (a - w) / n;|' C D &
+pids+=($!)
+sabotage source fx/omx_comp_instance.h 's|  const int ext = s->src \&\& key_l;|  const int ext = 0;|' B &
+pids+=($!)
+sabotage filter fx/omx_comp_instance.h 's|^  omx_gate_key_run(\&s->filt\[0\], s->ka, m);$|  (void)0;|' C &
+pids+=($!)
+sabotage fold fx/omx_comp_instance.h 's|      case OMX_COMP_DETECT_LINKS_MID: s->kd\[i\] = mid; break;|      case OMX_COMP_DETECT_LINKS_MID: s->kd[i] = side; break;|' F &
+pids+=($!)
+sabotage listen fx/omx_comp_instance.h 's|        out_l\[o + i\] = !ms ? a :|        out_l[o + i] = !ms ? in_l[o + i] :|' D &
+pids+=($!)
+sabotage hold omx_dyn.h 's|    else if (st->hold_left > 0u) {|    else if (0) {|' E &
+pids+=($!)
+sabotage floor omx_dyn.h 's|    if (floored) omx_dyn_floor_gain(gain, m, floor_lin);|    (void)floored; (void)floor_lin;|' G &
+pids+=($!)
+failed=0
+for p in "${pids[@]}"; do wait "$p" || failed=1; done
+[ "$failed" = 0 ] || { echo "comp_key-perturb: FAIL — a sabotage was not seen"; exit 1; }
 echo "comp_key-perturb: the key path oracle sees all eight sabotages"
