@@ -41,8 +41,10 @@ jobs:
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ubuntu-latest
-    # The suite takes 20 to 30 minutes on a hosted runner (median 25 min); 30 cut it off on a quarter
-    # of the jobs, so the slowest runs are not known. 60 is twice the old limit and well above the tail.
+    # Run one make job per CPU (BUILDING.md: make -jN test is supported, and make gen-once holds the
+    # one generation under -j8): serially the suite reached 39 to 43 minutes of this 60-minute limit
+    # once the remaining-FX wave's oracles and perturbation scripts joined it, and one trixie run went
+    # past it. Every check still runs.
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -112,7 +114,7 @@ jobs:
 
       - name: make test
         id: handback-test
-        run: make test
+        run: make -j"$(nproc)" test
 
   # The sabotage of the range: omx-contract 2.6.0, which the channel still serves and which is below
   # the floor the spec declares, must stop the build at once with a message that names the
