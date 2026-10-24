@@ -74,7 +74,7 @@
     {
       "name": "attack",
       "kind": "travel",
-      "doc": "The detector's attack, in ms. The travel stops at the oversampling floor, below which the band would need the compressor's delayed control path.",
+      "doc": "The detector's attack, in ms. The travel stops at the oversampling floor, below which the band would need the compressor's delayed control path. The detector is a 4-stage cascade, each stage a quarter of the time: a step reaches 56.65 % at the attack time.",
       "travel": {
         "min": {
           "ref": "DETECTOR_OVERSAMPLE_AUTO_MS"
@@ -93,7 +93,7 @@
     {
       "name": "release",
       "kind": "travel",
-      "doc": "The detector's release, in ms. 100 ms is long enough not to modulate a 40 Hz band inside four cycles.",
+      "doc": "The detector's release, in ms. 100 ms is long enough not to modulate a 40 Hz band inside four cycles. The detector is a 4-stage cascade, each stage a quarter of the time: a step falls to 43.35 % at the release time.",
       "travel": {
         "min": {
           "ref": "DEESS_RELEASE_RANGE.min"

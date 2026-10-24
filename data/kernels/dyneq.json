@@ -210,7 +210,7 @@
       "source": {
         "impl": "include/omxdsp/fx/omx_dyneq_instance.h#att"
       },
-      "doc": "The band detector's attack, in ms: band_dyn's attack travel by reference, which stops at the oversampling floor.",
+      "doc": "The band detector's attack, in ms: band_dyn's attack travel by reference, which stops at the oversampling floor; a step reaches 56.65 % at the attack time (the 4-stage cascade).",
       "travel": {
         "min": {
           "ref": "BAND_DYN_ATTACK_RANGE.min"
@@ -235,7 +235,7 @@
       "source": {
         "impl": "include/omxdsp/fx/omx_dyneq_instance.h#rel"
       },
-      "doc": "The band detector's release, in ms: band_dyn's release travel by reference.",
+      "doc": "The band detector's release, in ms: band_dyn's release travel by reference; a step falls to 43.35 % at the release time (the 4-stage cascade).",
       "travel": {
         "min": {
           "ref": "BAND_DYN_RELEASE_RANGE.min"
