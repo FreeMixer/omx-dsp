@@ -25,6 +25,12 @@
 
 #include <omxdsp/fx/omx_delay_instance.h>
 
+/* The colour's come-up values, the controls this oracle predates: free, a quarter, digital, no duck. */
+#define COLOR_IDLE                                                                                    \
+  (int)OMX_DELAY_SYNCS_DEFAULT, (int)OMX_DELAY_DIVISIONS_DEFAULT, (int)OMX_DELAY_MODES_DEFAULT,         \
+      (float)OMX_DELAY_DUCK_DB_RANGE_DEFAULT, (float)OMX_DELAY_DUCK_THRESHOLD_DB_RANGE_DEFAULT,         \
+      (float)OMX_DELAY_DUCK_RELEASE_MS_RANGE_DEFAULT
+
 #include "instance_harness.h"
 
 /* Outside the console's declaration each call below records its kernels' `rate-is-declared`; the ledger is taken after every call. */
@@ -70,7 +76,7 @@ typedef struct {
 } Knobs;
 
 static void resolve(OmxDelayInstance *s, int bypass, const Knobs *k) {
-  omx_delay_instance_resolve(s, bypass, k->time, k->feedback, k->tone, k->mix, k->pingpong);
+  omx_delay_instance_resolve(s, bypass, k->time, k->feedback, k->tone, k->mix, k->pingpong, COLOR_IDLE);
 }
 
 /* Heap-held: an instance carries its two 2 s rings. */
@@ -172,8 +178,8 @@ static void arm_clamps(void) {
       memcpy(want, in, sizeof want);
       in[knob] = x;
       want[knob] = land(x, LO[knob], HI[knob], DEF[knob]);
-      omx_delay_instance_resolve(s, 0, in[0], in[1], in[2], in[3], 1);
-      omx_delay_instance_resolve(e, 0, want[0], want[1], want[2], want[3], 1);
+      omx_delay_instance_resolve(s, 0, in[0], in[1], in[2], in[3], 1, COLOR_IDLE);
+      omx_delay_instance_resolve(e, 0, want[0], want[1], want[2], want[3], 1, COLOR_IDLE);
       char what[128];
       snprintf(what, sizeof what, "D: control %d at %g lands at %g", knob, (double)x, (double)want[knob]);
       ok(memcmp(&s->atom, &e->atom, sizeof s->atom) == 0, what);
@@ -188,8 +194,8 @@ static void arm_clamps(void) {
     OmxDelayInstance *s = inst(), *e = inst();
     omx_delay_instance_init(s, g_sr);
     omx_delay_instance_init(e, g_sr);
-    omx_delay_instance_resolve(s, 0, 4.0f, 0.5f, 0.4f, 0.6f, BAD[m]);
-    omx_delay_instance_resolve(e, 0, 4.0f, 0.5f, 0.4f, 0.6f, OMX_DELAY_INSTANCE_PINGPONG_DEFAULT);
+    omx_delay_instance_resolve(s, 0, 4.0f, 0.5f, 0.4f, 0.6f, BAD[m], COLOR_IDLE);
+    omx_delay_instance_resolve(e, 0, 4.0f, 0.5f, 0.4f, 0.6f, OMX_DELAY_INSTANCE_PINGPONG_DEFAULT, COLOR_IDLE);
     ok(memcmp(&s->atom, &e->atom, sizeof s->atom) == 0, "D: a ping-pong outside its ids reads as the declared default");
     free(s); free(e);
   }
