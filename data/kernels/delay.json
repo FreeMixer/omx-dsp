@@ -1,7 +1,7 @@
 {
   "$schema": "../../schema/omx-contract.schema.json",
   "requires": {
-    "omx-contract-schema": ">= 3.0.0"
+    "omx-contract-schema": ">= 3.1.0"
   },
   "controls": [
     {
@@ -228,6 +228,133 @@
         "default": 0,
         "defaultFrom": "desk"
       }
+    },
+    {
+      "name": "sync",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#sync_tempo"
+      },
+      "doc": "Where the delay time comes from: free, the time control in ms; tempo, the division at the host's tempo, 60000 / BPM x the division's beats. It comes up free, so a fresh delay is the one that shipped.",
+      "ids": [
+        "free",
+        "tempo"
+      ],
+      "default": "free",
+      "labels": [
+        "Free",
+        "Tempo"
+      ]
+    },
+    {
+      "name": "division",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#division_beats"
+      },
+      "doc": "The note value the time follows while sync is tempo: 1/1 to 1/16, each straight, dotted (x 3/2) and triplet (x 2/3), in beats of a quarter note (DELAY_DIVISION_BEATS, in this order). It comes up a quarter.",
+      "ids": [
+        "whole",
+        "wholeDotted",
+        "wholeTriplet",
+        "half",
+        "halfDotted",
+        "halfTriplet",
+        "quarter",
+        "quarterDotted",
+        "quarterTriplet",
+        "eighth",
+        "eighthDotted",
+        "eighthTriplet",
+        "sixteenth",
+        "sixteenthDotted",
+        "sixteenthTriplet"
+      ],
+      "default": "quarter",
+      "labels": [
+        "1/1",
+        "1/1 dotted",
+        "1/1 triplet",
+        "1/2",
+        "1/2 dotted",
+        "1/2 triplet",
+        "1/4",
+        "1/4 dotted",
+        "1/4 triplet",
+        "1/8",
+        "1/8 dotted",
+        "1/8 triplet",
+        "1/16",
+        "1/16 dotted",
+        "1/16 triplet"
+      ]
+    },
+    {
+      "name": "mode",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#mode_id"
+      },
+      "doc": "The repeats' colour, in the order of the integer the kernel reads: digital, the delay as it shipped, bit for bit; tape, a one-pole low pass at DELAY_TAPE_LP_HZ in the loop and a slow wow (DELAY_TAPE_WOW_HZ, DELAY_TAPE_WOW_MS deep) on the read head; analog, a lower loop low pass at DELAY_ANALOG_LP_HZ and the soft saturation x / (1 + |x|) in the feedback. It comes up digital.",
+      "ids": [
+        "digital",
+        "tape",
+        "analog"
+      ],
+      "default": "digital",
+      "labels": [
+        "Digital",
+        "Tape",
+        "Analog"
+      ]
+    },
+    {
+      "name": "duckDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#duck_depth"
+      },
+      "doc": "The wet's ducking depth, dB: the deepest the repeats go while the dry is loud (omx_duck: max(depth, min(0, T - L)) on the dry's level). 0 ducks nothing, the come-up value, bit for bit.",
+      "travel": {
+        "min": -24,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "duckThresholdDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#duck_thr"
+      },
+      "doc": "The dry level the ducking starts at, dBFS.",
+      "travel": {
+        "min": -60,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -30,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "duckReleaseMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#duck_rel"
+      },
+      "doc": "How fast the repeats come back once the dry falls, ms: the dry follower's release; its attack is FX_DUCK_ATTACK_MS.",
+      "travel": {
+        "min": 20,
+        "max": 2000,
+        "step": 10,
+        "unit": "ms",
+        "default": 250,
+        "defaultFrom": "desk"
+      }
     }
   ],
   "tables": {
@@ -292,6 +419,85 @@
         1,
         1
       ]
+    },
+    "DELAY_DIVISION_BEATS": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_DIVISION_BEATS"
+      },
+      "doc": "The beats each division of the delay lasts, in the order of its ids: whole, half, quarter, eighth, sixteenth, each straight, dotted (x 3/2) and triplet (x 2/3). A quarter note is one beat.",
+      "unit": "",
+      "values": [
+        4,
+        6,
+        2.6666666666666665,
+        2,
+        3,
+        1.3333333333333333,
+        1,
+        1.5,
+        0.6666666666666666,
+        0.5,
+        0.75,
+        0.3333333333333333,
+        0.25,
+        0.375,
+        0.16666666666666666
+      ]
+    },
+    "DELAY_TEMPO_FALLBACK_BPM": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_TEMPO_FALLBACK"
+      },
+      "doc": "The tempo a synced delay reads until its host hands it one, BPM.",
+      "unit": "",
+      "value": 120
+    },
+    "FX_DUCK_ATTACK_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_DUCK_ATTACK_MS"
+      },
+      "doc": "How fast a wet duck follows its dry key up, ms: the follower's attack, one for every effect that ducks its wet (the delay, the reverb).",
+      "unit": "ms",
+      "value": 5
+    },
+    "DELAY_TAPE_LP_HZ": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_TAPE_LP_HZ"
+      },
+      "doc": "The corner of the tape mode's one-pole low pass in the loop, Hz: each repeat a little darker than the last.",
+      "unit": "Hz",
+      "value": 6000
+    },
+    "DELAY_TAPE_WOW_HZ": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_TAPE_WOW_HZ"
+      },
+      "doc": "The tape mode's wow rate, Hz: the read head's slow drift.",
+      "unit": "Hz",
+      "value": 0.4
+    },
+    "DELAY_TAPE_WOW_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_TAPE_WOW_MS"
+      },
+      "doc": "The tape mode's wow depth, ms: the read head drifts between the time and the time plus this.",
+      "unit": "ms",
+      "value": 0.3
+    },
+    "DELAY_ANALOG_LP_HZ": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_ANALOG_LP_HZ"
+      },
+      "doc": "The corner of the analog mode's one-pole low pass in the loop, Hz: lower than tape's, a bucket-brigade's dark repeats.",
+      "unit": "Hz",
+      "value": 3000
     }
   }
 }
