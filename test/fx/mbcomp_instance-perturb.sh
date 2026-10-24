@@ -12,6 +12,7 @@
 #   fraction  — MBC_CORNER_MAX_FRACTION moved from 0.45 to 0.4: arms C and F;
 #   comeup    — MBC_CROSSOVER_DEFAULTS_3 moved from 200, 2000 to 250, 2000 Hz: arm F;
 #   solo      — the muted bands still reach the sum: arm D;
+#   pastcount — a solo past the band count is not masked off: arm D;
 #   mix       — the mix never reaches the bands' dry share: arm E;
 #   rising    — corners are not made rising: arm F.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
@@ -69,6 +70,8 @@ sabotage comeup $D 's|^#define OMX_MBC_CROSSOVER_DEFAULTS_3_INIT { 200, 2000 }$|
 pids+=($!)
 sabotage solo fx/omx_mbcomp.h 's|        if (m->muted >> k \& 1u) continue;|        (void)0;|' D &
 pids+=($!)
+sabotage pastcount fx/omx_mbcomp_instance.h 's|^  soloed \&= (1u << nb) - 1u;$|  (void)0;|' D &
+pids+=($!)
 sabotage mix fx/omx_mbcomp_instance.h 's|    d->dry = omx_dyn_dry_share(mix_share);|    d->dry = 0.0f * mix_share;|' E &
 pids+=($!)
 sabotage rising fx/omx_mbcomp_instance.h 's|    hz\[k\] = k > 0u \&\& !(corner > hz\[k - 1u\]) ? nextafterf(hz\[k - 1u\], INFINITY) : corner;|    hz[k] = corner;|' F &
@@ -76,4 +79,4 @@ pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "mbcomp_instance-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "mbcomp_instance-perturb: the multiband face oracle sees all eight sabotages"
+echo "mbcomp_instance-perturb: the multiband face oracle sees all nine sabotages"

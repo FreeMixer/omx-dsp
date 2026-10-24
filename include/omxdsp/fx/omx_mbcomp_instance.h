@@ -15,7 +15,8 @@
  *   2. THE BANDS. Each band is a feed-forward RMS compressor with a hard knee; a bypassed band is the
  *      kernel's unity band. The mix is each band's own dry share (omx_dyn.dry), so the dry signal is
  *      the tree at rest and the blend is in phase at every frequency. Solo leaves the bands that are
- *      not soloed out of the sum (omx_mbcomp.muted) while any band is soloed.
+ *      not soloed out of the sum (omx_mbcomp.muted) while any band in use is soloed; a solo past the
+ *      band count is ignored.
  *   3. IN -> OUT. The kernel works in place; run() copies in to out where they differ (they may alias),
  *      runs the kernel on out, and applies the output gain when it is not 0 dB.
  *
@@ -155,7 +156,9 @@ static inline void omx_mbcomp_instance_resolve(OmxMbcompInstance *s, int bypass,
     d->dry = omx_dyn_dry_share(mix_share);
     soloed |= (uint32_t)so << k;
   }
-  m->muted = soloed ? ~soloed & ((1u << OMX_MBC_MAX_BANDS) - 1u) : 0u;
+  /* Only the bands in use count: a solo left on past the band count mutes nothing. */
+  soloed &= (1u << nb) - 1u;
+  m->muted = soloed ? ~soloed & ((1u << nb) - 1u) : 0u;
   m->ovs_mode = OMX_DYN_OVS_AUTO;
   const float out_db = omx_clamp_or(output_db, (float)OMX_MBCOMP_OUTPUT_DB_RANGE_MIN, (float)OMX_MBCOMP_OUTPUT_DB_RANGE_MAX,
                                     (float)OMX_MBCOMP_OUTPUT_DB_RANGE_DEFAULT);
