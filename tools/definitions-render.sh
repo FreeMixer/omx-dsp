@@ -22,7 +22,7 @@ OC="$(cd "$1" 2>/dev/null && pwd)" || { echo "definitions-render: no omx-contrac
 out="$(mkdir -p "$2" && cd "$2" && pwd)"
 command -v node >/dev/null 2>&1 || { echo "definitions-render: node is missing" >&2; exit 2; }
 [ -f "$OC/bin/omx-contract.mjs" ] && [ -f "$OC/tools/install-contract-dir.sh" ] && [ -d "$OC/node_modules" ] || { echo "definitions-render: $OC has no bin/omx-contract.mjs, tools/install-contract-dir.sh or node_modules (npm ci there)" >&2; exit 2; }
-grep -q 'render --target c|ts|json .*--package' "$OC/bin/omx-contract.mjs" || { echo "definitions-render: the tool at $OC renders no single package (render --package): it needs omx-contract 2.15.0's tool" >&2; exit 2; }
+grep -qE 'render --target c\|ts\|json(\|[a-z0-9]+)* .*--package' "$OC/bin/omx-contract.mjs" || { echo "definitions-render: the tool at $OC renders no single package (render --package): it needs omx-contract 2.15.0's tool" >&2; exit 2; }
 version="$(make -s -C "$HERE" version)"
 major="$(sed -n 's/^  "x-omx-schema-version": "\([0-9]*\)\..*",$/\1/p' "$OC/schema/omx-contract.schema.json")"
 ocversion="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$OC/package.json")"

@@ -1,7 +1,7 @@
 {
   "$schema": "../../schema/omx-contract.schema.json",
   "requires": {
-    "omx-contract-schema": ">= 3.0.0"
+    "omx-contract-schema": ">= 3.1.0"
   },
   "controls": [
     {
@@ -145,6 +145,158 @@
         "feedback"
       ],
       "default": "feedforward"
+    },
+    {
+      "name": "keySource",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#key_src"
+      },
+      "doc": "Where the compressor's detector listens: its own input (self), or the key handed to its sidechain port (sidechain), in the order of the integer the key port carries; the gate's keySource ids. Which strip or bus feeds the sidechain is console routing. It comes up self.",
+      "ids": [
+        "self",
+        "sidechain"
+      ],
+      "default": "self",
+      "labels": [
+        "Self",
+        "Sidechain"
+      ]
+    },
+    {
+      "name": "keyHpHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#hp"
+      },
+      "doc": "The key filter's high-pass corner, Hz: the gate's key filter (one Butterworth section, in double), on what the detector hears and never on the audio. 0 is out, the come-up value, and the compressor is the one without it, bit for bit.",
+      "travel": {
+        "min": 0,
+        "max": 2000,
+        "step": 1,
+        "unit": "Hz",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "keyLpHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#lp"
+      },
+      "doc": "The key filter's low-pass corner, Hz, after the high-pass. 0 is out, the come-up value.",
+      "travel": {
+        "min": 0,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "keyTiltDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#tilt_slope"
+      },
+      "doc": "The key's tilt, in dB per octave at KEY_TILT_PIVOT_HZ: positive brightens what the detector hears, negative darkens it (omx_tilt, a first-order shelf pair about the pivot, after the key filter). 0 is flat, the come-up value, bit for bit.",
+      "travel": {
+        "min": -6,
+        "max": 6,
+        "step": 0.5,
+        "unit": "dB/oct",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "keyListen",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#lis"
+      },
+      "doc": "While on, the output is what the detector hears, the key after its filter and tilt, folded as detectLink folds it: linked the two legs, mid the mid on both, side the side on both, max the mid on the left and the side on the right. The compressor keeps running underneath. It comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "holdMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#hold"
+      },
+      "doc": "The hold, ms: the detector is frozen this long after its level last rose, so the reduction holds before the release runs. 0 is no hold, the come-up value.",
+      "travel": {
+        "min": 0,
+        "max": 2000,
+        "step": 5,
+        "unit": "ms",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "detectLink",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#link_fold"
+      },
+      "doc": "How the detector folds the key's two legs into one level, in the order of the integer the kernel reads: linked, the louder leg (the compressor's own detection, the come-up value); mid, the mid (L + R)/2; side, the side (L - R)/2; max, the louder of the mid and the side. One gain serves both legs whatever the fold.",
+      "ids": [
+        "linked",
+        "mid",
+        "side",
+        "max"
+      ],
+      "default": "linked",
+      "labels": [
+        "Linked",
+        "Mid",
+        "Side",
+        "Max"
+      ]
+    },
+    {
+      "name": "duck",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#duck_on"
+      },
+      "doc": "The ducker: on, the reduction the key's level asks for is held to rangeDb, so the programme gain is max(rangeDb, the compressor's law at the key's level). It comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "rangeDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#duck_range"
+      },
+      "doc": "The ducker's depth, dB: the deepest the programme goes while the key is above the threshold. 0 ducks nothing. Read only while duck is on.",
+      "travel": {
+        "min": -40,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -12,
+        "defaultFrom": "desk"
+      }
     }
   ],
   "readouts": [
@@ -156,6 +308,21 @@
         "ref": "COMP_LIMITS.thresholdDb.min"
       },
       "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "keyLevelDb",
+      "doc": "The level the compressor's detector reads now, dBFS: the key after its filter, tilt and fold while one is set, the programme's louder leg otherwise. The display range is the threshold's travel, so the meter and the threshold share one axis.",
+      "unit": "dBFS",
+      "min": {
+        "ref": "COMP_LIMITS.thresholdDb.min"
+      },
+      "max": {
+        "ref": "COMP_LIMITS.thresholdDb.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -211,6 +378,15 @@
       "doc": "What the 4x detector oversampling costs the strip it is engaged on, in samples: the causal linear-phase half-band's reach, by which the audio is delayed so the gain still lands on the sample it was computed from. A sample count, not a time: the same at every rate. omx-dsp's oversampler declares the same number as OMX_OVS_LATENCY_4X, and its comp and gate faces report it while 4x is engaged.",
       "unit": "",
       "value": 72
+    },
+    "KEY_TILT_PIVOT_HZ": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#OMX_COMP_INSTANCE_TILT_PIVOT_HZ"
+      },
+      "doc": "Where a key's tilt pivots, Hz: the frequency a tilt leaves at unity while it brightens or darkens what the detector hears. One pivot for every key that tilts.",
+      "unit": "Hz",
+      "value": 1000
     }
   }
 }
