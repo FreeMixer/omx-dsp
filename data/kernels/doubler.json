@@ -1,0 +1,193 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "voices",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#voice_count"
+      },
+      "doc": "How many doubled voices sound beside the dry, 1 to DOUBLER_MAX_VOICES. Two comes up.",
+      "travel": {
+        "min": 1,
+        "max": {
+          "ref": "DOUBLER_MAX_VOICES"
+        },
+        "step": 1,
+        "unit": "",
+        "default": 2,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "delayMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#dms"
+      },
+      "doc": "The voices' mean delay, ms: voice n sits at this times DOUBLER_VOICE_DELAYS[n].",
+      "travel": {
+        "min": 5,
+        "max": 40,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 12,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "detuneCents",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#cents"
+      },
+      "doc": "The voices' detune, cents: voice n is tuned by this times DOUBLER_VOICE_DETUNES[n], up for a positive factor and down for a negative one, by the Doppler of a moving read (omx_doppler), no pitch shifter.",
+      "travel": {
+        "min": 0,
+        "max": 25,
+        "step": 0.5,
+        "unit": "cents",
+        "default": 8,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "modRateHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#mrate"
+      },
+      "doc": "The rate the voices' delays drift at, Hz; each voice's drift is a further 1 / voices of a turn along.",
+      "travel": {
+        "min": 0.1,
+        "max": 2,
+        "step": 0.05,
+        "unit": "Hz",
+        "default": 0.6,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "modDepthMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#mdepth"
+      },
+      "doc": "How far the voices' delays drift either side of their mean, ms. 0 holds them still.",
+      "travel": {
+        "min": 0,
+        "max": 3,
+        "step": 0.05,
+        "unit": "ms",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "spreadPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#spread"
+      },
+      "doc": "How wide the voices sit, percent: voice n is panned to this share of DOUBLER_VOICE_PANS[n] by the console's balance law.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 60,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mixPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#mix_share"
+      },
+      "doc": "The share of the voices, percent: 0 is the input bit for bit, 100 the voices alone, their sum divided by the voice count.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 50,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "constants": {
+    "DOUBLER_MAX_VOICES": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_VOICES"
+      },
+      "doc": "The most voices the doubler carries; its state holds this many heads.",
+      "unit": "",
+      "value": 4
+    },
+    "DOUBLER_VOICE_DETUNES": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_DETUNES"
+      },
+      "doc": "Each voice's share of detuneCents, signed: the first up, the second down, the third and fourth half as far, up and down.",
+      "unit": "",
+      "values": [
+        1,
+        -1,
+        0.5,
+        -0.5
+      ]
+    },
+    "DOUBLER_VOICE_DELAYS": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_DELAYS"
+      },
+      "doc": "Each voice's share of delayMs, so the voices never land on one sample: two singers do not breathe together.",
+      "unit": "",
+      "values": [
+        1,
+        1.31,
+        0.78,
+        1.17
+      ]
+    },
+    "DOUBLER_VOICE_PANS": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_PANS"
+      },
+      "doc": "Each voice's place at a spread of 100 %, -1 hard left to +1 hard right.",
+      "unit": "",
+      "values": [
+        -1,
+        1,
+        -0.5,
+        0.5
+      ]
+    },
+    "DOUBLER_WINDOW_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_WINDOW_MS"
+      },
+      "doc": "The Doppler head's sweep, ms: the window a detuned voice's delay moves through before the crossfade re-centres it.",
+      "unit": "ms",
+      "value": 20
+    },
+    "DOUBLER_FADE": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_FADE"
+      },
+      "doc": "The share of the head's sweep the crossfade to the next head takes.",
+      "unit": "",
+      "value": 0.25
+    }
+  }
+}
