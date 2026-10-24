@@ -8,7 +8,7 @@
       "name": "bandOn",
       "kind": "choice",
       "source": {
-        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#on"
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#sw"
       },
       "doc": "A band's switch. Off, the band is not in the EQ's bank and its dynamics do not run; on, its static section runs, parked at 0 dB as an EQ band is, and its dynamics run as its dynMode says. A band comes up off, as an EQ band does: the ids and the come-up value are EQ_BAND_ONS's, the EQ's own band switch, and the face holds the two equal at compile time.",
       "ids": [
@@ -46,7 +46,7 @@
       "name": "freq",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#omx_eq_lv2_band_freq_default"
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#fc"
       },
       "doc": "The band's centre or corner, the EQ band's travel by reference. The come-up centres are the EQ's default rule for six bands (omx_eq_default_centres), so the bands start spread across the audio band.",
       "travel": {
@@ -90,7 +90,7 @@
       "name": "q",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#q"
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#bq"
       },
       "doc": "The bell's Q, the EQ band's travel by reference; the dynamics' bandpass takes the same Q. A shelf reads it as the EQ's shelf does.",
       "travel": {
@@ -113,7 +113,7 @@
       "name": "dynMode",
       "kind": "choice",
       "source": {
-        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#dyn_mode"
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#dyn_mode_i"
       },
       "doc": "Whether and when the band's dynamics act, in the order of the integer the kernel reads: off, the band is its static section alone; down, it acts above its threshold, when the band is loud (band_dyn's above); up, it acts below its threshold, when the band is quiet (band_dyn's below). The range's sign says whether it cuts or boosts. A band comes up off, so a fresh dynamic EQ is an EQ.",
       "ids": [
@@ -158,7 +158,7 @@
       "name": "ratio",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#ratio"
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#rat"
       },
       "doc": "How hard the band is held past its threshold: band_dyn's ratio travel by reference.",
       "travel": {
@@ -183,7 +183,7 @@
       "name": "range",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#range"
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#rng"
       },
       "doc": "The most the dynamics add to the band's static gain, signed: below zero the deepest cut, above zero the largest boost. band_dyn's range travel by reference.",
       "travel": {
@@ -258,7 +258,7 @@
       "name": "listen",
       "kind": "choice",
       "source": {
-        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#listen"
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#lis"
       },
       "doc": "While on, the output is what the band's detector hears, its section B over the signal reaching the band, in place of the EQ's output; with more than one band listening, their sum. It comes up off.",
       "ids": [
@@ -276,7 +276,7 @@
       "name": "mixPct",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#mix"
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#mix_share"
       },
       "doc": "The share of the processed output, in percent: 100 is the dynamic EQ alone, bit for bit, 0 the input.",
       "travel": {
