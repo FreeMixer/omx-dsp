@@ -9,8 +9,8 @@
 #   delays    — DOUBLER_VOICE_DELAYS' first share moved from 1 to 1.05: arm C;
 #   pans      — DOUBLER_VOICE_PANS' first place moved from -1 to -0.9: arm E;
 #   window    — DOUBLER_WINDOW_MS moved from 20 to 18 ms: arm B;
-#   fade      — DOUBLER_FADE moved from 0.25 to 0.3: arm E;
-#   drift     — every voice drifts in step, no voice a further share of a turn along: arm E;
+#   fade      — DOUBLER_FADE moved from 0.25 to 0.3: arm I;
+#   drift     — every voice drifts in step, no voice a further share of a turn along: arm D;
 #   count     — the voices' sum is not divided by their count: arm E;
 #   jump      — a changed voice re-centres its head at once, no hand-over (#226): arm G;
 #   margin    — the room reaches the kernel's reach with no sample to spare (#226): arm H.
@@ -56,9 +56,9 @@ sabotage pans omxdsp_definitions.h 's|^#define OMX_DOUBLER_VOICE_PANS_INIT { -1,
 pids+=($!)
 sabotage window omxdsp_definitions.h 's|^#define OMX_DOUBLER_WINDOW_MS 20$|#define OMX_DOUBLER_WINDOW_MS 18|' B &
 pids+=($!)
-sabotage fade omxdsp_definitions.h 's|^#define OMX_DOUBLER_FADE 0.25f$|#define OMX_DOUBLER_FADE 0.3f|' E &
+sabotage fade omxdsp_definitions.h 's|^#define OMX_DOUBLER_FADE 0.25f$|#define OMX_DOUBLER_FADE 0.3f|' I &
 pids+=($!)
-sabotage drift fx/omx_doubler_instance.h 's|omx_lfo_at(\&s->lfo, (float)k / (float)s->nv)|omx_lfo_at(\&s->lfo, 0.0f * (float)k)|' E &
+sabotage drift fx/omx_doubler_instance.h 's|omx_lfo_at(\&s->lfo, (float)k / (float)s->nv)|omx_lfo_at(\&s->lfo, 0.0f * (float)k)|' D &
 pids+=($!)
 sabotage count fx/omx_doubler_instance.h 's|    s->gl\[k\] = bl / (float)s->nv;|    s->gl[k] = bl;|' E &
 pids+=($!)

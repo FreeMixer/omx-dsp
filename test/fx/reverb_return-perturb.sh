@@ -13,7 +13,8 @@
 #   legs      — the odd taps land on the left: arm B;
 #   tail      — the tail's level is never applied: arms B and C;
 #   duck      — the wet is never ducked: arm D;
-#   deess     — the wet de-esser never runs: arm E.
+#   deess     — the wet de-esser never runs: arm E;
+#   ratio     — DEESS_RATIO_RANGE's default, the wet de-esser's ratio, moved from 4 to 3: arm E.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… reverb_return-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -66,7 +67,9 @@ sabotage duck fx/omx_reverb.h 's|  const int ducked = ret \&\& x->duck.depth_db 
 pids+=($!)
 sabotage deess fx/omx_reverb.h 's|  const int deessed = ret \&\& x->deess != NULL \&\& x->deess->enabled;|  const int deessed = 0;|' E &
 pids+=($!)
+sabotage ratio omxdsp_definitions.h 's|^#define OMX_DEESS_RATIO_RANGE_DEFAULT 4$|#define OMX_DEESS_RATIO_RANGE_DEFAULT 3|' E &
+pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "reverb_return-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "reverb_return-perturb: the reverb return oracle sees all nine sabotages"
+echo "reverb_return-perturb: the reverb return oracle sees all ten sabotages"

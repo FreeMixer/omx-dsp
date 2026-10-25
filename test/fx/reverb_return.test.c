@@ -14,14 +14,17 @@
 //      early reflections at the floor leave it today's, bit for bit;
 //   D  the duck: a dry of steady magnitude L brings the wet back at max(duckDb, min(0, T - L)) against
 //      the unducked wet (0.01 dB);
-//   E  the wet de-esser: the wet is the unde-essed wet through the de-esser kernel (split, the band at
-//      deessFreqHz, the threshold deessThresholdDb, the de-esser's own come-up values), bit for bit;
+//   E  the wet de-esser: a steady sine at deessFreqHz made the whole wet comes out as the declared split
+//      transfer g x, g from the ABOVE characteristic (DEESS_KNEE_DB, ratio and floor written out here) of
+//      the detector's level, sample for sample within a derived bound, 10 dB over the threshold; 20 dB
+//      under it the wet is itself, bit for bit;
 //   F  hostile words land inside the declared travels, the ledger is clean, nothing allocates.
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_reverb_instance.h>
 
 #include "instance_oracle.h"
 
+#include <float.h>
 #include <stdlib.h>
 
 void *__real_malloc(size_t n);
@@ -205,35 +208,92 @@ static void arm_duck(void) {
 }
 
 /* ---- E: the wet de-esser ------------------------------------------------------------------ */
+/* The de-esser's declared transfer (omx_deesser.h), split: y = x + (g - 1) B, B the cookbook bandpass
+ * at deessFreqHz, g = 10^(d/20), d the ABOVE characteristic of the band's peak level L in dB, soft knee
+ * DEESS_KNEE_DB, ratio DEESS_RATIO, floored at DEESS_RANGE, all written out here. The wet is made one
+ * steady sine on both legs (width 0, the tail at its floor, the early taps alone, a sine at the band's
+ * centre, where the cookbook bandpass passes it whole and its notch complement has a zero), so B = x
+ * once the notch's transient has died and y = g x. L is read from the detector's state after each
+ * sample, and the de-essed wet is compared, sample by sample, with g x, x the wet with the de-esser off.
+ * The tolerance is derived: the level in dB is within 1e-4 dB (omx_lin_to_db_poly), which moves d by
+ * at most (1 - 1/ratio) 1e-4 dB, the gain back to linear is within 2e-6 relative (omx_db_to_lin_poly),
+ * so g is within 2e-5 relative; the notch's residual is at most A r^m, r the section's pole radius and
+ * m the samples since the last tap came in, the float section adds (1 - g) A 8 eps / (1 - r), and y's
+ * two float operations add 2 ulp of A. */
+#define DEESS_KNEE_DB 6.0
+#define DEESS_RATIO 4.0
+#define DEESS_RANGE -12.0
+static double deess_gain(double level_db, double thr) {
+  const double x = level_db - thr, half = 0.5 * DEESS_KNEE_DB, slope = 1.0 / DEESS_RATIO - 1.0;
+  double d = x <= -half ? 0.0 : x < half ? slope * (x + half) * (x + half) / (2.0 * DEESS_KNEE_DB) : slope * x;
+  d = d < DEESS_RANGE ? DEESS_RANGE : d;
+  return pow(10.0, d / 20.0);
+}
+
 static void arm_deess(void) {
   g_arm = "E";
-  const uint32_t n = (uint32_t)(g_sr * 0.3f);
-  stimulus(g_l, g_r, n, 0x9999u, 1200u);
-  struct ret x = IDLE;
-  x.deess = (int)OMX_REVERB_WET_DEESSES_ON;
-  x.dfreq = 6000.0f;
-  x.dthr = -40.0f;
-  setup(&g_v, OMX_REVERB_PLATE, 5.0f, 1.0f, x);
-  run(&g_v, g_l, g_r, g_ol, g_or, n);
-  setup(&g_w, OMX_REVERB_PLATE, 5.0f, 1.0f, IDLE);
-  run(&g_w, g_l, g_r, g_al, g_ar, n);
-  static OmxDeesserInstance d;
-  omx_deesser_instance_init(&d, g_sr);
-  omx_deesser_instance_resolve(&d, 0, 6000.0f, OMX_DEESSER_INSTANCE_WIDTH_DEFAULT, -40.0f, OMX_DEESSER_INSTANCE_RATIO_DEFAULT,
-                               OMX_DEESSER_INSTANCE_RANGE_DEFAULT, OMX_DEESSER_INSTANCE_ATTACK_DEFAULT,
-                               OMX_DEESSER_INSTANCE_RELEASE_DEFAULT, OMX_DEESSER_INSTANCE_MODE_DEFAULT);
-  drain();
-  for (uint32_t o = 0; o < n; o += OMX_REVERB_CHUNK) {
-    omx_deesser_instance_run(&d, g_al + o, g_ar + o, g_al + o, g_ar + o, n - o < OMX_REVERB_CHUNK ? n - o : OMX_REVERB_CHUNK);
+  const double f0 = 6000.0, amp = 0.5;
+  const uint32_t n = (uint32_t)(g_sr * 0.12f);
+  for (uint32_t i = 0; i < n; i++) g_l[i] = g_r[i] = (float)(amp * sin(2.0 * M_PI * f0 * i / g_sr));
+  /* the cookbook bandpass at f0, one octave: its poles' radius sqrt(a2) */
+  const double w0 = 2.0 * M_PI * f0 / g_sr, alpha = sin(w0) * sinh(0.5 * log(2.0) * 1.0 * w0 / sin(w0));
+  const double radius = sqrt((1.0 - alpha) / (1.0 + alpha));
+  /* the float section's own error on B, relative to A: its rounding, a few ulp a sample, summed by the
+   * recursion's gain 1 / (1 - r) */
+  const double band_err = 8.0 * FLT_EPSILON / (1.0 - radius);
+  const uint32_t last_tap = (uint32_t)(5.0f * 0.001f * g_sr) + (uint32_t)ceil(25.3 * 1.0 * 0.001 * g_sr) + 2u;
+  /* two thresholds: 10 dB under the wet's level (on the ratio, above the knee, over the floor) and 20 dB
+   * over it (below the knee: g = 1, the wet whole) */
+  for (int pass = 0; pass < 2; pass++) {
+    struct ret x = IDLE;
+    x.early = 0.0f;
+    x.tail = -60.0f;
+    x.deess = (int)OMX_REVERB_WET_DEESSES_ON;
+    x.dfreq = (float)f0;
+    x.dthr = pass ? 0.0f : -60.0f;
+    omx_reverb_instance_init(&g_w, g_sr);
+    omx_reverb_instance_resolve(&g_w, 0, 100.0f, 1.0f, 0.6f, 0.4f, 0.0f, 5.0f, 0.0f, 0.0f, 300.0f, 100.0f, 200.0f, -40.0f,
+                                OMX_REVERB_ROOM, x.early, x.tail, 50.0f, IDLE.duck, IDLE.thr, IDLE.rel, 0, x.dfreq, x.dthr);
     drain();
+    for (uint32_t i = 0; i < n; i++) {
+      omx_reverb_instance_run(&g_w, g_l + i, g_r + i, g_al + i, g_ar + i, 1u);
+      drain();
+    }
+    drain();
+    double peak = 0.0;
+    for (uint32_t i = last_tap; i < n; i++) peak = fmax(peak, fabs(g_al[i]));
+    const double thr = pass ? 20.0 * log10(peak) + 20.0 : 20.0 * log10(peak) - 10.0;
+    x.dthr = (float)thr;
+    omx_reverb_instance_init(&g_v, g_sr);
+    omx_reverb_instance_resolve(&g_v, 0, 100.0f, 1.0f, 0.6f, 0.4f, 0.0f, 5.0f, 0.0f, 0.0f, 300.0f, 100.0f, 200.0f, -40.0f,
+                                OMX_REVERB_ROOM, x.early, x.tail, 50.0f, IDLE.duck, IDLE.thr, IDLE.rel, x.deess, x.dfreq, x.dthr);
+    drain();
+    double worst = 0.0, gmin = 1.0;
+    uint32_t over = 0u, same = 1u;
+    for (uint32_t i = 0; i < n; i++) {
+      omx_reverb_instance_run(&g_v, g_l + i, g_r + i, g_ol + i, g_or + i, 1u);
+      drain();
+      const double level = g_v.rstate.deess.band.env.stage[OMX_DYN_ENV_STAGES - 1];
+      const double g = deess_gain(20.0 * log10(level > 1e-9 ? level : 1e-9), (double)x.dthr);
+      gmin = fmin(gmin, g);
+      same &= g_ol[i] == g_or[i];
+      if (pass) same &= g_ol[i] == g_al[i];
+      if (i < last_tap + 8u) continue;
+      const double tol = 2e-5 * fabs(g_al[i]) + (1.0 - g) * peak * (pow(radius, (double)(i - last_tap)) + band_err) +
+                         2.0 * FLT_EPSILON * peak;
+      const double e = fabs((double)g_ol[i] - g * g_al[i]);
+      worst = fmax(worst, e / tol);
+      over += !(e <= tol);
+    }
+    drain();
+    if (pass)
+      ok(same, "a wet 20 dB under the threshold is the wet itself, bit for bit", same, 1);
+    else {
+      printf("  %6.0f Hz: E de-ess gain %.3f dB, worst error over its bound %.3f\n", (double)g_sr, 20.0 * log10(gmin), worst);
+      ok(over == 0u, "the de-essed wet is the declared transfer g x of the wet (derived bound)", over, 0);
+      ok(gmin < pow(10.0, -6.0 / 20.0), "10 dB over the threshold the de-esser takes at least 6 dB", 20.0 * log10(gmin), -6.0);
+    }
   }
-  ok(memcmp(g_ol, g_al, n * sizeof(float)) == 0 && memcmp(g_or, g_ar, n * sizeof(float)) == 0,
-     "the de-essed wet is the wet through the de-esser kernel, bit for bit", 0, 0);
-  int moved = 0;
-  setup(&g_w, OMX_REVERB_PLATE, 5.0f, 1.0f, IDLE);
-  run(&g_w, g_l, g_r, g_al, g_ar, n);
-  for (uint32_t i = 0; i < n; i++) moved |= g_ol[i] != g_al[i];
-  ok(moved, "the de-esser acts on this wet", moved, 1);
   clean();
 }
 

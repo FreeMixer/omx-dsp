@@ -148,7 +148,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources cost-deesser note-map-sabotage doppler-sabotage exports copy-check
 
 all: lib
 
@@ -305,6 +305,11 @@ instance-rates-sabotage: $(foreach k,drive rotary reverb chorus deesser delay eq
 # go red on that arm (test/fdelay-sabotage.sh). The tree is never edited.
 fdelay-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/fdelay-sabotage.sh tools/kernels-gen.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/fdelay-sabotage.sh $(BUILD)/fdelay-sabotage
+
+# The Doppler head's suite arm against three sabotaged copies of omx_doppler.h, its fade and its
+# hand-over: each must go red on that arm (test/doppler-sabotage.sh). The tree is never edited.
+doppler-sabotage: $(HEADERS) $(KERNELS) $(SRC) test/doppler-sabotage.sh tools/kernels-gen.sh | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/doppler-sabotage.sh $(BUILD)/doppler-sabotage
 
 # The note map's suite arm against twelve sabotaged copies of omx_note_map.h: each must go red on
 # that arm (test/note-map-sabotage.sh). The tree is never edited.
@@ -623,7 +628,7 @@ test:
 	@echo "omxdsp: make test green"
 
 .PHONY: test-parallel
-test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 
 # ---- install ------------------------------------------------------------------------------------
 
