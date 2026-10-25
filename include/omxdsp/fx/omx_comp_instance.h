@@ -49,6 +49,14 @@
  * releasing at its attack pole: releaseMs is inert there, kept for when fixed returns. The
  * effectiveAttackMs readout is {@link omx_comp_instance_effective_attack_ms}.
  *
+ * API CHANGE (FX-12, omx-dsp#188). {@link omx_comp_instance_resolve} gains a trailing `release_mode`
+ * argument, positional like the rest (the 10-25 ruling), so every caller built against the earlier
+ * signature stops compiling until it passes one; `OMX_COMP_RELEASE_MODES_FIXED` is the compressor
+ * that shipped. The callers: omx-plugins' plugins/omx-comp/omx_comp_core.h and
+ * plugins/omx-comp/test/comp-oracle.c, and plugins/omx-strip/omx_strip_core.h and
+ * plugins/omx-strip/test/strip-oracle.c; the engine (openmixer's packages/pipewire-native) calls none.
+ * The release that carries it is a minor version bump.
+ *
  * HOLD AND DUCK. holdMs reaches the kernel's hold (omx_dyn.hold_frames, ABOVE mode: the detector
  * frozen after it last rose). duck holds the reduction to rangeDb (omx_dyn.floor_db), so the
  * programme gain is `max(rangeDb, the law at the key's level)`; a range of 0 dB ducks nothing.
