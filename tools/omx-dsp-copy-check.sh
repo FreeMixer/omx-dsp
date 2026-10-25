@@ -608,7 +608,9 @@ generate() {
   tmp="$(mktemp -d)"
   local files=()
   while IFS= read -r f; do files+=("$f"); done < <(cd "$tree" && { find include/omxdsp -name '*.h' | LC_ALL=C sort; find src -maxdepth 1 -name '*.c' 2>/dev/null | LC_ALL=C sort; })
-  (cd "$tree" && "$AWK" -v mode=gen -v out_fns="$tmp/fns" -v out_macs="$tmp/macs" -v sabotage="${OMX_COPY_CHECK_SABOTAGE:-}" "$PROG" "${files[@]}")
+  # A scan that fails writes a short exports file, and a check over it misses copies: refuse it.
+  (cd "$tree" && "$AWK" -v mode=gen -v out_fns="$tmp/fns" -v out_macs="$tmp/macs" -v sabotage="${OMX_COPY_CHECK_SABOTAGE:-}" "$PROG" "${files[@]}") ||
+    { rm -rf "$tmp"; die "the scan of $tree failed"; }
   : >>"$tmp/fns"; : >>"$tmp/macs"
   {
     printf '{"format":"omx-dsp-exports 1","omxdsp_version":"%s","shingle":6,"min_tokens":30,"overlap":0.9,"exports":[\n' "$version"
