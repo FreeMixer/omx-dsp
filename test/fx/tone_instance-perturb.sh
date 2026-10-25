@@ -12,7 +12,8 @@
 #   resonance — resonance's default moved from 0.71 to 0.8: arm F;
 #   span      — the span read as a slope's a, 10^(tiltDb/20): arm B;
 #   map       — the low-pass's corner rising with the word instead of falling: arm C;
-#   rest      — the filter run at a filter of 0: arm A.
+#   rest      — the filter run at a filter of 0: arm A;
+#   sidekeep  — the filter's history kept across a change of side: arm H.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… tone_instance-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -63,7 +64,9 @@ sabotage map fx/omx_tone_instance.h 's|OMX_TONE_INSTANCE_HIGH_HZ \* exp(-u \* sp
 pids+=($!)
 sabotage rest fx/omx_tone_instance.h 's|, filter_on = s->filter != 0.0f;|, filter_on = 1;|' A &
 pids+=($!)
+sabotage sidekeep fx/omx_tone_instance.h 's|    if (!s->filter_on [|][|] side_changed)|    if (!s->filter_on \|\| (0 \&\& side_changed))|' H &
+pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "tone_instance-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "tone_instance-perturb: the tone oracle sees all eight sabotages"
+echo "tone_instance-perturb: the tone oracle sees all nine sabotages"

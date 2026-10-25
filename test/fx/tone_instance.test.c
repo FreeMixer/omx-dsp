@@ -21,7 +21,9 @@
 //      is clean, nothing allocates;
 //   F  a non-finite pivot or resonance reads as its declared default, 1000 Hz and 0.71, and a
 //      non-finite span or filter as flat and open;
-//   G  one block or random blocks of 1 to 4096 frames are the same bits; identical legs stay identical.
+//   G  one block or random blocks of 1 to 4096 frames are the same bits; identical legs stay identical;
+//   H  a jump of the filter across 0 (low-pass to high-pass and back) starts the new side from silence:
+//      after the jump the output is the new side run from silence on the same samples, bit for bit.
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_tone_instance.h>
 
@@ -318,6 +320,40 @@ static void arm_blocks(void) {
   expect_clean();
 }
 
+/* ---- H: a change of side starts the filter from silence -------------------------------------- */
+/* Noise through one side for 0.25 s, then the word jumps to the other side. The step at the jump is
+ * the largest distance, over the 0.1 s after it, from the new side run from silence on the same
+ * samples, against that run's own peak: 0 when the history is cleared. The low-pass's history read by
+ * a 21 Hz high-pass at Q 4 rings at 21 Hz for tens of milliseconds. */
+static OmxToneInstance g_ref;
+static void jump(float from, float to, float res) {
+  const uint32_t pre = (uint32_t)(g_sr * 0.25f), post = (uint32_t)(g_sr * 0.1f);
+  stimulus(g_l, g_r, pre + post, 0x5e1du, 0u);
+  setup(0.0f, 1000.0f, from, res);
+  run(&g_t, g_l, g_r, g_ol, g_or, pre);
+  omx_tone_instance_resolve(&g_t, 0, 0.0f, 1000.0f, to, res);
+  run(&g_t, g_l + pre, g_r + pre, g_ol, g_or, post);
+  omx_tone_instance_init(&g_ref, g_sr);
+  omx_tone_instance_resolve(&g_ref, 0, 0.0f, 1000.0f, to, res);
+  run(&g_ref, g_l + pre, g_r + pre, g_xl, g_xr, post);
+  double step = 0.0, peak = 0.0;
+  for (uint32_t i = 0; i < post; i++) {
+    step = fmax(step, fmax(fabs((double)g_ol[i] - g_xl[i]), fabs((double)g_or[i] - g_xr[i])));
+    peak = fmax(peak, fmax(fabs((double)g_xl[i]), fabs((double)g_xr[i])));
+  }
+  if (step > 0.0) printf("  tone @ %.0f Hz: filter %+.0f to %+.0f at Q %.2f, a step %.1f dB against the peak\n", (double)g_sr,
+                         (double)from, (double)to, (double)res, db(step / peak));
+  ok(step == 0.0, "a jump across 0 is the new side from silence: no step at the jump", step / peak, 0.0);
+}
+static void arm_side(void) {
+  g_arm = "H";
+  jump(-1.0f, 1.0f, RES_MAX);
+  jump(-1.0f, 1.0f, RES_DEFAULT);
+  jump(1.0f, -1.0f, RES_MAX);
+  jump(-60.0f, 40.0f, 2.0f);
+  expect_clean();
+}
+
 int main(void) {
   (void)sine;
   (void)rms;
@@ -332,6 +368,7 @@ int main(void) {
     arm_hostile();
     arm_defaults();
     arm_blocks();
+    arm_side();
   }
   return instance_oracle_end("tone_instance");
 }
