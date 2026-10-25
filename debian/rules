@@ -15,9 +15,7 @@ override_dh_auto_build:
 override_dh_auto_install:
 	dh_auto_install -- PREFIX=/usr LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH) INCLUDEDIR=/usr/include
 
-# The suite runs one make job per CPU dpkg-buildpackage was given (DEB_BUILD_OPTIONS parallel=N), as the
-# RPM's %make_build does; make -jN test is supported.
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	$(MAKE) $(addprefix -j,$(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))) test
+	$(MAKE) test
 endif
