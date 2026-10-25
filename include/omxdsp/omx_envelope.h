@@ -222,6 +222,29 @@ static inline float omx_envdiff_step(struct omx_env *slow, const struct omx_env_
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "envdiff/ramp"
+/**
+ * @brief The contrast's gain-law ramp: how far a contrast `delta` past the offset `s_db` engages a
+ *        cut or a lift, `min(1, max(0, delta − s_db) / TRANSIENT_REF_DB)`.
+ *
+ * The transient designer reads it at `s_db = 0` (its own law), the plosive tamer at its sensitivity:
+ * one ramp, never a copy. 0 below the offset exactly, so a stage that takes its unity branch at 0
+ * passes the sample bit for bit; 1 from `s_db + TRANSIENT_REF_DB` up.
+ * @param delta The contrast, dB, from omx_envdiff_step(); at least 0.
+ * @param s_db The offset, dB, not negative.
+ * @return The engagement, in [0, 1].
+ * @pre `offset-not-negative`.
+ * @post `engagement-in-unit-interval`.
+ * @note RT-safe: arithmetic, no call. Thread-safe: pure.
+ */
+static inline float omx_envdiff_ramp(float delta, float s_db) {
+  OMX_PRE(s_db >= 0.0f, "offset-not-negative");
+  const float u = fminf(1.0f, fmaxf(0.0f, delta - s_db) * (1.0f / OMX_TRANSIENT_REF_DB));
+  OMX_POST(u >= 0.0f && u <= 1.0f, "engagement-in-unit-interval");
+  return u;
+}
+#undef OMX_CONTRACT_STAGE
+
 /** @brief The program-dependent release's state. A zeroed state is no reduction and no memory. */
 struct omx_env_program_release {
   float fast; /**< The fast component of the applied reduction, dB, at most 0. */
