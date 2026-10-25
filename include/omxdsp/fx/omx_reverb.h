@@ -30,6 +30,7 @@
 #include <omxdsp/omx_units.h>
 #include <omxdsp/omx_wetdry.h>
 #include <omxdsp/omx_duck.h>
+#include <omxdsp/omx_fdelay.h>
 #include <omxdsp/fx/omx_deesser.h>
 
 /*
@@ -200,8 +201,14 @@ _Static_assert(OMX_REVERB_EARLY_TAP_MS_COUNT == OMX_REVERB_EARLY_TAP_GAINS_COUNT
  * early reflections, the tail at 1, a 0 dB duck and no de-esser, is the reverb that shipped, bit for
  * bit.
  *
- * The early taps read the pre-delayed mono feed from a ring of the caller's: tap k at `tap_d[k]`
- * samples with gain `tap_g[k]`, the even taps summed into the left wet and the odd into the right,
+ * The early taps read the pre-delayed mono feed from a fractional delay line (omx_fdelay, Lagrange
+ * order 3) over a ring of the caller's: tap k at `tap_d[k]` samples, fractional, as the table's time
+ * scaled by size lands at the rate, with gain `tap_g[k]`, one fractional read a tap a sample. A whole
+ * sample would put a tap up to half a sample off its time (15.6 us at 32 kHz). The price is the
+ * kernel's own top end: a tap that falls between samples loses what order-3 Lagrange loses there
+ * (the fdelay arm's table: at most 8.4 dB at 20 kHz at 48 kHz, 0.5 dB at 96 kHz), and a tap on a
+ * whole sample is that sample. The even taps are
+ * summed into the left wet and the odd into the right,
  * scaled by `early_lin`, added to the tail (scaled by `tail_lin`) ahead of the width and the cuts.
  * The duck (omx_duck_step on the louder dry leg) and the de-esser (omx_deess_process, split, on the
  * wet legs) come last, after the gate.
@@ -209,18 +216,16 @@ _Static_assert(OMX_REVERB_EARLY_TAP_MS_COUNT == OMX_REVERB_EARLY_TAP_GAINS_COUNT
 struct omx_reverb_return {
   float early_lin;                        /* the early taps' gain; 0 is no early reflections */
   float tail_lin;                         /* the network's gain; 1 is the tail as it shipped */
-  uint32_t tap_d[OMX_REVERB_EARLY_TAPS];  /* each tap's delay, samples, inside the ring */
+  float tap_d[OMX_REVERB_EARLY_TAPS];     /* each tap's delay, samples, fractional, inside the line's reach */
   float tap_g[OMX_REVERB_EARLY_TAPS];     /* each tap's gain, linear */
   struct omx_duck duck;                   /* the wet duck; a 0 dB depth ducks nothing */
   const struct omx_deess *deess;          /* the wet de-esser's atom, or NULL for none */
 };
 
-/* The return's state: the early ring (the caller's `cap` floats), its cursor, the duck's follower and
- * the de-esser's state. */
+/* The return's state: the early line (omx_fdelay over the caller's ring, order 3; unarmed is no early
+ * reflections), the duck's follower and the de-esser's state. */
 struct omx_reverb_return_state {
-  float *ring;
-  uint32_t cap;
-  uint32_t pos;
+  struct omx_fdelay line;
   struct omx_duck_state duck;
   struct omx_deess_state deess;
 };
@@ -727,7 +732,7 @@ static inline void omx_reverb_process_return(float *l, float *r, uint32_t n, con
    * held in a local for the chunk and written back once. */
   /* The return, hoisted: each flag 0 leaves its arithmetic out. */
   const int ret = x != NULL && xs != NULL;
-  const int early = ret && x->early_lin > 0.0f && xs->ring != NULL && xs->cap > 0u;
+  const int early = ret && x->early_lin > 0.0f && xs->line.order > 0;
   const int tail_scaled = ret && x->tail_lin != 1.0f;
   const int ducked = ret && x->duck.depth_db < 0.0f;
   const int deessed = ret && x->deess != NULL && x->deess->enabled;
@@ -750,17 +755,14 @@ static inline void omx_reverb_process_return(float *l, float *r, uint32_t n, con
     s->pre_pos = pre_pos;
     /* The early taps, on the pre-delayed feed before any network touches it. */
     if (early) {
-      uint32_t ep = xs->pos;
       for (uint32_t i = 0; i < k; i++) {
-        xs->ring[ep] = fed[i];
+        omx_fdelay_write(&xs->line, fed[i]);
         float a = 0.0f, b = 0.0f;
-        for (uint32_t t = 0; t < OMX_REVERB_EARLY_TAPS; t += 2u) a += x->tap_g[t] * xs->ring[omx_lookahead_back(ep, x->tap_d[t], xs->cap)];
-        for (uint32_t t = 1; t < OMX_REVERB_EARLY_TAPS; t += 2u) b += x->tap_g[t] * xs->ring[omx_lookahead_back(ep, x->tap_d[t], xs->cap)];
+        for (uint32_t t = 0; t < OMX_REVERB_EARLY_TAPS; t += 2u) a += x->tap_g[t] * omx_fdelay_read(&xs->line, x->tap_d[t]);
+        for (uint32_t t = 1; t < OMX_REVERB_EARLY_TAPS; t += 2u) b += x->tap_g[t] * omx_fdelay_read(&xs->line, x->tap_d[t]);
         el[i] = x->early_lin * a;
         er[i] = x->early_lin * b;
-        ep = omx_lookahead_fwd(ep, 1u, xs->cap);
       }
-      xs->pos = ep;
     }
 
     if (algo == OMX_REVERB_PLATE) {
