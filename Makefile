@@ -614,8 +614,16 @@ flavours: $(LIBS_ALL) test/omxdsp_flavour.c $(HEADERS) | $(BUILD)
 	CC="$(CC)" NM="$(NM)" bash tools/flavour-check.sh $(BUILD)/flavour "$(TESTFLAGS)" \
 	  $(LIB) $(LIB_CONTRACTS) $(LIB_TSAN)
 
-test: lib checks copy-check gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+# copy-check runs alone, before the rest: under the test job's -j it once missed a planted copy
+# while the other checks ran beside it (#227), and a check that can miss a planted copy can pass a
+# real one. The rest runs in parallel from a second make, which shares the parent's job slots.
+test:
+	$(MAKE) --no-print-directory copy-check
+	$(MAKE) --no-print-directory test-parallel
 	@echo "omxdsp: make test green"
+
+.PHONY: test-parallel
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
 
 # ---- install ------------------------------------------------------------------------------------
 
