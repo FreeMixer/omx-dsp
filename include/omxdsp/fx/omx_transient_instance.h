@@ -26,6 +26,10 @@
  * Re-engaging from bypass CLEARS the state (the followers restart from silence), so a re-enabled
  * designer does not apply a contrast measured before the bypass.
  *
+ * THE READOUTS. attackGainDb and sustainGainDb are the two shares of the gain the last sample took
+ * ({@link omx_transient_instance_attack_gain_db}, {@link omx_transient_instance_sustain_gain_db}); with
+ * outputDb they sum to it.
+ *
  * LATENCY IS ZERO, AND PUBLISHED: the gain is computed from the sample it multiplies
  * (omx_transient_latency()), and a host cannot tell "zero" from "never said".
  */
@@ -59,14 +63,14 @@ typedef struct {
 } OmxTransientInstance;
 
 /**
- * Bind an instance to its rate. Returns 1 when usable, 0 when not: the kernel's resolve is
- * defined at the declared rates only, so any other rate is refused, `ready` stays clear and
+ * Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the
+ * oracle set (32 to 192 kHz), so any other rate is refused, `ready` stays clear and
  * {@link omx_transient_instance_run} is then the identity: absence is a wire, not a crash.
  */
 static inline int omx_transient_instance_init(OmxTransientInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  if (!OMX_RATE_IS_DECLARED(sr)) return 0;
+  if (!omx_rate_is_oracle_full(sr)) return 0;
   s->sr = sr;
   s->atom.enabled = 0;
   omx_transient_state_init(&s->state);
@@ -147,5 +151,15 @@ static inline void omx_transient_instance_run(OmxTransientInstance *s, const flo
            "bypass-identity");
 }
 #undef OMX_CONTRACT_STAGE
+
+/** The attackGainDb readout: the onset share of the last sample's gain, dB; 0 for a refused instance. */
+static inline float omx_transient_instance_attack_gain_db(const OmxTransientInstance *s) {
+  return s && s->ready ? s->state.attack_gain_db : 0.0f;
+}
+
+/** The sustainGainDb readout: the decay share of the last sample's gain, dB; 0 for a refused instance. */
+static inline float omx_transient_instance_sustain_gain_db(const OmxTransientInstance *s) {
+  return s && s->ready ? s->state.sustain_gain_db : 0.0f;
+}
 
 #endif /* OMX_TRANSIENT_INSTANCE_H */

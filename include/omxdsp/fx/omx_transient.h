@@ -39,6 +39,8 @@ struct omx_transient_state {
   struct omx_env slow_attack;  /**< The slow-attack follower (ΔA). */
   struct omx_env slow_release; /**< The slow-release follower (ΔS). */
   float gain_db;               /**< The gain applied to the last sample, dB: the `gainDb` meter. */
+  float attack_gain_db;        /**< Its onset share, attackDb times the ramp of ΔA: the attackGainDb readout. */
+  float sustain_gain_db;       /**< Its decay share, sustainDb times the ramp of ΔS: the sustainGainDb readout. */
 };
 
 /**
@@ -134,7 +136,8 @@ static inline void omx_transient_process(float *l, float *r, uint32_t n, const s
     const float fl = omx_env_step(&st->fast, &t->fast, d, t->on.fast_attack, t->on.fast_release);
     const float da = omx_envdiff_step(&st->slow_attack, &t->fast, d, fl, &t->on, OMX_TRANSIENT_FLOOR_LIN);
     const float ds = omx_envdiff_step(&st->slow_release, &t->fast, d, fl, &t->dec, OMX_TRANSIENT_FLOOR_LIN);
-    const float g_db = t->attack_db * omx_envdiff_ramp(da, 0.0f) + t->sustain_db * omx_envdiff_ramp(ds, 0.0f) + t->output_db;
+    const float ga = t->attack_db * omx_envdiff_ramp(da, 0.0f), gs = t->sustain_db * omx_envdiff_ramp(ds, 0.0f);
+    const float g_db = ga + gs + t->output_db;
 #ifdef OMX_CONTRACTS
     inside &= g_db <= hi && g_db >= lo;
 #endif
@@ -144,6 +147,8 @@ static inline void omx_transient_process(float *l, float *r, uint32_t n, const s
       st->slow_release.stage[s] = omx_flush(st->slow_release.stage[s]);
     }
     st->gain_db = g_db;
+    st->attack_gain_db = ga;
+    st->sustain_gain_db = gs;
     const float g = omx_db_to_lin_poly(g_db);
     if (g != 1.0f) {
       l[i] *= g;
