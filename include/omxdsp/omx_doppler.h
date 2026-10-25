@@ -19,8 +19,16 @@
  * exactly `f·2^(c/1200)`. A head at 0 cents does not move: it sits at the window's centre and the
  * output is the line read at `D`, bit for bit.
  *
+ * A head whose design or mean delay changes (a new window, direction or mean) does not jump: {@link
+ * omx_doppler_hand_over} holds the last read where it was, at its delays and its fade weight, starts
+ * the new head at its window's centre, and crossfades the output linearly from the held read to the
+ * new head over a length the caller names (the weights `h` and `1 − h`, `h` falling by `1/length` per
+ * sample, sum to 1). The held delays were legal when they were read and a fixed delay stays legal, so
+ * the held read never leaves the line. A hand-over runs to its end before the next can start
+ * ({@link omx_doppler_handing_over}); a caller with a newer design keeps it until then.
+ *
  * Contract: no allocation, no lock, no libm call per sample; the design's `pow` runs on the control
- * thread. The state is one float.
+ * thread. The state is the position, the last read and the hand-over.
  */
 #ifndef OMX_DOPPLER_H
 #define OMX_DOPPLER_H
@@ -39,10 +47,16 @@ struct omx_doppler {
   float sign;   /**< −1 while the delay shrinks (tuned up), +1 while it grows (tuned down). */
 };
 
-/** @brief A Doppler head's state: the position of the head being read, samples into the window. */
+/** @brief A Doppler head's state: the position of the head being read, samples into the window, its
+ *         last read and the hand-over in progress. */
 struct omx_doppler_state {
-  double pos; /**< In [0, window). Double: a float position near a window of thousands of samples
-               *   rounds a step of a few ten-thousandths to the wrong slope. */
+  double pos;    /**< In [0, window). Double: a float position near a window of thousands of samples
+                  *   rounds a step of a few ten-thousandths to the wrong slope. */
+  float last[3]; /**< The last read: its first head's delay, its second's (the first's outside the
+                  *   fade) and the second's weight; a negative first delay is no read yet. */
+  float held[3]; /**< The read a hand-over fades from, as `last`. */
+  float hand;    /**< The held read's weight, 1 down to 0; 0 is no hand-over. */
+  float hand_step; /**< What `hand` falls by per sample. */
 };
 
 #undef OMX_CONTRACT_STAGE
@@ -79,7 +93,47 @@ static inline void omx_doppler_design(struct omx_doppler *d, double cents, float
  */
 static inline void omx_doppler_start(const struct omx_doppler *d, struct omx_doppler_state *st) {
   st->pos = 0.5 * (double)d->window;
+  st->last[0] = -1.0f;
+  st->last[1] = st->last[2] = 0.0f;
+  st->hand = 0.0f;
+  st->hand_step = 0.0f;
 }
+
+/**
+ * @brief Whether a hand-over is still fading.
+ * @param st The state.
+ * @return 1 while the held read still sounds, else 0.
+ * @note RT-safe. Thread-safe: pure.
+ */
+static inline int omx_doppler_handing_over(const struct omx_doppler_state *st) {
+  return st->hand > 0.0f;
+}
+
+#define OMX_CONTRACT_STAGE "doppler/hand-over"
+/**
+ * @brief Move a head to its new design (already in `d`) and a new mean without a jump: the last read
+ *        held at its delays, the new head started at the window's centre, the output crossfaded from
+ *        the held read to the new head over `length` samples. A head that has not read yet only starts.
+ * @param d The new design.
+ * @param st The state; no hand-over may be in progress.
+ * @param length The crossfade, samples, at least 1.
+ * @pre `one-hand-over-at-a-time`, `length-at-least-one`.
+ * @note RT-safe: no libm call. Thread-safe on distinct state.
+ */
+static inline void omx_doppler_hand_over(const struct omx_doppler *d, struct omx_doppler_state *st, float length) {
+  OMX_PRE(!omx_doppler_handing_over(st), "one-hand-over-at-a-time");
+  OMX_PRE(length >= 1.0f, "length-at-least-one");
+  const int read = st->last[0] >= 0.0f;
+  const float held[3] = {st->last[0], st->last[1], st->last[2]};
+  omx_doppler_start(d, st);
+  if (!read) return;
+  st->held[0] = held[0];
+  st->held[1] = held[1];
+  st->held[2] = held[2];
+  st->hand = 1.0f;
+  st->hand_step = 1.0f / length;
+}
+#undef OMX_CONTRACT_STAGE
 
 /**
  * @brief The delay a head at position `p` reads, samples: `D + sign·(p − W/2)`.
@@ -103,7 +157,8 @@ static inline float omx_doppler_delay(const struct omx_doppler *d, float mean, d
  * @return The sample.
  * @pre `delay-window-inside-the-line`.
  * @post `position-inside-the-window`.
- * @note RT-safe: one or two fractional reads, no libm call. Thread-safe on distinct state.
+ * @note RT-safe: one or two fractional reads, two more while a hand-over fades, no libm call.
+ *       Thread-safe on distinct state.
  */
 static inline float omx_doppler_read(const struct omx_fdelay *line, const struct omx_doppler *d,
                                      struct omx_doppler_state *st, float mean) {
@@ -112,12 +167,24 @@ static inline float omx_doppler_read(const struct omx_fdelay *line, const struct
           "delay-window-inside-the-line");
   const double w = d->window, start = (1.0 - (double)d->fade) * w;
   const double p = st->pos;
-  float y = omx_fdelay_read(line, omx_doppler_delay(d, mean, p));
+  const float d0 = omx_doppler_delay(d, mean, p);
+  float y = omx_fdelay_read(line, d0);
+  st->last[0] = st->last[1] = d0;
+  st->last[2] = 0.0f;
   if (p >= start) {
     const double q = p - start;
     const float g = (float)(q / ((double)d->fade * w));
-    const float yn = omx_fdelay_read(line, omx_doppler_delay(d, mean, q));
+    const float d1 = omx_doppler_delay(d, mean, q);
+    const float yn = omx_fdelay_read(line, d1);
     y = y + g * (yn - y);
+    st->last[1] = d1;
+    st->last[2] = g;
+  }
+  if (st->hand > 0.0f) {
+    float yh = omx_fdelay_read(line, st->held[0]);
+    if (st->held[2] != 0.0f) yh = yh + st->held[2] * (omx_fdelay_read(line, st->held[1]) - yh);
+    y = y + st->hand * (yh - y);
+    st->hand = st->hand > st->hand_step ? st->hand - st->hand_step : 0.0f;
   }
   double np = p + (double)d->step;
   if (np >= w) np -= start;

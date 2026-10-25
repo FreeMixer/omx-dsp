@@ -13,7 +13,13 @@
 //      swings 1 / modRateHz apart (5 %);
 //   E  the place: the voices' sum lands on the legs by the balance law of spread x DOUBLER_VOICE_PANS[n]
 //      over the voice count, bit for bit against the kernel words run by hand;
-//   F  hostile words land inside the declared travels, the ledger is clean, nothing allocates.
+//   F  hostile words land inside the declared travels, the ledger is clean, nothing allocates;
+//   G  a sweep of delayMs and modDepthMs across the room limit, resolved every 64 samples, steps no
+//      sample by more than its bound: each read's own steepest step A w (1 + s + r), w the sine's
+//      radian frequency, s the head's slope and r the drift's, plus each crossfade's, 2A over its
+//      length, for the head's fade (DOUBLER_FADE x its window) and the hand-over (DOUBLER_FADE x
+//      DOUBLER_WINDOW_MS), summed over the voices at their gains;
+//   H  through that sweep every voice's lowest read stays one sample clear of the kernel's reach.
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_doubler_instance.h>
 
@@ -239,7 +245,7 @@ static void arm_place(void) {
   const float depth = 0.8f * 0.001f * g_sr;
   for (int k = 0; k < 4; k++) {
     mean[k] = 5.0f * (float)DELAYS[k] * 0.001f * g_sr;
-    const float room = mean[k] - depth - omx_fdelay_min_delay(3), full = (float)WINDOW_MS * 0.001f * g_sr;
+    const float room = mean[k] - depth - omx_fdelay_min_delay(3) - 1.0f, full = (float)WINDOW_MS * 0.001f * g_sr;
     omx_doppler_design(&h[k], 25.0 * DETUNES[k], 2.0f * room < full ? 2.0f * room : full, (float)FADE);
     omx_doppler_start(&h[k], &hs[k]);
     float bl, br;
@@ -288,6 +294,51 @@ static void arm_hostile(void) {
   clean();
 }
 
+/* ---- G: a sweep across the room limit never jumps; H: the margin inside the reach ------------- */
+static void arm_sweep(void) {
+  g_arm = "G";
+  const double f = 220.0, amp = 0.5, w = 2.0 * M_PI * f / g_sr;
+  const uint32_t n = (uint32_t)(g_sr * 1.5f), blk = 64u;
+  for (uint32_t i = 0; i < n; i++) g_l[i] = g_r[i] = (float)(amp * sin(w * i));
+  setup(4.0f, 25.0f, 25.0f, 2.0f, 0.0f, 0.0f, 100.0f);
+  const float reach = omx_fdelay_min_delay(OMX_DOUBLER_INSTANCE_ORDER);
+  const double hand = FADE * WINDOW_MS * 0.001 * g_sr;
+  double worst = 0.0, worst_ratio = 0.0, low = 1e9;
+  uint32_t over = 0u, hands = 0u;
+  for (uint32_t o = 0; o < n; o += blk) {
+    /* delayMs falls from 25 to 5 and back, modDepthMs rises 0 to 3 and back, a turn each over the run */
+    const double t = (double)o / n, tri = t < 0.5 ? 2.0 * t : 2.0 - 2.0 * t;
+    omx_doubler_instance_resolve(&g_d, 0, 4.0f, (float)(25.0 - 20.0 * tri), 25.0f, 2.0f, (float)(3.0 * tri), 0.0f, 100.0f);
+    for (uint32_t i = o; i < o + blk && i < n; i++) {
+      double bound = 0.0;
+      for (uint32_t k = 0; k < 4u; k++) {
+        const double r = g_d.vdepth[k] * 2.0 * M_PI * 2.0 / g_sr;
+        bound += fabs(g_d.gl[k]) * amp *
+                 (w * (1.0 + g_d.head[k].step + r) + 2.0 / (FADE * g_d.head[k].window) +
+                  (omx_doppler_handing_over(&g_d.hs[k]) ? 2.0 / hand : 0.0));
+        hands += omx_doppler_handing_over(&g_d.hs[k]) ? 1u : 0u;
+        const double lo = g_d.mean[k] - g_d.vdepth[k] - 0.5 * g_d.head[k].window;
+        low = fmin(low, lo - reach);
+      }
+      omx_doubler_instance_run(&g_d, g_l + i, g_r + i, g_ol + i, g_or + i, 1u);
+      if (i > 0u) {
+        const double e = fabs((double)g_ol[i] - g_ol[i - 1u]);
+        if (!(e <= worst)) worst = e;
+        if (!(e <= bound)) over++;
+        if (!(e / bound <= worst_ratio)) worst_ratio = e / bound;
+      }
+    }
+    drain();
+  }
+  printf("  %6.0f Hz: G worst step %.5f, worst step over its bound %.3f, %u hand-over samples; H lowest read %.3f past the reach\n",
+         (double)g_sr, worst, worst_ratio, hands, low);
+  ok(over == 0u, "a sweep across the room limit steps no sample past its bound", over, 0);
+  ok(hands > 0u, "the sweep hands over", hands, 1);
+  g_arm = "H";
+  ok(low >= 1.0 - 1e-3, "every voice's lowest read stays one sample clear of the kernel's reach", low, 1.0);
+  clean();
+}
+
 int main(void) {
   omx_fx_require_rate_floor();
   omx_fx_require_full_rates_cover_declared();
@@ -302,6 +353,7 @@ int main(void) {
     arm_drift();
     arm_place();
     arm_hostile();
+    arm_sweep();
   }
   return instance_oracle_end("doubler_instance");
 }

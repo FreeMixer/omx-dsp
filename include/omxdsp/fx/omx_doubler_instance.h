@@ -14,8 +14,11 @@
  *      `detuneCents x DOUBLER_VOICE_DETUNES[n]`, drifts `modDepthMs` either side at `modRateHz` a
  *      further `n / voices` of a turn along, and is panned to `spread x DOUBLER_VOICE_PANS[n]`. Its
  *      head sweeps DOUBLER_WINDOW_MS, or less where its delay cannot hold that sweep and the drift
- *      inside the line: the window is then twice the room the voice has, so the head never reads
- *      ahead of the input.
+ *      inside the line: the window is then twice the room the voice has, one sample inside the
+ *      kernel's reach, so the head never reads ahead of the input. A voice that has sounded takes a
+ *      new mean, drift depth, window or direction through omx_doppler_hand_over, a crossfade of
+ *      DOUBLER_FADE x DOUBLER_WINDOW_MS from where it was reading, never a jump; a change that comes
+ *      while a hand-over fades waits for its end. A change of detune alone keeps the head where it is.
  *   2. RUN. Per sample, the mono sum into the line, each voice through its head, the voices' sum over
  *      the voice count through their pans, and the blend with the dry legs. A mix of 0 is the input,
  *      bit for bit, and moves no state.
@@ -67,11 +70,16 @@ typedef struct {
   struct omx_fdelay line;
   struct omx_doppler head[OMX_DOUBLER_INSTANCE_VOICES];
   struct omx_doppler_state hs[OMX_DOUBLER_INSTANCE_VOICES];
+  struct omx_doppler next[OMX_DOUBLER_INSTANCE_VOICES]; /**< each voice's design as last resolved */
+  float next_mean[OMX_DOUBLER_INSTANCE_VOICES];         /**< each voice's mean delay as last resolved */
+  int pending[OMX_DOUBLER_INSTANCE_VOICES];             /**< 1 while a resolved change waits for its hand-over */
   struct omx_lfo lfo;
-  float mean[OMX_DOUBLER_INSTANCE_VOICES]; /**< each voice's mean delay, samples */
+  float mean[OMX_DOUBLER_INSTANCE_VOICES]; /**< each voice's mean delay as it sounds, samples */
+  float vdepth[OMX_DOUBLER_INSTANCE_VOICES]; /**< each voice's drift as it sounds, samples either side */
   float gl[OMX_DOUBLER_INSTANCE_VOICES];   /**< each voice's left gain, its pan over the voice count */
   float gr[OMX_DOUBLER_INSTANCE_VOICES];   /**< each voice's right gain */
-  float depth;                             /**< the drift, samples either side */
+  float depth;                             /**< the drift as last resolved, samples either side */
+  float hand_len;                          /**< a hand-over's crossfade, samples */
   uint32_t nv;                             /**< voices sounding */
   float mix;
   int enabled;
@@ -95,12 +103,33 @@ static inline int omx_doubler_instance_init(OmxDoublerInstance *s, float sr) {
   omx_lfo_start(&s->lfo);
   s->sr = sr;
   s->ready = 1;
+  s->hand_len = OMX_DOUBLER_INSTANCE_FADE * OMX_DOUBLER_INSTANCE_WINDOW_MS * 0.001f * sr;
+  for (uint32_t k = 0; k < OMX_DOUBLER_INSTANCE_VOICES; k++) omx_doppler_start(&s->head[k], &s->hs[k]);
   omx_doubler_instance_resolve(s, 0, (float)OMX_DOUBLER_VOICES_RANGE_DEFAULT, (float)OMX_DOUBLER_DELAY_MS_RANGE_DEFAULT,
                                (float)OMX_DOUBLER_DETUNE_CENTS_RANGE_DEFAULT, (float)OMX_DOUBLER_MOD_RATE_HZ_RANGE_DEFAULT,
                                (float)OMX_DOUBLER_MOD_DEPTH_MS_RANGE_DEFAULT, (float)OMX_DOUBLER_SPREAD_PCT_RANGE_DEFAULT,
                                (float)OMX_DOUBLER_MIX_PCT_RANGE_DEFAULT);
-  for (uint32_t k = 0; k < OMX_DOUBLER_INSTANCE_VOICES; k++) omx_doppler_start(&s->head[k], &s->hs[k]);
   return 1;
+}
+
+/**
+ * Voice k takes its resolved design and mean, unless a hand-over is still fading. A new mean, drift,
+ * window or direction goes through the hand-over (a voice that has not read yet only starts); a new
+ * detune alone keeps the head's position. RT-safe: no libm call.
+ */
+static inline void omx_doubler_instance_settle(OmxDoublerInstance *s, uint32_t k) {
+  if (omx_doppler_handing_over(&s->hs[k])) return;
+  const struct omx_doppler *nx = &s->next[k];
+  if (nx->window == s->head[k].window && nx->sign == s->head[k].sign && s->next_mean[k] == s->mean[k] &&
+      s->depth == s->vdepth[k])
+    s->head[k] = *nx;
+  else {
+    s->head[k] = *nx;
+    s->mean[k] = s->next_mean[k];
+    s->vdepth[k] = s->depth;
+    omx_doppler_hand_over(&s->head[k], &s->hs[k], s->hand_len > 1.0f ? s->hand_len : 1.0f);
+  }
+  s->pending[k] = 0;
 }
 
 /**
@@ -134,16 +163,16 @@ static inline void omx_doubler_instance_resolve(OmxDoublerInstance *s, int bypas
   s->lfo.inc = omx_lfo_inc(mrate, s->sr);
   const float reach = omx_fdelay_min_delay(OMX_DOUBLER_INSTANCE_ORDER);
   for (uint32_t k = 0; k < OMX_DOUBLER_INSTANCE_VOICES; k++) {
-    s->mean[k] = dms * OMX_DOUBLER_INSTANCE_DELAYS[k] * 0.001f * s->sr;
-    /* The sweep the voice has room for: half of it either side of the mean, past the drift, clear of
-     * the kernel's reach. */
-    const float room = s->mean[k] - s->depth - reach;
+    s->next_mean[k] = dms * OMX_DOUBLER_INSTANCE_DELAYS[k] * 0.001f * s->sr;
+    /* The sweep the voice has room for: half of it either side of the mean, past the drift, one
+     * sample clear of the kernel's reach, so a rounding of the lowest read cannot land inside it. */
+    const float room = s->next_mean[k] - s->depth - reach - 1.0f;
     const float full = OMX_DOUBLER_INSTANCE_WINDOW_MS * 0.001f * s->sr;
     const float window = 2.0f * room < full ? 2.0f * room : full;
-    const struct omx_doppler was = s->head[k];
-    omx_doppler_design(&s->head[k], (double)cents * (double)OMX_DOUBLER_INSTANCE_DETUNES[k], window > 1.0f ? window : 1.0f,
+    omx_doppler_design(&s->next[k], (double)cents * (double)OMX_DOUBLER_INSTANCE_DETUNES[k], window > 1.0f ? window : 1.0f,
                        OMX_DOUBLER_INSTANCE_FADE);
-    if (s->head[k].window != was.window || !(s->hs[k].pos < (double)s->head[k].window)) omx_doppler_start(&s->head[k], &s->hs[k]);
+    s->pending[k] = 1;
+    omx_doubler_instance_settle(s, k);
     float bl, br;
     omx_balance_law(spread * 0.01f * OMX_DOUBLER_INSTANCE_PANS[k], &bl, &br);
     s->gl[k] = bl / (float)s->nv;
@@ -173,7 +202,8 @@ static inline void omx_doubler_instance_run(OmxDoublerInstance *s, const float *
     omx_fdelay_write(&s->line, 0.5f * (xl + xr));
     float wl = 0.0f, wr = 0.0f;
     for (uint32_t k = 0; k < s->nv; k++) {
-      const float drift = s->depth * omx_lfo_at(&s->lfo, (float)k / (float)s->nv);
+      if (s->pending[k]) omx_doubler_instance_settle(s, k);
+      const float drift = s->vdepth[k] * omx_lfo_at(&s->lfo, (float)k / (float)s->nv);
       const float v = omx_doppler_read(&s->line, &s->head[k], &s->hs[k], s->mean[k] + drift);
       wl += s->gl[k] * v;
       wr += s->gr[k] * v;
