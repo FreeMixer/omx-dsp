@@ -11,7 +11,9 @@
 #   window    — DOUBLER_WINDOW_MS moved from 20 to 18 ms: arm B;
 #   fade      — DOUBLER_FADE moved from 0.25 to 0.3: arm E;
 #   drift     — every voice drifts in step, no voice a further share of a turn along: arm E;
-#   count     — the voices' sum is not divided by their count: arm E.
+#   count     — the voices' sum is not divided by their count: arm E;
+#   jump      — a changed voice re-centres its head at once, no hand-over (#226): arm G;
+#   margin    — the room reaches the kernel's reach with no sample to spare (#226): arm H.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… doubler_instance-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -60,7 +62,11 @@ sabotage drift fx/omx_doubler_instance.h 's|omx_lfo_at(\&s->lfo, (float)k / (flo
 pids+=($!)
 sabotage count fx/omx_doubler_instance.h 's|    s->gl\[k\] = bl / (float)s->nv;|    s->gl[k] = bl;|' E &
 pids+=($!)
+sabotage jump fx/omx_doubler_instance.h 's|    omx_doppler_hand_over(\&s->head\[k\], \&s->hs\[k\], s->hand_len > 1.0f ? s->hand_len : 1.0f);|    omx_doppler_start(\&s->head[k], \&s->hs[k]);|' G &
+pids+=($!)
+sabotage margin fx/omx_doubler_instance.h 's|    const float room = s->next_mean\[k\] - s->depth - reach - 1.0f;|    const float room = s->next_mean[k] - s->depth - reach;|' H &
+pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "doubler_instance-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "doubler_instance-perturb: the doubler oracle sees all seven sabotages"
+echo "doubler_instance-perturb: the doubler oracle sees all nine sabotages"
