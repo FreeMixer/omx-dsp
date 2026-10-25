@@ -11,7 +11,8 @@
 //      DELAY_TAPE_LP_HZ, within 0.005 dB plus the wow's Doppler for its k + 1 passes, and below it by at
 //      most the linear read's loss at a half sample, k = 0..4;
 //   D  tape's wow: the echo's delay of a steady sine swings from the time to the time plus
-//      DELAY_TAPE_WOW_MS (3 %), and its swings are 1 / DELAY_TAPE_WOW_HZ apart (5 %);
+//      DELAY_TAPE_WOW_MS, within the delay's top slope pi depth rate over one 10 ms measuring window,
+//      and its swings are 1 / DELAY_TAPE_WOW_HZ apart within two windows;
 //   E  analog: small signals repeat at (feedback |LP(f)|)^k with LP at DELAY_ANALOG_LP_HZ (0.005 dB); a
 //      held input regenerates to the saturated loop's fixed point, the root of y^2 - fb y - 1, where
 //      tape's reaches 1 / (1 - fb) (0.1 %); an inverted input is the inverted output, bit for bit;
@@ -256,10 +257,16 @@ static void arm_wow(void) {
     }
     prev = delay;
   }
-  const double depth = WOW_MS * 0.001 * g_sr;
-  ok(fabs(lo) <= 0.03 * depth + 0.02 && fabs(hi - depth) <= 0.03 * depth + 0.02,
-     "the wow swings the echo from the time to the time plus its depth (3 %)", hi - lo, depth);
-  ok(t_lo2 > 0 && fabs((t_lo2 - t_lo1) - 1.0 / WOW_HZ) <= 0.05 / WOW_HZ, "the wow's swings are 1 / its rate apart (5 %)",
+  /* The tolerances, derived as arm C's Doppler is: the delay swings 0 to depth, so it moves at most
+   * smax = pi depth WOW_HZ samples a second. Each measurement is the delay averaged over one 10 ms
+   * window, which reads an extreme at most smax T short; the phase read adds 0.02 samples. A minimum's
+   * time is known to one window, so two of them, 1 / WOW_HZ apart, to two windows. */
+  const double depth = WOW_MS * 0.001 * g_sr, tw = (double)win / g_sr, smax = M_PI * depth * WOW_HZ;
+  const double swing_tol = smax * tw + 0.02, period_tol = 2.0 * tw;
+  ok(fabs(lo) <= swing_tol && fabs(hi - depth) <= swing_tol,
+     "the wow swings the echo from the time to the time plus its depth (pi depth rate over one window)",
+     fmax(fabs(lo), fabs(hi - depth)), swing_tol);
+  ok(t_lo2 > 0 && fabs((t_lo2 - t_lo1) - 1.0 / WOW_HZ) <= period_tol, "the wow's swings are 1 / its rate apart (two windows)",
      t_lo2 - t_lo1, 1.0 / WOW_HZ);
   clean();
 }
