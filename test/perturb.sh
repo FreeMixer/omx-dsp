@@ -39,7 +39,7 @@ count="$(grep -oE '^#define OMX_DECLARED_RATE_COUNT \$\(\([0-9]+ - 1\)\)u' "$OUT
 [ -n "$count" ] || { echo "perturb.sh: FAIL — the declared rate count line was not found in the header"; exit 1; }
 sed -i "s|^#define OMX_DECLARED_RATE_COUNT .*|#define OMX_DECLARED_RATE_COUNT $((count - 1))u|" "$OUT/$LIMITS"
 # Every moved value is the REAL one plus a step, read off the header — never a typed target, which
-# a header that is itself perturbed (harness/declaration-perturbation-native.sh) could already hold.
+# a header that an earlier perturbation run already moved could hold.
 define_of() { sed -n "s/^#define $1 \([-0-9.e]*\)f\{0,1\}\$/\1/p" "$REAL"; }
 real_floor="$(define_of OMX_COMP_RATIO_MIN)"
 real_opto="$(define_of OMX_PROGRAM_RELEASE_PROFILES_OPTO_FAST_MS)"
