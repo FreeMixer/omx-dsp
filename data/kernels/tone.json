@@ -1,0 +1,92 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "tiltDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tone_instance.h#span_db"
+      },
+      "doc": "The tilt's span, dB: one first-order complementary shelf pair about pivotHz (omx_tilt, a = 10^(tiltDb/40)), -tiltDb/2 at DC, +tiltDb/2 at Nyquist and 0 dB at the pivot. Positive brightens, negative darkens; +6 is a +-3 dB pair, about 2 dB per octave at the pivot. 0 is flat, the come-up value, bit for bit. A wider reach is a wider travel here, never a second section.",
+      "travel": {
+        "min": -6,
+        "max": 6,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "pivotHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tone_instance.h#pivot_hz"
+      },
+      "doc": "The tilt's pivot, Hz: the frequency the tilt leaves at 0 dB, at every rate (the section is prewarped there).",
+      "travel": {
+        "min": 200,
+        "max": 5000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 1000,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "filter",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tone_instance.h#filter"
+      },
+      "doc": "The DJ filter: below 0 a low-pass whose corner falls from TONE_FILTER_HIGH_HZ toward TONE_FILTER_LOW_HZ at -100, above 0 a high-pass whose corner rises from TONE_FILTER_LOW_HZ toward TONE_FILTER_HIGH_HZ at +100, on a log map; the EQ's own low-pass and high-pass sections. 0 is open, the come-up value, bit for bit.",
+      "travel": {
+        "min": -100,
+        "max": 100,
+        "step": 1,
+        "unit": "",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "resonance",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tone_instance.h#q"
+      },
+      "doc": "The DJ filter's resonance, its section's Q: the magnitude at the corner. It comes up at 0.71, the Butterworth's 1/sqrt(2) on the step.",
+      "travel": {
+        "min": 0.5,
+        "max": 4,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.71,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "constants": {
+    "TONE_FILTER_LOW_HZ": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tone_instance.h#OMX_TONE_INSTANCE_LOW_HZ"
+      },
+      "doc": "The DJ filter's low end: the low-pass's corner at -100, and the high-pass's as the word leaves 0.",
+      "unit": "Hz",
+      "value": 20
+    },
+    "TONE_FILTER_HIGH_HZ": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_tone_instance.h#OMX_TONE_INSTANCE_HIGH_HZ"
+      },
+      "doc": "The DJ filter's high end: the high-pass's corner at +100, and the low-pass's as the word leaves 0; held at 0.999 of Nyquist where the rate is lower.",
+      "unit": "Hz",
+      "value": 20000
+    }
+  }
+}
