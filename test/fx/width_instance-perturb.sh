@@ -13,7 +13,9 @@
 #   haasleg     — Haas delaying the left leg's signal onto the right: arm D;
 #   active      — the word run at its come-up values: arm A;
 #   bassdefault — bassMonoHz's default moved from 120 to 130 Hz: arm F;
-#   mstop       — pseudoMs' top moved from 30 to 25 ms: arm F.
+#   mstop       — pseudoMs' top moved from 30 to 25 ms: arm F;
+#   ringkeep    — the ring kept across a pseudo-mode or delay change: arm G;
+#   engagekeep  — the state kept across the engage edge: arm G.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… width_instance-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -66,7 +68,11 @@ sabotage bassdefault omxdsp_definitions.h 's|^#define OMX_WIDTH_BASS_MONO_HZ_RAN
 pids+=($!)
 sabotage mstop omxdsp_definitions.h 's|^#define OMX_WIDTH_PSEUDO_MS_RANGE_MAX 30$|#define OMX_WIDTH_PSEUDO_MS_RANGE_MAX 25|' F &
 pids+=($!)
+sabotage ringkeep fx/omx_width_instance.h 's|    if (s->p.pseudo != was_pseudo [|][|] s->p.d != was_d) {|    if (0 \&\& (s->p.pseudo != was_pseudo \|\| s->p.d != was_d)) {|' G &
+pids+=($!)
+sabotage engagekeep fx/omx_width_instance.h 's|  if (s->enabled [\&][\&] s->p.active [\&][\&] !was_live) {|  if (0 \&\& !was_live) {|' G &
+pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "width_instance-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "width_instance-perturb: the oracle sees all nine sabotages"
+echo "width_instance-perturb: the oracle sees all eleven sabotages"

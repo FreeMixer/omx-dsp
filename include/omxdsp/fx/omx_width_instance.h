@@ -8,6 +8,8 @@
  *   declared order (data/kernels/width.json), a travel clamped into its range and a non-finite word
  *   reading as its default, a choice outside its set reading as its default. widthPct/100 scales the
  *   side; pseudoMs becomes the delay in samples (omx_width_delay); bassMonoHz is the LR4 corner.
+ *   The engage edge (bypass off, or the word leaving its come-up values) clears the state; a change
+ *   of pseudo-stereo mode or delay clears the ring; bass mono switched on clears the crossover.
  *   RUN. The word over both legs, in to out. At its come-up values (100 %, no pseudo-stereo, no bass
  *   mono) the face is the input bit for bit.
  *
@@ -74,13 +76,24 @@ static inline void omx_width_instance_resolve(OmxWidthInstance *s, int bypass, f
   s->bmode = bass_mono == OMX_WIDTH_BASS_MONOS_ON ? 1 : 0;
   s->bhz = omx_clamp_or(bass_mono_hz, (float)OMX_WIDTH_BASS_MONO_HZ_RANGE_MIN, (float)OMX_WIDTH_BASS_MONO_HZ_RANGE_MAX,
                         (float)OMX_WIDTH_BASS_MONO_HZ_RANGE_DEFAULT);
-  const int was_bass = s->p.bass_mono;
+  const int was_bass = s->p.bass_mono, was_pseudo = s->p.pseudo, was_live = s->enabled && s->p.active;
+  const uint32_t was_d = s->p.d;
   omx_width_design(&s->p, s->wpct * 0.01f, s->pmode, omx_width_delay(s->pms, s->sr), s->bmode, (double)s->bhz, (double)s->sr);
-  if (s->p.bass_mono && !was_bass) {
-    memset(&s->st.xs, 0, sizeof s->st.xs);
-    memset(&s->st.ap, 0, sizeof s->st.ap);
-  }
   s->enabled = bypass ? 0 : 1;
+  /* The engage edge starts the word from silence; a new pseudo-stereo mode or delay starts its ring
+   * from silence, so a ring left from minutes earlier, or the other mode's signal, is never read. */
+  if (s->enabled && s->p.active && !was_live) {
+    memset(&s->st, 0, sizeof s->st);
+  } else {
+    if (s->p.bass_mono && !was_bass) {
+      memset(&s->st.xs, 0, sizeof s->st.xs);
+      memset(&s->st.ap, 0, sizeof s->st.ap);
+    }
+    if (s->p.pseudo != was_pseudo || s->p.d != was_d) {
+      memset(s->st.ring, 0, sizeof s->st.ring);
+      s->st.pos = 0u;
+    }
+  }
 }
 #undef OMX_CONTRACT_STAGE
 

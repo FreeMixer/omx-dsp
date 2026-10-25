@@ -16,7 +16,10 @@
 //      float impulse response's rounding is a measurable share); a mono impulse comes out through the
 //      all-pass, |H| = 1 (1e-4 dB), the same on both legs;
 //   F  hostile words land on the declared ends and defaults, read back; nothing allocates; random
-//      blocks are one block; a rate outside the oracle set is refused; the ledger is clean.
+//      blocks are one block; a rate outside the oracle set is refused; the ledger is clean;
+//   G  the delay ring is cleared on a pseudo-mode or delay change and on the engage edge: a marker left
+//      in Haas's ring does not come back after off, a bypass, a live word without pseudo-stereo, a
+//      shorter delay or the comb.
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_width_instance.h>
 
@@ -252,6 +255,37 @@ static void arm_hostile(void) {
   clean();
 }
 
+/* ---- G: the ring is cleared on a pseudo-mode or delay change and on the engage edge ------------ */
+/* Haas at 20 ms takes a right-leg marker in its last d samples, so the ring still holds it; then a
+ * change and silence: the marker must not come back, not a sample of it, for 30 ms. */
+static int marker_returns(int pseudo2, float ms2, int bypass_gap, float w_gap, int pseudo_gap) {
+  const uint32_t d = omx_width_delay(20.0f, g_sr), n = 2u * d, m = (uint32_t)(0.03f * g_sr) + 1u;
+  memset(g_l, 0, (n + m) * sizeof(float));
+  memset(g_r, 0, (n + m) * sizeof(float));
+  g_r[n - d / 2u] = 0.75f; /* the marker, written into the ring, not yet read out */
+  setup(100.0f, 2, 20.0f, 0, 120.0f);
+  run(&g_w, g_l, g_r, g_ol, g_or, n);
+  if (bypass_gap || pseudo_gap >= 0) { /* the gap: minutes of other audio, here a block of noise */
+    omx_width_instance_resolve(&g_w, bypass_gap, w_gap, pseudo_gap >= 0 ? pseudo_gap : 2, 20.0f, 0, 120.0f);
+    stimulus(g_xl, g_xr, m, 0x6060u, 0u);
+    run(&g_w, g_xl, g_xr, g_ol, g_or, m);
+  }
+  omx_width_instance_resolve(&g_w, 0, 100.0f, pseudo2, ms2, 0, 120.0f);
+  run(&g_w, g_l + n, g_r + n, g_ol, g_or, m);
+  int back = 0;
+  for (uint32_t i = 0; i < m; i++) back |= g_ol[i] != 0.0f || g_or[i] != 0.0f;
+  return back;
+}
+static void arm_ring(void) {
+  g_arm = "G";
+  ok(!marker_returns(2, 20.0f, 0, 100.0f, 0), "Haas, then off, then Haas: the old ring is not replayed", 1, 0);
+  ok(!marker_returns(2, 20.0f, 1, 100.0f, -1), "Haas, bypassed, re-engaged: the old ring is not replayed", 1, 0);
+  ok(!marker_returns(2, 20.0f, 0, 150.0f, 0), "Haas, then a live word without pseudo-stereo, then Haas: no replay", 1, 0);
+  ok(!marker_returns(2, 10.0f, 0, 100.0f, -1), "Haas 20 ms to 10 ms: the marker does not come out early", 1, 0);
+  ok(!marker_returns(1, 20.0f, 0, 100.0f, -1), "Haas to the comb: the right leg's ring is not read as the mid", 1, 0);
+  clean();
+}
+
 int main(void) {
   (void)sine;
   (void)rms;
@@ -265,6 +299,7 @@ int main(void) {
     arm_pseudo();
     arm_bass();
     arm_hostile();
+    arm_ring();
   }
   return instance_oracle_end("width_instance");
 }
