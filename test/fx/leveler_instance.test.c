@@ -14,7 +14,9 @@
 //   D  each speed's attack and release are its declared milliseconds, bit for bit;
 //   E  hostile words land on the travel's ends and the sets' defaults, the ledger is clean, nothing
 //      allocates, a rate outside the oracle set is refused;
-//   F  one block or random blocks of 1 to 4096 frames are the same bits.
+//   F  one block or random blocks of 1 to 4096 frames are the same bits;
+//   G  a slot engaged again (after an amount of 0, a bypass, or a direction that did not run it) starts
+//      from silence: a fresh instance on the same samples, bit for bit.
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_leveler_instance.h>
 
@@ -241,6 +243,43 @@ static void arm_blocks(void) {
   clean();
 }
 
+/* ---- G: the engage edge ---------------------------------------------------------------------- */
+/* 0.5 s at -6 dBFS through amount 80 charges the slots' envelopes; a gap leaves a slot idle (an amount
+ * of 0, a bypass, or the direction that does not run it) over 0.3 s at -40 dBFS; the slot engaged again
+ * on -40 dBFS must be the slot from silence, bit for bit: a fresh instance on the same samples. The
+ * envelope left from -6 dBFS would apply the loud level's gain to the quiet one, a gain jump. */
+static int fresh_after(int d0, float gap_amount, int gap_bypass, int gap_dir, int d1) {
+  const uint32_t loud = (uint32_t)(0.5f * g_sr), quiet = (uint32_t)(0.3f * g_sr);
+  for (uint32_t i = 0; i < loud; i++) g_l[i] = g_r[i] = omx_db_to_lin(-6.0f) * (i & 1u ? 1.0f : -1.0f);
+  for (uint32_t i = loud; i < loud + quiet; i++) g_l[i] = g_r[i] = omx_db_to_lin(-40.0f) * (i & 1u ? 1.0f : -1.0f);
+  setup(80.0f, d0, 0);
+  run(&g_v, g_l, g_r, g_ol, g_or, loud);
+  omx_leveler_instance_resolve(&g_v, gap_bypass, gap_amount, gap_dir, 0);
+  drain();
+  run(&g_v, g_l + loud, g_r + loud, g_ol, g_or, quiet);
+  omx_leveler_instance_resolve(&g_v, 0, 80.0f, d1, 0);
+  drain();
+  run(&g_v, g_l + loud, g_r + loud, g_ol, g_or, quiet);
+  OmxLevelerInstance f;
+  omx_leveler_instance_init(&f, g_sr);
+  omx_leveler_instance_resolve(&f, 0, 80.0f, d1, 0);
+  drain();
+  run(&f, g_l + loud, g_r + loud, g_xl, g_xr, quiet);
+  const int same = memcmp(g_ol, g_xl, quiet * sizeof(float)) == 0 && memcmp(g_or, g_xr, quiet * sizeof(float)) == 0;
+  if (!same)
+    printf("  leveler @ %.0f Hz: engaged again, the first sample %.2f dB from the slot from silence\n", (double)g_sr,
+           20.0 * log10(fabs((double)g_ol[0] / (double)g_xl[0])));
+  return same;
+}
+static void arm_engage(void) {
+  g_arm = "G";
+  ok(fresh_after(2, 0.0f, 0, 2, 2), "an amount of 0, then 80 again: both slots from silence", 0, 0);
+  ok(fresh_after(2, 80.0f, 1, 2, 2), "bypassed, then engaged: both slots from silence", 0, 0);
+  ok(fresh_after(1, 80.0f, 0, 0, 1), "up, then down, then up: the upward slot from silence", 0, 0);
+  ok(fresh_after(0, 80.0f, 0, 1, 0), "down, then up, then down: the downward slot from silence", 0, 0);
+  clean();
+}
+
 int main(void) {
   (void)sine;
   (void)expect_clean;
@@ -255,6 +294,7 @@ int main(void) {
     arm_speed();
     arm_hostile();
     arm_blocks();
+    arm_engage();
   }
   return instance_oracle_end("leveler_instance");
 }

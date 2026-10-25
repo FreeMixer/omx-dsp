@@ -14,7 +14,8 @@
  *      from LEVELER_SPEED_ATTACK_MS and LEVELER_SPEED_RELEASE_MS. The direction runs the downward
  *      slot, the upward one, or both in series, downward first.
  *   2. RUN. Each engaged slot over both legs in place. An amount of 0 is the input, bit for bit, and
- *      moves no state.
+ *      moves no state. A slot that comes back into use (after an amount of 0, a bypass, or a direction
+ *      that did not run it) starts from silence, the engage edge of the transient face.
  *
  * LATENCY IS ZERO: the slots never take the 4x control path. Nothing is allocated; every word of state
  * is in {@link OmxLevelerInstance}.
@@ -138,11 +139,16 @@ static inline void omx_leveler_instance_resolve(OmxLevelerInstance *s, int bypas
   s->spd = speed >= 0 && speed < (int)OMX_LEVELER_SPEEDS_COUNT ? speed : (int)OMX_LEVELER_SPEEDS_DEFAULT;
   const struct omx_leveler_row row = omx_leveler_table(s->amt);
   const float att = OMX_LEVELER_INSTANCE_ATTACK[s->spd], rel = OMX_LEVELER_INSTANCE_RELEASE[s->spd];
+  const int down_was = s->enabled && s->down.enabled, up_was = s->enabled && s->up.enabled;
   omx_leveler_slot(&s->down, OMX_DYN_ABOVE, row.down_t, row.down_r, 0.0f, row.down_m, att, rel, s->sr);
   omx_leveler_slot(&s->up, OMX_DYN_UPWARD, row.up_t, row.up_r, row.up_range, 0.0f, att, rel, s->sr);
   s->down.enabled = s->dir != OMX_LEVELER_DIRECTIONS_UP;
   s->up.enabled = s->dir != OMX_LEVELER_DIRECTIONS_DOWN;
   s->enabled = !bypass && s->amt > 0.0f;
+  /* The engage edge, per slot: a slot that comes back into use starts from silence, never from the
+   * envelope it held when it stopped. */
+  if (s->enabled && s->down.enabled && !down_was) omx_dyn_state_init(&s->down_st, 1u);
+  if (s->enabled && s->up.enabled && !up_was) omx_dyn_state_init(&s->up_st, 1u);
   OMX_POST(s->down.gc.ratio >= 1.0f && s->up.gc.ratio >= 1.0f && s->up.gc.range_db >= 0.0f, "row-inside-the-laws");
 }
 #undef OMX_CONTRACT_STAGE

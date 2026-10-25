@@ -15,7 +15,8 @@
 #   attack    — the medium attack moved from 10 to 12 ms: arm D;
 #   release   — the fast release moved from 100 to 120 ms: arm D;
 #   knee      — LEVELER_KNEE_DB moved from 6 to 8 dB: arms B, C;
-#   direction — the downward slot run when the direction is up: arm C.
+#   direction — the downward slot run when the direction is up: arm C;
+#   engage    — the upward slot's state kept across its engage edge: arm G.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… leveler_instance-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -72,7 +73,9 @@ sabotage knee omxdsp_definitions.h 's|^#define OMX_LEVELER_KNEE_DB 6$|#define OM
 pids+=($!)
 sabotage direction fx/omx_leveler_instance.h 's|s->down.enabled = s->dir != OMX_LEVELER_DIRECTIONS_UP;|s->down.enabled = 1;|' C &
 pids+=($!)
+sabotage engage fx/omx_leveler_instance.h 's|  if (s->enabled [\&][\&] s->up.enabled [\&][\&] !up_was) omx_dyn_state_init|  if (0 \&\& !up_was) omx_dyn_state_init|' G &
+pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "leveler_instance-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "leveler_instance-perturb: the oracle sees all eleven sabotages"
+echo "leveler_instance-perturb: the oracle sees all twelve sabotages"
