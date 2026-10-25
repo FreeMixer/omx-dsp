@@ -52,10 +52,11 @@ s="$(count_runs "$OUT/Makefile.sab" sab 1)"
 [ "$s" -gt 1 ] || { echo "gen-once.sh: FAIL — the sabotaged Makefile (generator re-added to a recipe) ran it $s time(s): the count is blind"; exit 1; }
 
 # test-fx's split must run every binary of FX_BINS (the loops' set), each as a recipe command. Both
-# reads say --no-print-directory: under a parent make (debian/rules, make test) the sub-make's
-# 'Entering directory' lines would otherwise land in the lists.
-want="$(make -s --no-print-directory --eval='print-fx-bins: ; @echo $(FX_BINS)' print-fx-bins | tr ' ' '\n' | sed 's|^build/||' | sort)"
-got="$(make -n --no-print-directory test-fx 2>/dev/null | grep -oE '^echo "\./build/fx_[a-z0-9_]+' | sed 's|^echo "./build/||' | sort -u)"
+# reads say --no-print-directory and drop the parent's flags: under a parent make (debian/rules,
+# make test) the sub-make's 'Entering directory' lines would otherwise land in the lists, and a
+# parent running -jN with --output-sync (debhelper's parallel build) prints them whatever -w says.
+want="$(env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL make -s --no-print-directory --eval='print-fx-bins: ; @echo $(FX_BINS)' print-fx-bins | tr ' ' '\n' | sed 's|^build/||' | sort)"
+got="$(env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL make -n --no-print-directory test-fx 2>/dev/null | grep -oE '^echo "\./build/fx_[a-z0-9_]+' | sed 's|^echo "./build/||' | sort -u)"
 missing="$(comm -23 <(echo "$want" | sort -u) <(echo "$got"))"
 [ -z "$missing" ] || { echo "gen-once.sh: FAIL — test-fx does not run:"; echo "$missing"; exit 1; }
 echo "gen-once.sh: the generator ran once under make -j8 ($n), the sabotaged Makefile ran it $s times, and test-fx runs every FX binary"
