@@ -66,6 +66,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_POINTS"
       },
       "doc": "The amounts the table's rows are written at, percent; between two the leveler reads the rows linearly.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "%",
       "values": [
         0,
@@ -81,6 +82,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_T"
       },
       "doc": "The downward slot's threshold at each point of LEVELER_AMOUNT_POINTS, dBFS of the RMS detector.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "dB",
       "values": [
         0,
@@ -96,6 +98,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_R"
       },
       "doc": "The downward slot's ratio at each point; 1 is no compression.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "",
       "values": [
         1,
@@ -111,6 +114,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_M"
       },
       "doc": "The downward slot's make-up at each point, dB: part of the reduction a programme above its threshold takes, so the level the operator hears stays near where it was.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "dB",
       "values": [
         0,
@@ -126,6 +130,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_T"
       },
       "doc": "The upward slot's threshold at each point, dBFS of the RMS detector: what lies below it is raised toward it.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "dB",
       "values": [
         -40,
@@ -141,6 +146,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_R"
       },
       "doc": "The upward slot's ratio at each point; 1 is no lift.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "",
       "values": [
         1,
@@ -156,6 +162,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_RANGE"
       },
       "doc": "The upward slot's largest boost at each point, dB, so a pause is never lifted by more than this.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "dB",
       "values": [
         0,
@@ -171,6 +178,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_ATTACK"
       },
       "doc": "Each speed's attack, ms: slow, medium, fast.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "ms",
       "values": [
         30,
@@ -184,6 +192,7 @@
         "impl": "include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_RELEASE"
       },
       "doc": "Each speed's release, ms: slow, medium, fast.",
+      "why": "Provisional, not ruled (omx-dsp#188): the leveler's table (LEVELER_AMOUNT_POINTS, the rows read at its points and the speeds) is the design's proposal. The value ships as declared until the ruling.",
       "unit": "ms",
       "values": [
         800,

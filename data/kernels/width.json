@@ -64,6 +64,7 @@
         "impl": "include/omxdsp/fx/omx_width_instance.h#bmode"
       },
       "doc": "Whether the low end is summed to mono: on splits the side with a Linkwitz-Riley crossover at bassMonoHz (omx_xover, LR4) and keeps its high band only, the mid through the crossover's all-pass so the bands stay in phase. Off comes up.",
+      "why": "Provisional, not ruled (omx-dsp#188): bass mono as a switch of its own beside bassMonoHz is the design's proposal. The value ships as declared until the ruling.",
       "ids": [
         "off",
         "on"
@@ -98,6 +99,7 @@
         "impl": "include/omxdsp/omx_width.h#omx_width_process"
       },
       "doc": "The complementary comb's gain g: its legs ripple between 1 - g and 1 + g, 0.5 a +3.5 / -6 dB comb, the mono sum unmoved.",
+      "why": "Provisional, not ruled (omx-dsp#188): the comb's gain of 0.5 is the design's proposal. The value ships as declared until the ruling.",
       "unit": "",
       "value": 0.5
     },

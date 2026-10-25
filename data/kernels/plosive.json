@@ -11,6 +11,7 @@
         "impl": "include/omxdsp/fx/omx_plosive_instance.h#cons_db"
       },
       "doc": "How far a hard consonant (t, k) is cut in its band, dB, at full contrast: y = x1 + (g - 1) B, the de-esser's split, so no gain is added at any frequency. 0 cuts nothing, bit for bit.",
+      "why": "Provisional, not ruled (omx-dsp#188): the burst check and the full cut are read at the band centre: over 2 to 8 kHz noise the split cuts the band's peak by 2.7 to 5.2 dB of the 6. The ruling says whether the cut is read at the centre or across the band. The value ships as declared until the ruling.",
       "travel": {
         "min": 0,
         "max": 24,
@@ -27,6 +28,7 @@
         "impl": "include/omxdsp/fx/omx_plosive_instance.h#cons_s"
       },
       "doc": "The contrast, dB between the band's fast and slow envelopes (omx_envdiff), a burst must pass before the consonant cut starts; the cut is full TRANSIENT_REF_DB past it (omx_envdiff_ramp). A contrast, not a level: the same t is treated the same at any gain.",
+      "why": "Provisional, not ruled (omx-dsp#188): the 10 dB default sits under the 13.5 dB of steady contrast a buzzy vowel raises in the consonant band, so at the declared defaults that vowel is cut by 3.5 dB all the time; the ruling sets the default. The value ships as declared until the ruling.",
       "travel": {
         "min": 0,
         "max": 30,
@@ -107,6 +109,7 @@
         "impl": "include/omxdsp/fx/omx_plosive_instance.h#pop_s"
       },
       "doc": "The contrast, dB, the pop band's burst must pass before the pop cut starts.",
+      "why": "Provisional, not ruled (omx-dsp#188): the 10 dB default sits under the 10.5 dB of steady contrast the same buzzy vowel raises in the pop band; the ruling sets the default. The value ships as declared until the ruling.",
       "travel": {
         "min": 0,
         "max": 30,
