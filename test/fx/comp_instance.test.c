@@ -27,12 +27,13 @@
 #include <omxdsp/fx/omx_comp_instance.h>
 
 /* The key path's come-up values, the controls this oracle predates: self, both edges out, flat, no
- * listen, no hold, linked, no duck. */
+ * listen, no hold, linked, no duck, the fixed release. */
 #define KEY_IDLE                                                                                       \
   (int)OMX_COMP_KEY_SOURCES_DEFAULT, (float)OMX_COMP_KEY_HP_HZ_RANGE_DEFAULT,                          \
       (float)OMX_COMP_KEY_LP_HZ_RANGE_DEFAULT, (float)OMX_COMP_KEY_TILT_DB_RANGE_DEFAULT,              \
       (int)OMX_COMP_KEY_LISTENS_DEFAULT, (float)OMX_COMP_HOLD_MS_RANGE_DEFAULT,                        \
-      (int)OMX_COMP_DETECT_LINKS_DEFAULT, (int)OMX_COMP_DUCKS_DEFAULT, (float)OMX_COMP_RANGE_DB_RANGE_DEFAULT
+      (int)OMX_COMP_DETECT_LINKS_DEFAULT, (int)OMX_COMP_DUCKS_DEFAULT, (float)OMX_COMP_RANGE_DB_RANGE_DEFAULT, \
+      (int)OMX_COMP_RELEASE_MODES_DEFAULT
 
 /* The detector the console picks: a comp detects RMS, a limiter peak (COMP_KINDS). */
 #define KIND(rms) ((rms) ? (int)OMX_COMP_KINDS_COMP : (int)OMX_COMP_KINDS_LIMITER)

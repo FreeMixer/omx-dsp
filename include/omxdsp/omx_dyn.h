@@ -92,6 +92,16 @@ struct omx_dyn {
   /** The FLOOR (ABOVE mode only), dB: while below 0 the gain never falls under it, before make-up
    * (the ducker's range, `max(floor, gain)`). 0, a zeroed atom, is no floor. */
   float floor_db;
+  /** The RELEASE MODE (ABOVE mode only), the comp row's releaseMode (OMX_COMP_RELEASE_MODES_*): 0,
+   * `fixed` and a zeroed atom, is the detector's own release, the kernel that shipped; otherwise the
+   * gain computer's reduction goes through omx_env_program_release with `prp`, and the atom's
+   * release pole should be its attack pole (the detector a symmetric smoother, every release
+   * character in the follower). */
+  int release_mode;
+  /** The program release's parameters at the base rate ([0]) and at the 4x control path's ([1]),
+   * from omx_env_program_release_opto() or omx_env_program_release_auto(); read only while
+   * `release_mode` is not 0. */
+  struct omx_env_program_release_params prp[2];
 };
 
 /**
@@ -197,6 +207,7 @@ struct omx_dyn_state {
   float fb_yl;                     /**< the loop's last pre-make-up output, leg L: y[n-1] */
   float fb_yr;                     /**< the loop's last pre-make-up output, leg R: y[n-1] */
   int fb_ran;                      /**< the last block ran the feedback loop */
+  struct omx_env_program_release prs; /**< the program release's state; zeroed while it does not run */
 };
 _Static_assert(OMX_DYN_FB_LOOP_DELAY_SAMPLES == 1u, "fb_yl/fb_yr hold exactly one output sample per leg");
 
@@ -511,6 +522,23 @@ static inline float omx_dyn_flat_gain(const struct omx_dyn_flat *f, const struct
 }
 
 #undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "dyn/program-gain"
+/**
+ * @brief The linear gain, make-up included, of an ABOVE slot whose reduction runs through the program
+ *        release: omx_gaincomp_db() at the detector level, omx_env_program_release() on it, back to linear.
+ * @param p The atom; `release_mode` not 0.
+ * @param prs The program release's state, updated in place.
+ * @param prp The program release's parameters at the rate the gain is computed at.
+ * @param level The detector level, linear, not negative.
+ * @return The gain, in `(0, makeup_lin]`.
+ * @note RT-safe: log10f, powf and the word's one expf. Thread-safe on distinct state.
+ */
+static inline float omx_dyn_program_gain(const struct omx_dyn *p, struct omx_env_program_release *prs,
+                                         const struct omx_env_program_release_params *prp, float level) {
+  return omx_db_to_lin(omx_env_program_release(prs, prp, omx_gaincomp_db(&p->gc, omx_lin_to_db(level)))) * p->gc.makeup_lin;
+}
+#undef OMX_CONTRACT_STAGE
+
 #define OMX_CONTRACT_STAGE "dyn/gr-block-db"
 /**
  * @brief A block's minimum applied gain (linear) as a gain-reduction reading in dB.
@@ -669,6 +697,10 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   /* The computer's ceiling: the make-up, and in UPWARD mode the make-up times the largest boost. */
   const float ceil_lin = p->gc.mode == OMX_DYN_UPWARD ? omx_db_to_lin(p->gc.range_db) * p->gc.makeup_lin : p->gc.makeup_lin;
   const int floored = p->gc.mode == OMX_DYN_ABOVE && p->floor_db < 0.0f;
+  /* The program release, an ABOVE slot's releaseMode other than fixed: the follower sits on the
+   * computer's reduction, at the rate the gain is computed at. Fixed runs the loops that shipped. */
+  const int prog = p->gc.mode == OMX_DYN_ABOVE && p->release_mode != 0;
+  if (!prog) memset(&st->prs, 0, sizeof st->prs);
   const float floor_lin = floored ? omx_db_to_lin(p->floor_db) * p->gc.makeup_lin : 0.0f;
 
   float gmin = 1.0f; /* the block's deepest applied gain, whatever path produced it */
@@ -706,7 +738,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         const float hl = st->fb_yl, hr = st->fb_yr;
         const float d = rms ? fmaxf(hl * hl, hr * hr) : fmaxf(fabsf(hl), fabsf(hr));
         const float e = omx_onepole_flush(&st->fb_env, d, d > st->fb_env ? fb_pa : fb_pr);
-        const float g = omx_db_to_lin(omx_gaincomp_db_fb(&p->gc, omx_lin_to_db(rms ? sqrtf(e) : e)));
+        const float gr = omx_gaincomp_db_fb(&p->gc, omx_lin_to_db(rms ? sqrtf(e) : e));
+        const float g = omx_db_to_lin(prog ? omx_env_program_release(&st->prs, &p->prp[0], gr) : gr);
         st->fb_yl = omx_flush(xl[i] * g);
         st->fb_yr = omx_flush(xr[i] * g);
         gain[i] = g * p->gc.makeup_lin;
@@ -740,6 +773,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
             gain[i] = lev[i] <= fl.lo ? fl.g_floor : lev[i] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, lev[i]);
         else if (flat)
           for (uint32_t i = 0; i < m; i++) gain[i] = omx_dyn_flat_gain(&fl, p, lev[i]);
+        else if (prog)
+          for (uint32_t i = 0; i < m; i++) gain[i] = omx_dyn_program_gain(p, &st->prs, &p->prp[0], lev[i]);
         else if (p->knee_shift_db == 0.0f)
           for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
         else
@@ -779,6 +814,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
             g4[k] = g4[k] <= fl.lo ? fl.g_floor : g4[k] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, g4[k]);
         else if (flat)
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_dyn_flat_gain(&fl, p, g4[k]);
+        else if (prog)
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_dyn_program_gain(p, &st->prs, &p->prp[1], g4[k]);
         else if (p->knee_shift_db == 0.0f)
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
         else
