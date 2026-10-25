@@ -5,17 +5,19 @@
 # suboct_instance-perturb.sh — test/fx/suboct_instance.test.c sees each moved declaration of the sub-octaver and each defect of its laws. Each sabotage is applied to a COPY
 # of the include directory placed ahead of the real one, and the oracle built against it must go red
 # in the named arm:
-#   lo      — SUBOCT_RANGE_LO_HZ's mid row moved from 70 to 75 Hz: arm I;
-#   post1   — SUBOCT_POST1_HZ's high row moved from 360 to 330 Hz: arm I;
-#   post2   — SUBOCT_POST2_HZ's low row moved from 45 to 50 Hz: arm I;
-#   hi      — SUBOCT_RANGE_HI_HZ's low row moved from 140 to 150 Hz: arm I;
-#   hyst    — SUBOCT_HYSTERESIS moved from 0.25 to 0.3: arm I;
-#   envatt  — SUBOCT_ENV_ATTACK_MS moved from 1 to 2 ms: arm I;
-#   envrel  — SUBOCT_ENV_RELEASE_MS moved from 100 to 120 ms: arm I;
+#   lo      — SUBOCT_RANGE_LO_HZ's mid row moved from 70 to 75 Hz: arms A, D, I;
+#   post1   — SUBOCT_POST1_HZ's high row moved from 360 to 330 Hz: arms A, I;
+#   post2   — SUBOCT_POST2_HZ's low row moved from 45 to 50 Hz: arms B, I;
+#   hi      — SUBOCT_RANGE_HI_HZ's low row moved from 140 to 150 Hz: arms A, I;
+#   hyst    — SUBOCT_HYSTERESIS moved from 0.25 to 0.3: arms C, I;
+#   envatt  — SUBOCT_ENV_ATTACK_MS moved from 1 to 2 ms: arms G, I;
+#   envrel  — SUBOCT_ENV_RELEASE_MS moved from 100 to 120 ms: arms G, I;
 #   ramp    — SUBOCT_GATE_RAMP_MS moved from 5 to 8 ms: arms G, I;
 #   quarter — the second octave a quarter division of the first divider gating the tracked band: arm B;
 #   gate    — the gate never closing: arm G;
-#   dflt    — trackGateDb's default moved from -50 to -55 dBFS: arm I.
+#   dflt    — trackGateDb's default moved from -50 to -55 dBFS: arms G, I.
+# Every moved declaration turns a behavioural arm red, not only the readback: arms A to D and G take
+# their closed forms from the declared values written in the oracle, never from the instance.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… suboct_instance-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -50,19 +52,19 @@ sabotage() { # <name> <header under include/omxdsp> <sed expression> <arm>...
   done
 }
 
-sabotage lo omxdsp_definitions.h 's|^#define OMX_SUBOCT_RANGE_LO_HZ_INIT { 35, 70, 140 }$|#define OMX_SUBOCT_RANGE_LO_HZ_INIT { 35, 75, 140 }|' I &
+sabotage lo omxdsp_definitions.h 's|^#define OMX_SUBOCT_RANGE_LO_HZ_INIT { 35, 70, 140 }$|#define OMX_SUBOCT_RANGE_LO_HZ_INIT { 35, 75, 140 }|' A D I &
 pids+=($!)
-sabotage post1 omxdsp_definitions.h 's|^#define OMX_SUBOCT_POST1_HZ_INIT { 90, 180, 360 }$|#define OMX_SUBOCT_POST1_HZ_INIT { 90, 180, 330 }|' I &
+sabotage post1 omxdsp_definitions.h 's|^#define OMX_SUBOCT_POST1_HZ_INIT { 90, 180, 360 }$|#define OMX_SUBOCT_POST1_HZ_INIT { 90, 180, 330 }|' A I &
 pids+=($!)
-sabotage post2 omxdsp_definitions.h 's|^#define OMX_SUBOCT_POST2_HZ_INIT { 45, 90, 180 }$|#define OMX_SUBOCT_POST2_HZ_INIT { 50, 90, 180 }|' I &
+sabotage post2 omxdsp_definitions.h 's|^#define OMX_SUBOCT_POST2_HZ_INIT { 45, 90, 180 }$|#define OMX_SUBOCT_POST2_HZ_INIT { 50, 90, 180 }|' B I &
 pids+=($!)
-sabotage hi omxdsp_definitions.h 's|^#define OMX_SUBOCT_RANGE_HI_HZ_INIT { 140, 280, 560 }$|#define OMX_SUBOCT_RANGE_HI_HZ_INIT { 150, 280, 560 }|' I &
+sabotage hi omxdsp_definitions.h 's|^#define OMX_SUBOCT_RANGE_HI_HZ_INIT { 140, 280, 560 }$|#define OMX_SUBOCT_RANGE_HI_HZ_INIT { 150, 280, 560 }|' A I &
 pids+=($!)
-sabotage hyst omxdsp_definitions.h 's|^#define OMX_SUBOCT_HYSTERESIS 0.25f$|#define OMX_SUBOCT_HYSTERESIS 0.3f|' I &
+sabotage hyst omxdsp_definitions.h 's|^#define OMX_SUBOCT_HYSTERESIS 0.25f$|#define OMX_SUBOCT_HYSTERESIS 0.3f|' C I &
 pids+=($!)
-sabotage envatt omxdsp_definitions.h 's|^#define OMX_SUBOCT_ENV_ATTACK_MS 1$|#define OMX_SUBOCT_ENV_ATTACK_MS 2|' I &
+sabotage envatt omxdsp_definitions.h 's|^#define OMX_SUBOCT_ENV_ATTACK_MS 1$|#define OMX_SUBOCT_ENV_ATTACK_MS 2|' G I &
 pids+=($!)
-sabotage envrel omxdsp_definitions.h 's|^#define OMX_SUBOCT_ENV_RELEASE_MS 100$|#define OMX_SUBOCT_ENV_RELEASE_MS 120|' I &
+sabotage envrel omxdsp_definitions.h 's|^#define OMX_SUBOCT_ENV_RELEASE_MS 100$|#define OMX_SUBOCT_ENV_RELEASE_MS 120|' G I &
 pids+=($!)
 sabotage ramp omxdsp_definitions.h 's|^#define OMX_SUBOCT_GATE_RAMP_MS 5$|#define OMX_SUBOCT_GATE_RAMP_MS 8|' G I &
 pids+=($!)
@@ -70,7 +72,7 @@ sabotage quarter fx/omx_suboct_instance.h 's|    float s2 = omx_divider_step(\&s
 pids+=($!)
 sabotage gate fx/omx_suboct_instance.h 's|    const float target = e >= s->gate_lin ? 1.0f : 0.0f;|    const float target = 1.0f;|' G &
 pids+=($!)
-sabotage dflt omxdsp_definitions.h 's|^#define OMX_SUBOCT_TRACK_GATE_DB_RANGE_DEFAULT -50$|#define OMX_SUBOCT_TRACK_GATE_DB_RANGE_DEFAULT -55|' I &
+sabotage dflt omxdsp_definitions.h 's|^#define OMX_SUBOCT_TRACK_GATE_DB_RANGE_DEFAULT -50$|#define OMX_SUBOCT_TRACK_GATE_DB_RANGE_DEFAULT -55|' G I &
 pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
