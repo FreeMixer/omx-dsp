@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
-// The transient designer's instance oracle (omx_transient_instance.h), at every declared rate:
+// The transient designer's instance oracle (omx_transient_instance.h), at each of the nine oracle rates:
 //   A  the instance IS the kernel: bit-identical to omx_transient_resolve + omx_transient_process
 //      over the same controls, in odd block sizes, with separate and aliased in/out buffers;
 //   B  every hostile port word (±Inf, NaN, far outside the travel) is clamped before the kernel:
@@ -140,9 +140,10 @@ static void arm_gain(void) {
 
 int main(void) {
   omx_fx_require_rate_floor();
+  omx_fx_require_full_rates_cover_declared();
   omx_contract_reset();
-  for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
-    g_sr = OMX_DECLARED_RATES[ri];
+  for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
+    g_sr = OMX_FX_ORACLE_RATES[ri];
     stimulus(in_l, in_r, N, 0x1234567u, 2048u);
     arm_identity();
     arm_clamps();

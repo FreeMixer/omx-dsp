@@ -1,7 +1,7 @@
 {
   "$schema": "../../schema/omx-contract.schema.json",
   "requires": {
-    "omx-contract-schema": ">= 3.0.0"
+    "omx-contract-schema": ">= 3.1.0"
   },
   "controls": [
     {
@@ -67,6 +67,38 @@
         "unit": "dB",
         "default": 0,
         "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "attackGainDb",
+      "doc": "The gain the onset contrast applies now, dB: attackDb times the contrast's ramp (omx_envdiff_ramp at offset 0) on the last sample, so 0 while the contrast is nil and attackDb at full contrast. With the other readout and outputDb it sums to the gain the stage applies.",
+      "unit": "dB",
+      "min": {
+        "ref": "TRANSIENT_LIMITS.attackDb.min"
+      },
+      "max": {
+        "ref": "TRANSIENT_LIMITS.attackDb.max"
+      },
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "sustainGainDb",
+      "doc": "The gain the decay contrast applies now, dB: sustainDb times the contrast's ramp (omx_envdiff_ramp at offset 0) on the last sample, so 0 while the contrast is nil and sustainDb at full contrast. With the other readout and outputDb it sums to the gain the stage applies.",
+      "unit": "dB",
+      "min": {
+        "ref": "TRANSIENT_LIMITS.sustainDb.min"
+      },
+      "max": {
+        "ref": "TRANSIENT_LIMITS.sustainDb.max"
+      },
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
       }
     }
   ],
