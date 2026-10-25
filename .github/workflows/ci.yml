@@ -99,6 +99,7 @@ jobs:
           v=$(make -s version)
           grep -q "^Version: $v\$" packaging/omx-dsp.spec
           head -1 debian/changelog | grep -q "^omx-dsp ($v) "
+          test "$(node -p "require('./ts/package.json').version")" = "$v"
 
       - name: Every source file carries its SPDX line
         id: handback-spdx
