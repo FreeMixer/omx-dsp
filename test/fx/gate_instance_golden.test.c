@@ -25,6 +25,9 @@
 
 #include <omxdsp/fx/omx_gate_instance.h>
 
+/* The key listen and tilt at their come-up values, the controls this oracle predates: off and flat. */
+#define GATE_KEY_IDLE (int)OMX_GATE_KEY_LISTENS_DEFAULT, (float)OMX_GATE_KEY_TILT_DB_RANGE_DEFAULT
+
 #include "golden.h"
 
 /* The knee pair of render `which`, both edges at one point: here the render's own threshold. */
@@ -73,7 +76,7 @@ static void render_one(int which, float sr, float *out) {
   for (int o = 0, b = 0; o < OMX_FX_GOLDEN_FRAMES; o += HOST_BLOCK, b++) {
     const uint32_t n = OMX_FX_GOLDEN_FRAMES - o < HOST_BLOCK ? (uint32_t)(OMX_FX_GOLDEN_FRAMES - o) : HOST_BLOCK;
     omx_gate_instance_resolve(&g_inst, toggle && (b & 1), ke, t, rg, knee, knee, a, 0.0f, rl, 0.0f, ra,
-                              GATE_GOLDEN_HP(which), GATE_GOLDEN_LP(which));
+                              GATE_GOLDEN_HP(which), GATE_GOLDEN_LP(which), GATE_KEY_IDLE);
     omx_gate_instance_run(&g_inst, key ? key + o : NULL, g_l + o, g_r + o, ol + o, or_ + o, n);
   }
   for (int i = 0; i < OMX_FX_GOLDEN_FRAMES; i++) { out[2 * i] = ol[i]; out[2 * i + 1] = or_[i]; }

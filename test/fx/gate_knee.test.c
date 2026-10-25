@@ -22,6 +22,9 @@
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_gate_instance.h>
 
+/* The key listen and tilt at their come-up values, the controls this oracle predates: off and flat. */
+#define GATE_KEY_IDLE (int)OMX_GATE_KEY_LISTENS_DEFAULT, (float)OMX_GATE_KEY_TILT_DB_RANGE_DEFAULT
+
 #include "fx_rates.h"
 
 #include <math.h>
@@ -153,7 +156,7 @@ static const struct knee_case CASES[] = {
 
 static void resolve_case(const struct knee_case *c, float attack_ms) {
   omx_gate_instance_resolve(&g_inst, 0, 0, (float)c->t, (float)c->range, (float)c->ks, (float)c->ke, attack_ms,
-                            0.0f, 50.0f, 0.0f, (float)c->ratio, 0.0f, 0.0f);
+                            0.0f, 50.0f, 0.0f, (float)c->ratio, 0.0f, 0.0f, GATE_KEY_IDLE);
 }
 
 static float atom_gain_db(float level_db) {
@@ -171,7 +174,7 @@ static void arm_neutral(float sr) {
       const float hold = hh ? 25.0f : 0.0f, hyst = hh ? 6.0f : 0.0f;
       fill(l, r, k);
       omx_gate_instance_init(&g_inst, sr);
-      omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, at[i], at[i], 0.1f, hold, 50.0f, hyst, 16.0f, 0.0f, 0.0f);
+      omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, at[i], at[i], 0.1f, hold, 50.0f, hyst, 16.0f, 0.0f, 0.0f, GATE_KEY_IDLE);
       ok(g_inst.atom.gc.knee_db == 0.0f && g_inst.atom.knee_shift_db == 0.0f,
          "a knee start equal to its end is the hard knee: width 0, offset 0", g_inst.atom.gc.knee_db, at[i]);
       omx_gate_instance_run(&g_inst, k, l, r, ol, or_, N);
@@ -275,10 +278,10 @@ static void arm_live(float sr) {
   static float k[N], ol[N], or_[N], el[N], er[N];
   fill(l, r, k);
   omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 0, -40.0f, -90.0f, -40.0f, -40.0f, 1.0f, 0.0f, 50.0f, 0.0f, 4.0f, 0.0f, 0.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 0, -40.0f, -90.0f, -40.0f, -40.0f, 1.0f, 0.0f, 50.0f, 0.0f, 4.0f, 0.0f, 0.0f, GATE_KEY_IDLE);
   omx_gate_instance_run(&g_inst, NULL, l, r, el, er, N);
   omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 0, -40.0f, -90.0f, -52.0f, -34.0f, 1.0f, 0.0f, 50.0f, 0.0f, 4.0f, 0.0f, 0.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 0, -40.0f, -90.0f, -52.0f, -34.0f, 1.0f, 0.0f, 50.0f, 0.0f, 4.0f, 0.0f, 0.0f, GATE_KEY_IDLE);
   omx_gate_instance_run(&g_inst, NULL, l, r, ol, or_, N);
   uint32_t moved = 0;
   for (uint32_t j = 0; j < N; j++) moved += ol[j] != el[j];
@@ -292,9 +295,9 @@ static void arm_no_alloc(float sr) {
   g_allocs = 0;
   g_counting = 1;
   const int ready = omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -35.0f, -90.0f, -38.0f, -30.0f, 0.1f, 25.0f, 50.0f, 6.0f, 16.0f, 0.0f, 0.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -35.0f, -90.0f, -38.0f, -30.0f, 0.1f, 25.0f, 50.0f, 6.0f, 16.0f, 0.0f, 0.0f, GATE_KEY_IDLE);
   omx_gate_instance_run(&g_inst, k, l, r, l, r, 512u);
-  omx_gate_instance_resolve(&g_inst, 0, 0, -35.0f, -90.0f, -50.0f, -30.0f, 2.0f, 0.0f, 50.0f, 0.0f, 16.0f, 0.0f, 0.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 0, -35.0f, -90.0f, -50.0f, -30.0f, 2.0f, 0.0f, 50.0f, 0.0f, 16.0f, 0.0f, 0.0f, GATE_KEY_IDLE);
   omx_gate_instance_run(&g_inst, NULL, l, r, l, r, 512u);
   g_counting = 0;
   ok(ready && g_allocs == 0, "init, resolve and run with a knee range allocate nothing", (double)g_allocs, 0);

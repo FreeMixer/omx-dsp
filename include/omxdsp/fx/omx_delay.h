@@ -22,6 +22,8 @@
 
 #include <omxdsp/omx_balance_law.h>
 #include <omxdsp/omx_contract.h>
+#include <omxdsp/omx_duck.h>
+#include <omxdsp/omx_lfo.h>
 #include <omxdsp/omx_lookahead.h>
 #include <omxdsp/omx_onepole.h>
 #include <omxdsp/omx_param.h>
@@ -73,6 +75,42 @@ struct omx_fx_delay_state {
   float damp_l;      /* one-pole tone state per leg (feedback-path LP) */
   float damp_r;
 };
+
+/* The repeats' colour and the wet duck, a third snapshot beside the atom and the taps so every caller
+ * of the atom builds and plays as it did. A NULL colour, or digital with a 0 dB duck, is the delay
+ * that shipped, bit for bit. */
+enum omx_fx_delay_mode {
+  OMX_FX_DELAY_DIGITAL = 0, /* the delay as it shipped */
+  OMX_FX_DELAY_TAPE = 1,    /* a loop low pass and a wow on the read head */
+  OMX_FX_DELAY_ANALOG = 2,  /* a lower loop low pass and a soft saturation in the feedback */
+};
+
+struct omx_fx_delay_color {
+  int mode;          /* enum omx_fx_delay_mode */
+  float loop_pole;   /* the loop low pass's one-pole coefficient (tape, analog); 0 passes */
+  float wow_inc;     /* the wow's LFO turns per sample (tape) */
+  float wow_depth;   /* the wow's depth, samples: the head reads between the time and the time plus this */
+  struct omx_duck duck; /* the wet duck; a 0 dB depth ducks nothing */
+};
+
+/* The colour's own state: the loop low pass per leg, the wow and the duck's follower. */
+struct omx_fx_delay_color_state {
+  float lp_l;
+  float lp_r;
+  struct omx_lfo wow;
+  struct omx_duck_state duck;
+};
+
+/** The soft saturation of the analog mode's feedback, `x / (1 + |x|)`: unity slope at 0, never past 1. */
+static inline float omx_fxdelay_soft(float x) { return x / (1.0f + fabsf(x)); }
+
+/** A read `d + a` samples behind the write cursor, `a` in [0, 1): linear between the two whole reads,
+ * the further one held inside the ring. */
+static inline float omx_fxdelay_read_frac(const float *ring, uint32_t w, uint32_t d, float a, uint32_t cap) {
+  const uint32_t d1 = d + 1u < cap ? d + 1u : cap - 1u;
+  const float y0 = ring[omx_lookahead_back(w, d, cap)], y1 = ring[omx_lookahead_back(w, d1, cap)];
+  return y0 + a * (y1 - y0);
+}
 
 /** Tempo-synced delay time in ms: `division_beats * 60000 / bpm` (1/4=1.0, 1/8=0.5, dotted-1/8=0.75, 1/8T=1/3). */
 #undef OMX_CONTRACT_STAGE
@@ -253,7 +291,7 @@ static inline uint32_t omx_fxdelay_longest_tap(uint32_t d0, const uint32_t *d, u
 #undef OMX_CONTRACT_STAGE
 
 /**
- * Process one block IN PLACE with read taps. `l`/`r` are the strip's two legs (distinct buffers). A
+ * Process one block IN PLACE with read taps and a colour. `l`/`r` are the strip's two legs (distinct buffers). A
  * disabled atom / NULL ring is a passthrough. RT-safe: fixed work per sample, no allocation.
  *
  * `t->ntaps` 1..OMX_FXDELAY_MAX_TAPS integer reads of the SAME ring, tap 0 at the atom's d_l/d_r and
@@ -262,19 +300,28 @@ static inline uint32_t omx_fxdelay_longest_tap(uint32_t d0, const uint32_t *d, u
  * `ntaps` 0, is the one-tap delay at unity and centre, bit for bit omx_fx_delay_process. A tap asked
  * past the ring is refused (PRE taps-inside-the-ring) and read at cap-1.
  *
+ * The colour `c` (with its state `cs`): tape reads every tap `0..wow_depth` samples further back on a
+ * slow LFO, linearly between whole reads, and runs a one-pole low pass in the loop after the tone;
+ * analog runs its low pass and then `x / (1 + |x|)` in the feedback; a duck depth below 0 dB scales the
+ * wet sum by omx_duck_step() on the louder dry leg. A NULL `c`, or digital with a 0 dB duck, is the
+ * delay with taps as it shipped, bit for bit.
+ *
  * @param l the left leg, `n` frames, processed in place
  * @param r the right leg, `n` frames, processed in place
  * @param n frames in the block
  * @param p the delay's control atom
  * @param t the read taps, or NULL for the one-tap delay
+ * @param c the colour and the wet duck, or NULL for none
+ * @param cs the colour's state, or NULL with `c`
  * @param s the caller-owned rings and the RT state
  * @param sr the live rate, Hz
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay"
-static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, const struct omx_fx_delay *p,
-                                             const struct omx_fx_delay_taps *t, struct omx_fx_delay_state *s,
-                                             float sr) {
+static inline void omx_fx_delay_process_color(float *l, float *r, uint32_t n, const struct omx_fx_delay *p,
+                                              const struct omx_fx_delay_taps *t, const struct omx_fx_delay_color *c,
+                                              struct omx_fx_delay_color_state *cs, struct omx_fx_delay_state *s,
+                                              float sr) {
   /* CONTRACT (omx_contract.h). A delay is a LINEAR, time-invariant transformation with memory:
    * out = dry*in + mix*in[k-d], and the recursion in the ring is bounded by a feedback strictly
    * below 1 — that bound is the whole reason this stage cannot run away, and it is a claim about
@@ -322,6 +369,13 @@ static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, con
     gl[k] = omx_fxdelay_tap_gain(t->gl[k]);
     gr[k] = omx_fxdelay_tap_gain(t->gr[k]);
   }
+  /* The colour, hoisted: each flag 0 leaves its arithmetic out, so digital is the delay as it shipped. */
+  const int col = c != NULL && cs != NULL;
+  const int tape = col && c->mode == OMX_FX_DELAY_TAPE;
+  const int analog = col && c->mode == OMX_FX_DELAY_ANALOG;
+  const int wow = tape && c->wow_depth > 0.0f;
+  const int ducked = col && c->duck.depth_db < 0.0f;
+  const float lp = (tape || analog) ? c->loop_pole : 0.0f;
   const uint32_t kfl = omx_fxdelay_longest_tap(dl, td, nt);
   const uint32_t kfr = omx_fxdelay_longest_tap(dr, td, nt);
   uint32_t w = s->wpos;
@@ -335,14 +389,29 @@ static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, con
      * 0 ms delay an exact passthrough, matching omx_delay_apply's write-then-read at tgt=0. */
     float tapL = dl == 0 ? xl : s->ring_l[rl];
     float tapR = dr == 0 ? xr : s->ring_r[rr];
+    /* Tape's wow: the head reads `woff` samples further back, 0 to the depth, linearly between reads. */
+    uint32_t wi = 0u;
+    float wa = 0.0f;
+    if (wow) {
+      const float woff = c->wow_depth * 0.5f * (1.0f + omx_lfo_at(&cs->wow, 0.0f));
+      wi = (uint32_t)woff;
+      wa = woff - (float)wi;
+      omx_lfo_advance(&cs->wow);
+      if (dl != 0) tapL = omx_fxdelay_read_frac(s->ring_l, w, omx_fxdelay_clamp(dl + wi, cap), wa, cap);
+      if (dr != 0) tapR = omx_fxdelay_read_frac(s->ring_r, w, omx_fxdelay_clamp(dr + wi, cap), wa, cap);
+    }
     /* The wet sum starts AT tap 0's term (never 0 + term, which turns a -0 into +0): one tap at
      * unity is the tap, bit for bit. */
     float wetL = gl[0] * tapL, wetR = gr[0] * tapR;
     float srcL = tapL, srcR = tapR;
     for (uint32_t k = 1; k < nt; k++) {
       const uint32_t rk = omx_lookahead_back(w, td[k], cap);
-      const float tl = td[k] == 0 ? xl : s->ring_l[rk];
-      const float tr = td[k] == 0 ? xr : s->ring_r[rk];
+      float tl = td[k] == 0 ? xl : s->ring_l[rk];
+      float tr = td[k] == 0 ? xr : s->ring_r[rk];
+      if (wow && td[k] != 0) {
+        tl = omx_fxdelay_read_frac(s->ring_l, w, omx_fxdelay_clamp(td[k] + wi, cap), wa, cap);
+        tr = omx_fxdelay_read_frac(s->ring_r, w, omx_fxdelay_clamp(td[k] + wi, cap), wa, cap);
+      }
       wetL += gl[k] * tl;
       wetR += gr[k] * tr;
       if (k == kfl) srcL = tl;
@@ -353,9 +422,25 @@ static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, con
      * regenerates from the LONGEST engaged tap, so a pattern repeats as a whole. */
     dampL = srcL * (1.0f - tone) + dampL * tone;
     dampR = srcR * (1.0f - tone) + dampR * tone;
+    /* Tape and analog: the loop low pass after the tone, and analog's saturation after it. */
+    float loopL = dampL, loopR = dampR;
+    if (tape || analog) {
+      cs->lp_l = loopL = dampL * (1.0f - lp) + cs->lp_l * lp;
+      cs->lp_r = loopR = dampR * (1.0f - lp) + cs->lp_r * lp;
+      if (analog) {
+        loopL = omx_fxdelay_soft(loopL);
+        loopR = omx_fxdelay_soft(loopR);
+      }
+    }
     /* ping-pong: each leg's feedback comes from the OTHER leg's damped tap */
-    float fbL = p->pingpong ? dampR : dampL;
-    float fbR = p->pingpong ? dampL : dampR;
+    float fbL = p->pingpong ? loopR : loopL;
+    float fbR = p->pingpong ? loopL : loopR;
+    /* The wet duck, keyed by the louder dry leg. */
+    if (ducked) {
+      const float g = omx_duck_step(&c->duck, &cs->duck, fabsf(xl) > fabsf(xr) ? xl : xr);
+      wetL *= g;
+      wetR *= g;
+    }
     s->ring_l[w] = xl + fb * fbL;
     s->ring_r[w] = xr + fb * fbR;
     omx_wetdry_mix(&l[i], &r[i], xl, xr, wetL, wetR, dry, mix);
@@ -364,12 +449,34 @@ static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, con
   s->wpos = w;
   s->damp_l = dampL;
   s->damp_r = dampR;
+  if (tape || analog) {
+    cs->lp_l = omx_flush(cs->lp_l);
+    cs->lp_r = omx_flush(cs->lp_r);
+  }
   OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
   OMX_POST(s->wpos < s->cap, "write-cursor-inside-the-ring");
   OMX_INVARIANT(s->damp_l - s->damp_l == 0.0f && s->damp_r - s->damp_r == 0.0f,
                 "damping-state-finite");
 }
 #undef OMX_CONTRACT_STAGE
+
+/**
+ * Process one block IN PLACE with read taps and no colour: omx_fx_delay_process_color with a NULL
+ * colour, the delay with taps as it shipped.
+ *
+ * @param l the left leg, `n` frames, processed in place
+ * @param r the right leg, `n` frames, processed in place
+ * @param n frames in the block
+ * @param p the delay's control atom
+ * @param t the read taps, or NULL for the one-tap delay
+ * @param s the caller-owned rings and the RT state
+ * @param sr the live rate, Hz
+ */
+static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, const struct omx_fx_delay *p,
+                                             const struct omx_fx_delay_taps *t, struct omx_fx_delay_state *s,
+                                             float sr) {
+  omx_fx_delay_process_color(l, r, n, p, t, NULL, NULL, s, sr);
+}
 
 /**
  * Process one block IN PLACE: the one-tap delay, omx_fx_delay_process_taps with no taps. `l`/`r` are

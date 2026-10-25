@@ -23,6 +23,9 @@
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_gate_instance.h>
 
+/* The key listen and tilt at their come-up values, the controls this oracle predates: off and flat. */
+#define GATE_KEY_IDLE (int)OMX_GATE_KEY_LISTENS_DEFAULT, (float)OMX_GATE_KEY_TILT_DB_RANGE_DEFAULT
+
 #include "fx_rates.h"
 
 #include <math.h>
@@ -152,7 +155,7 @@ static void arm_neutral(float sr) {
       fill(l, r, k);
       omx_gate_instance_init(&g_inst, sr);
       omx_gate_instance_resolve(&g_inst, 0, ke, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 0.0f, 50.0f, 0.0f,
-                                16.0f, out_edges[e][0], out_edges[e][1]);
+                                16.0f, out_edges[e][0], out_edges[e][1], GATE_KEY_IDLE);
       ok(!omx_gate_key_active(&g_inst.gate.key), "an edge at 0 or non-finite is out", g_inst.gate.key.hp_hz,
          g_inst.gate.key.lp_hz);
       omx_gate_instance_run(&g_inst, key, l, r, ol, or_, N);
@@ -248,7 +251,7 @@ static double gate_gain_db(float sr, int keyed, double a_hz, float a_amp, double
   const uint32_t settle = (uint32_t)(0.4f * sr), win = (uint32_t)(0.1f * sr);
   omx_gate_instance_init(&g_inst, sr);
   omx_gate_instance_resolve(&g_inst, 0, keyed, -40.0f, -80.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 20.0f, 0.0f, 16.0f,
-                            hp, lp);
+                            hp, lp, GATE_KEY_IDLE);
   double ein = 0.0, eout = 0.0;
   for (uint32_t done = 0; done < settle + win;) {
     const uint32_t m = settle + win - done < N ? settle + win - done : N;
@@ -302,21 +305,21 @@ static void arm_history(float sr) {
   omx_gate_instance_init(&g_inst, sr);
   ok(!omx_gate_key_active(&g_inst.gate.key) && zero4(g_inst.gate.key.hp_s) && zero4(g_inst.gate.key.lp_s),
      "init: the key filter out, its history clear", 0, 0);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 300.0f, 5000.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 300.0f, 5000.0f, GATE_KEY_IDLE);
   omx_gate_instance_run(&g_inst, k, l, r, l, r, N);
   ok(!zero4(g_inst.gate.key.hp_s) && !zero4(g_inst.gate.key.lp_s), "a run advances both edges' history", 0, 0);
   double hs[4], ls[4];
   memcpy(hs, g_inst.gate.key.hp_s, sizeof hs);
   memcpy(ls, g_inst.gate.key.lp_s, sizeof ls);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 350.0f, 4000.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 350.0f, 4000.0f, GATE_KEY_IDLE);
   ok(!memcmp(hs, g_inst.gate.key.hp_s, sizeof hs) && !memcmp(ls, g_inst.gate.key.lp_s, sizeof ls),
      "a corner that moves keeps its history", 0, 0);
-  omx_gate_instance_resolve(&g_inst, 1, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 350.0f, 4000.0f);
+  omx_gate_instance_resolve(&g_inst, 1, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 350.0f, 4000.0f, GATE_KEY_IDLE);
   omx_gate_instance_run(&g_inst, k, l, r, l, r, N);
   ok(!memcmp(hs, g_inst.gate.key.hp_s, sizeof hs) && !memcmp(ls, g_inst.gate.key.lp_s, sizeof ls),
      "a disabled gate leaves the key filter's history as it was", 0, 0);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 0.0f, 4000.0f);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 350.0f, 4000.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 0.0f, 4000.0f, GATE_KEY_IDLE);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -30.0f, -90.0f, KNEE_HARD, KNEE_HARD, 1.0f, 0.0f, 50.0f, 0.0f, 16.0f, 350.0f, 4000.0f, GATE_KEY_IDLE);
   ok(zero4(g_inst.gate.key.hp_s) && !memcmp(ls, g_inst.gate.key.lp_s, sizeof ls),
      "an edge that goes out and comes back starts from silence, the other keeps its own", 0, 0);
   omx_gate_instance_init(&g_inst, sr);
@@ -331,9 +334,9 @@ static void arm_no_alloc(float sr) {
   g_allocs = 0;
   g_counting = 1;
   const int ready = omx_gate_instance_init(&g_inst, sr);
-  omx_gate_instance_resolve(&g_inst, 0, 1, -35.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 25.0f, 50.0f, 6.0f, 16.0f, 120.0f, 6000.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 1, -35.0f, -90.0f, KNEE_HARD, KNEE_HARD, 0.1f, 25.0f, 50.0f, 6.0f, 16.0f, 120.0f, 6000.0f, GATE_KEY_IDLE);
   omx_gate_instance_run(&g_inst, k, l, r, l, r, 512u);
-  omx_gate_instance_resolve(&g_inst, 0, 0, -35.0f, -90.0f, KNEE_HARD, KNEE_HARD, 2.0f, 0.0f, 50.0f, 0.0f, 16.0f, 800.0f, 0.0f);
+  omx_gate_instance_resolve(&g_inst, 0, 0, -35.0f, -90.0f, KNEE_HARD, KNEE_HARD, 2.0f, 0.0f, 50.0f, 0.0f, 16.0f, 800.0f, 0.0f, GATE_KEY_IDLE);
   omx_gate_instance_run(&g_inst, NULL, l, r, l, r, 512u);
   g_counting = 0;
   ok(ready && g_allocs == 0, "init, resolve and run with the key filter in allocate nothing", (double)g_allocs, 0);

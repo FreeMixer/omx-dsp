@@ -29,6 +29,15 @@
 
 #include <omxdsp/fx/omx_reverb_instance.h>
 
+/* The return's come-up values, the controls this oracle predates: no early reflections, the tail at
+ * 0 dB, no duck, no wet de-esser. */
+#define RETURN_IDLE                                                                                       \
+  (float)OMX_REVERB_EARLY_DB_RANGE_DEFAULT, (float)OMX_REVERB_TAIL_DB_RANGE_DEFAULT,                         \
+      (float)OMX_REVERB_EARLY_SIZE_PCT_RANGE_DEFAULT, (float)OMX_REVERB_DUCK_DB_RANGE_DEFAULT,               \
+      (float)OMX_REVERB_DUCK_THRESHOLD_DB_RANGE_DEFAULT, (float)OMX_REVERB_DUCK_RELEASE_MS_RANGE_DEFAULT,    \
+      (int)OMX_REVERB_WET_DEESSES_DEFAULT, (float)OMX_REVERB_DEESS_FREQ_HZ_RANGE_DEFAULT,                    \
+      (float)OMX_REVERB_DEESS_THRESHOLD_DB_RANGE_DEFAULT
+
 #include "instance_harness.h"
 
 /* Outside the console's declaration each call below records its kernels' `rate-is-declared`; the ledger is taken after every call. */
@@ -91,7 +100,7 @@ static struct ports defaults(void) {
 static void resolve(OmxReverbInstance *s, int bypass, const struct ports *p) {
   omx_reverb_instance_resolve(s, bypass, p->plate_mod_depth, p->mix, p->size, p->damping, p->width,
                               p->predelay_ms, p->lowcut, p->highcut, p->reverse_ms, p->hold_ms,
-                              p->release_ms, p->gate_threshold_db, (int)p->algorithm);
+                              p->release_ms, p->gate_threshold_db, (int)p->algorithm, RETURN_IDLE);
 }
 
 /* Each port's declared travel, in port order, for arm D. */
@@ -238,7 +247,7 @@ static void arm_clamps(void) {
   for (int i = 0; i < (int)(sizeof IDX / sizeof IDX[0]); i++) {
     omx_reverb_instance_resolve(&s, 0, d.plate_mod_depth, d.mix, d.size, d.damping, d.width, d.predelay_ms,
                                 d.lowcut, d.highcut, d.reverse_ms, d.hold_ms, d.release_ms,
-                                d.gate_threshold_db, IDX[i]);
+                                d.gate_threshold_db, IDX[i], RETURN_IDLE);
     const int want = IDX[i] < OMX_REVERB_ROOM || IDX[i] > OMX_REVERB_GATED ? OMX_REVERB_ROOM : IDX[i];
     char what[128];
     snprintf(what, sizeof what, "D: algorithm %d reads as %d", IDX[i], want);

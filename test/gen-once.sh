@@ -51,11 +51,16 @@ cmp -s Makefile "$OUT/Makefile.sab" && { echo "gen-once.sh: FAIL — the sabotag
 s="$(count_runs "$OUT/Makefile.sab" sab 1)"
 [ "$s" -gt 1 ] || { echo "gen-once.sh: FAIL — the sabotaged Makefile (generator re-added to a recipe) ran it $s time(s): the count is blind"; exit 1; }
 
-# test-fx's split must run every binary of FX_BINS (the loops' set), each as a recipe command. Both
-# reads say --no-print-directory: under a parent make (debian/rules, make test) the sub-make's
-# 'Entering directory' lines would otherwise land in the lists.
-want="$(make -s --no-print-directory --eval='print-fx-bins: ; @echo $(FX_BINS)' print-fx-bins | tr ' ' '\n' | sed 's|^build/||' | sort)"
-got="$(make -n --no-print-directory test-fx 2>/dev/null | grep -oE '^echo "\./build/fx_[a-z0-9_]+' | sed 's|^echo "./build/||' | sort -u)"
+# test-fx's split must run every binary of FX_BINS (the loops' set), each as a recipe command. Under
+# a parent make (debian/rules, make test) make 4.3 prints 'Entering directory' lines on the sub-make's
+# stdout whatever --no-print-directory says, so FX_BINS is written to a file by the recipe and read
+# from there, never from make's stdout; the recipe list is make -n's stdout, and only its lines that
+# start with a binary's echo are read. Both reads still drop the parent's flags.
+env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS make -s --no-print-directory FX_BINS_OUT="$OUT/fx-bins" \
+  --eval='print-fx-bins: ; @printf "%s\n" $(FX_BINS) > "$(FX_BINS_OUT)"' print-fx-bins > /dev/null
+want="$(sed 's|^build/||' "$OUT/fx-bins" | sort)"
+[ -n "$want" ] || { echo "gen-once.sh: FAIL — FX_BINS read empty"; exit 1; }
+got="$(env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS make -n --no-print-directory test-fx 2>/dev/null | grep -oE '^echo "\./build/fx_[a-z0-9_]+' | sed 's|^echo "./build/||' | sort -u)"
 missing="$(comm -23 <(echo "$want" | sort -u) <(echo "$got"))"
 [ -z "$missing" ] || { echo "gen-once.sh: FAIL — test-fx does not run:"; echo "$missing"; exit 1; }
 echo "gen-once.sh: the generator ran once under make -j8 ($n), the sabotaged Makefile ran it $s times, and test-fx runs every FX binary"
