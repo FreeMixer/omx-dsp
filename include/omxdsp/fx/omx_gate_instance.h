@@ -117,7 +117,7 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
  * @param ratio The expansion ratio.
  * @param hp_hz The key filter's high-pass corner, Hz; 0 is out.
  * @param lp_hz The key filter's low-pass corner, Hz; 0 is out.
- * @param key_listen A GATE_KEY_LISTENS index: `on` puts the key the detector hears on both outputs;
+ * @param key_listen A GATE_KEY_LISTENS index: `on` puts what the detector reads on the outputs (omx_gate.h);
  *        anything else reads as `off`.
  * @param key_tilt_db The key's tilt, dB per octave at KEY_TILT_PIVOT_HZ, clamped into
  *        GATE_KEY_TILT_DB_RANGE, a non-finite word reading as 0 (flat).

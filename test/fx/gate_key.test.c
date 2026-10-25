@@ -12,7 +12,10 @@
 //      when flat and opens it at +6 dB per octave; the listen does not reach the detector (the gate's
 //      state with the listen on is the state with it off, bit for bit);
 //   D  hostile words land inside the declared travel and the listen's ids, the ledger is clean, and
-//      nothing allocates.
+//      nothing allocates;
+//   E  the listen is what the detector reads, sample for sample, in every key mode: a reference slot
+//      fed what the listen played keeps the gate's detector state after every sample, for the self key
+//      with no edge and flat (each leg), filtered, tilted, and for the external key plain and filtered.
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_gate_instance.h>
 
@@ -164,6 +167,50 @@ static void arm_detector(void) {
   clean();
 }
 
+/* ---- E: the listen is what the detector reads, every key mode ------------------------------ */
+/* The gate runs one sample per call with the listen on; a reference slot built here from the same atom
+ * runs the dynamics kernel on what the listen played (as the key, beside the input legs, in a mode
+ * whose detector reads one key and while both outputs are equal; as the legs themselves, with the
+ * kernel's NULL key, otherwise) and its state must equal the gate's after every sample. A listen that
+ * plays anything but what the detector reads moves the reference's detector off the gate's. */
+static void arm_reads(void) {
+  g_arm = "E";
+  static const struct {
+    int src;
+    float hp, lp, tilt;
+    const char *what;
+  } MODE[5] = {
+      {0, 0.0f, 0.0f, 0.0f, "self key, no edge, flat: the detector reads each leg"},
+      {0, 120.0f, 6000.0f, 0.0f, "self key, filtered: the detector reads (l + r) / 2 filtered"},
+      {0, 0.0f, 0.0f, 4.0f, "self key, tilted: the detector reads (l + r) / 2 tilted"},
+      {1, 0.0f, 0.0f, 0.0f, "external key, no edge, flat: the detector reads the key"},
+      {1, 200.0f, 5000.0f, -3.0f, "external key, filtered and tilted"},
+  };
+  const uint32_t n = 6000u;
+  stimulus(g_l, g_r, n, 0x7531u, 600u);
+  stimulus(g_k, g_ol, n, 0x8642u, 450u);
+  for (int md = 0; md < 5; md++) {
+    setup(&g_g, MODE[md].src, -35.0f, MODE[md].hp, MODE[md].lp, (int)OMX_GATE_KEY_LISTENS_ON, MODE[md].tilt);
+    struct omx_dyn_state ref = g_g.gate.st;
+    uint32_t first = n;
+    for (uint32_t i = 0; i < n && first == n; i++) {
+      float ol, orr, rl = g_l[i], rr = g_r[i];
+      omx_gate_instance_run(&g_g, MODE[md].src ? g_k + i : NULL, g_l + i, g_r + i, &ol, &orr, 1u);
+      if (ol == orr && (MODE[md].src || MODE[md].hp > 0.0f || MODE[md].tilt != 0.0f))
+        omx_dynamics_keyed(&rl, &rr, &ol, 1u, &g_g.atom, &ref);
+      else {
+        rl = ol;
+        rr = orr;
+        omx_dynamics_keyed(&rl, &rr, NULL, 1u, &g_g.atom, &ref);
+      }
+      if (memcmp(&ref, &g_g.gate.st, sizeof ref) != 0) first = i;
+    }
+    drain();
+    ok(first == n, MODE[md].what, first, n);
+  }
+  clean();
+}
+
 /* ---- D: hostile words, no allocation ------------------------------------------------------- */
 static void arm_hostile(void) {
   g_arm = "D";
@@ -200,6 +247,7 @@ int main(void) {
     arm_listen();
     arm_detector();
     arm_hostile();
+    arm_reads();
   }
   return instance_oracle_end("gate_key");
 }

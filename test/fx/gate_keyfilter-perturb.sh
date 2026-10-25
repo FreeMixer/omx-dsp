@@ -43,6 +43,6 @@ sabotage() { # name sed-expression arm...
 
 sabotage q 's|omx_eq_design(OMX_EQ_HIGHPASS, hp_hz, M_SQRT1_2, 0.0, rate, k->hp_c);|omx_eq_design(OMX_EQ_HIGHPASS, hp_hz, 1.0, 0.0, rate, k->hp_c);|' 'B closed form'
 sabotage lp 's|^  if (k->lp_hz > 0.0f)$|  if (0)|' 'B closed form' 'C live'
-sabotage self 's|    if (built \&\& p->enabled) {|    if (keyed \&\& built \&\& p->enabled) {|' 'C live'
+sabotage self 's|    if (filtered \&\& p->enabled) {|    if (keyed \&\& filtered \&\& p->enabled) {|' 'C live'
 sabotage history 's|    if (!(hp_hz > 0.0f) \|\| !(k->hp_hz > 0.0f)) memset(k->hp_s, 0, sizeof k->hp_s);|    if (!(k->hp_hz > 0.0f) \&\& 0) memset(k->hp_s, 0, sizeof k->hp_s);|' 'D history'
 echo "gate_keyfilter-perturb: the key filter oracle sees all four sabotages"

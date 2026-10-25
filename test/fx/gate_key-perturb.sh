@@ -9,7 +9,9 @@
 #   slope     — the tilt's numerator term b1 with its sign turned: arms A and B;
 #   detector  — the tilt is not on the key the detector hears: arm C;
 #   listen    — the listen puts the gate's legs on the outputs, not the key: arm B;
-#   leak      — the listen reaches the detector (the self key replaces the self detection): arm C.
+#   leak      — the listen reaches the detector (the self key replaces the self detection): arm C;
+#   mid       — a self-keyed gate with no edge and a flat tilt listens to (l + r) / 2 while its
+#               detector reads each leg (#225): arm E.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… gate_key-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -50,11 +52,13 @@ sabotage slope omx_tilt.h 's|  t->c\[1\] = (w - a) / n;|  t->c[1] = (a - w) / n;
 pids+=($!)
 sabotage detector omx_gate.h 's|^  const int filtered = omx_gate_key_active(\&g->key) \|\| tilted;$|  const int filtered = omx_gate_key_active(\&g->key);|' C &
 pids+=($!)
-sabotage listen omx_gate.h 's|    memcpy(out_l + off, g->listen \&\& p->enabled ? g->sk : g->sl, m \* sizeof(float));|    memcpy(out_l + off, g->sl, m * sizeof(float));|' B &
+sabotage listen omx_gate.h 's|      memcpy(out_l + off, listens ? g->sk : g->sl, m \* sizeof(float));|      memcpy(out_l + off, g->sl, m * sizeof(float));|' B &
 pids+=($!)
-sabotage leak omx_gate.h 's|    omx_dynamics_keyed(g->sl, g->sr, keyed \|\| filtered ? g->sk : NULL, m, p, \&g->st);|    omx_dynamics_keyed(g->sl, g->sr, keyed \|\| built ? g->sk : NULL, m, p, \&g->st);|' C &
+sabotage leak omx_gate.h 's|    omx_dynamics_keyed(g->sl, g->sr, hears_key ? g->sk : NULL, m, p, \&g->st);|    omx_dynamics_keyed(g->sl, g->sr, hears_key \|\| listens ? g->sk : NULL, m, p, \&g->st);|' C &
+pids+=($!)
+sabotage mid omx_gate.h 's|      memcpy(g->sk, g->sr, m \* sizeof(float)); /\*|      for (uint32_t i = 0; i < m; i++) g->sk[i] = 0.5f * (g->sl[i] + g->sr[i]); /*|; s|    if (listens \&\& !hears_key) {|    if (0) {|' E &
 pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "gate_key-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "gate_key-perturb: the gate key oracle sees all five sabotages"
+echo "gate_key-perturb: the gate key oracle sees all six sabotages"
