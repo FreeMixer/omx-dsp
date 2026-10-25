@@ -1,3 +1,22 @@
+omx-dsp (0.26.0) unstable; urgency=medium
+
+  * New sections: omx_tilt (a first-order shelf pair about one pivot),
+    omx_duck (the wet ducker, omx_duck_step), omx_doppler (a detuning read
+    head on the fractional delay) and omx_band_dyn_design() (design B).
+  * New instance faces: the dynamic EQ (dyneq), the multiband compressor
+    (mbcomp) and the vocal doubler (doubler). The compressor gains the key
+    path, hold and ducker; the gate gains key listen and key tilt; the delay
+    gains tempo sync, tape and analog modes and the wet duck; the reverb
+    gains early reflections, tail level, wet duck and wet de-ess.
+  * New kernel definitions doubler.json and dyneq.json; band_dyn, comp,
+    delay, gate, mbcomp and reverb grow their controls and readouts. The
+    dynamics kernels' key tilt is a slope in dB/oct, a unit omx-contract
+    3.1.0 adds, so the floor is libomx-contract-dev (>= 3.1.0).
+  * The package build runs make test at dpkg's parallel level again; the
+    gen-once check reads its list from a file, not from make's stdout.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 25 Oct 2026 07:34:57 +0000
+
 omx-dsp (0.25.0) unstable; urgency=medium
 
   * Built against omx-contract 3.0.0, the schema's major 3: data/ installs

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.25.0
+Version: 0.26.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -73,6 +73,22 @@ library exists.
 %{_datadir}/omxdsp/
 
 %changelog
+* Sun Oct 25 2026 Pau Aliagas <linuxnow@gmail.com> - 0.26.0-1
+- New sections: omx_tilt (a first-order shelf pair about one pivot),
+  omx_duck (the wet ducker, omx_duck_step), omx_doppler (a detuning read
+  head on the fractional delay) and omx_band_dyn_design() (design B).
+- New instance faces: the dynamic EQ (dyneq), the multiband compressor
+  (mbcomp) and the vocal doubler (doubler). The compressor gains the key
+  path, hold and ducker; the gate gains key listen and key tilt; the delay
+  gains tempo sync, tape and analog modes and the wet duck; the reverb
+  gains early reflections, tail level, wet duck and wet de-ess.
+- New kernel definitions doubler.json and dyneq.json; band_dyn, comp,
+  delay, gate, mbcomp and reverb grow their controls and readouts. The
+  dynamics kernels' key tilt is a slope in dB/oct, a unit omx-contract
+  3.1.0 adds, so the floor is omx-contract-devel >= 3.1.0.
+- The package build runs make test at dpkg's parallel level again; the
+  gen-once check reads its list from a file, not from make's stdout.
+
 * Tue Oct 20 2026 Pau Aliagas <linuxnow@gmail.com> - 0.25.0-1
 - Built against omx-contract 3.0.0, the schema's major 3: data/ installs
   under contract.d/3/omx-dsp/ and every definition file requires
