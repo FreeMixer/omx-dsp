@@ -337,9 +337,13 @@ static void jump(float from, float to, float res) {
   omx_tone_instance_resolve(&g_ref, 0, 0.0f, 1000.0f, to, res);
   run(&g_ref, g_l + pre, g_r + pre, g_xl, g_xr, post);
   double step = 0.0, peak = 0.0;
-  for (uint32_t i = 0; i < post; i++) {
-    step = fmax(step, fmax(fabs((double)g_ol[i] - g_xl[i]), fabs((double)g_or[i] - g_xr[i])));
-    peak = fmax(peak, fmax(fabs((double)g_xl[i]), fabs((double)g_xr[i])));
+  for (uint32_t i = 0; i < post; i++) { /* comparisons, not fmax: BUILDING.md, GCC 12.2 on arm64 */
+    const double dl = fabs((double)g_ol[i] - g_xl[i]), dr = fabs((double)g_or[i] - g_xr[i]);
+    const double pl = fabs((double)g_xl[i]), pr = fabs((double)g_xr[i]);
+    if (!(dl <= step)) step = dl;
+    if (!(dr <= step)) step = dr;
+    if (!(pl <= peak)) peak = pl;
+    if (!(pr <= peak)) peak = pr;
   }
   if (step > 0.0) printf("  tone @ %.0f Hz: filter %+.0f to %+.0f at Q %.2f, a step %.1f dB against the peak\n", (double)g_sr,
                          (double)from, (double)to, (double)res, db(step / peak));
