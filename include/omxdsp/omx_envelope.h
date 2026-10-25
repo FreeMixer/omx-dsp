@@ -295,6 +295,22 @@ static inline void omx_env_program_release_opto(struct omx_env_program_release_p
                                 OMX_PROGRAM_RELEASE_PROFILES_OPTO_SLOW_MAX_MS, OMX_PROGRAM_RELEASE_PROFILES_OPTO_SHARE, sr, rate_mul);
 }
 
+/**
+ * @brief The declared auto profile's parameters (`OMX_PROGRAM_RELEASE_PROFILES_AUTO_*`) at `rate_mul` times `sr`:
+ *        a bus compressor's AUTO release, the same word as the opto profile.
+ * @param p Out: the parameters.
+ * @param sr The base rate, Hz; a declared rate.
+ * @param rate_mul The rate multiplier, at least 1.
+ * @pre As omx_env_program_release_poles().
+ * @post As omx_env_program_release_poles().
+ * @note RT-safe and thread-safe as omx_env_program_release_poles().
+ */
+static inline void omx_env_program_release_auto(struct omx_env_program_release_params *p, float sr,
+                                                uint32_t rate_mul) {
+  omx_env_program_release_poles(p, OMX_PROGRAM_RELEASE_PROFILES_AUTO_FAST_MS, OMX_PROGRAM_RELEASE_PROFILES_AUTO_SLOW_MIN_MS,
+                                OMX_PROGRAM_RELEASE_PROFILES_AUTO_SLOW_MAX_MS, OMX_PROGRAM_RELEASE_PROFILES_AUTO_SHARE, sr, rate_mul);
+}
+
 #define OMX_CONTRACT_STAGE "env/program-release"
 /**
  * @brief One target reduction through the program-dependent release; returns the applied reduction.

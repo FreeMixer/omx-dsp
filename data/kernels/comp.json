@@ -297,6 +297,25 @@
         "default": -12,
         "defaultFrom": "desk"
       }
+    },
+    {
+      "name": "releaseMode",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#rel_mode"
+      },
+      "doc": "How the compressor releases, in the order of the integer the kernel reads: `fixed`, the detector's release at releaseMs, the compressor that shipped bit for bit and the come-up value; `opto`, the program-dependent release of PROGRAM_RELEASE_PROFILES.opto (an LA-2A's two-stage recovery, slower the longer the cell was driven); `auto`, the same word with PROGRAM_RELEASE_PROFILES.auto (a bus compressor's AUTO position). In opto and auto the detector releases at its attack pole and releaseMs is inert, kept for when fixed returns (omx_env_program_release on the gain, after the gain computer).",
+      "ids": [
+        "fixed",
+        "opto",
+        "auto"
+      ],
+      "default": "fixed",
+      "labels": [
+        "Fixed",
+        "Opto",
+        "Auto"
+      ]
     }
   ],
   "readouts": [
@@ -327,6 +346,21 @@
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
       }
+    },
+    {
+      "name": "effectiveAttackMs",
+      "doc": "The attack the detector runs, ms: attackMs, but in the feedback topology where the loop's pole is floored at (ratio - 1)/ratio so it cannot ring (omx_dyn_fb_attack_pole), the time constant of that floor at the running rate, -1000/(rate ln((R - 1)/R)). It equals attackMs whenever the floor is not reached.",
+      "unit": "ms",
+      "min": {
+        "ref": "COMP_LIMITS.attackMs.min"
+      },
+      "max": {
+        "ref": "COMP_LIMITS.attackMs.max"
+      },
+      "scale": "log",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
     }
   ],
   "tables": {
@@ -350,7 +384,7 @@
         },
         "impl": "include/omxdsp/omx_envelope.h#charge_pole"
       },
-      "doc": "The program-dependent release's model constants — the LA-2A's opto cell as DATA. `chargeMs`/`dischargeMs` are the word's memory constants, shared by every profile; each profile's `fastMs`, `slowMinMs`, `slowMaxMs` and `share` fit the unit's published two-stage recovery. Not operator controls: generated into `omx_contract_limits.h` as `OMX_PROGRAM_RELEASE_*`, which libomxdsp's `omx_env_program_release` reads.",
+      "doc": "The program-dependent release's model constants — the LA-2A's opto cell as DATA. `chargeMs`/`dischargeMs` are the word's memory constants, shared by every profile; each profile's `fastMs`, `slowMinMs`, `slowMaxMs` and `share` fit the unit's published two-stage recovery (opto); `auto` spans a bus compressor's fixed release detents, 100 ms to 1.2 s, half fast and half slow, provisional until a published figure refits it. Not operator controls: generated into `omx_contract_limits.h` as `OMX_PROGRAM_RELEASE_*`, which libomxdsp's `omx_env_program_release` reads.",
       "value": {
         "chargeMs": 1000,
         "dischargeMs": 5000,
@@ -359,6 +393,12 @@
             "fastMs": 70,
             "slowMinMs": 110,
             "slowMaxMs": 1100,
+            "share": 0.5
+          },
+          "auto": {
+            "fastMs": 100,
+            "slowMinMs": 300,
+            "slowMaxMs": 1200,
             "share": 0.5
           }
         }

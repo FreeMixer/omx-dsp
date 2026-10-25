@@ -28,7 +28,7 @@ static void render(float sr, float *out) {
     omx_comp_instance_resolve(&c, 0, -30.0f, 4.0f, 6.0f, 2.0f, 120.0f, 3.0f, 100.0f, (int)OMX_COMP_KINDS_COMP,
                               OMX_DYN_OVS_OFF, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD, (int)OMX_COMP_KEY_SOURCES_SIDECHAIN,
                               120.0f, 6000.0f, 3.0f, (int)OMX_COMP_KEY_LISTENS_OFF, 40.0f, fold, (int)OMX_COMP_DUCKS_ON,
-                              -15.0f);
+                              -15.0f, (int)OMX_COMP_RELEASE_MODES_FIXED);
     for (int i = 0; i < BLOCK; i++) {
       omx_fx_golden_stimulus(o + i, &lcg, &l[i], &r[i]);
       const float n = omx_fx_golden_noise(&key);
