@@ -4,8 +4,8 @@
  * @file omx_transient.h
  * @brief The native transient designer: a gain driven by two envelope contrasts, with no threshold.
  *
- * `g_dB = attackDb·min(1, ΔA/REF) + sustainDb·min(1, ΔS/REF) + outputDb`, `y = 10^(g_dB/20)·x` on
- * both legs; ΔA and ΔS are omx_envdiff_step() over the legs' 0.5/0.5 peak fold, sharing one fast
+ * `g_dB = attackDb·min(1, ΔA/REF) + sustainDb·min(1, ΔS/REF) + outputDb` (omx_envdiff_ramp() at
+ * offset 0), `y = 10^(g_dB/20)·x` on both legs; ΔA and ΔS are omx_envdiff_step() over the legs' 0.5/0.5 peak fold, sharing one fast
  * cascade. Zero latency.
  */
 #ifndef OMX_MIX_TRANSIENT_H
@@ -129,13 +129,12 @@ static inline void omx_transient_process(float *l, float *r, uint32_t n, const s
   const float lo = fminf(0.0f, t->attack_db) + fminf(0.0f, t->sustain_db) + t->output_db;
   int inside = 1;
 #endif
-  const float inv_ref = 1.0f / OMX_TRANSIENT_REF_DB;
   for (uint32_t i = 0; i < n; i++) {
     const float d = 0.5f * (fabsf(l[i]) + fabsf(r[i]));
     const float fl = omx_env_step(&st->fast, &t->fast, d, t->on.fast_attack, t->on.fast_release);
     const float da = omx_envdiff_step(&st->slow_attack, &t->fast, d, fl, &t->on, OMX_TRANSIENT_FLOOR_LIN);
     const float ds = omx_envdiff_step(&st->slow_release, &t->fast, d, fl, &t->dec, OMX_TRANSIENT_FLOOR_LIN);
-    const float g_db = t->attack_db * fminf(1.0f, da * inv_ref) + t->sustain_db * fminf(1.0f, ds * inv_ref) + t->output_db;
+    const float g_db = t->attack_db * omx_envdiff_ramp(da, 0.0f) + t->sustain_db * omx_envdiff_ramp(ds, 0.0f) + t->output_db;
 #ifdef OMX_CONTRACTS
     inside &= g_db <= hi && g_db >= lo;
 #endif
