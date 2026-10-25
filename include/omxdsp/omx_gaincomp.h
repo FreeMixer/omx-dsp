@@ -5,7 +5,10 @@
  * @brief The dynamics gain computer: the soft-knee static characteristic, above or below a threshold.
  *
  * ABOVE (comp / limiter): unity below the threshold, slope `1/ratio − 1` above it. BELOW (gate /
- * expander): unity above, slope `ratio − 1` below, floored at `range_db`. A quadratic knee of
+ * expander): unity above, slope `ratio − 1` below, floored at `range_db`. UPWARD (upward
+ * compressor): unity above, and below the gain RISES by `(T − L)(1 − 1/ratio)`, capped at
+ * `range_db`, the largest boost; it is ABOVE's curve mirrored about the threshold, the same knee
+ * read at `−x`, never a second knee. A quadratic knee of
  * width `knee_db` centred on the threshold joins the two segments C¹; in BELOW mode the knee may
  * also sit off centre, spanning a gate's start and end points (omx_gaincomp_db_shifted). Stateless. Design:
  */
@@ -20,27 +23,31 @@
 #define OMX_DYN_ABOVE 0
 /** @brief Gain-computer mode: act on the signal BELOW the threshold (gate / expander). */
 #define OMX_DYN_BELOW 1
+/** @brief Gain-computer mode: raise the signal BELOW the threshold toward it (upward compressor). */
+#define OMX_DYN_UPWARD 2
 
 /** @brief The gain computer's parameters, resolved; a dynamics atom embeds one. */
 struct omx_gaincomp_params {
-  int mode;         /**< OMX_DYN_ABOVE or OMX_DYN_BELOW. */
+  int mode;         /**< OMX_DYN_ABOVE, OMX_DYN_BELOW or OMX_DYN_UPWARD. */
   float thresh_db;  /**< The threshold, dB. */
   float ratio;      /**< The ratio, at least the mode's declared minimum. */
   float knee_db;    /**< The knee width, dB, not negative; 0 is a hard knee. */
-  float range_db;   /**< BELOW: the attenuation floor, dB, at most 0. Ignored in ABOVE. */
+  float range_db;   /**< BELOW: the attenuation floor, dB, at most 0. UPWARD: the largest boost, dB,
+                     *   at least 0. Ignored in ABOVE. */
   float makeup_lin; /**< The make-up, linear amplitude, positive; 1 is none. */
 };
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "gaincomp/db"
 /**
- * @brief The static gain, dB (at most 0 before make-up), at detector level `level_db`.
+ * @brief The static gain, dB (at most 0 before make-up, but in UPWARD mode, where it is at most
+ *        `range_db`), at detector level `level_db`.
  * @param p The parameters.
  * @param level_db The detector level, dB; finite.
  * @return The gain, dB.
  * @pre `ratio-at-least-one` (`OMX_COMP_RATIO_MIN` in ABOVE, `OMX_GATE_RATIO_MIN` in BELOW),
  *      `knee-not-negative` (`OMX_COMP_KNEE_DB_MIN`), `range-is-an-attenuation`
- *      (`OMX_GATE_RANGE_DB_MAX`, BELOW only), `finite-in`.
+ *      (`OMX_GATE_RANGE_DB_MAX`, BELOW only), `range-is-a-boost` (UPWARD only), `finite-in`.
  * @post `finite`.
  * @note RT-safe: arithmetic and selects, no call, no branch. Thread-safe: pure.
  */
@@ -48,6 +55,7 @@ static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float l
   OMX_PRE(p->ratio >= (p->mode == OMX_DYN_BELOW ? OMX_GATE_RATIO_MIN : OMX_COMP_RATIO_MIN), "ratio-at-least-one");
   OMX_PRE(p->knee_db >= OMX_COMP_KNEE_DB_MIN, "knee-not-negative");
   OMX_PRE(p->mode != OMX_DYN_BELOW || p->range_db <= OMX_GATE_RANGE_DB_MAX, "range-is-an-attenuation");
+  OMX_PRE(p->mode != OMX_DYN_UPWARD || p->range_db >= 0.0f, "range-is-a-boost");
   OMX_PRE(level_db - level_db == 0.0f, "finite-in");
   const float x = level_db - p->thresh_db;
   const float half = 0.5f * p->knee_db;
@@ -62,7 +70,13 @@ static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float l
   const float ka = slope * ea * ea / (2.0f * p->knee_db);
   float ga = ((soft & (x < half)) != 0) ? ka : slope * x;
   ga = x <= -half ? 0.0f : ga;
-  const float g = p->mode == OMX_DYN_BELOW ? gb : ga;
+  /* UPWARD: ABOVE's curve at the mirrored level `-x`, negated, then capped at the boost. */
+  const float eu = half - x;
+  const float ku = slope * eu * eu / (2.0f * p->knee_db);
+  float gu = ((soft & (-x < half)) != 0) ? ku : slope * -x;
+  gu = -x <= -half ? 0.0f : -gu;
+  gu = gu > p->range_db ? p->range_db : gu;
+  const float g = p->mode == OMX_DYN_BELOW ? gb : p->mode == OMX_DYN_UPWARD ? gu : ga;
   OMX_POST(g - g == 0.0f, "finite");
   return g;
 }

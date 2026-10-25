@@ -666,6 +666,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
   struct omx_dyn_flat fl = {NAN, NAN, 0.0f, 0.0f};
   if (flat) omx_dyn_flat_bounds(p, &fl);
 
+  /* The computer's ceiling: the make-up, and in UPWARD mode the make-up times the largest boost. */
+  const float ceil_lin = p->gc.mode == OMX_DYN_UPWARD ? omx_db_to_lin(p->gc.range_db) * p->gc.makeup_lin : p->gc.makeup_lin;
   const int floored = p->gc.mode == OMX_DYN_ABOVE && p->floor_db < 0.0f;
   const float floor_lin = floored ? omx_db_to_lin(p->floor_db) * p->gc.makeup_lin : 0.0f;
 
@@ -787,7 +789,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
        * mix_dyn_math.test.c at all four rates): a half-band RINGS on a step, and the step a hard
        * gate makes when it re-opens is the steepest this stage can produce — four poles of 0.1 ms
        * attack take the gain from the range floor to unity inside a handful of oversampled
-       * samples. The gain the COMPUTER produced was in [0, makeup_lin]; the gain the decimator
+       * samples. The gain the COMPUTER produced was in [0, ceil_lin]; the gain the decimator
        * handed back was not. Measured on the unclamped path, gate at ratio 40 / range -80 dB /
        * attack 0.1 ms: the applied gain reached 1.0244 / 1.0748 / 1.0819 / 1.0440 at 44.1 / 48 /
        * 96 / 192 kHz — up to +0.68 dB of gain ADDED by a GATE, which is the defect the stage's
@@ -800,7 +802,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
        * this. Two compares per base sample. */
       for (uint32_t i = 0; i < m; i++) {
         if (!(gain[i] >= 0.0f)) gain[i] = 0.0f; /* `!(x >= 0)` also catches a NaN */
-        else if (gain[i] > p->gc.makeup_lin) gain[i] = p->gc.makeup_lin;
+        else if (gain[i] > ceil_lin) gain[i] = ceil_lin;
       }
     }
     /* The FLOOR, before the mix: a floor at 0 dB or above (none, a zeroed atom) never enters here. */
