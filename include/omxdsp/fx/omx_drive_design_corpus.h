@@ -32,7 +32,7 @@
 typedef struct {
   /* The row's reason LEADS the row (unlike hrp_peaking_corpus.h): with the sections' argument
    * order otherwise alike, two literal tables of the same shape token-match line for line and
-   * the clone gate reads generated data as a clone (harness/clone-detect.mjs, 2026-09-23). */
+   * a token-based clone detector reads generated data as a clone. */
   const char *why;
   int kind;
   double freq_hz;

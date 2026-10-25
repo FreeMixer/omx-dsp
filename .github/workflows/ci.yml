@@ -110,6 +110,10 @@ jobs:
         id: handback-public-sources
         run: make public-sources
 
+      - name: No tracked file names a private repository, issue, branch or path
+        id: handback-private-refs
+        run: make private-refs
+
       - name: The release workflow builds arm on every tag
         id: handback-release-arm-gate
         run: tools/release-arm-gate-selftest.sh && tools/release-arm-gate-selftest.sh --sabotage
