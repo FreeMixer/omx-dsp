@@ -115,7 +115,7 @@
           "link": "core/src/strip-dynamics-limits.ts#TRANSIENT_REF_DB",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
         },
-        "impl": "include/omxdsp/fx/omx_transient.h#inv_ref"
+        "impl": "include/omxdsp/omx_envelope.h#omx_envdiff_ramp"
       },
       "doc": "The contrast, dB, at which a knob reaches its full value.",
       "unit": "dB",
