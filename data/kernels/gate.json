@@ -158,7 +158,7 @@
       "source": {
         "impl": "include/omxdsp/fx/omx_gate_instance.h#listen_on"
       },
-      "doc": "While on, both outputs carry what the gate's detector hears: the key (the sidechain, or the gate's own mono sum) after the key filter and the tilt. The gate keeps running underneath. It comes up off.",
+      "doc": "While on, the outputs carry what the gate's detector reads: the key (the sidechain, or the gate's own mono sum) after the key filter and the tilt on both outputs, or, for a self-keyed gate with no key filter and a flat tilt, each input leg on its own output, since the detector then reads the legs. The gate keeps running underneath. It comes up off.",
       "ids": [
         "off",
         "on"
