@@ -51,9 +51,10 @@ check() { # <root>
   for p in "${PATTERNS[@]}"; do args+=(-e "$p"); done
   local excl=()
   for a in "${ALLOW[@]}"; do excl+=(":(exclude)${a%% *}"); done
-  [ -n "$(git -C "$root" ls-files)" ] || { echo "private-refs-check: git lists no file" >&2; return 1; }
+  # a CI container checks the tree out as another user, and git refuses a tree it does not own unless told
+  [ -n "$(git -c safe.directory="$root" -C "$root" ls-files)" ] || { echo "private-refs-check: git lists no file" >&2; return 1; }
   # git grep exits 1 for no match and 128 or more for an error; an error must not read as "no hits"
-  hits=$(git -C "$root" grep -nIiE "${args[@]}" -- . "${excl[@]}" "${EXTRA_PATHSPEC[@]}") || rc=$?
+  hits=$(git -c safe.directory="$root" -C "$root" grep -nIiE "${args[@]}" -- . "${excl[@]}" "${EXTRA_PATHSPEC[@]}") || rc=$?
   case "${rc:-0}" in 0|1) ;; *) echo "private-refs-check: git grep failed (exit $rc)" >&2; return 1 ;; esac
   hits=$(printf '%s' "$hits" | cut -c1-200)
   [ -z "$hits" ] || { printf '%s\n' "$hits" >&2; fail=1; }
