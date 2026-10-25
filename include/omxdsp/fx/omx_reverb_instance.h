@@ -62,15 +62,18 @@ static const float OMX_REVERB_INSTANCE_TAP_MS[OMX_REVERB_EARLY_TAPS] = OMX_REVER
 static const float OMX_REVERB_INSTANCE_TAP_GAINS[OMX_REVERB_EARLY_TAPS] = OMX_REVERB_EARLY_TAP_GAINS_INIT;
 
 /** The early ring, floats: the pre-delay's ceiling, which holds the longest tap at REVERB_EARLY_SIZE_MAX
- * at the highest rate (test/fx/reverb_return.test.c holds the two to that). */
+ * at the highest rate with the line's kernel reach (test/fx/reverb_return.test.c holds the two to that). */
 #define OMX_REVERB_INSTANCE_EARLY_CAP OMX_REVERB_PREDELAY_CAP
+
+/** The early line's Lagrange order. */
+#define OMX_REVERB_INSTANCE_EARLY_ORDER 3
 
 typedef struct {
   float sr;
   struct omx_reverb atom;
   struct omx_reverb_state state;
   struct omx_reverb_return ret;         /**< the early taps, the tail's level, the duck, the de-esser */
-  struct omx_reverb_return_state rstate; /**< the early ring's cursor, the duck's and the de-esser's state */
+  struct omx_reverb_return_state rstate; /**< the early line, the duck's and the de-esser's state */
   OmxDeesserInstance deess;              /**< the wet de-esser's design (its atom; its state is rstate's) */
   float early_ring[OMX_REVERB_INSTANCE_EARLY_CAP];
   float pool[OMX_REVERB_POOL_FLOATS];
@@ -96,8 +99,9 @@ static inline int omx_reverb_instance_init(OmxReverbInstance *s, float sr) {
   s->atom.damping = OMX_REVERB_INSTANCE_DAMPING_DEFAULT;
   s->atom.mix = OMX_REVERB_INSTANCE_MIX_DEFAULT;
   s->ret.tail_lin = 1.0f;
-  s->rstate.ring = s->early_ring;
-  s->rstate.cap = (uint32_t)OMX_REVERB_INSTANCE_EARLY_CAP;
+  if (omx_fdelay_init(&s->rstate.line, s->early_ring, OMX_REVERB_INSTANCE_EARLY_CAP, OMX_REVERB_INSTANCE_EARLY_ORDER) !=
+      OMX_FDELAY_OK)
+    return 0;
   omx_deesser_instance_init(&s->deess, sr);
   s->ready = 1;
   return 1;
@@ -110,7 +114,7 @@ static inline void omx_reverb_instance_clear(OmxReverbInstance *s) {
   if (!s || !s->ready) return;
   omx_reverb_state_layout(&s->state, s->pool, OMX_REVERB_POOL_FLOATS, s->sr);
   memset(s->early_ring, 0, sizeof s->early_ring);
-  s->rstate.pos = 0u;
+  omx_fdelay_init(&s->rstate.line, s->early_ring, OMX_REVERB_INSTANCE_EARLY_CAP, OMX_REVERB_INSTANCE_EARLY_ORDER);
   s->rstate.duck.level = 0.0f;
   omx_deess_state_init(&s->rstate.deess);
   OMX_POST(!s->state._exhausted && s->state.sr == s->sr && s->state.pre_pos == 0u &&
@@ -210,8 +214,9 @@ static inline void omx_reverb_instance_resolve(OmxReverbInstance *s, int bypass,
                                                               : omx_db_to_lin(tail_level);
   for (uint32_t t = 0; t < OMX_REVERB_EARLY_TAPS; t++) {
     const float d = OMX_REVERB_INSTANCE_TAP_MS[t] * early_scale * 0.001f * s->sr;
-    const uint32_t di = (uint32_t)(d + 0.5f);
-    x->tap_d[t] = di < s->rstate.cap ? di : s->rstate.cap - 1u;
+    const float lo = omx_fdelay_min_delay(OMX_REVERB_INSTANCE_EARLY_ORDER);
+    const float hi = omx_fdelay_max_delay(OMX_REVERB_INSTANCE_EARLY_CAP, OMX_REVERB_INSTANCE_EARLY_ORDER);
+    x->tap_d[t] = d < lo ? lo : d > hi ? hi : d;
     x->tap_g[t] = OMX_REVERB_INSTANCE_TAP_GAINS[t];
   }
   x->duck.thresh_db = duck_thr;

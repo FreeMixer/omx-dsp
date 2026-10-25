@@ -6,10 +6,11 @@
 // (OMX_FX_ORACLE_RATES, 32 to 192 kHz):
 //   A  the come-up values (no early reflections, the tail at 0 dB, no duck, no de-esser) are
 //      omx_reverb_process bit for bit, every algorithm;
-//   B  the early reflections: with the tail off, an impulse's wet is the tap table, each tap at the
-//      pre-delay plus round(REVERB_EARLY_TAP_MS x scale x rate / 1000) samples (+-1) with its
-//      REVERB_EARLY_TAP_GAINS gain x the early level (1e-6), even taps left, odd right, at three sizes,
-//      the scale running REVERB_EARLY_SIZE_MIN to REVERB_EARLY_SIZE_MAX; the ring holds the longest tap;
+//   B  the early reflections: with the tail off, an impulse's wet is the tap table, each tap one
+//      fractional read whose centroid is the pre-delay plus REVERB_EARLY_TAP_MS x scale x rate / 1000
+//      samples, not rounded (float rounding: eps (time + 64) samples), and whose kernel taps sum to its
+//      REVERB_EARLY_TAP_GAINS gain x the early level (8 ulp), even taps left, odd right, at three sizes,
+//      the scale running REVERB_EARLY_SIZE_MIN to REVERB_EARLY_SIZE_MAX; the line holds the longest tap;
 //   C  the tail's level: at -6 dB the wet is today's wet x 10^(-6/20) (1e-5 of its peak), and the
 //      early reflections at the floor leave it today's, bit for bit;
 //   D  the duck: a dry of steady magnitude L brings the wet back at max(duckDb, min(0, T - L)) against
@@ -134,30 +135,46 @@ static void arm_early(void) {
     run(&g_v, g_l, g_r, g_ol, g_or, n);
     const double scale = EARLY_SIZE_MIN + (EARLY_SIZE_MAX - EARLY_SIZE_MIN) * SIZE[z] / 100.0, lin = pow(10.0, -3.0 / 20.0);
     const uint32_t pre = (uint32_t)(predelay * 0.001f * g_sr);
-    int hits = 0, where = 1, gains = 1;
+    /* Each tap is one fractional read, so an impulse comes back through the Lagrange kernel's four taps:
+     * their sum is the tap's gain (the taps sum to 1) and their centroid its time (they reproduce a
+     * line), wherever the time falls between samples. Bounds: the sum within 8 ulp of the gain (four
+     * taps a few ulp each); the centroid within eps (time + 64) samples (the time's float rounding,
+     * and four taps a few ulp each, up to 4 samples from it), where a whole-sample tap was up to half a
+     * sample off (15.6 us at 32 kHz). */
+    int where = 1, gains = 1;
+    double worst_t = 0.0;
     for (int t = 0; t < 8; t++) {
       const float *y = (t & 1) ? g_or : g_ol;
       const double at = pre + TAP_MS[t] * scale * g_sr / 1000.0;
-      uint32_t best = 0;
-      for (uint32_t i = 1; i < n; i++)
-        if (fabsf(y[i]) > fabsf(y[best]) && fabs((double)i - at) <= 1.5) best = i;
-      where &= fabs((double)best - at) <= 1.0;
-      gains &= fabs(y[best] - TAP_G[t] * lin) <= 1e-6;
-      hits += y[best] != 0.0f;
+      double s0 = 0.0, s1 = 0.0;
+      for (uint32_t i = (uint32_t)at - 3u; i <= (uint32_t)at + 4u; i++) {
+        s0 += y[i];
+        s1 += (double)i * y[i];
+      }
+      const double want = TAP_G[t] * lin;
+      worst_t = fmax(worst_t, fabs(s1 / s0 - at));
+      where &= fabs(s1 / s0 - at) <= FLT_EPSILON * (at + 64.0);
+      gains &= fabs(s0 - want) <= 8.0 * FLT_EPSILON;
     }
-    ok(where && hits == 8, "each early tap lands at the pre-delay plus its table time x scale (+-1 sample)", hits, 8);
-    ok(gains, "each early tap carries its table gain x the early level (1e-6)", gains, 1);
+    if (z == 2) printf("  %6.0f Hz: B worst tap time error %.2e samples (%.4f us)\n", (double)g_sr, worst_t, 1e6 * worst_t / g_sr);
+    ok(where, "each early tap's centroid is the pre-delay plus its table time x scale, fractional (float rounding)", worst_t,
+       0.0);
+    ok(gains, "each early tap's taps sum to its table gain x the early level (8 ulp)", gains, 1);
     /* everything off the taps is silence: no tail at its floor */
     uint32_t stray = 0;
     for (uint32_t i = 0; i < n; i++) {
       int on_tap = 0;
-      for (int t = 0; t < 8; t++) on_tap |= fabs((double)i - (pre + TAP_MS[t] * scale * g_sr / 1000.0)) <= 1.0;
+      for (int t = 0; t < 8; t++) {
+        const double at = pre + TAP_MS[t] * scale * g_sr / 1000.0;
+        on_tap |= (double)i >= at - 3.0 && (double)i <= at + 4.0;
+      }
       stray += !on_tap && (g_ol[i] != 0.0f || g_or[i] != 0.0f);
     }
     ok(stray == 0, "with the tail at its floor the wet is the taps alone", stray, 0);
   }
-  ok(TAP_MS[7] * EARLY_SIZE_MAX * 0.001 * OMX_REVERB_MAX_RATE < (double)OMX_REVERB_INSTANCE_EARLY_CAP,
-     "the early ring holds the longest tap at the largest size at the highest rate", TAP_MS[7], 0);
+  ok(TAP_MS[7] * EARLY_SIZE_MAX * 0.001 * OMX_REVERB_MAX_RATE <=
+         (double)omx_fdelay_max_delay(OMX_REVERB_INSTANCE_EARLY_CAP, OMX_REVERB_INSTANCE_EARLY_ORDER),
+     "the early line holds the longest tap at the largest size at the highest rate", TAP_MS[7], 0);
   clean();
 }
 
@@ -307,7 +324,9 @@ static void arm_hostile(void) {
     const struct omx_reverb_return *r = &g_v.ret;
     int inside = r->early_lin >= 0.0f && r->early_lin <= 1.0f && r->tail_lin >= 0.0f && r->tail_lin <= 1.0f &&
                  r->duck.depth_db >= OMX_REVERB_DUCK_DB_RANGE_MIN && r->duck.depth_db <= 0.0f && r->deess == NULL;
-    for (int t = 0; t < 8; t++) inside &= r->tap_d[t] < g_v.rstate.cap;
+    for (int t = 0; t < 8; t++)
+      inside &= r->tap_d[t] >= omx_fdelay_min_delay(OMX_REVERB_INSTANCE_EARLY_ORDER) &&
+                r->tap_d[t] <= omx_fdelay_max_delay(OMX_REVERB_INSTANCE_EARLY_CAP, OMX_REVERB_INSTANCE_EARLY_ORDER);
     ok(inside, "hostile words: every level, tap and choice at a declared value", h, 0);
     stimulus(g_l, g_r, 4096u, 0x55u, 300u);
     run(&g_v, g_l, g_r, g_ol, g_or, 4096u);
