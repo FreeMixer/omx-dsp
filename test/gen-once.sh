@@ -59,7 +59,7 @@ s="$(count_runs "$OUT/Makefile.sab" sab 1)"
 env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS make -s --no-print-directory FX_BINS_OUT="$OUT/fx-bins" \
   --eval='print-fx-bins: ; @printf "%s\n" $(FX_BINS) > "$(FX_BINS_OUT)"' print-fx-bins > /dev/null
 want="$(sed 's|^build/||' "$OUT/fx-bins" | sort)"
-[ -n "$want" ] || { echo "gen-once.sh: FAIL — FX_BINS read empty"; exit 1; }
+[ -n "$want" ] || { echo "gen-once.sh: FAIL: FX_BINS read empty"; exit 1; }
 got="$(env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u GNUMAKEFLAGS make -n --no-print-directory test-fx 2>/dev/null | grep -oE '^echo "\./build/fx_[a-z0-9_]+' | sed 's|^echo "./build/||' | sort -u)"
 missing="$(comm -23 <(echo "$want" | sort -u) <(echo "$got"))"
 [ -z "$missing" ] || { echo "gen-once.sh: FAIL — test-fx does not run:"; echo "$missing"; exit 1; }
