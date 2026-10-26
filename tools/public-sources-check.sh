@@ -38,6 +38,7 @@ scan() {
   local root="$1" f n text path frag ok
   while IFS= read -r f; do
     [ "$f" = tools/public-sources-check.sh ] && continue
+    [ "$f" = tools/private-refs-check.sh ] && continue  # it spells the patterns it looks for
     while IFS=: read -r n text; do
       ok=
       while IFS=$'\t' read -r path frag; do
