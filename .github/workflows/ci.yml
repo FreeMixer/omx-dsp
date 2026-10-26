@@ -73,20 +73,15 @@ jobs:
 
       # The build dependencies, omx-contract among them, from what the packaging declares: no version
       # is named here.
-      - name: Install the build dependencies from the FreeMixer channel
+      - name: Add the OpenMixer repository
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+
+      - name: Install the build dependencies from the OpenMixer channel
         run: |
           set -euo pipefail
           if command -v dnf >/dev/null; then
-            dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo
             dnf builddep -y --setopt=install_weak_deps=False packaging/omx-dsp.spec
           else
-            . /etc/os-release
-            suite="$VERSION_CODENAME"
-            [ "$ID" = ubuntu ] && suite=trixie   # the channel's omx-contract is Architecture: all
-            install -d /etc/apt/keyrings
-            curl -fsSL -o /etc/apt/keyrings/freemixer.asc https://freemixer.github.io/deb/freemixer.asc
-            echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] https://freemixer.github.io/deb/debian/$suite ./" > /etc/apt/sources.list.d/freemixer.list
-            apt-get update -qq
             apt-get build-dep -y --no-install-recommends ./
           fi
           pkg-config --modversion omx-contract
@@ -141,20 +136,25 @@ jobs:
     env:
       OLD: 2.6.0
     steps:
-      - name: Install the build tools and omx-contract ${{ env.OLD }}
+      - name: Install the build tools
         run: |
           set -euo pipefail
           if command -v dnf >/dev/null; then
             dnf install -y --setopt=install_weak_deps=False git gcc make gawk dnf5-plugins pkgconf-pkg-config
-            dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo
-            dnf install -y "omx-contract-devel-$OLD"
           else
             apt-get update -qq
             apt-get install -y --no-install-recommends git ca-certificates curl build-essential gawk pkgconf
-            install -d /etc/apt/keyrings
-            curl -fsSL -o /etc/apt/keyrings/freemixer.asc https://freemixer.github.io/deb/freemixer.asc
-            echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] https://freemixer.github.io/deb/debian/bookworm ./" > /etc/apt/sources.list.d/freemixer.list
-            apt-get update -qq
+          fi
+
+      - name: Add the OpenMixer repository
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+
+      - name: Install omx-contract ${{ env.OLD }}
+        run: |
+          set -euo pipefail
+          if command -v dnf >/dev/null; then
+            dnf install -y "omx-contract-devel-$OLD"
+          else
             apt-get install -y --no-install-recommends "libomx-contract-dev=$OLD"
           fi
           test "$(pkg-config --modversion omx-contract)" = "$OLD"
@@ -238,7 +238,9 @@ jobs:
       - name: Install the build tools
         run: |
           dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip diffutils pkgconf-pkg-config
-          dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo
+
+      - name: Add the OpenMixer repository
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
 
       - uses: actions/checkout@v4
         with:
@@ -316,15 +318,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Take omx-contract from the FreeMixer channel
-        env:
-          URL: https://freemixer.github.io/deb
-          SUITE: ${{ matrix.suite }}
-        run: |
-          install -d /etc/apt/keyrings
-          curl -fsSL -o /etc/apt/keyrings/freemixer.asc "$URL/freemixer.asc"
-          echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] $URL/debian/$SUITE ./" > /etc/apt/sources.list.d/freemixer.list
-          apt-get update -qq
+      - name: Take omx-contract from the OpenMixer channel
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
 
       - uses: FreeMixer/.github/.github/actions/build-deb@v1
 
