@@ -3,8 +3,7 @@
 /*
  * chorus.test.c — the chorus against the closed form of its own swept comb.
  *
- * (44.1 / 48 / 96 / 192 kHz — the operator's 2026-09-20 ruling, memory
- * `feedback_dsp_oracles_measure_four_rates_minimum`).
+ * (Oracles run at the nine declared oracle rates, never at one.)
  *
  * ## How a moving filter is measured without a moving ruler
  *
