@@ -81,7 +81,7 @@ static const struct key IDLE = {0, 0.0f, 0.0f, 0.0f, 0, 0.0f, 0, 0, -12.0f};
 static void resolve(OmxCompInstance *c, float thr, float ratio, float knee, float att, float rel, struct key k) {
   omx_comp_instance_resolve(c, 0, thr, ratio, knee, att, rel, 0.0f, 100.0f, (int)OMX_COMP_KINDS_COMP, OMX_DYN_OVS_OFF,
                             OMX_DETECTOR_TOPOLOGY_FEEDFORWARD, k.src, k.hp, k.lp, k.tilt, k.listen, k.hold, k.link,
-                            k.duck, k.range);
+                            k.duck, k.range, (int)OMX_COMP_RELEASE_MODES_FIXED);
   drain();
 }
 
