@@ -54,7 +54,7 @@
  * signature stops compiling until it passes one; `OMX_COMP_RELEASE_MODES_FIXED` is the compressor
  * that shipped. The callers: omx-plugins' plugins/omx-comp/omx_comp_core.h and
  * plugins/omx-comp/test/comp-oracle.c, and plugins/omx-strip/omx_strip_core.h and
- * plugins/omx-strip/test/strip-oracle.c; the engine (openmixer's packages/pipewire-native) calls none.
+ * plugins/omx-strip/test/strip-oracle.c; the mixer engine calls none.
  * The release that carries it is a minor version bump.
  *
  * HOLD AND DUCK. holdMs reaches the kernel's hold (omx_dyn.hold_frames, ABOVE mode: the detector
