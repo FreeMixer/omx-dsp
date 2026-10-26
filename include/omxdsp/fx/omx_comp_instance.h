@@ -43,6 +43,20 @@
  * the key path does not run and the slot is the self-detecting compressor bit for bit; a key path
  * engaged at 4x is upsampled after the fold.
  *
+ * RELEASE MODE. releaseMode `fixed` is the detector's release at releaseMs, the compressor that
+ * shipped bit for bit. `opto` and `auto` run the kernel's program release (omx_env_program_release,
+ * PROGRAM_RELEASE_PROFILES.opto and .auto) on the gain computer's reduction, with the detector
+ * releasing at its attack pole: releaseMs is inert there, kept for when fixed returns. The
+ * effectiveAttackMs readout is {@link omx_comp_instance_effective_attack_ms}.
+ *
+ * API CHANGE (FX-12, omx-dsp#188). {@link omx_comp_instance_resolve} gains a trailing `release_mode`
+ * argument, positional like the rest (the 10-25 ruling), so every caller built against the earlier
+ * signature stops compiling until it passes one; `OMX_COMP_RELEASE_MODES_FIXED` is the compressor
+ * that shipped. The callers: omx-plugins' plugins/omx-comp/omx_comp_core.h and
+ * plugins/omx-comp/test/comp-oracle.c, and plugins/omx-strip/omx_strip_core.h and
+ * plugins/omx-strip/test/strip-oracle.c; the mixer engine calls none.
+ * The release that carries it is a minor version bump.
+ *
  * HOLD AND DUCK. holdMs reaches the kernel's hold (omx_dyn.hold_frames, ABOVE mode: the detector
  * frozen after it last rose). duck holds the reduction to rangeDb (omx_dyn.floor_db), so the
  * programme gain is `max(rangeDb, the law at the key's level)`; a range of 0 dB ducks nothing.
@@ -123,6 +137,7 @@ typedef struct {
  * @param detect_link A COMP_DETECT_LINKS index: linked, mid, side, max.
  * @param duck A COMP_DUCKS index: `on` holds the reduction to `range_db`.
  * @param range_db The ducker's depth, dB.
+ * @param release_mode A COMP_RELEASE_MODES index: fixed, opto, auto; anything else reads as fixed.
  *        Every travel is clamped into its declared range, a non-finite word reading as its default;
  *        a choice outside its ids reads as its default.
  * @post `atom-meets-the-kernel-preconditions`: every field inside the declared OMX_COMP_* travel.
@@ -137,7 +152,7 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
                                                  int detector_oversampling, int detector_topology,
                                                  int key_source, float key_hp_hz, float key_lp_hz,
                                                  float key_tilt_db, int key_listen, float hold_ms,
-                                                 int detect_link, int duck, float range_db) {
+                                                 int detect_link, int duck, float range_db, int release_mode) {
   if (!s || !s->ready) return;
   struct omx_dyn *p = &s->atom;
   memset(p, 0, sizeof *p);
@@ -186,6 +201,18 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
     if (a == 1.0 || s->tilt.a == 1.0) memset(s->tilt_s, 0, sizeof s->tilt_s);
     omx_tilt_design(&s->tilt, a, OMX_COMP_INSTANCE_TILT_PIVOT_HZ, (double)s->sr);
   }
+  const int rel_mode = release_mode == OMX_COMP_RELEASE_MODES_OPTO || release_mode == OMX_COMP_RELEASE_MODES_AUTO
+                           ? release_mode
+                           : (int)OMX_COMP_RELEASE_MODES_FIXED;
+  p->release_mode = rel_mode;
+  if (rel_mode != OMX_COMP_RELEASE_MODES_FIXED) {
+    /* The detector a symmetric smoother; every release character lives in the follower. */
+    p->release_coeff = p->attack_coeff;
+    for (uint32_t k = 0; k < 2u; k++) {
+      if (rel_mode == OMX_COMP_RELEASE_MODES_OPTO) omx_env_program_release_opto(&p->prp[k], s->sr, k ? 4u : 1u);
+      else omx_env_program_release_auto(&p->prp[k], s->sr, k ? 4u : 1u);
+    }
+  }
   p->hold_frames = omx_dyn_hold_frames(hold, s->sr);
   p->floor_db = duck_on && duck_range < 0.0f ? duck_range : 0.0f;
   if (duck_on && !(duck_range < 0.0f)) p->gc.ratio = OMX_COMP_RATIO_MIN;
@@ -226,7 +253,8 @@ static inline int omx_comp_instance_init(OmxCompInstance *s, float sr) {
                                 (float)OMX_COMP_KEY_HP_HZ_RANGE_DEFAULT, (float)OMX_COMP_KEY_LP_HZ_RANGE_DEFAULT,
                                 (float)OMX_COMP_KEY_TILT_DB_RANGE_DEFAULT, (int)OMX_COMP_KEY_LISTENS_DEFAULT,
                                 (float)OMX_COMP_HOLD_MS_RANGE_DEFAULT, (int)OMX_COMP_DETECT_LINKS_DEFAULT,
-                                (int)OMX_COMP_DUCKS_DEFAULT, (float)OMX_COMP_RANGE_DB_RANGE_DEFAULT);
+                                (int)OMX_COMP_DUCKS_DEFAULT, (float)OMX_COMP_RANGE_DB_RANGE_DEFAULT,
+                                (int)OMX_COMP_RELEASE_MODES_DEFAULT);
   return 1;
 }
 
@@ -372,6 +400,23 @@ static inline float omx_comp_instance_key_level_db(const OmxCompInstance *s) {
   const struct omx_env_params ep = omx_dyn_env_params(&s->atom);
   const float fb = ep.detect == OMX_DETECT_RMS ? sqrtf(s->st.fb_env > 0.0f ? s->st.fb_env : 0.0f) : s->st.fb_env;
   return omx_lin_to_db(s->st.fb_ran ? fb : omx_env_level(&s->st.env, &ep));
+}
+
+/**
+ * @brief The effectiveAttackMs readout: the attack the detector runs, ms. attackMs itself, but in the
+ *        feedback topology where omx_dyn_fb_attack_pole() floors the loop's pole at `(R − 1)/R`: then
+ *        the time constant of that floor at the instance's rate, `−1000/(sr·ln((R − 1)/R))`.
+ * @param s The instance.
+ * @return The attack, ms; 0 for a refused instance.
+ * @note RT-safe: one logf when the floor is reached. Thread-safe: reads only.
+ * @twin effectiveAttackMsOf
+ */
+static inline float omx_comp_instance_effective_attack_ms(const OmxCompInstance *s) {
+  if (!s || !s->ready) return 0.0f;
+  const struct omx_dyn *p = &s->atom;
+  if (p->topology != OMX_DETECTOR_TOPOLOGY_FEEDBACK) return p->attack_ms;
+  const float pole = omx_dyn_fb_attack_pole(p->attack_coeff, p->gc.ratio);
+  return pole == p->attack_coeff ? p->attack_ms : -1000.0f / (s->sr * logf(pole));
 }
 
 #endif /* OMX_COMP_INSTANCE_H */

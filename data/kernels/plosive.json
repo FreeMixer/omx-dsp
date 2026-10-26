@@ -1,0 +1,190 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "consonantDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#cons_db"
+      },
+      "doc": "How far a hard consonant (t, k) is cut in its band, dB, at full contrast: y = x1 + (g - 1) B, the de-esser's split, so no gain is added at any frequency. 0 cuts nothing, bit for bit.",
+      "why": "Provisional, not ruled (omx-dsp#188): the burst check and the full cut are read at the band centre: over 2 to 8 kHz noise the split cuts the band's peak by 2.7 to 5.2 dB of the 6. The ruling says whether the cut is read at the centre or across the band. The value ships as declared until the ruling.",
+      "travel": {
+        "min": 0,
+        "max": 24,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 6,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "sensitivityDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#cons_s"
+      },
+      "doc": "The contrast, dB between the band's fast and slow envelopes (omx_envdiff), a burst must pass before the consonant cut starts; the cut is full TRANSIENT_REF_DB past it (omx_envdiff_ramp). A contrast, not a level: the same t is treated the same at any gain.",
+      "why": "Provisional, not ruled (omx-dsp#188): the 10 dB default sits under the 13.5 dB of steady contrast a buzzy vowel raises in the consonant band, so at the declared defaults that vowel is cut by 3.5 dB all the time; the ruling sets the default. The value ships as declared until the ruling.",
+      "travel": {
+        "min": 0,
+        "max": 30,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 10,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "recoveryMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#cons_rec"
+      },
+      "doc": "The consonant detector's slow attack, ms: how long a burst's contrast lasts, so how long the cut does.",
+      "travel": {
+        "min": 2,
+        "max": 50,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 8,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "bandHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#band_hz"
+      },
+      "doc": "The consonant band's centre, Hz: the de-esser's cookbook bandpass section.",
+      "travel": {
+        "min": 1000,
+        "max": 12000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 4000,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "bandWidthOct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#band_oct"
+      },
+      "doc": "The consonant band's width, octaves; its top edge is held under PLOSIVE_BAND_EDGE_FRACTION of the rate.",
+      "travel": {
+        "min": 0.5,
+        "max": 4,
+        "step": 0.05,
+        "unit": "oct",
+        "default": 2,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "popDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#pop_db"
+      },
+      "doc": "How far a p pop is cut below popHz, dB, at full contrast: x1 = x - (1 - g) LP, the low half of a first-order power-complementary split, so no gain is added. 0 cuts nothing, bit for bit.",
+      "travel": {
+        "min": 0,
+        "max": 24,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 12,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "popSensitivityDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#pop_s"
+      },
+      "doc": "The contrast, dB, the pop band's burst must pass before the pop cut starts.",
+      "why": "Provisional, not ruled (omx-dsp#188): the 10 dB default sits under the 10.5 dB of steady contrast the same buzzy vowel raises in the pop band; the ruling sets the default. The value ships as declared until the ruling.",
+      "travel": {
+        "min": 0,
+        "max": 30,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 10,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "popRecoveryMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#pop_rec"
+      },
+      "doc": "The pop detector's slow attack, ms.",
+      "travel": {
+        "min": 10,
+        "max": 200,
+        "step": 1,
+        "unit": "ms",
+        "default": 40,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "popHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#pop_hz"
+      },
+      "doc": "The pop split's corner, Hz: the first-order allpass (omx_allpass1) whose halves are the pop band and the rest.",
+      "travel": {
+        "min": 60,
+        "max": 300,
+        "step": 1,
+        "unit": "Hz",
+        "default": 150,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "consonantReductionDb",
+      "doc": "The deepest consonant cut the last block applied, dB with CLAP's sign: 0 while nothing is cut.",
+      "unit": "dB",
+      "min": -24,
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "popReductionDb",
+      "doc": "The deepest pop cut the last block applied, dB with CLAP's sign: 0 while nothing is cut.",
+      "unit": "dB",
+      "min": -24,
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "PLOSIVE_BAND_EDGE_FRACTION": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_plosive_instance.h#OMX_PLOSIVE_INSTANCE_EDGE"
+      },
+      "doc": "The consonant band's top edge is held under this share of the rate, the de-esser's rule: the band is redesigned from its held edges, so the clamp is never silent.",
+      "unit": "",
+      "value": 0.45
+    }
+  }
+}

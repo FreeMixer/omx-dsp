@@ -19,7 +19,8 @@
  *        A corner past 0.999 of Nyquist is held there by omx_eq_design.
  *   2. RUN. Per leg, the tilt then the filter. A section at its rest value (a span of 0, a filter
  *      of 0) is not run and moves no state; with both at rest the face is the input, bit for bit. A
- *      section that comes back into use starts from silence.
+ *      section that comes back into use starts from silence, and so does the filter on every change
+ *      of side: a low-pass's history is never read by the high-pass, nor the other way.
  *
  * LATENCY IS ZERO. Nothing is allocated; every word of state is in {@link OmxToneInstance}. The
  * sections are designed in resolve(), one tan for the tilt and the EQ design for the filter.
@@ -55,6 +56,7 @@ typedef struct {
   float q;            /**< the filter's resonance as resolved */
   int tilt_on;        /**< 1 while the tilt is not flat */
   int filter_on;      /**< 1 while the filter is not open */
+  int fside;          /**< the side the filter's history belongs to: -1 the low-pass, +1 the high-pass */
   int enabled;
   int ready;
 } OmxToneInstance;
@@ -105,6 +107,7 @@ static inline void omx_tone_instance_resolve(OmxToneInstance *s, int bypass, flo
   s->q = omx_clamp_or(resonance, (float)OMX_TONE_RESONANCE_RANGE_MIN, (float)OMX_TONE_RESONANCE_RANGE_MAX,
                       (float)OMX_TONE_RESONANCE_RANGE_DEFAULT);
   const int tilt_on = s->span_db != 0.0f, filter_on = s->filter != 0.0f;
+  const int side_changed = filter_on && s->filter_on && (s->filter < 0.0f) != (s->fside < 0);
   if (tilt_on) {
     omx_tilt_design(&s->tilt, omx_tilt_a_of_span(s->span_db), s->pivot_hz, s->sr);
     if (!s->tilt_on) memset(s->ts, 0, sizeof(s->ts));
@@ -112,7 +115,8 @@ static inline void omx_tone_instance_resolve(OmxToneInstance *s, int bypass, flo
   if (filter_on) {
     omx_eq_design(s->filter < 0.0f ? OMX_EQ_LOWPASS : OMX_EQ_HIGHPASS, omx_tone_filter_hz(s->filter), s->q, 0.0, s->sr,
                   s->fc);
-    if (!s->filter_on) memset(s->fs, 0, sizeof(s->fs));
+    if (!s->filter_on || side_changed) memset(s->fs, 0, sizeof(s->fs));
+    s->fside = s->filter < 0.0f ? -1 : 1;
   }
   s->tilt_on = tilt_on;
   s->filter_on = filter_on;
