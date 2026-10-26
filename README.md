@@ -22,16 +22,15 @@ from this library, so an effect sounds the same on the console and in any other 
 Fedora 44, x86_64 or aarch64:
 
 ```
-sudo dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo
+sudo dnf install https://www.openmixer.org/rpm/openmixer-release.noarch.rpm
 sudo dnf install omx-dsp-devel
 ```
 
 Debian bookworm and trixie, amd64 or arm64 (also Raspberry Pi OS and Zynthian):
 
 ```
-curl -fsSL https://freemixer.github.io/deb/freemixer.asc | sudo tee /usr/share/keyrings/freemixer.asc >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/freemixer.asc] https://freemixer.github.io/deb/debian/$(. /etc/os-release; echo $VERSION_CODENAME) ./" | sudo tee /etc/apt/sources.list.d/freemixer.list
-sudo apt update && sudo apt install libomxdsp-dev
+curl -fsSLO https://www.openmixer.org/deb/openmixer-release.deb && sudo apt install ./openmixer-release.deb
+sudo apt install libomxdsp-dev
 ```
 
 ## Use
