@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# patch-names-check.sh — a patch release adds no public name (FreeMixer/openmixer-ops#274). v0.18.1 added
+# patch-names-check.sh — a patch release adds no public name. v0.18.1 added
 # omx_eq_lowpass_nyquist_handover() and two OMX_EQ_LOWPASS_HANDOVER_* defines, v0.20.1 added
 # omx_eq_lowpass_nyquist_raise(); a new public name goes in a minor. When include/omxdsp/omxdsp.h says patch > 0,
 # every `#define NAME` and `static inline ... name(` under include/ must already exist at the tag vMAJOR.MINOR.0.
