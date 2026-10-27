@@ -87,7 +87,7 @@ override CFLAGS += $(FPFLAGS)
 # at or above the floor packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
 # (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
 # directory as CONTRACT_INC.
-ifeq ($(filter version clean docs public-sources private-refs public-sources-messages exports copy-check,$(MAKECMDGOALS)),)
+ifeq ($(filter version clean docs public-sources private-refs public-sources-messages exports copy-check deps deps-check,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
 $(error tools/contract-include.sh found no omx-contract: see its message above)
@@ -148,7 +148,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs cost-deesser note-map-sabotage exports copy-check
+.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -371,11 +371,22 @@ public-sources:
 	bash tools/public-sources-check.sh
 	bash tools/public-sources-check.sh --self-test
 
-# No tracked file points into a private repository, issue, branch or path (tools/private-refs-check.sh, with its --self-test).
-.PHONY: private-refs
+# No tracked file points into a private repository, issue, branch or path. The engine and its self-test are
+# FreeMixer/.github's private-refs-check (CI runs it as that action); locally name a checkout of it:
+# make private-refs DOTGITHUB=<checkout>. Exemptions, each with its reason: tools/private-refs-allow.txt.
+# make deps renders the floors of packaging/deps.txt with that checkout's deps-render, make deps-check refuses drift.
+DOTGITHUB ?=
+.PHONY: private-refs deps deps-check
 private-refs:
-	tools/private-refs-check.sh
-	tools/private-refs-check.sh --self-test
+	@test -n "$(DOTGITHUB)" || { echo "$@: name a checkout of FreeMixer/.github: make $@ DOTGITHUB=<dir>" >&2; exit 2; }
+	$(DOTGITHUB)/.github/actions/private-refs-check/check.sh --self-test
+	$(DOTGITHUB)/.github/actions/private-refs-check/check.sh .
+deps:
+	@test -n "$(DOTGITHUB)" || { echo "$@: name a checkout of FreeMixer/.github: make $@ DOTGITHUB=<dir>" >&2; exit 2; }
+	$(DOTGITHUB)/.github/actions/deps-render/render.sh --write .
+deps-check:
+	@test -n "$(DOTGITHUB)" || { echo "$@: name a checkout of FreeMixer/.github: make $@ DOTGITHUB=<dir>" >&2; exit 2; }
+	$(DOTGITHUB)/.github/actions/deps-render/render.sh --check .
 
 RANGE ?=
 .PHONY: public-sources-messages
