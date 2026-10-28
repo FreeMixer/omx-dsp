@@ -1,0 +1,6 @@
+# The dependency floors of this repository, written here and nowhere else. The RPM spec, debian/control and
+# the release-tag variable of .github/workflows/ci.yml are rendered from this file and refused when they
+# differ (deps-render in FreeMixer/.github: render.sh --write, render.sh --check).
+#
+# <rpm name>          <deb name>           <floor>  <workflow variable pinning the release tag>
+omx-contract-devel    libomx-contract-dev  3.1.0    OMX_CONTRACT_REF
