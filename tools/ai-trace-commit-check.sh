@@ -56,7 +56,7 @@ def selftest():
         "claude-session": "Fix x\n\nClaude-Session: https://claude.ai/code/session_01\n",
         "generated-footer": "Fix x\n\n\U0001F916 Generated with [Claude Code](https://claude.com/claude-code)\n",
         "claude.ai/code": "Fix x\n\nsee https://claude.ai/code/session_9\n",
-        # the shapes the omx-dsp#155 review saw pass (openmixer-ops#152)
+        # the shapes the omx-dsp#155 review saw pass
         "assisted-by": "Fix x\n\nAssisted-by: Claude\n",
         "made-with": "Fix x\n\nMade with Claude Code\n",
         "generated-with-claude": "Fix x\n\nGenerated with Claude\n",
