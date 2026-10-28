@@ -18,7 +18,7 @@ permissions:
 
 env:
   # omx-contract's reader, render and install script, which data/ is read back through and the definitions header
-  # rendered by, from this release tag: the floor the packaging declares
+  # rendered by, from this release tag: the floor packaging/deps.txt declares
   OMX_CONTRACT_REF: v3.1.0
 
 jobs:
@@ -107,9 +107,15 @@ jobs:
         id: handback-public-sources
         run: make public-sources
 
+      # FreeMixer/.github's one engine, at the commit that added it; the exemptions are tools/private-refs-allow.txt
       - name: No tracked file names a private repository, issue, branch or path
         id: handback-private-refs
-        run: make private-refs
+        uses: FreeMixer/.github/.github/actions/private-refs-check@b11c009e05baf221a38c72ba419917807ef82b01
+
+      # packaging/deps.txt is the one place a floor is written: the spec, debian/control and OMX_CONTRACT_REF follow it
+      - name: The dependency floors are the ones packaging/deps.txt declares
+        id: handback-deps
+        uses: FreeMixer/.github/.github/actions/deps-render@b11c009e05baf221a38c72ba419917807ef82b01
 
       - name: The release workflow builds arm on every tag
         id: handback-release-arm-gate
