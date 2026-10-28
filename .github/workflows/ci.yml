@@ -73,8 +73,11 @@ jobs:
 
       # The build dependencies, omx-contract among them, from what the packaging declares: no version
       # is named here.
+      # the channel serves Debian; an Ubuntu takes its trixie index (omx-contract is Architecture: all)
       - name: Add the OpenMixer repository
         uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+        with:
+          suite: ${{ startsWith(matrix.image, 'ubuntu') && 'trixie' || '' }}
 
       - name: Install the build dependencies from the OpenMixer channel
         run: |
