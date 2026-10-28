@@ -41,13 +41,11 @@ jobs:
           apt-get update -qq
           apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf dpkg-dev
       - uses: actions/checkout@v4
-      - name: Install the build dependencies from the FreeMixer channel
+      - name: Add the OpenMixer repository
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+      - name: Install the build dependencies from the OpenMixer channel
         run: |
           set -euo pipefail
-          install -d /etc/apt/keyrings
-          curl -fsSL -o /etc/apt/keyrings/freemixer.asc https://freemixer.github.io/deb/freemixer.asc
-          echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] https://freemixer.github.io/deb/debian/trixie ./" > /etc/apt/sources.list.d/freemixer.list
-          apt-get update -qq
           apt-get build-dep -y --no-install-recommends ./
       - name: The library the twins are checked against
         run: make -j"$(nproc)" lib
