@@ -1,0 +1,9 @@
+# Tracked files exempt from private-refs-check (FreeMixer/.github), each with the reason; nothing else is.
+# Functional code, not prose: each takes a path to a checkout of the console that the caller supplies
+# (OPENMIXER=...) and reads its sources, to prove the C here equals the engine it was lifted from.
+tools/public-sources-check.sh   # its patterns and self-test spell the same names
+Makefile                        # the engine-kernels and mix identity recipes pass the console checkout's engine source directory
+tools/analysis-engine-identity.sh   # reads the console checkout's sources
+tools/ts-golden.mjs             # reads the console checkout's sources
+tools/ts-golden-hooks.mjs       # reads the console checkout's sources
+tools/room-ts-golden.mjs        # reads the console checkout's sources
