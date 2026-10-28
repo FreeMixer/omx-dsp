@@ -41,7 +41,8 @@ jobs:
           apt-get update -qq
           apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf dpkg-dev
       - uses: actions/checkout@v4
-      - uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+      - name: Add the OpenMixer repository
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
       - name: Install the build dependencies from the OpenMixer channel
         run: |
           set -euo pipefail
