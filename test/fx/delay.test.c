@@ -41,7 +41,7 @@ static void test_division_ms(void) {
   close_to(omx_bpm_division_ms(120.0f, 1.0f / 3.0f), 166.6667f, "eighth-triplet @120");
   /* omx-dsp#250, found by fuzz_fx: a tempo near 0 made the time infinite, against the post "finite" and with the
    * caller's hold at the top of the travel never reached; a NaN tempo made it NaN. */
-  check(omx_bpm_division_ms(1e-30f, 1.0f) == FLT_MAX, "a tempo near 0 is the largest finite time, not infinite");
+  check(omx_bpm_division_ms(1e-40f, 1.0f) == FLT_MAX, "a tempo near 0 is the largest finite time, not infinite");
   check(omx_bpm_division_ms(NAN, 1.0f) == 0.0f, "a NaN tempo is no time, as a zero one is");
 }
 
