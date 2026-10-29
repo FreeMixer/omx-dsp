@@ -28,7 +28,8 @@
  *   - the bank's magnitude (dB) is finite at any frequency, and a bank with no live section is
  *     0 dB there;
  *   - the head filters make at most OMX_EQ_PASS_MAX_SECTIONS sections, each stable;
- *   - the width-to-Q conversions give a finite positive Q for any finite width above 0.
+ *   - the width-to-Q conversions give a finite Q (0 where the width overflows sinh, as the committed table
+ *     has it; positive for the octaves law) for any finite width above 0.
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omx_biquad.h>
@@ -122,7 +123,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const double bw = fin_or(fuzz_f64(&in), 1.0);
   if (bw > 0.0) {
     const double q = omx_eq_bandwidth_q(fin_or(fuzz_f64(&in), 1000.0), bw, rate);
-    FUZZ_CHECK(isfinite(q) && q > 0.0, "omx_eq_bandwidth_q gave %g", q);
+    FUZZ_CHECK(isfinite(q) && q >= 0.0, "omx_eq_bandwidth_q gave %g", q); /* 0 where sinh overflows: the table has it */
   }
   const double q2 = omx_eq_octaves_q(bw);
   FUZZ_CHECK(isfinite(q2) && q2 > 0.0, "omx_eq_octaves_q(%g) gave %g", bw, q2);
