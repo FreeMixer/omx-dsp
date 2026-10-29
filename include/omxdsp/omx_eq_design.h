@@ -301,9 +301,9 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
  * @param freq_hz Centre, Hz; clamped to `[1, 0.999·Nyquist]`, as omx_eq_design() clamps it.
  * @param bw_oct The width, in octaves, positive.
  * @param sample_rate Sample rate, Hz, positive.
- * @return The quality factor, in [OMX_EQ_Q_MIN, OMX_EQ_Q_MAX].
+ * @return The quality factor, at most OMX_EQ_Q_MAX; 0 where the width overflows `sinh` (the table's own row).
  * @pre `finite-params-and-positive-rate`.
- * @post `finite-positive-q`.
+ * @post `finite-q-not-negative`.
  * @note RT-safe: `sin` and `sinh` on the RT-safe allowlist. Thread-safe: pure.
  * @twin bandwidthOctavesQ
  */
@@ -314,12 +314,12 @@ static inline double omx_eq_bandwidth_q(double freq_hz, double bw_oct, double sa
   const double lo = 1.0, hi = nyquist * 0.999;
   const double f0 = freq_hz < lo ? lo : (freq_hz > hi ? hi : freq_hz);
   const double w0 = (2.0 * M_PI * f0) / sample_rate;
-  /* a width so narrow that sinh() reaches 0 is the highest Q, not an infinite one; one so wide that it
-   * overflows is the lowest, not 0 */
+  /* a width so narrow that sinh() reaches 0 is the highest Q, not an infinite one. A width so wide that sinh()
+   * overflows gives 0, as the committed table (test/golden/eq_bandwidth_q.json) has it, and the Q is held where
+   * the design reads it, not here */
   const double sh = sinh(((M_LN2 / 2.0) * bw_oct * w0) / sin(w0));
-  double q = 1.0 / (2.0 * (sh > 0.5 / OMX_EQ_Q_MAX ? sh : 0.5 / OMX_EQ_Q_MAX));
-  if (!(q >= OMX_EQ_Q_MIN)) q = OMX_EQ_Q_MIN;
-  OMX_POST(isfinite(q) && q > 0.0, "finite-positive-q");
+  const double q = 1.0 / (2.0 * (sh > 0.5 / OMX_EQ_Q_MAX ? sh : 0.5 / OMX_EQ_Q_MAX));
+  OMX_POST(isfinite(q) && q >= 0.0, "finite-q-not-negative");
   return q;
 }
 #undef OMX_CONTRACT_STAGE

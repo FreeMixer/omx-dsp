@@ -339,7 +339,7 @@ static void arm_eq_design(void) {
           ok(memcmp(d, held, sizeof d) == 0, "a Q past its limits is designed as the limit", k, QS[qi]);
         }
     const double narrow = omx_eq_bandwidth_q(1000.0, 1e-300, 48000.0), wide = omx_eq_bandwidth_q(1000.0, 1e300, 48000.0);
-    ok(narrow == OMX_EQ_Q_MAX && wide == OMX_EQ_Q_MIN, "a vanishing width is the highest Q, an overflowing one the lowest", narrow, wide);
+    ok(narrow == OMX_EQ_Q_MAX && wide == 0.0, "a vanishing width is the highest Q, an overflowing one the table's 0", narrow, wide);
     ok(omx_eq_octaves_q(1e300) == OMX_EQ_Q_MIN && omx_eq_octaves_q(1e-300) == omx_eq_octaves_q(0.05),
        "a width of 1e300 octaves is the lowest Q, not NaN, and 1e-300 reads as the narrowest", omx_eq_octaves_q(1e300), OMX_EQ_Q_MIN);
   }
