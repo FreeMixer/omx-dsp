@@ -5,8 +5,9 @@
  * @brief The one-pole smoother, one convention: the parameter is the POLE `p` in [0, 1).
  *
  * `y = x·(1−p) + y·p`; DC gain 1 for every `p < 1`; corner `−ln(p)·sr/2π`; time constant
- * `τ = −1/(sr·ln p)`. Pole 0 is a wire, pole 1 a frozen filter. Neither constructor clamps:
- * the caller's physics owns the range.
+ * `τ = −1/(sr·ln p)`. Pole 0 is a wire, pole 1 a frozen filter. Neither constructor clamps its
+ * argument: the caller's physics owns the range. Each keeps its pole below 1, though: a time or a
+ * corner so far from the rate that `exp` rounds to 1 in float gives OMX_POLE_MAX, the pole nearest 1.
  * §1 row 15 and Appendix A.
  */
 #ifndef OMX_ONEPOLE_H
@@ -20,6 +21,9 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+/** @brief The largest pole below 1 a float holds, 1 − 2⁻²⁴: what the constructors return when `exp` rounds to 1. */
+#define OMX_POLE_MAX 0x1.fffffep-1f
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "onepole/convex"
@@ -100,7 +104,7 @@ static inline float omx_onepole_toward(float *state, float target, float pole) {
  * @brief The pole with time constant `ms` at `sr`: `exp(−1/(τ·sr))`; `ms <= 0` is a wire (pole 0).
  * @param ms Time constant, milliseconds; finite.
  * @param sr Sample rate, Hz; a declared rate.
- * @return The pole, in [0, 1).
+ * @return The pole, in [0, 1): a time so long that `exp` rounds to 1 in float gives OMX_POLE_MAX.
  * @pre `finite-ms`, `rate-is-declared`.
  * @post `pole-in-declared-range`.
  * @note RT-safe: one `expf`, on the RT-safe allowlist. Thread-safe: pure.
@@ -108,7 +112,7 @@ static inline float omx_onepole_toward(float *state, float target, float pole) {
 static inline float omx_pole_from_time_ms(float ms, float sr) {
   OMX_PRE(ms - ms == 0.0f, "finite-ms");
   OMX_PRE(sr <= 0.0f || OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
-  const float pole = ms <= 0.0f ? 0.0f : expf(-1.0f / (ms * 0.001f * sr));
+  const float pole = ms <= 0.0f ? 0.0f : fminf(expf(-1.0f / (ms * 0.001f * sr)), OMX_POLE_MAX);
   OMX_POST(pole >= 0.0f && pole < 1.0f, "pole-in-declared-range");
   return pole;
 }
@@ -119,7 +123,7 @@ static inline float omx_pole_from_time_ms(float ms, float sr) {
  * @brief The pole whose −3 dB corner is `hz` at `sr`: `exp(−2π·hz/sr)`; `hz <= 0` is a wire.
  * @param hz Corner frequency, Hz; finite.
  * @param sr Sample rate, Hz; a declared rate.
- * @return The pole, in [0, 1).
+ * @return The pole, in [0, 1): a corner so low that `exp` rounds to 1 in float gives OMX_POLE_MAX.
  * @pre `finite-hz`, `rate-is-declared`.
  * @post `pole-in-declared-range`.
  * @note RT-safe: one `expf`, on the RT-safe allowlist. Thread-safe: pure.
@@ -127,7 +131,7 @@ static inline float omx_pole_from_time_ms(float ms, float sr) {
 static inline float omx_pole_from_cutoff_hz(float hz, float sr) {
   OMX_PRE(hz - hz == 0.0f, "finite-hz");
   OMX_PRE(sr <= 0.0f || OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
-  const float pole = hz <= 0.0f ? 0.0f : expf(-2.0f * (float)M_PI * hz / sr);
+  const float pole = hz <= 0.0f ? 0.0f : fminf(expf(-2.0f * (float)M_PI * hz / sr), OMX_POLE_MAX);
   OMX_POST(pole >= 0.0f && pole < 1.0f, "pole-in-declared-range");
   return pole;
 }
