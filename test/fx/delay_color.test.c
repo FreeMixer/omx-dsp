@@ -349,7 +349,7 @@ static void arm_duck(void) {
 /* ---- G: hostile words, no allocation ----------------------------------------------------- */
 static void arm_hostile(void) {
   g_arm = "G";
-  static const float W[] = {NAN, INFINITY, -INFINITY, 1e30f, -1e30f, -1.0f};
+  static const float W[] = {NAN, INFINITY, -INFINITY, 1e30f, -1e30f, -1.0f, 1e-30f}; /* the last: a tempo near 0, omx-dsp#250 */
   for (unsigned h = 0; h < sizeof W / sizeof W[0]; h++) {
     omx_delay_instance_init(&g_d, g_sr);
     omx_delay_instance_set_tempo(&g_d, W[h]);
