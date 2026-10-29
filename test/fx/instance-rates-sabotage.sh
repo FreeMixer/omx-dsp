@@ -62,9 +62,12 @@ run eq-declared omxdsp/fx/omx_eq_instance.h eq_instance "$WRAP" "$GATE" \
   '\[E instance face @ 32000 Hz\] init at each of the nine rates' \
   '\[E instance face @ 64000 Hz\] init at each of the nine rates' \
   '\[E instance face @ 128000 Hz\] init at each of the nine rates' & pids+=($!)
+# The two checks it must trip are the ones the cap itself decides: a design at the uncapped centre is held to 0.999
+# Nyquist by omx_eq_design, so the bit-for-bit arm and the clamp arm (the fuzz fix of omx-dsp#250 made the design
+# robust to it, which is why the contract-ledger arm no longer fires).
 run deesser-nyquist omxdsp/fx/omx_deesser_instance.h deesser_instance "$WRAP" \
   's|OMX_DEESSER_INSTANCE_NYQUIST_FRACTION \* 0.5 \* (double)s->sr|1.0e9|' \
-  '32000 Hz: C: no contract broken' '32000 Hz: P: the top of the travel at width' & pids+=($!)
+  '32000 Hz: C: setting 2, mode 0: the engaged instance is omx_deess_process on the console'"'"'s atom, bit for bit' '32000 Hz: D: knob 0 at 1e\+30 lands at 16000' & pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 if [ "$failed" -ne 0 ]; then
