@@ -20,10 +20,11 @@
  * A UI or model bug must not drive a pan law outside a quarter turn and flip a leg's sign. The
  * bounds are the contract row's (OMX_PAN_RANGE_MIN/MAX), not restated here.
  * @param pan The pan position; any value.
- * @return `pan` clamped to [OMX_PAN_RANGE_MIN, OMX_PAN_RANGE_MAX].
- * @note RT-safe: two compares. Thread-safe: pure.
+ * @return `pan` clamped to [OMX_PAN_RANGE_MIN, OMX_PAN_RANGE_MAX]; NaN is the centre, 0.
+ * @note RT-safe: three compares. Thread-safe: pure.
  */
 static inline float omx_clamp_pan(float pan) {
+  if (pan != pan) return 0.0f;
   if (pan < (float)OMX_PAN_RANGE_MIN) return (float)OMX_PAN_RANGE_MIN;
   if (pan > (float)OMX_PAN_RANGE_MAX) return (float)OMX_PAN_RANGE_MAX;
   return pan;
