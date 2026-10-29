@@ -320,6 +320,29 @@ static void arm_eq_design(void) {
       ok(fabs(d[3]) < 1.0 + d[4] && d[4] < 1.0, "an extreme design stays inside the unit circle", d[4], 1.0);
     }
   }
+  /* omx-dsp#250, found by fuzz_eq: the design read a Q at or below 0 as 1e-3 but a Q of 1e-300 as itself, and
+   * made NaN coefficients of it, and a Q of 1e300 put both poles on the unit circle; a width of 1e-300 octaves
+   * made the bandwidth's Q infinite and one of 1e300 made it 0. The Q is held in [OMX_EQ_Q_MIN, OMX_EQ_Q_MAX],
+   * and every Q inside the travel any control has is designed exactly as before. */
+  {
+    static const double QS[] = {1e-300, 1e-12, 1e-4, 0.0, -5.0, 1e7, 1e12, 1e300};
+    static const double FS[] = {1.0, 1000.0, 1e300, -3.0};
+    for (int k = 0; k <= 8; k++)
+      for (unsigned qi = 0; qi < sizeof QS / sizeof QS[0]; qi++)
+        for (unsigned fi = 0; fi < sizeof FS / sizeof FS[0]; fi++) {
+          double d[5], held[5];
+          omx_eq_design((enum omx_eq_kind)k, FS[fi], QS[qi], 6.0, 48000.0, d);
+          omx_eq_design((enum omx_eq_kind)k, FS[fi], QS[qi] < OMX_EQ_Q_MIN ? OMX_EQ_Q_MIN : OMX_EQ_Q_MAX, 6.0, 48000.0, held);
+          int fin = 1;
+          for (int i = 0; i < 5; i++) fin = fin && isfinite(d[i]);
+          ok(fin && fabs(d[3]) < 1.0 + d[4] && d[4] < 1.0, "an extreme Q designs finite, stable coefficients", k, QS[qi]);
+          ok(memcmp(d, held, sizeof d) == 0, "a Q past its limits is designed as the limit", k, QS[qi]);
+        }
+    const double narrow = omx_eq_bandwidth_q(1000.0, 1e-300, 48000.0), wide = omx_eq_bandwidth_q(1000.0, 1e300, 48000.0);
+    ok(narrow == OMX_EQ_Q_MAX && wide == OMX_EQ_Q_MIN, "a vanishing width is the highest Q, an overflowing one the lowest", narrow, wide);
+    ok(omx_eq_octaves_q(1e300) == OMX_EQ_Q_MIN && omx_eq_octaves_q(1e-300) == omx_eq_octaves_q(0.05),
+       "a width of 1e300 octaves is the lowest Q, not NaN, and 1e-300 reads as the narrowest", omx_eq_octaves_q(1e300), OMX_EQ_Q_MIN);
+  }
   double qs[2];
   ok(omx_eq_butterworth_qs(0, qs) == 1u && fabs(qs[0] - M_SQRT1_2) < 1e-12, "12 dB/oct is one section at 1/sqrt2", qs[0], M_SQRT1_2);
   ok(omx_eq_butterworth_qs(1, qs) == 2u && fabs(qs[0] * qs[1] - M_SQRT1_2) < 1e-6, "24 dB/oct's two Qs multiply to 1/sqrt2", qs[0] * qs[1], M_SQRT1_2);

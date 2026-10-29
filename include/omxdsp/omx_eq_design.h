@@ -99,6 +99,12 @@ static inline void omx_eq_lowpass_handover(double q, double band[2]) {
 }
 
 #undef OMX_CONTRACT_STAGE
+/** @brief The lowest Q a section is designed at: a Q below it, a non-positive one included, reads as this. */
+#define OMX_EQ_Q_MIN 1e-3
+/** @brief The highest Q a section is designed at (a Q above it reads as this): ten thousand times the widest
+ *         Q any control travels to, and the last before the poles round onto the unit circle in double. */
+#define OMX_EQ_Q_MAX 1e6
+
 #define OMX_CONTRACT_STAGE "eq-design/matched-pair"
 /**
  * @brief One conjugate pair placed by the matched-Z map, as `{p1, p2, dc}`.
@@ -136,7 +142,7 @@ static inline void omx_eq_matched_pair(double wn, double zeta, double out[3]) {
  *        for term core's `rbjCoeffs`.
  * @param kind The section kind.
  * @param freq_hz Centre or corner, Hz; clamped to `[1, 0.999·Nyquist]`.
- * @param q Quality factor; a non-positive value reads as 1e-3.
+ * @param q Quality factor; held in [OMX_EQ_Q_MIN, OMX_EQ_Q_MAX], so a non-positive value reads as 1e-3.
  * @param gain_db Gain, dB; read by the peaking and shelf kinds only.
  * @param sample_rate Sample rate, Hz, positive.
  * @param c The five coefficients, in double.
@@ -152,7 +158,7 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
   const double nyquist = sample_rate * 0.5;
   const double lo = 1.0, hi = nyquist * 0.999;
   const double f0 = freq_hz < lo ? lo : (freq_hz > hi ? hi : freq_hz);
-  const double qq = q <= 0.0 ? 1e-3 : q;
+  const double qq = q < OMX_EQ_Q_MIN ? OMX_EQ_Q_MIN : (q > OMX_EQ_Q_MAX ? OMX_EQ_Q_MAX : q);
   const double w0 = (2.0 * M_PI * f0) / sample_rate;
   const double A = exp(gain_db * (M_LN10 / 40.0));
   double p[3], z[3];
@@ -295,7 +301,7 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
  * @param freq_hz Centre, Hz; clamped to `[1, 0.999·Nyquist]`, as omx_eq_design() clamps it.
  * @param bw_oct The width, in octaves, positive.
  * @param sample_rate Sample rate, Hz, positive.
- * @return The quality factor.
+ * @return The quality factor, in [OMX_EQ_Q_MIN, OMX_EQ_Q_MAX].
  * @pre `finite-params-and-positive-rate`.
  * @post `finite-positive-q`.
  * @note RT-safe: `sin` and `sinh` on the RT-safe allowlist. Thread-safe: pure.
@@ -308,7 +314,11 @@ static inline double omx_eq_bandwidth_q(double freq_hz, double bw_oct, double sa
   const double lo = 1.0, hi = nyquist * 0.999;
   const double f0 = freq_hz < lo ? lo : (freq_hz > hi ? hi : freq_hz);
   const double w0 = (2.0 * M_PI * f0) / sample_rate;
-  const double q = 1.0 / (2.0 * sinh(((M_LN2 / 2.0) * bw_oct * w0) / sin(w0)));
+  /* a width so narrow that sinh() reaches 0 is the highest Q, not an infinite one; one so wide that it
+   * overflows is the lowest, not 0 */
+  const double sh = sinh(((M_LN2 / 2.0) * bw_oct * w0) / sin(w0));
+  double q = 1.0 / (2.0 * (sh > 0.5 / OMX_EQ_Q_MAX ? sh : 0.5 / OMX_EQ_Q_MAX));
+  if (!(q >= OMX_EQ_Q_MIN)) q = OMX_EQ_Q_MIN;
   OMX_POST(isfinite(q) && q > 0.0, "finite-positive-q");
   return q;
 }
@@ -402,8 +412,9 @@ static inline void omx_eq_complement(const double c[5], double out[5]) {
 static inline double omx_eq_octaves_q(double bw_oct) {
   OMX_PRE(isfinite(bw_oct), "finite-width");
   const double bw = bw_oct > 0.05 ? bw_oct : 0.05;
-  const double t = pow(2.0, bw);
-  const double q = sqrt(t) / (t - 1.0);
+  const double t = pow(2.0, bw < 64.0 ? bw : 64.0); /* 2^bw stays finite; the Q below is held at its lowest long before */
+  double q = sqrt(t) / (t - 1.0);
+  if (q < OMX_EQ_Q_MIN) q = OMX_EQ_Q_MIN;
   OMX_POST(isfinite(q) && q > 0.0, "finite-positive-q");
   return q;
 }
