@@ -24,6 +24,8 @@
 #               kernels and twins, which omx-dsp-copy-check reads in a consumer (make install ships both)
 #   make copy-check  omx-dsp-copy-check's self-test over planted copies, then each rule broken in turn
 #   make lint   the doc check and the source scan only
+#   make fuzz   the libFuzzer harnesses of fuzz/ (clang, ASan, UBSan, contracts); make fuzz-run FUZZ_TIME=60 runs
+#               each from its seed corpus, make fuzz-corpus regenerates the seeds (fuzz/README.md)
 #   make contract-dir OMX_CONTRACT=<checkout>  data/ installed beside omx-contract's own data as a contract
 #               directory and read back through the checkout's reader, and three refusals
 #               (tools/contract-dir-check.sh)
@@ -148,7 +150,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
+.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -728,3 +730,46 @@ bench-drive: tools/drive-cost.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
 bench-flanger: tools/flanger-cost.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/flanger-cost tools/flanger-cost.c $(LIB) -lm
 	./$(BUILD)/flanger-cost
+
+# ---- fuzzing: libFuzzer harnesses over the entry points that take outside data (fuzz/README.md) ----
+# One harness per fuzz/fuzz_<name>.c, a plain C LLVMFuzzerTestOneInput, linked against a libomxdsp.a of its
+# own: the same src/*.c compiled with clang, ASan, UBSan, the library's contracts (-DOMX_CONTRACTS) and
+# libFuzzer's coverage hooks into build/fuzz/obj, so the ordinary build above is never touched. None of these
+# targets is part of `make test`. The only addition to the toolchain is clang with libFuzzer's runtime
+# (apt-get install -y clang libclang-rt-dev).
+#
+#   make fuzz                   build every harness
+#   make fuzz-run FUZZ_TIME=60  run each for the budget from its seed corpus; red on any crash, the
+#                               crashing input left in fuzz/findings/
+#   make fuzz-corpus            regenerate fuzz/corpus/ from the library's own tables (fuzz/gen-corpus.c)
+FUZZ_CC        ?= clang
+FUZZ_TIME      ?= 60
+FUZZ_BUILD     := $(BUILD)/fuzz
+FUZZ_HARNESSES := fx laws eq src delay note_map
+FUZZ_SAN       := -fsanitize=address,undefined -fno-sanitize-recover=all
+FUZZ_CFLAGS    := -O1 -g -std=gnu11 -Wall -Wextra -fno-omit-frame-pointer $(FUZZ_SAN) -DOMX_CONTRACTS $(FPFLAGS)
+FUZZ_BINS      := $(FUZZ_HARNESSES:%=$(FUZZ_BUILD)/fuzz_%)
+FUZZ_LIB_OBJS  := $(patsubst src/%.c,$(FUZZ_BUILD)/obj/%.o,$(SRC))
+FUZZ_DEPS      := fuzz/fuzz.h $(HEADERS) $(FX_HEADERS) $(MIX_HEADERS) $(ANALYSIS_HEADERS)
+
+$(FUZZ_BUILD)/obj/%.o: src/%.c $(HEADERS) $(ANALYSIS_HEADERS)
+	@mkdir -p $(@D)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -fsanitize=fuzzer-no-link $(INC) -c -o $@ $<
+
+$(FUZZ_BUILD)/libomxdsp.a: $(FUZZ_LIB_OBJS)
+	$(AR) rcs $@ $(FUZZ_LIB_OBJS)
+
+$(FUZZ_BUILD)/fuzz_%: fuzz/fuzz_%.c $(FUZZ_DEPS) $(FUZZ_BUILD)/libomxdsp.a
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -fsanitize=fuzzer $(INC) -Ifuzz $< $(FUZZ_BUILD)/libomxdsp.a -lm -o $@
+
+fuzz: $(FUZZ_BINS)
+
+fuzz-run: fuzz
+	FUZZ_BUILD=$(FUZZ_BUILD) FUZZ_TIME=$(FUZZ_TIME) fuzz/run.sh $(FUZZ_HARNESSES)
+
+$(FUZZ_BUILD)/fuzz-gen-corpus: fuzz/gen-corpus.c fuzz/fuzz_fx.c $(FUZZ_DEPS) $(LIB_CONTRACTS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -DOMX_CONTRACTS $(INC) -Ifuzz -o $@ fuzz/gen-corpus.c $(LIB_CONTRACTS) -lm
+
+fuzz-corpus: $(FUZZ_BUILD)/fuzz-gen-corpus
+	$(FUZZ_BUILD)/fuzz-gen-corpus fuzz/corpus
