@@ -374,6 +374,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: FreeMixer/.github/.github/actions/commit-message-check@v1
+      - uses: FreeMixer/.github/.github/actions/commit-message-check@main
         with:
           base-ref: ${{ github.event.pull_request.base.ref }}
