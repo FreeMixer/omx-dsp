@@ -110,6 +110,24 @@ static void onepole_pole_below_one(void) {
   expect_clean();
 }
 
+/* THE POST IS RELATIVE (omx-dsp#250, found by fuzz_fx): "the step lies between the input and the state" was
+ * held to 1e-6 absolute, which the rounding of a sample of 1000 alone breaks. Steps at levels from 1 to 1e6 and
+ * poles from a wire to the cap leave the ledger clean, in both forms. */
+static void onepole_post_at_level(void) {
+  static const float LEVEL[] = { 1.0f, 30.0f, 1000.0f, 1e4f, 1e6f };
+  static const float POLE[] = { 0.0f, 0.3f, 0.9f, 0.99999f };
+  for (unsigned i = 0; i < sizeof LEVEL / sizeof LEVEL[0]; i++)
+    for (unsigned j = 0; j < sizeof POLE / sizeof POLE[0]; j++) {
+      float a = LEVEL[i] * 0.37f, b = LEVEL[i] * 0.37f;
+      for (unsigned k = 0; k < 4000u; k++) {
+        const float x = (k & 64u) ? LEVEL[i] : -LEVEL[i] * 0.61f;
+        omx_onepole(&a, x, POLE[j]);
+        omx_onepole_toward(&b, x, POLE[j]);
+      }
+    }
+  expect_clean();
+}
+
 /* The settled peak amplitude of a sine at `hz` through a one-pole of `pole` at `sr` (second half of 0.2 s). */
 static double onepole_settled_gain(float hz, float pole, float sr) {
   float s = 0.0f;
@@ -479,6 +497,7 @@ static void arm_onepole(void) {
   onepole_dc_gain();
   onepole_time_constant_rme();
   onepole_pole_below_one();
+  onepole_post_at_level();
   onepole_corner_rme();
   onepole_fixed_point();
   onepole_folded_sites();

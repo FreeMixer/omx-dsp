@@ -44,10 +44,13 @@ static inline float omx_onepole(float *state, float x, float pole) {
   OMX_PRE(pole >= 0.0f && pole < 1.0f, "pole-in-declared-range");
 #ifdef OMX_CONTRACTS
   const float lo = fminf(x, *state), hi = fmaxf(x, *state);
+  /* the rounding of the two products and their sum is relative to the level: 1e-6 absolute was a fraction of
+   * an ulp only below 16, and a sample of 1000 (a gain of +60 dB on a loud one) broke it by rounding alone */
+  const float slack = 1e-6f * (1.0f + fmaxf(fabsf(lo), fabsf(hi)));
 #endif
   *state = x * (1.0f - pole) + *state * pole;
   OMX_POST(*state - *state == 0.0f, "finite-out");
-  OMX_POST(*state >= lo - 1e-6f && *state <= hi + 1e-6f, "no-overshoot-convex-combination");
+  OMX_POST(*state >= lo - slack && *state <= hi + slack, "no-overshoot-convex-combination");
   return *state;
 }
 #undef OMX_CONTRACT_STAGE
@@ -91,10 +94,11 @@ static inline float omx_onepole_toward(float *state, float target, float pole) {
   OMX_PRE(pole >= 0.0f && pole < 1.0f, "pole-in-declared-range");
 #ifdef OMX_CONTRACTS
   const float lo = fminf(target, *state), hi = fmaxf(target, *state);
+  const float slack = 1e-6f * (1.0f + fmaxf(fabsf(lo), fabsf(hi))); /* relative to the level, as in omx_onepole() */
 #endif
   *state += (1.0f - pole) * (target - *state);
   OMX_POST(*state - *state == 0.0f, "finite-out");
-  OMX_POST(*state >= lo - 1e-6f && *state <= hi + 1e-6f, "never-overshoots-target");
+  OMX_POST(*state >= lo - slack && *state <= hi + slack, "never-overshoots-target");
   return *state;
 }
 #undef OMX_CONTRACT_STAGE
