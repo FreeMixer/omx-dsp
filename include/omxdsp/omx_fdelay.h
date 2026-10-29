@@ -215,9 +215,10 @@ static inline void omx_fdelay_write(struct omx_fdelay *l, float x) {
 
 #define OMX_CONTRACT_STAGE "fdelay/clamp"
 /**
- * @brief The delay the line will actually deliver for a request: clamped into the ring, a
- *        non-finite request read as 0, a fractional request below the kernel's reach raised to
- *        the shortest whole delay it can read.
+ * @brief The delay the line will actually deliver for a request: a non-finite request read as 0,
+ *        a fractional request below the kernel's reach raised to the shortest whole delay it can
+ *        read, the result clamped into the ring (a ring whose longest delay is under the kernel's
+ *        reach delivers that whole delay for a fractional request).
  * @param l The line.
  * @param delay The requested delay, samples.
  * @return The delivered delay, samples; the number a latency row publishes.
@@ -229,9 +230,9 @@ static inline float omx_fdelay_latency(const struct omx_fdelay *l, float delay) 
   float d = (delay - delay == 0.0f) ? delay : 0.0f;
   const float maxd = omx_fdelay_max_delay(l->cap, l->order);
   if (d < 0.0f) d = 0.0f;
-  if (d > maxd) d = maxd;
   const float mind = omx_fdelay_min_delay(l->order);
   if (d < mind && d != floorf(d)) d = mind;
+  if (d > maxd) d = maxd; /* after the raise: a ring that serves less than the kernel's reach serves its longest whole delay */
   OMX_POST(d >= 0.0f && d <= maxd, "clamped-delay-is-inside-the-ring");
   return d;
 }
