@@ -35,6 +35,20 @@ parts that are already tested against exact results at every sample rate.
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
 Requires: omx-contract-devel >= 3.1.0
+Requires: %{name}-contract = %{version}-%{release}
+
+%package contract
+Summary: omx-dsp's kernel and instance declarations, for programs that read them at run time
+BuildArch: noarch
+# the declarations live in omx-contract's contract directory and are read against its schema; a floor only
+Requires: omx-contract-data >= 3.1.0
+
+%description contract
+omx-dsp's package of omx-contract's contract directory: the declarations of
+its kernels and instance faces (their controls, units and readouts) under
+/usr/share/omx-contract/contract.d/3/omx-dsp. A program that reads them while
+it runs (a panel, the omx-contract command) needs this package, not the
+development one.
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -67,10 +81,13 @@ library exists.
 %{_libdir}/pkgconfig/omxdsp.pc
 %{_libdir}/pkgconfig/omxdsp-contracts.pc
 %{_libdir}/pkgconfig/omxdsp-tsan.pc
-%{_datadir}/omx-contract/contract.d/3/omx-dsp/
 %{_bindir}/omx-dsp-copy-check
 %{_mandir}/man1/omx-dsp-copy-check.1*
 %{_datadir}/omxdsp/
+
+%files contract
+%license LICENSE
+%{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
 * Sun Oct 25 2026 Pau Aliagas <linuxnow@gmail.com> - 0.26.0-1
