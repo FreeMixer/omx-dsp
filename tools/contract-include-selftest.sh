@@ -27,7 +27,7 @@ grep -q "^Requires: omx-contract-devel >= $floor\$" "$HERE/packaging/omx-dsp.spe
   || fail "the spec's devel Requires is not its BuildRequires floor >= $floor"
 grep -q '^Requires: omx-contract >= @CONTRACTFLOOR@$' "$HERE/omxdsp.pc.in" \
   || fail "omxdsp.pc.in does not require the spec's floor (@CONTRACTFLOOR@) alone"
-# No ceiling anywhere a dependency on the contract is declared (operator ruling 2026-10-15: floors only).
+# No ceiling anywhere a dependency on the contract is declared (decided 2026-10-15: floors only).
 ceilings() {  # tree: every upper bound or exact pin on the contract in the three declaring files
   { grep -E '^(Build)?Requires:.*omx-contract' "$1/packaging/omx-dsp.spec" || true
     grep -E '^(Build-Depends|Depends):' "$1/debian/control" | grep -oE 'libomx-contract-dev \([^)]*\)' || true

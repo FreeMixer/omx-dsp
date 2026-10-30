@@ -62,7 +62,7 @@
  *   - the two MODES swapped   -> 46 checks red; split ducks the vowel by the same 8.935 dB as the
  *                             sibilant, which is the one thing a split de-esser must never do;
  *   - the BAND restored to the highpass·lowpass pair the stage first shipped with (the operator's
- *     2026-09-22 ruling) -> 205 checks red, all of them in
+ *     2026-09-22 decision) -> 205 checks red, all of them in
  *     `test_split_never_exceeds_input`: the probe comes out LOUDER than it went in at 76 of the
  *     129 probes (worst +1.050 dB at 2 602 Hz at 44.1 k, +1.040 at 48 k, +0.993 at 96 k, +0.981
  *     at 192 k — the closed form |1 - (1 - g) H| tracks every one of them to 0.0000 dB, so the
@@ -410,7 +410,7 @@ static void test_never_adds_gain(double sr) {
 
 /*
  * THE `no-gain-added` LAW IN SPLIT MODE, MEASURED AT EVERY FREQUENCY (; the operator's
- * ruling, §1 gate line 3). A 7 kHz sibilant hot enough to hold the stage at its -24 dB floor —
+ * decision, §1 gate line 3). A 7 kHz sibilant hot enough to hold the stage at its -24 dB floor —
  * so g is a CONSTANT and the stage is, for the length of the measurement, a linear filter — and
  * a small probe tone swept over the audio band. The probe must never come out louder than it went
  * in, and must sit on the closed form |g + (1 - g) N(f)|. The sibilant itself must read the floor:

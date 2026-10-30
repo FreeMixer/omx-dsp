@@ -11,7 +11,7 @@
  * {@link omx_eq_lv2_set_controls}, so a shell carries ports across its host boundary and nothing
  * more. The `omx_eq_lv2_*` names are kept, as omx-plugins' omx_delay_instance.h keeps `omx_delay_lv2_*`.
  *
- * Ruling: LV2 has no variable
+ * Decision: LV2 has no variable
  * port count, so the EQ ships as THREE bundles — omx-eq8, omx-eq16, omx-eq32 — from this one
  * file, `-DOMX_EQ_LV2_BANDS=8|16|32` at the three `cc` lines in package.json. There are no three
  * copies of the code; there are three numbers.

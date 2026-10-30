@@ -172,13 +172,13 @@ static void fd_arm_tick_pair(void) {
  * ../fx/fdelay_oracle.h's omx_oracle_fdelay: the same unique interpolating polynomial built by
  * NEWTON'S DIVIDED DIFFERENCES over the complex-exponential samples, never forming a Lagrange
  * coefficient, so the kernel is never compared with itself. Nothing below is a recorded number
- * except the ruled figures, which the MEASURED worst cases are compared against.
+ * except the decided figures, which the MEASURED worst cases are compared against.
  *
  *   A — EXACT COPY: orders 3 and 5, every integer delay 0..64, BOTH doors, input below the flush
  *       floor; plus the memcmp ruler's positive control.
  *   B — THE §2 TABLE at the nine oracle rates: a 20 kHz tone (15 kHz at 32 kHz, whose Nyquist is
  *       16 kHz), 101 fractions, loss and GROUP DELAY measured by DFT against the closed form
- *       within 0.01 dB / 0.001 sample; the ruled figures at the six rates it quotes, 0.01 dB /
+ *       within 0.01 dB / 0.001 sample; the decided figures at the six rates it quotes, 0.01 dB /
  *       0.01 µs; the band sweep 1-20 kHz; and the REFUSED linear row from the closed form.
  *   C — NO CLICK: a 1 kHz tone under a slewed delay steps no more than the derived bound, with a
  *       nearest-sample slew as the positive control, at the nine oracle rates.
@@ -204,7 +204,7 @@ static double fd_oracle_gd(int order, double d, double w, double dw) {
   return -fd_wrap_pi(p2 - p1) / (2.0 * dw);
 }
 
-/** The arm-B tone at `sr`: 20 kHz (the ruled column) wherever it is below Nyquist; at 32 kHz
+/** The arm-B tone at `sr`: 20 kHz (the decided column) wherever it is below Nyquist; at 32 kHz
  *  the band's next tone, 15 kHz — a 20 kHz tone there is a 12 kHz alias, not a 20 kHz point. */
 static double fd_b_tone(double sr) { return 20000.0 < 0.5 * sr ? 20000.0 : 15000.0; }
 
@@ -329,7 +329,7 @@ static void fd_measure(int order, double d, uint32_t win, int bi, double *mi, do
   fd_dft_bin(fd_bout, win, bi, mo, po);
 }
 
-/* The loss table, ruled 2026-09-20, to two decimals:
+/* The loss table, decided 2026-09-20, to two decimals:
  * worst loss (dB) and worst group-delay error (µs) at 20 kHz over 101 fractions, {order 3,
  * order 5}. It quotes the six declared rates only; 32, 64 and 128 kHz have no row and are held to
  * the closed form alone. ONE TOLERANCE FOR EVERY ROW — 0.01 dB, 0.01 µs: a looser row is a rate
@@ -407,17 +407,17 @@ static void fd_arm_b_the_table(double sr) {
              order);
     ok(worst_dgd <= 0.001, what, worst_dgd, 0.001);
     if (row >= 0) {
-      /* AND THE RULING'S OWN NUMBERS, to the hundredth the ruling quotes them at. */
-      snprintf(what, sizeof what, "%.0f Hz, order %d: the worst loss IS the ruled figure", sr, order);
+      /* AND THE DECISION'S OWN NUMBERS, to the hundredth the decision quotes them at. */
+      snprintf(what, sizeof what, "%.0f Hz, order %d: the worst loss IS the decided figure", sr, order);
       ok(fabs(worst_loss - FD_TABLE[row].loss[oi]) <= 0.01, what, worst_loss, FD_TABLE[row].loss[oi]);
       snprintf(what, sizeof what, "%.0f Hz, order %d: and so is the worst delay error", sr, order);
       ok(fabs(worst_err_us - FD_TABLE[row].err_us[oi]) <= 0.01, what, worst_err_us,
          FD_TABLE[row].err_us[oi]);
     }
   }
-  /* The ORDERING the ruling turns on: 5 beats 3 at 20 kHz, at every rate the table quotes. */
+  /* The ORDERING the decision turns on: 5 beats 3 at 20 kHz, at every rate the table quotes. */
   if (row >= 0) {
-    snprintf(what, sizeof what, "%.0f Hz: the table the ruling read prefers order 5", sr);
+    snprintf(what, sizeof what, "%.0f Hz: the table the decision read prefers order 5", sr);
     ok(FD_TABLE[row].loss[1] > FD_TABLE[row].loss[0], what, FD_TABLE[row].loss[1],
        FD_TABLE[row].loss[0]);
   }
@@ -426,7 +426,7 @@ static void fd_arm_b_the_table(double sr) {
 /* §2's table is two points at 20 kHz; this walks the band a strip actually carries — 1, 2, 5,
  * 10, 15 and 20 kHz — at both orders, worst loss over the same 101 fractions against the same
  * closed form at the same 0.01 dB. The engine ran it at 96 kHz (the graph rate); it runs here at
- * every oracle rate, each tone below that rate's Nyquist. No delay-error column: the ruling only
+ * every oracle rate, each tone below that rate's Nyquist. No delay-error column: the decision only
  * ever quoted delay error at 20 kHz, and this sweep does not widen that claim. */
 static void fd_arm_b_band_sweep(double sr) {
   const double freqs[6] = {1000.0, 2000.0, 5000.0, 10000.0, 15000.0, 20000.0};
@@ -481,12 +481,12 @@ static void fd_arm_b_the_refused_row(double sr) {
   char what[200];
   /* §2's linear row: 96 kHz loss and delay error, 48 kHz loss (no delay-error cell there). */
   if (sr == 96000.0) {
-    ok(fabs(worst[0] - (-2.01)) <= 0.01, "96 kHz: linear's loss IS the ruled figure", worst[0], -2.01);
+    ok(fabs(worst[0] - (-2.01)) <= 0.01, "96 kHz: linear's loss IS the decided figure", worst[0], -2.01);
     ok(fabs(err_us - 1.00) <= 0.01, "96 kHz: and so is its delay error", err_us, 1.00);
   }
   if (sr == 48000.0)
-    ok(fabs(worst[0] - (-11.74)) <= 0.01, "48 kHz: linear's loss IS the ruled figure", worst[0], -11.74);
-  /* THE ORDERING THE RULING TURNS ON: linear the worst row of the three and order 5 the best, in
+    ok(fabs(worst[0] - (-11.74)) <= 0.01, "48 kHz: linear's loss IS the decided figure", worst[0], -11.74);
+  /* THE ORDERING THE DECISION TURNS ON: linear the worst row of the three and order 5 the best, in
    * loss AND in delay error (the engine asserted it at 96 and 48 kHz; here at every oracle rate). */
   snprintf(what, sizeof what, "%.0f Hz: linear loses more than Lagrange-3, which loses more than Lagrange-5",
            sr);
@@ -497,7 +497,7 @@ static void fd_arm_b_the_refused_row(double sr) {
 
 static void fd_arm_b(void) {
   g_arm = "fdelay B the table";
-  /* Every row the ruling quotes is compared: a table rate that left the RME set would drop a row. */
+  /* Every row the decision quotes is compared: a table rate that left the RME set would drop a row. */
   for (unsigned r = 0; r < FD_TABLE_ROWS; r++) {
     int found = 0;
     for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++)

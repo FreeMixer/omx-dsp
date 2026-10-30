@@ -50,7 +50,7 @@
  * effectiveAttackMs readout is {@link omx_comp_instance_effective_attack_ms}.
  *
  * API CHANGE (FX-12, omx-dsp#188). {@link omx_comp_instance_resolve} gains a trailing `release_mode`
- * argument, positional like the rest (the 10-25 ruling), so every caller built against the earlier
+ * argument, positional like the rest (the 10-25 decision), so every caller built against the earlier
  * signature stops compiling until it passes one; `OMX_COMP_RELEASE_MODES_FIXED` is the compressor
  * that shipped. The callers: omx-plugins' plugins/omx-comp/omx_comp_core.h and
  * plugins/omx-comp/test/comp-oracle.c, and plugins/omx-strip/omx_strip_core.h and

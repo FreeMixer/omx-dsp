@@ -72,7 +72,7 @@ static double g_sr = 96000.0;
 #define SR g_sr
 
 /*
- * THE MARKS, DECLARED PER RATE (omx-dsp#68, operator 2026-10-17). Two claims are asserted at each of
+ * THE MARKS, DECLARED PER RATE (omx-dsp#68, decided 2026-10-17). Two claims are asserted at each of
  * the nine oracle rates, 32..192 kHz, against the mark that rate can hold. The stage stays 4x at every
  * rate: 8x below 88.2 kHz costs 2.1 times the CPU and 12 more samples of latency and does not make one
  * set of marks hold (measured), so the marks differ by rate and each has its reason.

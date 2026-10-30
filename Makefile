@@ -369,7 +369,7 @@ copy-check: | $(BUILD)
 	TMPDIR="$(abspath $(BUILD))" bash tools/omx-dsp-copy-check.sh --self-test
 	TMPDIR="$(abspath $(BUILD))" bash tools/omx-dsp-copy-check.sh --self-test --sabotage
 
-# Public sources state public facts only: no pointer into a private repository (operator ruling
+# Public sources state public facts only: no pointer into a private repository (decided
 # 2026-10-13). The check, then its self-test.
 public-sources:
 	bash tools/public-sources-check.sh

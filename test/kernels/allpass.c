@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /* ---- double-precision all-pass coefficient and second-order design (dsp-primitives §1 rows
- * 4a/5; the RULED first-order lattice itself is test/kernels/allpass1.c's oracle) -------------- */
+ * 4a/5; the DECIDED first-order lattice itself is test/kernels/allpass1.c's oracle) -------------- */
 
 /* Ten test frequencies, log-spaced from 20 Hz to 0.45·sr — shared with xover.c (included after,
  * sorted by filename). */
