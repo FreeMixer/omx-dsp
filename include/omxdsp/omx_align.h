@@ -10,7 +10,7 @@
  * and not the console's output delay (a loudspeaker zone, per destination).
  *
  * It is an ORDER-5 FRACTIONAL line ({@link omx_fdelay}), not a whole-sample ring
- * (the ruled fractional-delay design):
+ * (the decided fractional-delay design):
  *   - the target is `ms × rate / 1000` fractional samples, never rounded first;
  *   - a whole-sample target is an exact copy (the kernel is skipped), so 0 is a passthrough;
  *   - below OMX_ALIGN_FRACTION_MIN_RATE (44.1/48 kHz, where Lagrange-5 loses 6.67-11.40 dB at

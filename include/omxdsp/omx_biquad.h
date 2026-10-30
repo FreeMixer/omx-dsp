@@ -61,7 +61,7 @@ static inline int omx_biquad_stable(const double c[5]) {
  * Named distinctly from omx_biquad_d() (direct form I, double
  * coefficients, `s[4]`): both forms are needed — DF1 for the float cascade's bit-identical
  * per-section history, TDF2 double for the all-pass/crossover's coefficient sensitivity at a
- * corner near the unit circle (ruling 2026-09-28: the primitive collision between
+ * corner near the unit circle (decision 2026-09-28: the primitive collision between
  * the all-pass band lane and the graphic EQ lane).
  * @param x The input sample.
  * @param c The normalised coefficients `{b0, b1, b2, a1, a2}`.

@@ -9,7 +9,7 @@
 // and EQ_FREQ_RANGE, the eq kernel's `freq` travel) and prints the default bands of 1..62 bands, one line
 // per count: `<n> <type>:<centre Hz> ...`, or `<n> none` where the count has no distinct centres.
 // test/eq_default_bands.c holds omx_eq_default_centres() and omx_eq_default_type() equal to it, bit for
-// bit at float, and states the operator's ruled answers (2026-10-08) on their own.
+// bit at float, and states the decided answers (2026-10-08) on their own.
 //
 //   node tools/eq-defaults-golden.mjs [--check]     (make eq-defaults-table)
 //

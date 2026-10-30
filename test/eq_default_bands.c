@@ -8,7 +8,7 @@
  *     the golden's at float, bit for bit, and the types equal its types; a count the golden answers
  *     `none` returns 0;
  *   - every count EQ_BAND_COUNTS declares (each strip type's default and max) has an answer;
- *   - the answers the operator ruled (2026-10-08), stated here on their own: four bands at 100, 400,
+ *   - the answers decided (2026-10-08), stated here on their own: four bands at 100, 400,
  *     2000 and 8000 Hz, a low shelf, two bells, a high shelf; eight bands on R10; sixteen on R10;
  *     thirty-two needing R20; no answer for 0 bands or for more than R20 holds.
  *

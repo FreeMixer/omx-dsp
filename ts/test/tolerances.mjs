@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
- * Every twin's agreement tolerance, in ONE place, each with its reason (moved here with the tests). The ruling puts these in omx-contract as data; until omx-contract carries a tolerance vocabulary
+ * Every twin's agreement tolerance, in ONE place, each with its reason (moved here with the tests). The decision puts these in omx-contract as data; until omx-contract carries a tolerance vocabulary
  * they live here (a recorded debt of the move).
  */
 /** Float32 rounds a number to a relative 2^-24 = 6e-8 at worst. */

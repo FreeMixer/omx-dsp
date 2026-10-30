@@ -4,7 +4,7 @@
  * omx_chorus.h — the native CHORUS stage: N voices reading ONE modulated fractional delay line.
  *
  * The chorus half of the chorus and flanger pair. The primitives are
- * `mix_fdelay.h` at order 3 (the fdelay ruling's own row for this consumer) and `mix_lfo.h`;
+ * `mix_fdelay.h` at order 3 (the fdelay decision's own row for this consumer) and `mix_lfo.h`;
  * nothing here is a kernel of its own.
  *
  * Same contract as omx_delay.h: NO PipeWire, NO napi, NO allocation. The rings live in
@@ -53,7 +53,7 @@
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_contract.h>
 
-/** The Lagrange order this stage constructs — the fdelay ruling's §3 row for chorus/flanger. */
+/** The Lagrange order this stage constructs — the fdelay decision's §3 row for chorus/flanger. */
 #define OMX_CHORUS_ORDER OMX_FDELAY_MOD_READ_ORDER
 
 /** The most voices one strip may run. Four is the M32 chorus's widest ensemble and the point

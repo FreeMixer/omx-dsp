@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# log10f-guard — omx_log10f lives in the tests only (operator ruling 2026-10-08, FreeMixer/omx-dsp#17):
+# log10f-guard — omx_log10f lives in the tests only (decided 2026-10-08, FreeMixer/omx-dsp#17):
 # production calls the libm's log10f. Fails when the name appears in any file under the directories
 # named on the command line (make lint passes include and src).
 set -u

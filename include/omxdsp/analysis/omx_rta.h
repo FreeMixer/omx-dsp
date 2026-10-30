@@ -61,7 +61,7 @@ static inline uint32_t omx_rta_fft_size_for(uint32_t rate) {
  * the SAME tap — sub-2 Hz bins at every graph rate (48 kHz → 0.73, 96 kHz → 1.46) exactly
  * where the log display's bottom decades starve on the main spectrum's linear grid. It is
  * DISPLAY-ONLY and rides the same tap value (one stream, one row — the operator's one-
- * spectrum ruling holds ON THE WIRE); detection (FBS/HRP) keeps the main spectrum, whose
+ * spectrum decision holds ON THE WIRE); detection (FBS/HRP) keeps the main spectrum, whose
  * ~171 ms window measured 7× the low tier's event recall. Fixed size on purpose: the zoom
  * is a resolution floor for eyes, not a rate-scaled analysis window, and fixing it keeps
  * the ring and scratch costs rate-independent. */

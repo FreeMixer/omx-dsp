@@ -3,7 +3,7 @@
 /*
  * flanger.test.c — the flanger against the closed form of its RESONANT comb.
  *
- * (44.1 / 48 / 96 / 192 kHz — the operator's 2026-09-20 ruling).
+ * (44.1 / 48 / 96 / 192 kHz — the 2026-09-20 decision).
  *
  * Same method as `mix_chorus.test.c`: with its oscillator frozen the stage is LTI, so each arm
  * reads an exact transfer function out of an IMPULSE RESPONSE and compares it against the closed
@@ -43,7 +43,7 @@
  *       review.md): a full-scale fs/4 pattern read half a sample off — the Lagrange-3
  *       kernel's worst case, Σ|c| = Λ = OMX_FDELAY_READ_L1_NORM — stays inside
  *       `omx_chorus_gain_bound` and `omx_flanger_gain_bound`, nine rates, with the whole-sample
- *       control; plus the evidence that the ruled Λ/(1 − |fb|) form is NOT a bound.
+ *       control; plus the evidence that the decided Λ/(1 − |fb|) form is NOT a bound.
  *   H — A REFUSED INIT leaves both lines defined: the left line refuses a missing ring, the right
  *       one arms over its own, and the stage passes the block through untouched.
  *
@@ -611,7 +611,7 @@ static void chorus_flanger_stay_inside_their_bound(void) {
     }
   }
   /* EVIDENCE for the law's shape: a STATIC half-sample read at fb ±0.5 has an impulse-response
-   * ℓ1 norm (the exact worst-case peak gain of an LTI stage) ABOVE the ruled Λ/(1 − |fb|), and
+   * ℓ1 norm (the exact worst-case peak gain of an LTI stage) ABOVE the decided Λ/(1 − |fb|), and
    * inside the proven Λ/(1 − Λ|fb|). */
   for (int sgn = -1; sgn <= 1; sgn += 2) {
     struct omx_flanger p = atom(48000.0, OMX_FLANGER_BASE_MS, 0.0, 0.5 * sgn, 1.0);
@@ -619,16 +619,16 @@ static void chorus_flanger_stay_inside_their_bound(void) {
     impulse_response(&p, 0.0);
     double l1 = 0.0;
     for (uint32_t i = 0; i < IRLEN; i++) l1 += fabs((double)g_l[i]);
-    const double ruled = (double)OMX_FDELAY_READ_L1_NORM / (1.0 - 0.5);
+    const double bound = (double)OMX_FDELAY_READ_L1_NORM / (1.0 - 0.5);
     char what[160];
-    snprintf(what, sizeof what, "arm G: fb %+.1f static half-sample l1 exceeds the ruled Λ/(1-|fb|)",
+    snprintf(what, sizeof what, "arm G: fb %+.1f static half-sample l1 exceeds the decided Λ/(1-|fb|)",
              0.5 * sgn);
-    ok(l1 > ruled, what, l1, ruled);
+    ok(l1 > bound, what, l1, bound);
     snprintf(what, sizeof what, "arm G: fb %+.1f static half-sample l1 inside the published bound",
              0.5 * sgn);
     ok(l1 <= (double)omx_flanger_gain_bound(&p), what, l1, (double)omx_flanger_gain_bound(&p));
-    printf("mix_flanger arm G: fb %+.1f static half-sample l1 %.6f (ruled %.4f, published %.4f)\n",
-           0.5 * sgn, l1, ruled, (double)omx_flanger_gain_bound(&p));
+    printf("mix_flanger arm G: fb %+.1f static half-sample l1 %.6f (decided %.4f, published %.4f)\n",
+           0.5 * sgn, l1, bound, (double)omx_flanger_gain_bound(&p));
   }
   drain_violations("arm G: no contract violation");
 }

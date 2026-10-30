@@ -7,7 +7,7 @@
  *
  * Composed from the library
  * words only: {@link omx_biquad_cascade_d_stereo}, the double-precision cascade, runs the sections
- * over the GEQ's own array (never a claimant on `OMX_EQ_MAX_BANDS`, roster ruling 3), because a
+ * over the GEQ's own array (never a claimant on `OMX_EQ_MAX_BANDS`, roster decision 3), because a
  * float32 section at 20 Hz, Q 4.3 misses its design by 2.4 dB at 192 kHz; {@link omx_flush_d}
  * clears the history. The sections are designed on the control thread; the kernel reads no mode, no
  * centre and no Q, so `standard` and `true` differ only in the gains handed to it (§4 L4).

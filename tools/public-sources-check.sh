@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # public-sources-check.sh — a public source states public facts and never points into a private
-# repository (operator ruling 2026-10-13). Fails when a tracked file names:
+# repository (decided 2026-10-13). Fails when a tracked file names:
 #   FreeMixer/openmixer, openmixer-ops, openmixer#N, openmixer #N, any <name>-dev#N,
 #   integration/<branch>, packages/<name>/ (a path in the private repository), a .vue file,
 #   docs/design/specs|notes/ (its design documents), `issue #N`, a citation of a private specification

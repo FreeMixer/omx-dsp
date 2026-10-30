@@ -9,7 +9,7 @@
  *   1. RESOLVE. {@link omx_tone_instance_resolve} takes the tone kernel's contract controls in their
  *      declared order (data/kernels/tone.json), each clamped into its travel, a non-finite word
  *      reading as its default.
- *      - `tiltDb` is the tilt's SPAN (the ruling R3b of omx-dsp#188): `a = 10^(tiltDb/40)`
+ *      - `tiltDb` is the tilt's SPAN (the decision R3b of omx-dsp#188): `a = 10^(tiltDb/40)`
  *        (omx_tilt_a_of_span), so the tilt is `-tiltDb/2` at DC, `+tiltDb/2` at Nyquist and 0 dB at
  *        `pivotHz`. +6 dB is a +-3 dB pair, about 2 dB per octave at the pivot. One section, never two.
  *      - `filter` below 0 is a low-pass whose corner falls from TONE_FILTER_HIGH_HZ at -0 to

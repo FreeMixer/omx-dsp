@@ -11,14 +11,14 @@
  * the reverb math review notes, and every tolerance below is a measured
  * figure from that note with a band around it — never a round number chosen to pass.
  *
- * Three of these arms carried a DIVERGENCE until the operator ruled on them (2026-09-17, note
+ * Three of these arms carried a DIVERGENCE until they were decided (2026-09-17, note
  * SS9): the damping pole was a per-sample constant so a damped decay drifted with the rate
  * (R-1), the plate's tank was unmodulated so it rang at its own allpass loop (R-2), and GATED
  * re-armed in one sample (R-7). All three are now LAWS and the arms assert them: the reference
  * rate is 96 000 Hz and every other rate must match its figures within 1 %, the plate's late tail
  * must not be periodic, and the arming may add no step the ROOM reference does not already
  * carry. The 96 kHz responses themselves are pinned sample for sample against a fixture cut
- * before the rulings landed, because "the desk's rate does not move" is an identity claim.
+ * before the decisions landed, because "the desk's rate does not move" is an identity claim.
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omx_contract.h>
@@ -220,15 +220,15 @@ static int ulps_apart(float a, float b) {
 }
 
 /* R-1 normalises the damping pole to a reference rate of 96 000 Hz — the rate the desk runs
- * (ruling 2026-09-14) — precisely so the desk's sound does not move: the exponent there is
+ * (decision 2026-09-14) — precisely so the desk's sound does not move: the exponent there is
  * exactly 1 and the pole is the number it always was. That is an IDENTITY, and an identity is
  * checked against the old output, never re-derived: `test/fixtures/reverb_96k_reference.h` was
- * cut before the ruling touched the kernel. Fifteen rows (five configurations x three damping
+ * cut before the decision touched the kernel. Fifteen rows (five configurations x three damping
  * settings), each an FNV-1a hash over the whole 2 x 32 768-sample response plus 64 decimated taps
  * per leg so a divergence can be localised and measured in ulps.
  *
  * The plate's three rows were deliberately re-cut afterwards, because R-2 modulates its tank and
- * that response was MEANT to change. ROOM, HALL, REVERSE and GATED still carry their pre-ruling
+ * that response was MEANT to change. ROOM, HALL, REVERSE and GATED still carry their pre-decision
  * rows: R-1 reaches all four through the damping filter and left every sample where it was.
  *
  * WHAT THESE ROWS DO NOT COVER. The reference excitation keys GATED continuously from before the
@@ -277,7 +277,7 @@ static void test_the_reference_rate_response_is_unchanged(void) {
 /* A one-pole's corner is -ln(p)*sr/2pi, so a pole used raw is a DIFFERENT FILTER at every rate:
  * damping 0.6 cornered at 3 585 Hz at 44.1 kHz and at 15 610 Hz at 192 kHz, which measured as a
  * ROOM HF decay 10.6 % longer and a HALL tail 8.3 % longer at 192 k than at 44.1 k (note R-1).
- * Ruling 2026-09-17: the pole is raised to REF/sr, so the corner is the one the 96 kHz reference
+ * Decision 2026-09-17: the pole is raised to REF/sr, so the corner is the one the 96 kHz reference
  * has at every rate. The tail below the corner was always rate-invariant — the unity-DC law —
  * and stays so; what this arm now demands is that the HF decay and
  * HALL's own tail match their 96 kHz figures within 1 %. */
@@ -347,7 +347,7 @@ static double autocorr_peak(const float *x, int a, int len, int lag_lo, int lag_
 /* A late tail must not be periodic: a peak in its autocorrelation is a flutter, heard as metal.
  * ROOM and HALL diffuse theirs away. The PLATE did not — its tank carried no modulation and its
  * first tank allpass recirculates at 0.7, so it rang at 0.709 at 22.6 ms, its own tank length,
- * against ROOM's 0.26 (note R-2). Ruling 2026-09-17: the tank's first allpass in EACH half is
+ * against ROOM's 0.26 (note R-2). Decision 2026-09-17: the tank's first allpass in EACH half is
  * modulated per Dattorro, and the peak must now sit below 0.40 — ROOM's own neighbourhood — at
  * every rate and on BOTH legs, because each half feeds one leg and modulating only one of them
  * leaves the other ringing and the mono sum brings it back. */
@@ -679,7 +679,7 @@ static void test_gate_holds_and_closes_without_a_step(void) {
   }
 }
 
-/* R-7, ruled 2026-09-17: the ARMING is a RAMP. A one-sample arming (`gate_env` to 1.0 in a
+/* R-7, decided 2026-09-17: the ARMING is a RAMP. A one-sample arming (`gate_env` to 1.0 in a
  * single step) multiplies the wet straight back up on a hit arriving mid-release, and
  * because the signal's own step shrinks with the rate while the jump does not, the ratio grew
  * with the clock: 0.38 / 1.19 / 2.24 / 4.68 times the wet's own largest steady-state step at the

@@ -94,7 +94,7 @@ int main(void) {
   static const char *const rate_pre[] = {"rate-is-declared"};
   expect_exactly(1u, "allpass1/coef_d", "pre", rate_pre);
 
-  /* No entry-invariant scenario here (unlike the lattice this replaced, dedup ruling
+  /* No entry-invariant scenario here (unlike the lattice this replaced, dedup decision
    * 2026-09-25/R-097): omx_allpass1_tick() checks state-finite-and-flushed only on the way OUT,
    * over its own omx_flush() write — never independently violable through the public tick, so
    * poking `ap.s` before a call proves nothing past omx_flush()'s own (separately covered)
