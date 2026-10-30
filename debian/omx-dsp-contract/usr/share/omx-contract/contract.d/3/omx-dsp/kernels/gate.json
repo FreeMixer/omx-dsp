@@ -1,0 +1,218 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "keySource",
+      "kind": "choice",
+      "doc": "Where the gate listens: its own input (self), or the key it is handed (sidechain), in the order of the integer the key port carries.",
+      "ids": [
+        "self",
+        "sidechain"
+      ]
+    },
+    {
+      "name": "thresholdDb",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": -80,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -40,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "rangeDb",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": -90,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -90,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "kneeStartDb",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": -80,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -43,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "kneeEndDb",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": -80,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -37,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "attackMs",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 500,
+        "step": 0.5,
+        "unit": "ms",
+        "default": 1,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "holdMs",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 2000,
+        "step": 5,
+        "unit": "ms",
+        "default": 10,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "releaseMs",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 5000,
+        "step": 10,
+        "unit": "ms",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "hysteresisDb",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 3,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "ratio",
+      "kind": "travel",
+      "table": "GATE_LIMITS",
+      "travel": {
+        "min": 1,
+        "max": 100,
+        "step": 1,
+        "unit": "",
+        "default": 16,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "hpHz",
+      "kind": "travel",
+      "table": "GATE_KEY_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 20000,
+        "step": 1,
+        "unit": "Hz"
+      }
+    },
+    {
+      "name": "lpHz",
+      "kind": "travel",
+      "table": "GATE_KEY_LIMITS",
+      "travel": {
+        "min": 0,
+        "max": 20000,
+        "step": 1,
+        "unit": "Hz"
+      }
+    },
+    {
+      "name": "keyListen",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_gate_instance.h#listen_on"
+      },
+      "doc": "While on, the outputs carry what the gate's detector reads: the key (the sidechain, or the gate's own mono sum) after the key filter and the tilt on both outputs, or, for a self-keyed gate with no key filter and a flat tilt, each input leg on its own output, since the detector then reads the legs. The gate keeps running underneath. It comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "keyTiltDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_gate_instance.h#tilt_slope"
+      },
+      "doc": "The key's tilt, in dB per octave at KEY_TILT_PIVOT_HZ, after the key filter: positive lets the gate open on a brighter key (a tom, a snare) and stay shut on the low end, negative the other way (omx_tilt, the compressor's key tilt). 0 is flat, the come-up value, bit for bit.",
+      "travel": {
+        "min": -6,
+        "max": 6,
+        "step": 0.5,
+        "unit": "dB/oct",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "gainReductionDb",
+      "doc": "The gate's gain reduction, in dB with CLAP's sign: 0 while it reduces nothing, negative the reduction it applies. The display range runs down to GATE_LIMITS.rangeDb.min: the gate attenuates by its range at most.",
+      "unit": "dB",
+      "min": {
+        "ref": "GATE_LIMITS.rangeDb.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "tables": {
+    "GATE_LIMITS": {
+      "source": {
+        "from": {
+          "link": "core/src/strip-dynamics-limits.ts#GATE_LIMITS",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        }
+      },
+      "doc": "The legal range of each gate field (engineering units). The widget clamps drags to these, `normalizeGate` enforces them, the row's codec refuses by them and the travel sheet publishes them — one source of truth. `rangeDb` reaches GATE_RANGE_FLOOR_DB, shown as \"−∞\" in readouts (a gate fully closed is silence)."
+    },
+    "GATE_KEY_LIMITS": {
+      "doc": "The travel of each edge of the keyed gate's detector filter, 0 (off) up to 20 kHz in whole Hz, as the console's `/channel/{kind}/{index}/gate/key` row serves them (the console's GATE_KEY_LIMITS). A property of the detector filter, not of any desk: no come-up value is declared."
+    }
+  }
+}

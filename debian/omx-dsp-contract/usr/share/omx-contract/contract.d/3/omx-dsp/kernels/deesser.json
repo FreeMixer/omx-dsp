@@ -1,0 +1,204 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "controls": [
+    {
+      "name": "deessFreq",
+      "kind": "travel",
+      "global": "DEESS_FREQ_RANGE",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#DEESS_FREQ_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_freq"
+      },
+      "doc": "The detector band's CENTRE, in Hz. Sibilance lives at 5–10 kHz on most voices; 7 kHz with the default width covers 4 950–9 900 Hz, which is where an \"s\" and a \"t\" sit on a close vocal mic. The travel is wider than the come-up on both sides on purpose: a bright female vocal wants the band up near 9 kHz and a chesty male one down at 5, and a surface narrower than the row removes reach the console genuinely has (the same reasoning core's `REVERB_CUT_RANGE` records).",
+      "travel": {
+        "min": 2000,
+        "max": 16000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 7000,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "deessWidth",
+      "kind": "travel",
+      "global": "DEESS_WIDTH_RANGE",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#DEESS_WIDTH_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_width"
+      },
+      "doc": "The band's WIDTH, in OCTAVES around the centre: the edges are `f / 2^(w/2)` and `f · 2^(w/2)`, which is what makes the centre the geometric middle at every width. Octaves and not a Q, because a Q is a property of one section and this band is TWO (a highpass and a lowpass, `mix_deesser.h`) — an operator asked to dial a Q would be dialling a number neither filter carries. One octave is the classic de-esser band: wide enough for a sibilant that moves with the vowel, narrow enough that a 1 kHz vowel sits 27.8 dB down the skirt.",
+      "travel": {
+        "min": 0.25,
+        "max": 4,
+        "step": 0.05,
+        "unit": "oct",
+        "default": 1,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "deessThreshold",
+      "kind": "travel",
+      "global": "DEESS_THRESHOLD_RANGE",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#DEESS_THRESHOLD_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_threshold"
+      },
+      "doc": "Where reduction starts — the level of the BAND, not of the strip, which is why the come-up is so much lower than the compressor's. A vocal peaking −12 dBFS carries roughly −30 dBFS in a one-octave band at 7 kHz on its sibilants and under −40 on its vowels, so −30 sits between the two and the stage opens on an \"s\" and stays shut on an \"ah\".",
+      "travel": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -30,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "deessRatio",
+      "kind": "travel",
+      "global": "DEESS_RATIO_RANGE",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#DEESS_RATIO_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_ratio"
+      },
+      "doc": "How hard the band is held once it is over the threshold. 4:1 is the textbook de-esser ratio: firm on the \"s\", short of a limiter.",
+      "travel": {
+        "min": 1,
+        "max": 20,
+        "step": 0.1,
+        "unit": "",
+        "default": 4,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "deessRange",
+      "kind": "travel",
+      "global": "DEESS_RANGE_RANGE",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#DEESS_RANGE_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_range"
+      },
+      "doc": "The FLOOR on the reduction, in dB and never positive — the deepest cut the stage may reach however loud the sibilant is (`mix_deesser.h`'s clamp). 12 dB tames a hard sibilant; past that a voice starts to lisp, and a de-esser with NO floor turns a shouted \"s\" into a hole. The ceiling is 0, which switches the reduction off without switching the stage off — a legitimate thing to want while dialling the band in by ear.",
+      "travel": {
+        "min": -24,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -12,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "deessAttack",
+      "kind": "travel",
+      "global": "DEESS_ATTACK_RANGE",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#DEESS_ATTACK_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_attack"
+      },
+      "doc": "The detector's ATTACK, in ms. A sibilant's onset is a few milliseconds; 1 ms catches it without the detector chattering on the band's own waveform.",
+      "travel": {
+        "min": 0.1,
+        "max": 50,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 1,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "deessRelease",
+      "kind": "travel",
+      "global": "DEESS_RELEASE_RANGE",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#DEESS_RELEASE_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#deess_release"
+      },
+      "doc": "The detector's RELEASE, in ms. 60 ms is long enough not to modulate inside one \"s\" and short enough to be open again for the next syllable.",
+      "travel": {
+        "min": 5,
+        "max": 500,
+        "step": 1,
+        "unit": "ms",
+        "default": 60,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "deessMode",
+      "kind": "choice",
+      "global": "DEESS_MODES",
+      "doc": "The de-esser's modes, in the order of the integer the kernel reads: split attenuates the detected band only, wideband the whole signal while the sibilance lasts.",
+      "ids": [
+        "split",
+        "wideband"
+      ]
+    }
+  ],
+  "readouts": [
+    {
+      "name": "gainReductionDb",
+      "doc": "The de-esser's gain reduction, in dB with CLAP's sign: 0 while it reduces nothing, negative the reduction it applies. The display range runs down to DEESS_RANGE_RANGE.min: the de-esser reduces by its range at most.",
+      "unit": "dB",
+      "min": {
+        "ref": "DEESS_RANGE_RANGE.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "DEESS_KNEE_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/deesser-curve.ts#DEESS_KNEE_DB",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#knee_db"
+      },
+      "doc": "The knee, in dB — a CONSTANT of the stage and not a row field: a de-esser without a soft knee latches audibly on the first sibilant of a phrase, and no other value of this number is a de-esser anyone would dial. The controller pushes it to the node and this is the same number; a second spelling would be a picture that disagrees with the audio about where the reduction starts.",
+      "unit": "dB",
+      "value": 6
+    },
+    "DEESS_NYQUIST_FRACTION": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_deesser_instance.h#OMX_DEESSER_INSTANCE_NYQUIST_FRACTION"
+      },
+      "doc": "The highest share of Nyquist the detector band's centre may sit at. The frequency travel tops out at 16 kHz, which is Nyquist at 32 kHz, where a band-pass designed on it has no stable poles; the face designs at min(freq, fraction x sample rate / 2). At 0.91 that is 14.56 kHz at 32 kHz, and above the travel's own 16 kHz at every declared rate (0.91 of 22.05 kHz is 20.06 kHz), so it moves no design there.",
+      "unit": "",
+      "value": 0.91
+    }
+  }
+}

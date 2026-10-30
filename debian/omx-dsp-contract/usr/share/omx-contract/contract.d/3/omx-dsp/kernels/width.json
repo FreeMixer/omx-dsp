@@ -1,0 +1,116 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "widthPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_width_instance.h#wpct"
+      },
+      "doc": "The stereo width, percent: the side (L - R)/2 times widthPct/100 over the mid (L + R)/2. 0 is mono, 100 the input bit for bit (the come-up value), 200 the side doubled.",
+      "travel": {
+        "min": 0,
+        "max": 200,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "pseudo",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_width_instance.h#pmode"
+      },
+      "doc": "A pseudo-stereo for a mono source, in the order of the integer the kernel reads: off; comb, the complementary comb L = M + g M[n - d], R = M - g M[n - d] with g WIDTH_COMB_GAIN, whose mono sum is the mid exactly; haas, the right leg delayed by pseudoMs. Off comes up.",
+      "ids": [
+        "off",
+        "comb",
+        "haas"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "Comb",
+        "Haas"
+      ]
+    },
+    {
+      "name": "pseudoMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_width_instance.h#pms"
+      },
+      "doc": "The pseudo-stereo's delay d, ms, rounded to the nearest sample.",
+      "travel": {
+        "min": 0,
+        "max": {
+          "ref": "WIDTH_MAX_DELAY_MS"
+        },
+        "step": 0.1,
+        "unit": "ms",
+        "default": 12,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "bassMono",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_width_instance.h#bmode"
+      },
+      "doc": "Whether the low end is summed to mono: on splits the side with a Linkwitz-Riley crossover at bassMonoHz (omx_xover, LR4) and keeps its high band only, the mid through the crossover's all-pass so the bands stay in phase. Off comes up.",
+      "why": "Provisional, not ruled (omx-dsp#188): bass mono as a switch of its own beside bassMonoHz is the design's proposal. The value ships as declared until the ruling.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "bassMonoHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_width_instance.h#bhz"
+      },
+      "doc": "Where the low end goes mono, Hz: the crossover's corner.",
+      "travel": {
+        "min": 20,
+        "max": 300,
+        "step": 1,
+        "unit": "Hz",
+        "default": 120,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "constants": {
+    "WIDTH_COMB_GAIN": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/omx_width.h#omx_width_process"
+      },
+      "doc": "The complementary comb's gain g: its legs ripple between 1 - g and 1 + g, 0.5 a +3.5 / -6 dB comb, the mono sum unmoved.",
+      "why": "Provisional, not ruled (omx-dsp#188): the comb's gain of 0.5 is the design's proposal. The value ships as declared until the ruling.",
+      "unit": "",
+      "value": 0.5
+    },
+    "WIDTH_MAX_DELAY_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/omx_width.h#omx_width_delay"
+      },
+      "doc": "The longest pseudo-stereo delay, ms: pseudoMs' top, the delay omx_width_delay holds to, the ring sized for it at 192 kHz.",
+      "unit": "ms",
+      "value": 30
+    }
+  }
+}

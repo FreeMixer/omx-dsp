@@ -1,0 +1,8 @@
+debian/tmp/usr/bin
+debian/tmp/usr/include/omxdsp
+debian/tmp/usr/lib/x86_64-linux-gnu/libomxdsp-contracts.a
+debian/tmp/usr/lib/x86_64-linux-gnu/libomxdsp-tsan.a
+debian/tmp/usr/lib/x86_64-linux-gnu/libomxdsp.a
+debian/tmp/usr/lib/x86_64-linux-gnu/pkgconfig
+debian/tmp/usr/share/man
+debian/tmp/usr/share/omxdsp

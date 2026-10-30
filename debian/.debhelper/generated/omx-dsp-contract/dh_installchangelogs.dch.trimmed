@@ -1,0 +1,576 @@
+omx-dsp (0.26.0) unstable; urgency=medium
+
+  * New sections: omx_tilt (a first-order shelf pair about one pivot),
+    omx_duck (the wet ducker, omx_duck_step), omx_doppler (a detuning read
+    head on the fractional delay) and omx_band_dyn_design() (design B).
+  * New instance faces: the dynamic EQ (dyneq), the multiband compressor
+    (mbcomp) and the vocal doubler (doubler). The compressor gains the key
+    path, hold and ducker; the gate gains key listen and key tilt; the delay
+    gains tempo sync, tape and analog modes and the wet duck; the reverb
+    gains early reflections, tail level, wet duck and wet de-ess.
+  * New kernel definitions doubler.json and dyneq.json; band_dyn, comp,
+    delay, gate, mbcomp and reverb grow their controls and readouts. The
+    dynamics kernels' key tilt is a slope in dB/oct, a unit omx-contract
+    3.1.0 adds, so the floor is libomx-contract-dev (>= 3.1.0).
+  * The package build runs make test at dpkg's parallel level again; the
+    gen-once check reads its list from a file, not from make's stdout.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 25 Oct 2026 07:34:57 +0000
+
+omx-dsp (0.25.0) unstable; urgency=medium
+
+  * Built against omx-contract 3.0.0, the schema's major 3: data/ installs
+    under contract.d/3/omx-dsp/ and every definition file requires
+    omx-contract-schema >= 3.0.0.
+  * The second C spellings of eight travels (their c.alias) are gone:
+    OMX_PAN_PAN_*, OMX_DELAY_TIME_MS_*, OMX_DELAY_TAPS_* and OMX_DRIVE_*_*.
+    Read PAN_RANGE as OMX_PAN_RANGE_MIN/MAX and the others by their
+    travels' own names.
+  * New header omxdsp/omx_eq_defaults.h: omx_eq_default_centres and
+    omx_eq_default_type, the one default rule for the bands of a fresh EQ,
+    moved from omx-contract's header with the same results for every band
+    count; make eq-default-bands holds them to the rule's answers.
+  * libomx-contract-dev (>= 3.0.0).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 20 Oct 2026 20:00:00 +0000
+
+omx-dsp (0.24.1) unstable; urgency=medium
+
+  * 0.24.0 has no arm64 DEB: its trixie arm64 build passed the release's job
+    time limit, which is now 90 minutes.
+  * A release dispatched by hand builds the arm64 and aarch64 packages too.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Mon, 19 Oct 2026 06:00:00 +0000
+
+omx-dsp (0.24.0) unstable; urgency=medium
+
+  * Nine instance faces (drive, rotary, reverb, chorus, deesser, delay, eq,
+    flanger and limiter) accept the nine oracle rates from 32 to 192 kHz, the
+    contract's OMX_ORACLE_FULL_RATES, as the pitch faces do; at 32, 64 and
+    128 kHz they used to pass the signal through. Their oracles run every
+    arm at the nine rates.
+  * The deesser designs its detector band at no more than
+    DEESS_NYQUIST_FRACTION (0.91, declared in data/kernels/deesser.json) of
+    Nyquist, so at 32 kHz the band-pass keeps stable poles. No design at a
+    declared rate moves.
+  * The cookbook low-pass holds its corner below Nyquist, so exciterAir's
+    16 kHz roll-off at 32 kHz no longer puts a double pole on the unit
+    circle.
+  * The output delay is declared in data/kernels/idelay.json, and
+    omx_idelay.h gains OMX_IDELAY_MAX_MS, the rendered
+    OMX_OUTPUT_DELAY_RANGE_MAX.
+  * No test or tool types a rate list the contract declares: they read the
+    contract's lists, and make lint checks it.
+  * New headers omxdsp/mix/omx_key.h (omx_key and omx_key_build, a
+    dynamics slot's key) and omxdsp/mix/omx_src_blend.h (omx_src_blend, the
+    switch between a live and a playback source), moved from the console
+    engine bit for bit, and omx_meter_level_db in omxdsp/mix/omx_meter.h, a
+    level meter's dBFS reading. Golden digests at the nine oracle rates,
+    written by the engine's own copies.
+  * The floor of omx_lin_to_db is declared in
+    data/primitives/lin-to-db-floor.json and rendered as
+    OMX_LIN_TO_DB_FLOOR_LIN and OMX_LIN_TO_DB_FLOOR_DB (-180 dB); the value
+    is the same 1e-9 as before (#177).
+  * omx_idelay.h declares its ring size, OMX_IDELAY_MAX_RATE and
+    OMX_IDELAY_CAP (192001 samples).
+  * The tests name the nine rates OMX_ORACLE_FULL_RATES and no vendor (#176);
+    the chorus and flanger kernel oracles run at all nine (#179).
+  * make -jN test generates the kernel lists once and runs test-fx one
+    target per kernel, side by side; perturb.sh writes its case list into its
+    own scratch directory (#153, #163).
+  * Cost benches for the drive and flanger kernels (make bench-drive, make
+    bench-flanger), and one interleaved before/after script for every bench.
+  * libomx-contract-dev (>= 2.16.0).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 18 Oct 2026 20:00:00 +0000
+
+omx-dsp (0.23.0) unstable; urgency=medium
+
+  * New header omxdsp/mix/omx_bus_stage.h with omx_mix_strip,
+    omx_bus_out_gain and omx_bus_out_stage, the console engine's strip and
+    bus output stages, bit for bit, with their contracts.
+  * omxdsp/analysis/omx_hrp_lv2.h gains the calls a plugin face drives the
+    live HRP core through: asks and answers, their counters, the block and
+    restart helpers. HRP's family and bands controls are declared in
+    data/.
+  * Delay taps: the read taps move out of struct omx_fx_delay into struct
+    omx_fx_delay_taps, read by omx_fx_delay_process_taps;
+    omx_fx_delay_process is that call with no taps. omx_fxdelay_tap_gains
+    is now omx_fxdelay_tap_legs and takes a non-finite pan as centre. New
+    omx_fxdelay_tap_ms gives a tap's time in milliseconds. The delay's
+    output does not change.
+  * The pitch instance runs at the nine rates from 32 to 192 kHz; at 32,
+    64 and 128 kHz it used to pass the signal through. At 32 kHz the
+    pre-filter corner stays below Nyquist.
+  * omx_pole_rescale leaves the pole as it is when the reference rate is
+    not above 0, as it already did for the running rate.
+  * libomx-contract-dev (>= 2.16.0).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 18 Oct 2026 08:00:00 +0000
+
+omx-dsp (0.22.0) unstable; urgency=medium
+
+  * The definitions of the kernels and DSP constants this library
+    implements now ship with it. They live in data/, one file per kernel
+    and one per constant, and install into omx-contract's contract
+    directory as the package omx-dsp, with a MANIFEST.json. omx-contract
+    2.15.0 no longer carries them.
+  * The code reads them through omxdsp/omxdsp_definitions.h, rendered from
+    data/ and committed. Every define it holds is the same line
+    omx-contract 2.14.0's header held. The declared rates and parameter
+    scales still come from omx-contract's header, which it includes.
+  * Each definition names the code that implements it, and where the
+    console engine declared it when it was first imported.
+  * libomx-contract-dev (>= 2.15.0).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sat, 17 Oct 2026 00:00:00 +0000
+
+omx-dsp (0.21.0) unstable; urgency=medium
+
+  * The mix maths the engine used to carry now lives here: the pan laws and
+    the LCR downmix centre level, a strip's coefficients, split and
+    settled-silence test, the strip's post-fader peak reading and an output
+    route's fill, fold and fold-fill gains, each with goldens written by the
+    engine's own copies.
+  * New kernels: omx_mbcomp, a multiband compressor over an LR4 crossover
+    tree, and omx_pole_rescale, one home for the reference-rate pole law.
+  * The delay has up to four integer read taps on its one ring. The band
+    dynamics gain path runs on the libm-free unit pair in 64-sample chunks.
+  * omxdsp.h includes omx_align.h, with a check that every public header is
+    reached or listed. omx_dyn seeds y[n-1] when its slot enters the
+    feedback loop.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 16 Oct 2026 00:00:00 +0000
+
+omx-dsp (0.20.2) unstable; urgency=medium
+
+  * The header documentation states its design notes as plain facts,
+    readable without any other document. No code changes: the library and
+    its output are the same as 0.20.1's.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 16 Oct 2026 00:00:00 +0000
+
+omx-dsp (0.20.1) unstable; urgency=medium
+
+  * omx-contract is a dependency floor only: libomx-contract-dev (>= 2.11.0)
+    and omx-contract-devel >= 2.11.0, and omxdsp.pc requires omx-contract >=
+    2.11.0, with no upper bound. 0.20.0 declared "< 2.12", which refused any
+    later contract.
+  * A low-pass with Q below 1/sqrt(2) near Nyquist no longer sits further
+    from the analogue prototype than the RBJ cookbook at 44.1 and 48 kHz (up
+    to 0.18 dB); no golden digest moves (#119).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 15 Oct 2026 15:00:00 +0000
+
+omx-dsp (0.20.0) unstable; urgency=medium
+
+  * The live HRP shell (analysis/omx_hrp_lv2.h), the feedback suppressor's
+    LV2 face, is now held at every rate the console runs, 32 to 192 kHz, not
+    only at 48 kHz: when it asks its worker for analysis, which hop it reads,
+    that an idle shell passes audio untouched, that an adopted band cuts
+    exactly what it reports, and that bypass walks every band out in even
+    steps. Each check has a deliberately broken copy that must fail at all
+    nine rates. With this the console engine keeps no HRP or FBS tests of its
+    own: they all live here. No API change.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 15 Oct 2026 14:00:00 +0000
+
+omx-dsp (0.19.0) unstable; urgency=medium
+
+  * The mix module grows by the rest of the console engine's mix maths,
+    moved unchanged and held to the engine's output bit for bit at the nine
+    rates: mix/omx_bus_sum.h (one source's contribution to a summing bus, as
+    entries of the mix matrix), mix/omx_rta_tap.h (one analyser tap's
+    reading: the mono sum, one spectrum and the low zoom), mix/omx_rt_load.h
+    (the real-time load meter's measure half), and in mix/omx_meter.h the
+    peak hold and the gain-reduction reading's hold and recovery.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 15 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.18.1) unstable; urgency=medium
+
+  * The EQ sabotage check for the 0.999 Nyquist hold no longer depends on
+    the libm: a peak just under Nyquist makes the held point differ by
+    several dB, where 0.18.0 saw a last-bit difference that aarch64 did
+    not have.
+  * omx_align_fit reads an identical pair as a delay of exactly 0: the
+    anchor's three heights are read from the band's bins, not from the
+    transform, whose rounding put the peak 5.8e-14 of a sample off lag 0.
+  * The EQ low-pass near Nyquist above Q 1/sqrt(2) no longer puts a null in
+    its passband: the hand-over ends sooner and hands the Nyquist target
+    over to the cookbook's zero, so at every top corner and Q of the
+    declared space it is no further from the prototype than the cookbook.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 15 Oct 2026 09:00:00 +0000
+
+omx-dsp (0.18.0) unstable; urgency=medium
+
+  * analysis/omx_room.h, omx_sweep.h and omx_align_fit.h: OpenMixer's room
+    analysis (H1 transfer and coherence, impulse response and early
+    reflections, Schroeder RT60, mode finder, mode-EQ proposal), the Farina
+    sweep and deconvolution, and Smart Alignment's delay and polarity fit,
+    moved from TypeScript; held to closed forms and to a parity table of
+    the TypeScript's answers.
+  * The low-pass hands its poles over to the bilinear pair near Nyquist, so
+    the passband no longer lifts (#105).
+  * mix/: the pan law over a speaker layout, strip and fold coefficients, a
+    bus's out stage and the meters' measure half, with golden digests (#98).
+  * omx_wetdry_xfade_block and flush-to-zero on 32-bit ARM, for omx-clap-
+    core's hosted stage (omx-clap-core#61).
+  * The chorus voices read both legs through omx_fdelay_read_pair (#12).
+  * The align and reverse render oracles and digests run at the nine RME
+    rates (#75).
+  * omx-contract is an installed package taken by pkg-config inside the
+    range the packaging declares; nothing is downloaded and there is no pins
+    file (#95, #107).
+  * The drive's hf_rolloff is a DRIVE_HF_ROLLOFFS id (0 off, 1, 2) and its
+    corner comes from the contract's omx_drive_hf_rolloffs_value; builds
+    against omx-contract >= 2.11.0, < 2.12 (#97).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 21:00:00 +0000
+
+omx-dsp (0.17.0) unstable; urgency=medium
+
+  * The gate's key filter: hp_hz and lp_hz in omx_gate_controls and the
+    instance's resolve, run in double; tested at the nine RME rates (#103).
+  * omx_drive_instance_resolve takes the contract's oversample control (1, 2
+    or 4) and the latency follows the factor (#102).
+  * Builds against omx-contract >= 2.10.1, < 2.11.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 20:00:00 +0000
+
+omx-dsp (0.15.0) unstable; urgency=medium
+
+  * omx_wetdry_mix blends the delay and the reverb, which no longer restate
+    the wet/dry pair (#67).
+  * omx_fdelay_tick_pair ticks two fractional delay lines with one split and
+    one kernel; the flanger's two legs use it (#57).
+  * The interpolated delay's oracle and digests run at the nine RME rates, the
+    six earlier digests unchanged (#81).
+  * dyn: a BELOW slot skips the dB path where its gain is flat (gate open or
+    on its floor), at the cost the gate had before (#56).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 14 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.14.0) unstable; urgency=medium
+
+  * omx_loudness.h: EBU R 128 loudness as ITU-R BS.1770-4 defines it: the
+    K-weighting designed for the rate, momentary, short-term and gated
+    integrated loudness, the loudness range of EBU Tech 3342 and the x4 true
+    peak; tested against EBU Tech 3341 and 3342 signals at the nine RME rates.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 16:18:41 +0000
+
+omx-dsp (0.13.0) unstable; urgency=medium
+
+  * The EQ maths openmixer computes in TypeScript, in C: the bank and
+    head filters an EQ runs (omx_eq_bank_design, omx_eq_pass_design), a
+    section's complement, the identity test, the analogue width-to-Q law, a
+    band's magnitude and the drawn curve with its frequencies and bands.
+  * A parity table of the TypeScript at the nine RME rates holds them to
+    it.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 15:50:53 +0000
+
+omx-dsp (0.12.1) unstable; urgency=medium
+
+  * Tests only: the kernel arms OpenMixer's engine tests held (the LFO,
+    the one-pole, the oversampler and the comp's alias gate, the matched EQ
+    design, the fractional delay line and its sabotage battery, the band
+    dynamics at the nine RME rates) now run in make test. No API change.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 14:37:35 +0000
+
+omx-dsp (0.12.0) unstable; urgency=medium
+
+  * omx_magnitude.h: the magnitude in dB of a designed section or cascade
+    at the frequencies the caller passes, floored for a full null, and a
+    band's curve anchors.
+  * omx_eq_bandwidth_q is the one bandwidth-to-Q law, with a golden table
+    for its copies.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 14:09:13 +0000
+
+omx-dsp (0.11.0) unstable; urgency=medium
+
+  * omx_idelay.h: the integer delay line with its click-free re-point,
+    moved from the console's route and bus-output delay; its output is
+    unchanged bit for bit.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.10.0) unstable; urgency=medium
+
+  * Three primitives moved from the OpenMixer engine, unchanged in
+    behaviour: the offline sample-rate converter (omx_src.h), the test-
+    signal generators (omx_gen.h), and the analyser's complex spectrum and
+    half-band decimator, which join the capture ring and spectrum in
+    analysis/omx_rta.h. Golden digests at the nine RME rates, written by
+    the engine's own copies, hold them bit for bit.
+  * Built against omx-contract 2.6.0, which declares the converter's
+    design and the generators' kinds and waveforms; any 2.x from 2.6.0 on.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.9.0) unstable; urgency=medium
+
+  * Three analysis headers arrive from the console, unchanged:
+    analysis/omx_rta.h, the capture ring and magnitude spectrum the
+    analysis engines read; analysis/omx_hrp_render.h, HRP's offline render
+    over a whole take; and analysis/omx_hrp_lv2.h, HRP's live corrector
+    core, host-agnostic. Their outputs are the console's own, bit for bit.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.8.0) unstable; urgency=medium
+
+  * omx_align.h: the console's input alignment stage, moved unchanged.
+  * fx/omx_reverse_render.h: the console's offline pre-hit reverse render,
+    moved unchanged.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.7.0) unstable; urgency=medium
+
+  * The dynamics atom carries a detector topology. Feedback detects the
+    slot's own pre-make-up output one sample late through one envelope
+    stage, its attack floored at (R-1)/R, never oversampled; a keyed slot
+    stays feed-forward. Feed-forward outputs are unchanged.
+  * omx_gaincomp_db_fb, the feedback detector's output-domain curve.
+  * The comp face's resolve takes detector_topology after
+    detector_oversampling.
+  * Built against omx-contract 2.5.0; any 2.x from 2.5.0 on.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 13 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.6.1) unstable; urgency=medium
+
+  * The rotor read its LFO carry before setting it on the first tick; it is
+    now cleared at settle.
+  * The pitch, chorus and flanger state inits always set both delay lines.
+  * Builds clean with GCC 13 -Wall -Wextra -Werror.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Mon, 12 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.6.0) unstable; urgency=medium
+
+  * The pitch instance face reports its latency, d_min plus half the
+    window, when the mix is 100 %, and 0 below it, where the dry path is on
+    time. Outputs are unchanged.
+  * OMX_PITCH_INSTANCE_LATENCY_FRAMES is removed: the latency is the face's
+    latency function.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Mon, 12 Oct 2026 08:00:00 +0000
+
+omx-dsp (0.5.3) unstable; urgency=medium
+
+  * The dynamics and band-dynamics states record gr_min_db, the deepest
+    gain applied in the last call, in dB; omx_gr_block_db gives a block's
+    reading. Outputs are unchanged.
+  * The engine-identity desk check is gone.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 11 Oct 2026 21:00:00 +0000
+
+omx-dsp (0.5.2) unstable; urgency=medium
+
+  * A trim face, fx/omx_trim_instance.h: the console's input trim, a
+    de-zippered gain ramped from the last block's to the resolved one, both
+    legs from the same start. Its resolve takes the contract's trim kernel
+    control, trimDb, clamped into TRIM_RANGE.
+  * With the EQ face's pass filters (every band off) it is the channel
+    strip plugin's input stage, bit for bit at every declared rate.
+  * Built against omx-contract 2.3.0, the release that declares the trim
+    kernel; any 2.x from 2.3.0 on.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 21:52:36 +0000
+
+omx-dsp (0.5.1) unstable; urgency=medium
+
+  * The gate runs the contract's knee range (kneeStartDb, kneeEndDb): a
+    rounded corner from the start to the end point around the threshold. A
+    start equal to its end is the hard knee, the 0.5.0 gate bit for bit.
+  * The gate face's resolve takes the knee start and end after the range, in
+    the contract's order; a caller passes the two edges.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 19:59:43 +0200
+
+omx-dsp (0.5.0) unstable; urgency=medium
+
+  * Built against omx-contract 2.2.0, and requires any 2.x from 2.2.0 on.
+  * The drive face takes the auto-gain, stereo-link and HF roll-off controls.
+  * A delay instance face that owns its rings and takes the ping-pong switch.
+  * A stereo EQ instance face taking the EQ's contract controls in order.
+  * The dynamics face is now the comp face, taking the comp's mix, its kind
+    and its detector oversampling.
+  * The gate face takes the hold and the hysteresis the kernel now runs.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 18:21:43 +0200
+
+omx-dsp (0.4.1) unstable; urgency=medium
+
+  * Built against omx-contract 2.1.0.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 16:55:31 +0200
+
+omx-dsp (0.4.0) unstable; urgency=medium
+
+  * The pitch and limiter instance faces own their rings, inline, sized for
+    the highest declared rate: omx_pitch_instance_init and
+    omx_limiter_instance_init take the instance and the rate, as the other
+    instance faces do, and allocate nothing. The kernels and their
+    caller-owned rings are unchanged.
+  * Breaking, while the library is 0.x: the caller-ring forms of those two
+    init functions are gone, and both refuse a rate the console does not
+    declare.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 16:00:26 +0200
+
+omx-dsp (0.3.0) unstable; urgency=medium
+
+  * Instance faces for tremolo, phaser, pitch, rotary and limiter, named after
+    omx-contract 2.0.0; the transient face takes attack_time_ms and
+    sustain_time_ms.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 09 Oct 2026 14:21:58 +0200
+
+omx-dsp (0.2.0) unstable; urgency=medium
+
+  * omx-dsp now builds against omx-contract 1.3.0 and no longer carries its
+    own copy of the console's limits. Every limit, travel, default, list and
+    choice the kernels read comes from the contract's header
+    (`omxcontract/omx_contract_limits.h`, pinned by this tree); the
+    library installs and requires `omx-contract-devel` (or
+    `libomx-contract-dev`) at exactly that version, and `omxdsp.pc` requires
+    it.
+  * Breaking, while the library is 0.x: `omxdsp/omx_contract_limits.h` is
+    gone. A program that read names from it now includes
+    `<omxcontract/omx_contract_limits.h>`, and the console-only names the old
+    header carried for the engine (about 460) are not in the contract and are
+    not here.
+  * The kernels' own copies of contract values are gone: the chorus, flanger,
+    phaser and reverb ceilings and base delays, the three fractional-delay
+    read orders, the ring corrector's default amount, the 31 graphic EQ
+    centres, the EQ band types, slopes and pass-filter defaults, and the
+    oracle rate lists. Their names stay as definitions of the contract's. No
+    sound changes: every golden digest is the one it was.
+  * An unconnected EQ band port now reads the contract's one default rule for
+    the bank (the band's centre and type for its place among the bands)
+    instead of a 1 kHz bell.
+  * The joint EQ band budget is checked by omx-contract itself, so the test
+    that restated it is gone.
+  * `tools/contract-agree.sh`, its gap list and the render check against the
+    console are gone with the header they compared.
+    `tools/contract-include.sh` finds the contract (an installed package, else
+    the pinned release), and a build that cannot find exactly the pinned
+    version stops.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 08 Oct 2026 12:02:00 +0000
+
+omx-dsp (0.1.8) unstable; urgency=medium
+
+  * Converting a level to decibels calls the system's log10f again, about five
+    times faster than the correctly rounded version it replaced. That version,
+    omx_log10f, is no longer part of the library: it lives in the tests, which
+    use it so every reference output stays exact on any system.
+  * On glibc older than 2.41 (Debian bookworm) the result can differ from the
+    correctly rounded one by up to 2 ulp of a dB value. glibc 2.41 rounds
+    log10f correctly.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 08 Oct 2026 12:01:00 +0000
+
+omx-dsp (0.1.7) unstable; urgency=medium
+
+  * The FFT the console's analyser runs on is now part of the library: the
+    Hann window, a complex and a real single-precision transform, and a
+    double-precision complex transform with its inverse for room and alignment
+    measurements. The single-precision transforms give exactly the console's
+    previous output; every transform is checked against a long-double
+    reference.
+  * The dynamics, balance, rotor and limiter are now tested at all nine rates
+    an RME interface runs at, from 32 to 192 kHz, and their reference outputs
+    are kept for each of those rates.
+  * The rotor that drives the rotary speaker has its own test, brought over
+    from the console.
+  * A new check builds the console engine's own copies of these four and
+    confirms they give exactly the same output as the library, so the engine
+    can switch to the library without a change in sound. Their code is
+    unchanged.
+  * Two analysis engines arrive from the console, unchanged: the feedback
+    detector, which finds a ring growing out of a spectrum and says where to
+    notch it, and HRP, which follows the notes an instrument plays, learns how
+    its harmonics normally sit and sizes the cuts for the ones that ring. Both
+    read a spectrum the caller hands them, allocate nothing and run off the
+    audio thread. Include them from `omxdsp/analysis/`.
+  * Both are tested at all nine sample rates an RME interface offers, from 32
+    to 192 kHz, and their output is held bit for bit to what the console
+    computed before they moved.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 08 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.1.6) unstable; urgency=medium
+
+  * The delay effect's instance header and the plugin parameter headers are no
+    longer part of the library. They belong to the plugin, and omx-delay now
+    carries its own. Nothing else changed.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 07 Oct 2026 12:01:00 +0000
+
+omx-dsp (0.1.5) unstable; urgency=medium
+
+  * The arm64 and aarch64 packages are published again, for Raspberry Pi OS
+    and Fedora on ARM. The library itself is unchanged since 0.1.4.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 07 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.1.4) unstable; urgency=medium
+
+  * A summing-matrix multiply that mixes many strips into many outputs at
+    once, in a dense and a sparse form, and ramps a gain smoothly when it
+    changes in the middle of a block.
+  * One fader law for the whole project: fader position, pan, sends, mute and
+    DCA groups resolve to a single gain, so the console, the fader plugin and
+    the channel-strip plugin agree.
+  * A small benchmark for the matrix multiply, at 32, 64 and 97 strips.
+  * More effects arrive from the console, each checked against a closed-form
+    result at every sample rate it supports: limiter, band dynamics, de-esser,
+    tremolo and rotary speaker.
+  * The building blocks of the chorus, drive, flanger, reverb, transient
+    shaper, 31-band graphic EQ, parametric EQ, gate and compressor are now in
+    the library.
+  * The strip's dynamics and balance code moved over unchanged from the
+    engine.
+  * The decibel conversion no longer depends on the system's log10f, so it
+    gives the same answer on every machine.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Tue, 06 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.1.3) unstable; urgency=medium
+
+  * The half-band filter used by the oversampler runs sixteen outputs at a
+    time, with results identical to the loop it replaces.
+  * A stereo effect can state in one value that both of its inputs are finite
+    numbers.
+  * The thread-sanitizer gate keeps the whole log of a failed run and prints
+    every report.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 04 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.1.2) unstable; urgency=medium
+
+  * The library comes in three builds side by side: the normal one, one with
+    its safety checks compiled in, and one for thread-sanitizer runs. Each has
+    its own pkg-config file.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 02 Oct 2026 12:00:00 +0000
+
+omx-dsp (0.1.1) unstable; urgency=medium
+
+  * Parameter clamping gives one defined answer for NaN and for infinity.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 01 Oct 2026 12:01:00 +0000
+
+omx-dsp (0.1.0) unstable; urgency=medium
+
+  * First package: the DSP building blocks and the delay effect.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 01 Oct 2026 12:00:00 +0000

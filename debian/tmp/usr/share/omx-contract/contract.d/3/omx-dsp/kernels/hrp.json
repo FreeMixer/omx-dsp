@@ -1,0 +1,229 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "controls": [
+    {
+      "name": "family",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#omx_hrp_lv2_ask_of"
+      },
+      "doc": "The instrument family HRP searches for, as an OmxHrpFamily value: -1 (OMX_HRP_FAMILY_NONE) is the console's wide default search, 0 to 9 the families of INSTRUMENT_FAMILIES in their order. A broad prior on where the fundamentals lie and how many voices sound at once; it never moves the confidence floor. An integer control: a face rounds the word inside the travel and reads a non-finite one as the default.",
+      "travel": {
+        "min": -1,
+        "max": 9,
+        "step": 1,
+        "unit": "",
+        "default": -1
+      }
+    },
+    {
+      "name": "amount",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/analysis/omx_hrp_correct.h#OMX_HRP_DEFAULT_AMOUNT"
+      },
+      "doc": "How much of the computed correction HRP applies: 0 = analyse only, 1 = the full cut. It comes up at 0.5, half the computed cut.",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "bands",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#omx_hrp_lv2_ask_of"
+      },
+      "doc": "How many bands one HRP instance may plant at once, from one up to the size of its answer set (HRP_DEFAULT_MAX_AUTO_BANDS). It comes up at the full budget. An integer control: a face rounds the word inside the travel and reads a non-finite one as the default.",
+      "travel": {
+        "min": 1,
+        "max": {
+          "ref": "HRP_DEFAULT_MAX_AUTO_BANDS"
+        },
+        "step": 1,
+        "unit": "",
+        "default": {
+          "ref": "HRP_DEFAULT_MAX_AUTO_BANDS"
+        }
+      }
+    }
+  ],
+  "constants": {
+    "HRP_MAX_CUT_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#HRP_MAX_CUT_DB",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#cut"
+      },
+      "doc": "The largest automatic cut HRP may place on one harmonic, as a POSITIVE dB magnitude. Well inside the ±15 dB an operator band may hold (core's `EQ_GAIN_LIMIT_DB`): an automatic correction the operator did not ask for gets far less authority than one they dialled themselves.",
+      "unit": "dB",
+      "value": 6
+    },
+    "HRP_MAX_VOICES": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#HRP_MAX_VOICES",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_hrp_pitch.h#max_voices"
+      },
+      "doc": "How many simultaneous musical voices the detector may report on one channel. PINNED to `OMX_HRP_MAX_VOICES` in `pipewire-native/src/hrp_pitch.h` — the C voice set is a FIXED-SIZE array, so a TS number above the macro promises voices the analyser structurally cannot return, and one below it silently drops notes the C already found. the engine's conformance test reads the header and holds the pair equal. EIGHT (operator sizing, 2026-09-01): a guitar sounds six strings, a piano or string-section voicing sits at eight. It is a SEARCH ceiling, not a cost — the detector abandons a round as soon as no credible candidate remains, so monophonic material costs what it always did.",
+      "unit": "",
+      "value": 8
+    },
+    "HRP_FAMILY_SEARCH": {
+      "kind": "sheet",
+      "doc": "What each instrument family implies about the HRP search: `maxVoices`, how many notes the family can sound at once (the number its corrections are budgeted against), and `f0MinHz` to `f0MaxHz`, where its fundamentals can lie. Each is the widest the family can be, not the typical one: a range too narrow hides a note from the detector, one slightly too wide costs a few more sweep steps. One entry per INSTRUMENT_FAMILIES id; the confidence floor does not follow the family.",
+      "value": {
+        "drums": {
+          "maxVoices": 1,
+          "f0MinHz": 35,
+          "f0MaxHz": 400
+        },
+        "percussion": {
+          "maxVoices": 1,
+          "f0MinHz": 60,
+          "f0MaxHz": 1200
+        },
+        "bass": {
+          "maxVoices": 2,
+          "f0MinHz": 25,
+          "f0MaxHz": 400
+        },
+        "guitar": {
+          "maxVoices": 6,
+          "f0MinHz": 60,
+          "f0MaxHz": 1400
+        },
+        "keys": {
+          "maxVoices": 8,
+          "f0MinHz": 27.5,
+          "f0MaxHz": 4200
+        },
+        "vocals": {
+          "maxVoices": 2,
+          "f0MinHz": 80,
+          "f0MaxHz": 1200
+        },
+        "brass": {
+          "maxVoices": 2,
+          "f0MinHz": 40,
+          "f0MaxHz": 1400
+        },
+        "wind": {
+          "maxVoices": 2,
+          "f0MinHz": 55,
+          "f0MaxHz": 2600
+        },
+        "strings": {
+          "maxVoices": 8,
+          "f0MinHz": 40,
+          "f0MaxHz": 2800
+        },
+        "playback": {
+          "maxVoices": 8,
+          "f0MinHz": 25,
+          "f0MaxHz": 2100
+        }
+      }
+    },
+    "HRP_BAND_Q": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#HRP_BAND_Q",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#omx_hrp_lv2_analyse"
+      },
+      "doc": "The Q of an HRP correction band — one declared number, operator-adjustable later. A musical cut, not a ring killer: FBS's default notch Q is ~116 because a howl is a single frequency, whereas a partial that is too loud is a note an instrument is playing and a surgical null on it would be heard as a hole. 5 sits mid-band in the 4…6 range a musical subtractive cut occupies, and inside EQ_Q_RANGE — the gain-carrying shapes' extent — so it survives the store's clamp unchanged. Deliberately NOT derived from the harmonic index. A derivation invented with no measurement behind it is a second declaration wearing a formula; this is revisited when the analyse-only surface shows what real corrections look like.",
+      "unit": "",
+      "value": 5
+    },
+    "HRP_EXCESS_THRESHOLD_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#HRP_EXCESS_THRESHOLD_DB",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_hrp_correct.h#correctable"
+      },
+      "doc": "How far a partial must stand above its LEARNED BASELINE before HRP calls it a resonance (increment 8: `deviation = measured − baseline[note][harmonic]`). A partial level tells you nothing on its own; what marks a resonance is a partial louder than THIS instrument normally measures at THIS note. Three decibels is the same order as the feedback detector's peak-to-neighbour gate and for the same reason: below it, an ordinary performance's variation — a bow dug in, a verse sung harder — would be flattened, and flattening expression is not correcting a room. (Before the learned model existed this same threshold gated the placeholder neighbour rule; the number and its reasoning carried over.)",
+      "unit": "dB",
+      "value": 3
+    },
+    "HRP_GAIN_STEP_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#HRP_GAIN_STEP_DB",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#step"
+      },
+      "doc": "How far ONE reconcile pass may move an HRP band's gain, in dB — the gain smoothing, done at the control level because the native cascade applies pushed coefficients verbatim and the design forbids interpolating there. An unbounded gain step is a waveform discontinuity — the click heard when a correction entered or left at full depth (found live, 2026-08-20, the evening increment 9 raised the enter/leave rate). Bounded, a correction ENTERS by deepening from silence and LEAVES by walking to exactly 0 dB — the provable parked identity (`eqBandIsIdentity`) — from which removal is bit-identical. Two decibels per pass at the corrector's 10 Hz cadence walks the full HRP_MAX_CUT_DB travel in ~300 ms: the same order as the tracker's stability hold and FBS's lift steps, while each individual move stays below audibility on a Q-5 bell.",
+      "unit": "dB",
+      "value": 2
+    },
+    "HRP_COLLISION_CENTS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#HRP_COLLISION_CENTS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_hrp_correct.h#OMX_HRP_SELECT_COLLISION_CENTS"
+      },
+      "doc": "How close two correction candidates must sit, in cents, to count as the SAME spectral region: within it, the stronger candidate is selected and the weaker discarded rather than two near-identical filters being planted. One semitone, and the number follows from HRP_BAND_Q: a Q-5 bell's −3 dB half-width is ~170 cents, so two cuts a semitone apart overlap over most of their travel — the second one deepens the first far more than it shapes anything of its own. The design makes the threshold configurable and tested: declared once here, a parameter everywhere below.",
+      "unit": "cents",
+      "value": 100
+    },
+    "HRP_ATTRIBUTION_CENTS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#HRP_ATTRIBUTION_CENTS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_hrp_attribute.h#omx_hrp_attribute"
+      },
+      "doc": "The ATTRIBUTION window: two partials closer than this are one spectral event as far as the desk can tell — the same ±1 bin `omx_hrp_bin_peak` reads over, expressed musically so it holds across the range. A different law from HRP_COLLISION_CENTS (the SELECTION window, which stays above it): this one is the analyser's resolution, that one the corrector's. Generated into `omx_contract_limits.h` as `OMX_HRP_ATTRIBUTION_CENTS`; `hrp_attribute.h` reads it.",
+      "unit": "cents",
+      "value": 60
+    },
+    "HRP_DEFAULT_MAX_AUTO_BANDS": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#HRP_DEFAULT_MAX_AUTO_BANDS",
+          "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#OMX_HRP_LV2_MAX_BANDS"
+      },
+      "doc": "How many bands HRP may plant on ONE channel — its half of the machine budget, and the number that makes the budget FORECASTABLE rather than emergent. Without it the count is whatever the material happens to provoke: the placement law is sparse, so a clean note plants two bands and a resonant room plants nine, and nobody can answer \"will this fit?\" until it does not. With FBS senior that discovery would happen at showtime, to the junior planter, silently. Declared instead, the whole sum is arithmetic an operator can read before a note is played: operator bands + FBS maxAutoBands + HRP maxAutoBands <= EQ_MAX_BANDS EIGHT — ONE CORRECTION PER VOICE at full polyphony (operator sizing, 2026-09-01). The detector's ceiling is HRP_MAX_VOICES voices, a guitar's six strings and a piano/string voicing's eight, and a budget below the voice count would decide by arithmetic which of the notes actually sounding may be corrected — a limit nobody could read off the desk. Scarcity is handled where it belongs instead: the candidates from every voice meet in ONE globally ranked list and the head of it is what gets planted. It is NOT a claim to seniority, and it is larger than FBS's six. Seniority is the ALLOCATION ORDER — `HrpPlanter` takes only `EQ_MAX_BANDS − others.length`, the remainder after the operator and every other machine — so a bigger junior default cannot reach a senior slot; it only means HRP asks for more of what is left. the engine's conformance test asserts both halves. The per-channel DEFAULT; the row's travel is HRP_AUTO_BANDS_RANGE, so a channel that needs more can have more, as an explicit decision with a visible cost.",
+      "unit": "",
+      "value": 8
+    },
+    "HRP_HARMONIC_COUNT": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/analysis/omx_hrp_pitch.h#OMX_HRP_HARMONICS"
+      },
+      "doc": "How many harmonics the HRP model tracks, H1 to H12: the partials it measures per voice. Not a band budget: the number it may cut is the channel's free EQ slots, which is smaller and belongs to the channel. omx-dsp's HRP analysis sizes its per-voice partial arrays by the same number (OMX_HRP_HARMONICS).",
+      "unit": "",
+      "value": 12
+    }
+  }
+}

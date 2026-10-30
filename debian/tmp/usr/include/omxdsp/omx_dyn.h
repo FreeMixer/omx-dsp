@@ -1,0 +1,922 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+/**
+ * @file omx_dyn.h
+ * @brief The dynamics atom, its detector parameters and the dynamics slot's kernel: what a comp,
+ *        a gate, a band-dyn band or a de-esser resolves its controls to, the one derivation of
+ *        the envelope's parameters from it, and `omx_dynamics_keyed`, which applies it.
+ *
+ * Moved unchanged from the OpenMixer engine:
+ * the band-dyn and the de-esser kernels derive their detector from the atom here and nowhere else,
+ * so the engine's slot and a kernel cannot read the attack and release poles differently; the
+ * strip's gate and comp slots and the keyed gate's plugin run the one kernel here. Pure; the 4x
+ * control path calls the archive's omx_oversampler.
+ *
+ * Not in the omxdsp.h umbrella, as the fx/ headers are not: it depends on omx_envelope.h, which
+ * includes the umbrella ahead of its own definitions. Include it by name.
+ */
+#ifndef OMX_DYN_H
+#define OMX_DYN_H
+
+#include <math.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "omx_contract.h"
+#include "omx_envelope.h"
+#include "omx_gaincomp.h"
+#include "omx_lookahead.h"
+#include "omx_oversampler.h"
+
+/*
+ * DETECTOR OVERSAMPLING — the contract's `detectorOversampling`, resolved into the RT atom.
+ *
+ * The cascade above took the worst in-band aliased product from −49.7 to −59.9 dBc and there it
+ * stops: its floor is the attack/release direction switch, which no filtering behind it can
+ * pass. The ONE thing measured to cross the −90 dBc line while leaving attack, release and gain
+ * reduction bit-identical is running the whole CONTROL chain — rectifier, envelope, log, curve,
+ * exp — at 4× and decimating the GAIN back, with the audio never resampled at all
+ * (the oversampling vs 192k notes §9a/§10).
+ *
+ * It is expensive, so it is a per-instance choice rather than a law, and `auto` — the default —
+ * spends it only where the measurement says it is needed: below
+ * {@link OMX_DYN_OVS_AUTO_MS} of attack. A strip with an ordinary attack pays nothing.
+ */
+/** @brief `auto`: 4× only while the attack is faster than {@link OMX_DYN_OVS_AUTO_MS}. */
+#define OMX_DYN_OVS_AUTO 0
+/** @brief `off`: never oversample, whatever the attack — the cascade alone. */
+#define OMX_DYN_OVS_OFF 1
+/** @brief `4x`: always oversample, even at an attack slow enough not to need it. */
+#define OMX_DYN_OVS_X4 2
+
+/** @brief Where `auto` engages. 0.5 ms: the measured defect is a
+ * FAST-attack defect, and by 0.5 ms the control path is already band-limited enough that the
+ * fold has nothing loud to fold. */
+#define OMX_DYN_OVS_AUTO_MS 0.5f
+
+/* The derivation that reads it, `omx_dyn_oversample_factor`, sits with the struct below. */
+
+/** @brief One resolved dynamics atom: a per-block snapshot of the operator's controls. */
+struct omx_dyn {
+  int enabled;         /**< 0 → the atom is a no-op (the whole slot bypassed) */
+  struct omx_gaincomp_params gc; /**< the gain computer's mode, threshold, ratio, knee, range, make-up */
+  int detect;          /**< OMX_DETECT_PEAK | OMX_DETECT_RMS */
+  float attack_coeff;  /**< one-pole coeff when the detector RISES (0 = instant, →1 = slow) */
+  float release_coeff; /**< one-pole coeff when the detector FALLS */
+  int ovs_mode;        /**< OMX_DYN_OVS_AUTO | _OFF | _X4 — the operator's choice, not a factor */
+  /** The attack in MILLISECONDS, the operator's own number. `attack_coeff` is the derivation of
+   * it (and of the rate); this is the value `auto` compares against a millisecond threshold,
+   * which a coefficient cannot answer without knowing the rate it was made at. */
+  float attack_ms;
+  /** HOLD, frames at the graph's own rate. BELOW mode: the gate stays open this long after its level
+   * falls below the close point, with the detector frozen, before the release runs. ABOVE mode: the
+   * detector is frozen this long after it last rose, so the reduction holds before the release
+   * runs ({@link omx_dyn_hold_chain}). 0 is no hold. The derivation from milliseconds is
+   * {@link omx_dyn_hold_frames}. */
+  uint32_t hold_frames;
+  /** HYSTERESIS (BELOW mode only), dB, not negative: the gate opens when its level reaches
+   * `gc.thresh_db` and closes only when it falls below `gc.thresh_db - hyst_db`. 0 is none. */
+  float hyst_db;
+  /** The DRY share of the output, in [0, 1]: `1 - mixPct / 100`, from {@link omx_dyn_dry_share}.
+   * 0 (mix 100 %) is the fully processed output; 1 is the input, delay-compensated. */
+  float dry;
+  /** The KNEE RANGE (BELOW mode only), dB: the knee's centre sits this far from `gc.thresh_db`,
+   * inside `[-gc.knee_db / 2, gc.knee_db / 2]`, so the knee spans an operator's start and end
+   * points rather than a width centred on the threshold. 0 is the centred knee, and the gain
+   * computer is then omx_gaincomp_gain bit for bit (omx_gaincomp_db_shifted). */
+  float knee_shift_db;
+  /** The comp row's detectorTopology (omx-contract's `enum omx_detector_topology`):
+   *  OMX_DETECTOR_TOPOLOGY_FEEDFORWARD (0, a zeroed atom) or OMX_DETECTOR_TOPOLOGY_FEEDBACK —
+   *  where the detector listens. A keyed slot detects its key and stays feed-forward. */
+  int topology;
+  /** The FLOOR (ABOVE mode only), dB: while below 0 the gain never falls under it, before make-up
+   * (the ducker's range, `max(floor, gain)`). 0, a zeroed atom, is no floor. */
+  float floor_db;
+  /** The RELEASE MODE (ABOVE mode only), the comp row's releaseMode (OMX_COMP_RELEASE_MODES_*): 0,
+   * `fixed` and a zeroed atom, is the detector's own release, the kernel that shipped; otherwise the
+   * gain computer's reduction goes through omx_env_program_release with `prp`, and the atom's
+   * release pole should be its attack pole (the detector a symmetric smoother, every release
+   * character in the follower). */
+  int release_mode;
+  /** The program release's parameters at the base rate ([0]) and at the 4x control path's ([1]),
+   * from omx_env_program_release_opto() or omx_env_program_release_auto(); read only while
+   * `release_mode` is not 0. */
+  struct omx_env_program_release_params prp[2];
+};
+
+/**
+ * @brief The hold control's frames at `rate`: `hold_ms` milliseconds, rounded to the nearest frame.
+ * @param hold_ms The hold, ms; a value that is not positive (or NaN) is no hold.
+ * @param rate The graph's rate, Hz.
+ * @return The frames, at most 2^24 (far above any declared hold at any declared rate).
+ * @note RT-safe: arithmetic. Thread-safe: pure.
+ */
+static inline uint32_t omx_dyn_hold_frames(float hold_ms, float rate) {
+  const float f = hold_ms * rate * 0.001f;
+  if (!(f > 0.0f)) return 0u;
+  return f > 16777216.0f ? 16777216u : (uint32_t)(f + 0.5f);
+}
+
+/**
+ * @brief The dry share a mix control resolves to: `1 - mix_pct / 100`, inside [0, 1].
+ * @param mix_pct The mix, percent: 100 is fully processed, 0 the dry input; NaN reads as 100.
+ * @return The dry share; exactly 0 at 100 %, so the default output is the processed one bit for bit.
+ * @note RT-safe: arithmetic. Thread-safe: pure.
+ */
+static inline float omx_dyn_dry_share(float mix_pct) {
+  if (!(mix_pct < 100.0f)) return 0.0f;
+  if (!(mix_pct > 0.0f)) return 1.0f;
+  return 1.0f - mix_pct * 0.01f;
+}
+
+/**
+ * @brief The detector parameters of a dynamics atom: its attack and release poles and its domain.
+ * @param p The atom.
+ * @return `{attack_coeff, release_coeff, detect}` as the envelope's parameters, copied unchanged.
+ * @note RT-safe: three loads. Thread-safe: pure.
+ */
+static inline struct omx_env_params omx_dyn_env_params(const struct omx_dyn *p) {
+  const struct omx_env_params e = {p->attack_coeff, p->release_coeff, p->detect};
+  return e;
+}
+
+#define OMX_CONTRACT_STAGE "dsp/dyn-factor"
+/**
+ * @brief The 4x control path's factor the atom engages: 1 or 4.
+ *
+ * THE ENGAGED STATE IS DERIVED, NEVER STORED. One function, so the RT loop, the readback the
+ * UI renders and anything that reports the stage's latency cannot answer differently — the
+ * defect this codebase keeps re-buying is two readers of one fact. A disabled slot is never
+ * oversampled: it is a no-op, and a no-op has no detector. A feedback slot is never oversampled
+ * either: the 4x path's delay inside a loop is loop delay (ssl-bus-compressor §4 L5).
+ * @param p The atom.
+ * @return 4 while the 4x control path is engaged, else 1.
+ * @post `bypass-identity`: the factor is 1 or 4, the two the compensation ring can carry.
+ * @note RT-safe: a few compares. Thread-safe: pure.
+ */
+static inline uint32_t omx_dyn_oversample_factor(const struct omx_dyn *p) {
+  uint32_t f;
+  if (!p->enabled || p->ovs_mode == OMX_DYN_OVS_OFF || p->topology == OMX_DETECTOR_TOPOLOGY_FEEDBACK) f = 1u;
+  else if (p->ovs_mode == OMX_DYN_OVS_X4) f = 4u;
+  else f = (p->attack_ms > 0.0f && p->attack_ms < OMX_DYN_OVS_AUTO_MS) ? 4u : 1u;
+  /* The compensation delay ring is sized by OMX_OVS_LATENCY_4X, so a factor this derivation can
+   * return but the ring cannot carry would be a read tap past the end of the line. Two values is
+   * the whole range, and saying so here is what makes that a checked fact rather than a reading
+   * of three branches. */
+  OMX_POST(f == 1u || f == 4u, "bypass-identity");
+  return f;
+}
+#undef OMX_CONTRACT_STAGE
+
+/**
+ * @brief ONE dynamics slot's persistent RT state — what the kernel remembers across buffers.
+ *
+ * It is a struct because the detector holds two things a float cannot: the envelope CASCADE
+ * ({@link OMX_DYN_ENV_STAGES}), and — when the 4× control path is engaged — a rate changer with
+ * history, plus the delay line that keeps the audio lined up with a gain that arrives
+ * {@link OMX_OVS_LATENCY_4X} samples late.
+ *
+ * PLAIN INLINE FLOATS, nothing to allocate: a lane embeds two of these and the RT callback
+ * never touches an allocator. The oversamplers are carried whether or not they run, because
+ * the alternative is allocating one the moment an operator drags an attack time past 0.5 ms.
+ *
+ * THE DELAY LINE IS ALWAYS FED, even at factor 1 where the read tap is 0 and the output is
+ * therefore bit-identical to a kernel with no delay line at all. Feeding it costs a store and
+ * an index; NOT feeding it would mean engaging the 4× path into 72 samples of silence, which
+ * is exactly the seam the crossfade exists to avoid having to hide.
+ */
+struct omx_dyn_state {
+  struct omx_env env;              /**< the detector cascade — level, so rate-independent */
+  struct omx_oversampler ovs_a;    /**< up for the key (or leg L), and down for the GAIN */
+  struct omx_oversampler ovs_b;    /**< up for leg R — unused on a mono or keyed slot */
+  float delay_l[OMX_OVS_LATENCY_4X + 1u]; /**< the left leg's delay line, always fed */
+  float delay_r[OMX_OVS_LATENCY_4X + 1u]; /**< the right leg's delay line, always fed */
+  uint32_t delay_pos;              /**< the write index of both delay lines */
+  uint32_t factor;                 /**< the factor that ran LAST buffer, for the switch */
+  uint32_t xfade_left;             /**< samples of handover still owed */
+  uint32_t xfade_tap;              /**< the outgoing path's read tap */
+  float xfade_gain;                /**< the outgoing path's last gain, HELD across the handover */
+  float last_gain;                 /**< what to hold if the factor changes next buffer */
+  uint32_t hold_left;              /**< hold frames still owed, at the running factor's rate */
+  int gate_open;                   /**< 1 while the gate is open (hold/hysteresis state) */
+  float hyst_credit_db;            /**< dB the open curve still lends a closed gate, decaying */
+  float gr_min_db;                 /**< the DEEPEST gain applied inside the LAST call, dB <= 0
+                                    *   (omx_gr_block_db() of it): the host's gain-reduction
+                                    *   reading; 0 = none, so a zeroed state reads "no reduction" */
+  float fb_env;                    /**< the feedback loop's ONE envelope stage, detector domain */
+  float fb_yl;                     /**< the loop's last pre-make-up output, leg L: y[n-1] */
+  float fb_yr;                     /**< the loop's last pre-make-up output, leg R: y[n-1] */
+  int fb_ran;                      /**< the last block ran the feedback loop */
+  struct omx_env_program_release prs; /**< the program release's state; zeroed while it does not run */
+};
+_Static_assert(OMX_DYN_FB_LOOP_DELAY_SAMPLES == 1u, "fb_yl/fb_yr hold exactly one output sample per leg");
+
+#define OMX_CONTRACT_STAGE "dynamics/fb-attack-pole"
+/**
+ * @brief The feedback loop's attack pole: the operator's, floored at `(R − 1)/R`.
+ *
+ * The one-stage loop's small-signal pole is `ρ = p − (1 − p)(R − 1)` (ssl-bus-compressor §4 L3);
+ * it is non-negative — no sign-alternating chatter, no divergence — iff `p ≥ (R − 1)/R` (§4 L4).
+ * The floor is derived from the ratio here and the attack pole was made at the live rate, so the
+ * floor follows the rate every block. the console's TypeScript `effectiveAttackMsOf` is the same law in
+ * milliseconds.
+ * @param attack_pole The operator's attack pole at the live rate, in [0, 1).
+ * @param ratio The ratio, at least `OMX_COMP_RATIO_MIN`.
+ * @return The pole the loop runs, in [0, 1).
+ * @pre `ratio-at-least-one`, `pole-in-declared-range`.
+ * @post `loop-pole-not-negative`: `p − (1 − p)(R − 1) ≥ 0` up to float rounding.
+ * @note RT-safe: a divide and a select. Thread-safe: pure.
+ * @twin effectiveAttackMsOf
+ */
+static inline float omx_dyn_fb_attack_pole(float attack_pole, float ratio) {
+  OMX_PRE(ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
+  OMX_PRE(attack_pole >= 0.0f && attack_pole < 1.0f, "pole-in-declared-range");
+  const float floor_pole = (ratio - 1.0f) / ratio;
+  const float pole = attack_pole > floor_pole ? attack_pole : floor_pole;
+  OMX_POST(pole - (1.0f - pole) * (ratio - 1.0f) >= -1e-5f, "loop-pole-not-negative");
+  return pole;
+}
+#undef OMX_CONTRACT_STAGE
+
+/**
+ * @brief Samples of handover when the engaged factor changes.
+ *
+ * 1024 at 96 kHz is 10.7 ms, and the length was MEASURED, not chosen. Engaging moves the read
+ * tap by OMX_OVS_LATENCY_4X, so the handover crossfades between two copies of the audio 72
+ * samples apart — a comb, briefly. Worst sample-to-sample step during the switch, against the
+ * step the same tone shows with no switch at all (`mix_dyn_ovs.test.c`): 256 → 0.0136 vs
+ * 0.0080, 512 → 0.0095, **1024 → 0.0080, exactly the unswitched figure**, 2048 → no further
+ * gain. So 1024 is where the discontinuity disappears into the signal and anything longer only
+ * lengthens the comb. What it does NOT remove is the brief level dip that crossfading two
+ * offset copies produces; that is measured and reported, not hidden.
+ */
+#define OMX_DYN_XFADE 1024u
+
+/** @brief Base-rate frames the 4× path handles per pass. Bounds its scratch; nothing observable
+ * depends on it, which the same oracle proves by running several quanta. */
+#define OMX_DYN_OVS_CHUNK 64u
+
+/**
+ * @brief Clear one slot's state and arm its rate changers for `factor`.
+ * @param st The slot's state.
+ * @param factor The factor the slot starts at: 1 (base path) or 4.
+ * @note RT-safe: a memset and two oversampler inits, no allocation. Thread-safe on distinct state.
+ */
+static inline void omx_dyn_state_init(struct omx_dyn_state *st, uint32_t factor) {
+  memset(st, 0, sizeof *st);
+  omx_oversampler_init(&st->ovs_a, factor);
+  omx_oversampler_init(&st->ovs_b, factor);
+  st->factor = factor;
+  st->last_gain = 1.0f;
+}
+
+/**
+ * @brief 1 when the atom engages the gate's open/closed state (hold or hysteresis, BELOW mode).
+ *
+ * At hold 0 and hysteresis 0 it answers 0 and the kernel takes the loops it always took, so a
+ * gate at the neutral values is the gate that shipped, bit for bit.
+ * @param p The atom.
+ * @return 1 or 0.
+ * @note RT-safe. Thread-safe: pure.
+ */
+static inline int omx_dyn_gate_state_engaged(const struct omx_dyn *p) {
+  return p->gc.mode == OMX_DYN_BELOW && (p->hold_frames > 0u || p->hyst_db > 0.0f);
+}
+
+/**
+ * @brief The gate's detector and gain computer with hold and hysteresis: `buf` holds rectified
+ *        detector input on entry and the linear gain on return.
+ *
+ * THE STATE. The gate OPENS when the detector level reaches `thresh_db` and CLOSES when it falls
+ * below `thresh_db - hyst_db`. While open, the gain computer runs at the close point, so an open
+ * gate passes everything above it at unity. HOLD: when the level first falls below the close
+ * point the gate stays open `hold` more frames with the detector cascade FROZEN (a falling step is
+ * undone; a rising one is kept and re-arms the hold), so the release starts when the hold ends,
+ * from where the level was — the gate's gain never steps at the end of a hold.
+ *
+ * THE CLOSE IS NOT A STEP. At the close point the open curve gives 0 dB and the closed curve
+ * `(ratio - 1) * -hyst_db`; switching curves there would drop the gain by that much in one frame.
+ * The difference is lent to the closed gate as a dB credit that decays with the RELEASE time
+ * (`credit_pole`, the release pole at the running rate), so the close is shaped by the release
+ * like every other fall. The credit never lifts the gain above 0 dB.
+ * @param st The slot's state (cascade, hold counter, open flag, credit).
+ * @param p The atom; BELOW mode.
+ * @param ep The detector parameters.
+ * @param ac The cascade's per-stage attack pole.
+ * @param rc The cascade's per-stage release pole.
+ * @param buf Rectified detector input in, linear gain out, `count` samples.
+ * @param count Samples.
+ * @param hold Hold frames at the running rate.
+ * @param credit_pole The release pole at the running rate, for the hysteresis credit.
+ * @note RT-safe: per sample one cascade step, two gain-curve evaluations, one powf; no allocation.
+ */
+static inline void omx_dyn_gate_chain(struct omx_dyn_state *st, const struct omx_dyn *p,
+                                      const struct omx_env_params *ep, float ac, float rc, float *buf,
+                                      uint32_t count, uint32_t hold, float credit_pole) {
+  struct omx_gaincomp_params open_gc = p->gc;
+  open_gc.thresh_db = p->gc.thresh_db - p->hyst_db;
+  /* The open and close decisions read the level in dB, the domain the gain computer reads, so a
+   * gate is open exactly where its curve says 0 dB. */
+  for (uint32_t k = 0; k < count; k++) {
+    const struct omx_env before = st->env;
+    float vdb = omx_lin_to_db(omx_env_step(&st->env, ep, buf[k], ac, rc));
+    if (st->gate_open) {
+      if (vdb >= open_gc.thresh_db) st->hold_left = hold;
+      else if (st->hold_left > 0u) {
+        st->hold_left--;
+        st->env = before;
+        vdb = omx_lin_to_db(omx_env_level(&before, ep));
+      } else st->gate_open = 0;
+    } else if (vdb >= p->gc.thresh_db) {
+      st->gate_open = 1;
+      st->hold_left = hold;
+    }
+    const float closed_db = omx_gaincomp_db_shifted(&p->gc, p->knee_shift_db, vdb);
+    if (st->gate_open) st->hyst_credit_db = omx_gaincomp_db_shifted(&open_gc, p->knee_shift_db, vdb) - closed_db;
+    else st->hyst_credit_db = omx_flush(st->hyst_credit_db * credit_pole);
+    float g_db = closed_db + st->hyst_credit_db;
+    g_db = g_db > 0.0f ? 0.0f : g_db;
+    buf[k] = omx_db_to_lin(g_db) * p->gc.makeup_lin;
+  }
+}
+
+/**
+ * @brief 1 when the atom engages the compressor's hold (ABOVE mode, a hold of at least one frame).
+ *
+ * At hold 0 it answers 0 and the kernel takes the cascade loop it always took, bit for bit.
+ * @param p The atom.
+ * @return 1 or 0.
+ * @note RT-safe. Thread-safe: pure.
+ */
+static inline int omx_dyn_hold_engaged(const struct omx_dyn *p) {
+  return p->gc.mode == OMX_DYN_ABOVE && p->hold_frames > 0u;
+}
+
+/**
+ * @brief The compressor's detector with hold: `buf` holds rectified detector input on entry and
+ *        the detector level on return.
+ *
+ * An input below the cascade's first stage would start a release: while the hold counter runs
+ * such a step is not taken, so the whole cascade stays where it was. An input at or above the
+ * first stage is taken and re-arms the counter. The reduction therefore holds `hold` frames after
+ * the input last reached the detector, and the release then runs from the held state exactly as
+ * it would have run without a hold, `hold` frames late: the gain never steps at the end of a hold.
+ * @param st The slot's state (cascade and hold counter).
+ * @param ep The detector parameters.
+ * @param ac The cascade's per-stage attack pole.
+ * @param rc The cascade's per-stage release pole.
+ * @param buf Rectified detector input in, detector level out, `count` samples.
+ * @param count Samples.
+ * @param hold Hold frames at the running rate.
+ * @note RT-safe: per sample one cascade step and one level read; no allocation.
+ */
+static inline void omx_dyn_hold_chain(struct omx_dyn_state *st, const struct omx_env_params *ep, float ac, float rc,
+                                      float *buf, uint32_t count, uint32_t hold) {
+  for (uint32_t k = 0; k < count; k++) {
+    if (buf[k] >= st->env.stage[0]) st->hold_left = hold;
+    else if (st->hold_left > 0u) {
+      st->hold_left--;
+      buf[k] = omx_env_level(&st->env, ep);
+      continue;
+    }
+    buf[k] = omx_env_step(&st->env, ep, buf[k], ac, rc);
+  }
+}
+
+/**
+ * @brief The floor folded into the gain: `max(floor, g)`, the floor carrying the make-up as the
+ *        gain does.
+ * @param gain The chunk's gains, floored in place.
+ * @param m Samples.
+ * @param floor_lin The floor, linear, make-up included.
+ * @note RT-safe: one compare per sample. Thread-safe on distinct buffers.
+ */
+static inline void omx_dyn_floor_gain(float *gain, uint32_t m, float floor_lin) {
+  for (uint32_t i = 0; i < m; i++) gain[i] = gain[i] < floor_lin ? floor_lin : gain[i];
+}
+
+/**
+ * @brief The dry/wet mix folded into the gain: `dry + (1 - dry) * g`.
+ *
+ * The gain multiplies the delay-compensated input, so blending the GAIN is blending the dry input
+ * with the fully processed (made-up) output with no second delay line: on the 4x path the dry
+ * share rides the same compensation the wet one does. `dry == 0` is never called.
+ * @param gain The chunk's gains, blended in place.
+ * @param m Samples.
+ * @param dry The dry share, (0, 1].
+ * @note RT-safe: one multiply-add per sample. Thread-safe on distinct buffers.
+ */
+static inline void omx_dyn_mix_gain(float *gain, uint32_t m, float dry) {
+  const float wet = 1.0f - dry;
+  for (uint32_t i = 0; i < m; i++) gain[i] = dry + wet * gain[i];
+}
+
+/**
+ * @brief Where a BELOW-mode slot's gain is flat: at or below `lo` it is `g_floor` (the range
+ *        floor), at or above `hi` it is `g_open` (the gate open), and only between them does it
+ *        move. From omx_dyn_flat_bounds().
+ */
+struct omx_dyn_flat {
+  float lo;      /**< Detector level, linear: at or below it the gain is `g_floor`; NaN when none. */
+  float hi;      /**< Detector level, linear: at or above it the gain is `g_open`; NaN when none. */
+  float g_floor; /**< The gain computer's own gain at `lo`. */
+  float g_open;  /**< The gain computer's own gain at `hi`. */
+};
+
+/**
+ * @brief The level from the threshold, dB, exactly as omx_gaincomp_db() forms it.
+ * @param p The atom.
+ * @param level The detector level, linear.
+ * @return `omx_lin_to_db(level) - thresh_db`.
+ * @note RT-safe: one log10f. Thread-safe: pure.
+ */
+static inline float omx_dyn_flat_x(const struct omx_dyn *p, float level) {
+  return omx_lin_to_db(level) - p->gc.thresh_db;
+}
+
+/**
+ * @brief 1 when the gain computer takes its open branch at `level`: the BELOW gain is 0 dB there
+ *        before the floor, through the same compares omx_gaincomp_db() or
+ *        omx_gaincomp_db_shifted() make. Monotone in `level`.
+ * @param p The atom; BELOW mode.
+ * @param level The detector level, linear.
+ * @return 1 or 0.
+ * @note RT-safe: one log10f. Thread-safe: pure.
+ */
+static inline int omx_dyn_flat_is_open(const struct omx_dyn *p, float level) {
+  const float x = omx_dyn_flat_x(p, level);
+  const float half = 0.5f * p->gc.knee_db;
+  if (p->knee_shift_db == 0.0f) return x >= half;
+  return !(x <= p->knee_shift_db - half) && x >= p->knee_shift_db + half;
+}
+
+/**
+ * @brief 1 when the gain computer takes its floor at `level`: the expander's line, out of the
+ *        knee, at or below `range_db`, through the same compares and the same product
+ *        omx_gaincomp_db() or omx_gaincomp_db_shifted() make. Monotone in `level`.
+ * @param p The atom; BELOW mode.
+ * @param level The detector level, linear.
+ * @return 1 or 0.
+ * @note RT-safe: one log10f. Thread-safe: pure.
+ */
+static inline int omx_dyn_flat_is_floor(const struct omx_dyn *p, float level) {
+  const float x = omx_dyn_flat_x(p, level);
+  const float half = 0.5f * p->gc.knee_db;
+  const int line = p->knee_shift_db == 0.0f ? (x < half && x <= -half) : x <= p->knee_shift_db - half;
+  return line && (p->gc.ratio - 1.0f) * x <= p->gc.range_db;
+}
+
+/**
+ * @brief The levels between which a BELOW-mode slot's gain moves, per block.
+ *
+ * Each bound starts from the closed form (the level of the open edge, or of the floor), is moved
+ * a little outward until the gain computer's own branch holds there, and is then moved outward
+ * once more by the same step, so a level past the bound is past a level where the branch was seen
+ * to hold by far more than log10f's rounding: the branch holds for every level past it. The
+ * constants are the gain computer's own output at the bound, so a level past it gets the same
+ * float the gain computer would have made. A bound that does not hold after a few steps is NaN,
+ * and every level then takes the gain computer.
+ * @param p The atom; BELOW mode.
+ * @param f Receives the bounds and their gains.
+ * @note RT-safe: at most a dozen log10f and powf, once per block. Thread-safe: pure.
+ */
+static inline void omx_dyn_flat_bounds(const struct omx_dyn *p, struct omx_dyn_flat *f) {
+  const float step = 1.0005f; /* 0.0043 dB, far above log10f's rounding at any level */
+  const float half = 0.5f * p->gc.knee_db;
+  const float edge_open = p->knee_shift_db == 0.0f ? half : p->knee_shift_db + half;
+  f->lo = NAN;
+  f->hi = NAN;
+  f->g_floor = 0.0f;
+  f->g_open = 0.0f;
+  float h = omx_db_to_lin(p->gc.thresh_db + edge_open) * step;
+  for (int k = 0; k < 4 && !omx_dyn_flat_is_open(p, h); k++) h *= step;
+  if (h * step - h * step == 0.0f && omx_dyn_flat_is_open(p, h) && omx_dyn_flat_is_open(p, h * step)) {
+    f->hi = h * step;
+    f->g_open = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, f->hi);
+  }
+  if (!(p->gc.ratio > 1.0f)) return; /* a flat line never reaches a floor below 0 dB */
+  const float edge_line = p->knee_shift_db == 0.0f ? -half : p->knee_shift_db - half;
+  const float edge_range = p->gc.range_db / (p->gc.ratio - 1.0f);
+  const float edge_floor = edge_line < edge_range ? edge_line : edge_range;
+  float q = omx_db_to_lin(p->gc.thresh_db + edge_floor) / step;
+  for (int k = 0; k < 4 && !omx_dyn_flat_is_floor(p, q); k++) q /= step;
+  if (q - q == 0.0f && omx_dyn_flat_is_floor(p, q) && omx_dyn_flat_is_floor(p, q / step)) {
+    f->lo = q / step;
+    f->g_floor = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, f->lo);
+  }
+}
+
+/**
+ * @brief The BELOW gain at `level` through the flat bounds: a constant past either bound, the
+ *        gain computer between them; the same float omx_gaincomp_gain_shifted() makes.
+ * @param f The bounds, from omx_dyn_flat_bounds().
+ * @param p The atom; BELOW mode.
+ * @param level The detector level, linear.
+ * @return The gain.
+ * @note RT-safe: two compares, and the gain computer only between the bounds. Thread-safe: pure.
+ */
+static inline float omx_dyn_flat_gain(const struct omx_dyn_flat *f, const struct omx_dyn *p, float level) {
+  if (level <= f->lo) return f->g_floor;
+  if (level >= f->hi) return f->g_open;
+  return omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, level);
+}
+
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "dyn/program-gain"
+/**
+ * @brief The linear gain, make-up included, of an ABOVE slot whose reduction runs through the program
+ *        release: omx_gaincomp_db() at the detector level, omx_env_program_release() on it, back to linear.
+ * @param p The atom; `release_mode` not 0.
+ * @param prs The program release's state, updated in place.
+ * @param prp The program release's parameters at the rate the gain is computed at.
+ * @param level The detector level, linear, not negative.
+ * @return The gain, in `(0, makeup_lin]`.
+ * @note RT-safe: log10f, powf and the word's one expf. Thread-safe on distinct state.
+ */
+static inline float omx_dyn_program_gain(const struct omx_dyn *p, struct omx_env_program_release *prs,
+                                         const struct omx_env_program_release_params *prp, float level) {
+  return omx_db_to_lin(omx_env_program_release(prs, prp, omx_gaincomp_db(&p->gc, omx_lin_to_db(level)))) * p->gc.makeup_lin;
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "dyn/gr-block-db"
+/**
+ * @brief A block's minimum applied gain (linear) as a gain-reduction reading in dB.
+ *
+ * What omx_dynamics_keyed() and omx_band_dyn_run() record in their state's `gr_min_db`.
+ * @param min_gain The deepest linear gain applied inside the block.
+ * @return The reading, dB: <= 0, finite (a closed gate floors at -120 dB), and 0 for no reduction
+ *         (`min_gain >= 1`).
+ * @post `reading-not-positive`, `finite`.
+ * @note RT-safe: one libm log10f. Thread-safe: pure.
+ */
+static inline float omx_gr_block_db(float min_gain) {
+  if (!(min_gain > 1e-6f)) min_gain = 1e-6f; /* also catches NaN */
+  if (min_gain > 1.0f) min_gain = 1.0f;
+  const float db = omx_lin_to_db(min_gain);
+  OMX_POST(db <= 0.0f, "reading-not-positive");
+  OMX_POST(db - db == 0.0f, "finite");
+  return db;
+}
+
+#undef OMX_CONTRACT_STAGE
+#define OMX_CONTRACT_STAGE "dynamics"
+/*
+ * CONTRACT (omx_contract.h). The dynamics slot is a TIME-VARYING GAIN: it multiplies the block
+ * by a per-sample coefficient derived from a detector, and nothing else. So its laws are about
+ * that coefficient's SIGN and BOUND, not about the waveform:
+ *
+ *  - BELOW mode (gate/expander) never ADDS gain — `omx_gaincomp_db` is <= 0 there, so the
+ *    output's peak can never exceed the input's. A gate that makes a signal louder is the
+ *    defect this token names.
+ *  - ABOVE mode (comp/limiter) never adds more than the declared make-up.
+ *  - The parameters are inside the limits the contract row declares (ratio >= 1, knee >= 0,
+ *    range <= 0), which is a claim about the CONTROL thread, checked here because here is where
+ *    a violation becomes audible.
+ *
+ * The peak laws need the input peak, which this function overwrites in place, so they are stated
+ * by the contract battery around the call. What is checked HERE is what only here can see.
+ */
+/**
+ * @brief Apply one dynamics slot to a strip's leg(s) IN PLACE, with the detector listening to `key`.
+ *
+ * `l` is always driven; `r` may be NULL (mono — one leg) or a second leg (stereo). ONE gain is
+ * applied to both legs, so a stereo strip's image never shifts under gain reduction.
+ *
+ * THE KEY. `key` is the MONO signal the detector
+ * measures, already filtered by whatever the key filter is set to — the caller's copy, never a
+ * leg of the audio. `key == NULL` is the ordinary self-detecting slot and is the ONLY shape the
+ * comp slot and an un-keyed gate ever take: the detector then tracks the max across the provided
+ * legs, exactly as it always has, sample for sample and bit for bit. A keyed slot gates the
+ * channel's OWN audio while opening on somebody else's level, which is the whole feature.
+ *
+ * `st` is the slot's persistent RT state ({@link omx_dyn_state}): the detector CASCADE, each
+ * stage smoothed with the attack coeff while it rises and the release coeff while it falls, so
+ * attack/release shape the gain response for BOTH comp (level up → more reduction) and gate
+ * (level up → gate opens); plus the rate changers and the compensation delay the 4× control
+ * path needs. The detector LEVEL the gain computer reads is the cascade's LAST stage
+ * ({@link omx_env_level}), which is also what the GR meter publishes — one derivation, one
+ * reader. A disabled slot is a no-op that leaves the signal AND the state untouched.
+ * RT-safe: O(n), no allocation, bounded scratch whatever the quantum.
+ *
+ * NOTE (RT cost, lane kernel-cost-dynamics 2026-09-27): the gain computer is dB-domain and runs
+ * the libm pair inside `omx_gaincomp_gain` (measured cheaper than the unvectorised `_poly` pair). Each
+ * chunk is three loops — rectify (branch-free per shape), the cascade (the only serial one), the
+ * gain — and at factor 1 with no handover owed the ring read is the sample just written, so the
+ * chunk applies `x·g` directly and refills only the ring's last `ring` inputs: bit-identical to
+ * the per-sample ring walk, which the 4× path and a handover still take.
+ * @param l The first leg, processed in place.
+ * @param r The second leg, processed in place, or NULL (mono).
+ * @param key The detector's mono key, or NULL (the slot detects on its own legs).
+ * @param n Frames.
+ * @param p The atom.
+ * @param st The slot's state.
+ * @pre `finite-in-l`, `finite-in-r`, `finite-in-key`: every input block is finite; and once the
+ *      slot is enabled, `ratio-at-least-one`, `knee-not-negative`, `range-is-an-attenuation`,
+ *      `makeup-positive`, `hysteresis-not-negative`, `dry-share-in-unit`, `knee-shift-inside-the-knee`.
+ * @post `finite-out-l`, `finite-out-r`; `gain-finite-nonneg` and `no-gain-added`: the last gain
+ *       applied is finite, non-negative and at most the make-up.
+ *       `st->gr_min_db` holds the deepest gain applied in this call, per sample, the 4x path's
+ *       decimated gain and a factor switch's crossfade included, in dB (omx_gr_block_db()).
+ * @invariant `envelope-finite`: the detector cascade stays finite.
+ * @note RT-safe: O(n), no allocation, bounded scratch. Thread-safe on distinct state.
+ */
+static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint32_t n,
+                                      const struct omx_dyn *p, struct omx_dyn_state *st) {
+  OMX_PRE(omx_block_finite(l, n), "finite-in-l");
+  OMX_PRE(omx_block_finite(r, n), "finite-in-r");
+  /* The KEY is a third input block and it was the one with no precondition until 2026-09-17: it
+   * is the caller's own filtered copy of somebody ELSE's audio (the keyed gate's key), so it arrives from a different strip's scratch through a biquad
+   * pair this stage does not own. A NaN there is permanent — it enters the envelope cascade,
+   * which is recursive. `omx_block_finite` answers 1 for the NULL an un-keyed slot passes. */
+  OMX_PRE(omx_block_finite(key, n), "finite-in-key");
+  /* R-056 finding, 2026-09-17 (rt_alloc.test.c's real-render corpus, the first build to run
+   * on_process under OMX_CONTRACTS): these four preconditions are about what the stage does
+   * WHEN IT RUNS, not about a disabled slot -- resolve_dyn's own `if (!o->enabled) return;`
+   * leaves ratio/knee/range/makeup at whatever the struct held before (0 on first use), so a
+   * check ahead of the enable gate reads a disabled slot as "ratio-at-least-one"/"makeup-positive"
+   * violations — the single most common state a real desk is in. The checks run only once the
+   * function is actually going to process, matching omx_drive_process's own
+   * enabled-gates-the-config-checks shape below. */
+  if (!p->enabled || n == 0) return;
+  OMX_PRE(p->gc.ratio >= 1.0f, "ratio-at-least-one");
+  OMX_PRE(p->gc.knee_db >= 0.0f, "knee-not-negative");
+  OMX_PRE(p->gc.mode != OMX_DYN_BELOW || p->gc.range_db <= 0.0f, "range-is-an-attenuation");
+  OMX_PRE(p->gc.makeup_lin > 0.0f, "makeup-positive");
+  OMX_PRE(p->hyst_db >= 0.0f, "hysteresis-not-negative");
+  OMX_PRE(p->dry >= 0.0f && p->dry <= 1.0f, "dry-share-in-unit");
+  OMX_PRE(p->knee_shift_db == 0.0f || (p->gc.mode == OMX_DYN_BELOW && p->knee_shift_db >= -0.5f * p->gc.knee_db &&
+                                       p->knee_shift_db <= 0.5f * p->gc.knee_db),
+          "knee-shift-inside-the-knee");
+
+  /* THE SWITCH. `auto` is derived every buffer, so an operator dragging the attack across
+   * OMX_DYN_OVS_AUTO_MS lands here. The incoming path's rate changers are re-armed (their
+   * history belongs to a rate they are no longer running at) and a handover is owed: the read
+   * tap moves by the oversampler's latency, which is a discontinuity in the AUDIO and not
+   * merely in the gain. The outgoing gain is HELD for the handover rather than kept running —
+   * a second detector chain for 2.7 ms would be a second compressor to keep honest. */
+  const uint32_t want = omx_dyn_oversample_factor(p);
+  if (want != st->factor) {
+    /* factor 0 is COLD, not a change: a lane's RT state is memset to zero at node build, and a
+     * fresh slot owes no handover from a path that never ran. Crossfading out of it would fade
+     * in from the zeroed `last_gain`, i.e. silence. `mix_lane.test.c`'s shared-kernel vector is
+     * what holds this. */
+    if (st->factor != 0u) {
+      st->xfade_tap = omx_oversampler_latency_for(st->factor);
+      st->xfade_gain = st->last_gain;
+      st->xfade_left = OMX_DYN_XFADE;
+      /* A hold still owed is time, not frames: re-count it at the incoming rate. */
+      st->hold_left = (uint32_t)(((uint64_t)st->hold_left * want) / st->factor);
+    }
+    omx_oversampler_init(&st->ovs_a, want);
+    omx_oversampler_init(&st->ovs_b, want);
+    st->factor = want;
+  }
+  const uint32_t tap = omx_oversampler_latency_for(st->factor);
+  const uint32_t ring = OMX_OVS_LATENCY_4X + 1u;
+  const int rms = (p->detect == OMX_DETECT_RMS);
+
+  const struct omx_env_params ep = omx_dyn_env_params(p);
+  float ac, rc;
+  omx_env_stage_poles(&ep, st->factor, &ac, &rc);
+  /* Hold and hysteresis, when either is set on a gate: the state machine replaces the cascade and
+   * gain loops below. Neither set (the neutral values), the loops that shipped run untouched. */
+  const int gate_state = omx_dyn_gate_state_engaged(p);
+  const int hold_above = omx_dyn_hold_engaged(p);
+  const uint32_t hold = p->hold_frames * st->factor;
+  const float credit_pole = (gate_state && p->hyst_db > 0.0f && st->factor != 1u)
+                                ? powf(p->release_coeff, 1.0f / (float)st->factor)
+                                : p->release_coeff;
+
+  /* A BELOW slot without the gate's state machine: its gain is flat wherever the gate is open
+   * or on its floor, and only the levels between take the dB path. */
+  const int flat = p->gc.mode == OMX_DYN_BELOW && !gate_state;
+  struct omx_dyn_flat fl = {NAN, NAN, 0.0f, 0.0f};
+  if (flat) omx_dyn_flat_bounds(p, &fl);
+
+  /* The computer's ceiling: the make-up, and in UPWARD mode the make-up times the largest boost. */
+  const float ceil_lin = p->gc.mode == OMX_DYN_UPWARD ? omx_db_to_lin(p->gc.range_db) * p->gc.makeup_lin : p->gc.makeup_lin;
+  const int floored = p->gc.mode == OMX_DYN_ABOVE && p->floor_db < 0.0f;
+  /* The program release, an ABOVE slot's releaseMode other than fixed: the follower sits on the
+   * computer's reduction, at the rate the gain is computed at. Fixed runs the loops that shipped. */
+  const int prog = p->gc.mode == OMX_DYN_ABOVE && p->release_mode != 0;
+  if (!prog) memset(&st->prs, 0, sizeof st->prs);
+  const float floor_lin = floored ? omx_db_to_lin(p->floor_db) * p->gc.makeup_lin : 0.0f;
+
+  float gmin = 1.0f; /* the block's deepest applied gain, whatever path produced it */
+  /* A keyed slot detects its key, which a loop cannot hear through: feedback is the
+   * self-detecting slot's. Entering the loop seeds its one stage from the cascade's level (same
+   * domain), so a topology switch does not start the detector from silence; leaving it seeds the
+   * cascade from the loop's stage for the same reason. */
+  const int fb = p->topology == OMX_DETECTOR_TOPOLOGY_FEEDBACK && key == NULL;
+  const float fb_pa = fb ? omx_dyn_fb_attack_pole(p->attack_coeff, p->gc.ratio) : 0.0f;
+  const float fb_pr = p->release_coeff;
+  if (fb && !st->fb_ran) {
+    st->fb_env = st->env.stage[OMX_DYN_ENV_STAGES - 1];
+    /* y[n-1] is seeded with the output the seeded envelope stands for (its level, the root of its
+     * power when the detector is RMS), so the first sample detects this signal's level and not the
+     * output of whenever the loop last ran. */
+    st->fb_yl = st->fb_yr = omx_flush(rms ? sqrtf(st->fb_env) : st->fb_env);
+  }
+  if (!fb && st->fb_ran)
+    for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) st->env.stage[s] = st->fb_env;
+  st->fb_ran = fb;
+
+  uint32_t done = 0u;
+  while (done < n) {
+    const uint32_t m = (n - done > OMX_DYN_OVS_CHUNK) ? OMX_DYN_OVS_CHUNK : (n - done);
+    float gain[OMX_DYN_OVS_CHUNK];
+
+    if (fb) {
+      /* THE FEEDBACK LOOP (ssl-bus-compressor §1): the detector hears the slot's own pre-make-up
+       * output OMX_DYN_FB_LOOP_DELAY_SAMPLES late, through ONE stage whose attack pole is floored
+       * so the loop cannot ring (§4 L4). Serial by construction — each gain needs the output the
+       * previous one made. Factor 1 always: omx_dyn_oversample_factor() never answers 4 here. */
+      const float *xl = l + done;
+      const float *xr = r ? r + done : l + done;
+      for (uint32_t i = 0; i < m; i++) {
+        const float hl = st->fb_yl, hr = st->fb_yr;
+        const float d = rms ? fmaxf(hl * hl, hr * hr) : fmaxf(fabsf(hl), fabsf(hr));
+        const float e = omx_onepole_flush(&st->fb_env, d, d > st->fb_env ? fb_pa : fb_pr);
+        const float gr = omx_gaincomp_db_fb(&p->gc, omx_lin_to_db(rms ? sqrtf(e) : e));
+        const float g = omx_db_to_lin(prog ? omx_env_program_release(&st->prs, &p->prp[0], gr) : gr);
+        st->fb_yl = omx_flush(xl[i] * g);
+        st->fb_yr = omx_flush(xr[i] * g);
+        gain[i] = g * p->gc.makeup_lin;
+      }
+    } else if (st->factor == 1u) {
+      /* THE BASE PATH: the detector reads the legs (or the key) sample for sample at the graph's
+       * own rate. The cascade is bit-identical to the one that shipped; rectify, cascade and gain
+       * are three loops so only the cascade is serial. */
+      float lev[OMX_DYN_OVS_CHUNK];
+      const float *kl = key ? key + done : l + done;
+      const float *kr = key ? key + done : (r ? r + done : l + done);
+      if (rms)
+        for (uint32_t i = 0; i < m; i++) {
+          const float sl = kl[i] * kl[i], sr = kr[i] * kr[i];
+          lev[i] = sl > sr ? sl : sr;
+        }
+      else
+        for (uint32_t i = 0; i < m; i++) {
+          const float al = fabsf(kl[i]), ar = fabsf(kr[i]);
+          lev[i] = al > ar ? al : ar;
+        }
+      if (gate_state) {
+        memcpy(gain, lev, m * sizeof(float));
+        omx_dyn_gate_chain(st, p, &ep, ac, rc, gain, m, hold, credit_pole);
+      } else {
+        if (hold_above) omx_dyn_hold_chain(st, &ep, ac, rc, lev, m, hold);
+        else
+          for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
+        if (flat && p->knee_shift_db == 0.0f) /* the centred knee hoisted, as below */
+          for (uint32_t i = 0; i < m; i++)
+            gain[i] = lev[i] <= fl.lo ? fl.g_floor : lev[i] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, lev[i]);
+        else if (flat)
+          for (uint32_t i = 0; i < m; i++) gain[i] = omx_dyn_flat_gain(&fl, p, lev[i]);
+        else if (prog)
+          for (uint32_t i = 0; i < m; i++) gain[i] = omx_dyn_program_gain(p, &st->prs, &p->prp[0], lev[i]);
+        else if (p->knee_shift_db == 0.0f)
+          for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
+        else
+          for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, lev[i]);
+      }
+    } else {
+      /* THE 4× CONTROL PATH. The audio is NOT resampled — only the signal the detector looks
+       * at goes up, and only the GAIN comes back down. A stereo slot sends BOTH legs up and
+       * takes the max there, because max() is itself a nonlinearity: taking it at 96 kHz would
+       * fold before the oversampling could prevent it, which is the whole point of the row. */
+      const uint32_t f = st->factor, mf = m * f;
+      float ua[OMX_DYN_OVS_CHUNK * 4u], ub[OMX_DYN_OVS_CHUNK * 4u], g4[OMX_DYN_OVS_CHUNK * 4u];
+      const float *src_a = key ? key + done : l + done;
+      omx_oversampler_up(&st->ovs_a, src_a, m, ua);
+      const int two = (!key && r) ? 1 : 0;
+      if (two) omx_oversampler_up(&st->ovs_b, r + done, m, ub);
+      /* Rectify, cascade, gain — the same three loops as the base path, over the oversampled
+       * block. A mono or keyed slot reads leg A twice, which is the max it always took. */
+      const float *vb = two ? ub : ua;
+      if (rms)
+        for (uint32_t k = 0; k < mf; k++) {
+          const float sa = ua[k] * ua[k], sb = vb[k] * vb[k];
+          g4[k] = sa > sb ? sa : sb;
+        }
+      else
+        for (uint32_t k = 0; k < mf; k++) {
+          const float aa = fabsf(ua[k]), bb = fabsf(vb[k]);
+          g4[k] = aa > bb ? aa : bb;
+        }
+      if (gate_state) omx_dyn_gate_chain(st, p, &ep, ac, rc, g4, mf, hold, credit_pole);
+      else {
+        if (hold_above) omx_dyn_hold_chain(st, &ep, ac, rc, g4, mf, hold);
+        else
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
+        if (flat && p->knee_shift_db == 0.0f)
+          for (uint32_t k = 0; k < mf; k++)
+            g4[k] = g4[k] <= fl.lo ? fl.g_floor : g4[k] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, g4[k]);
+        else if (flat)
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_dyn_flat_gain(&fl, p, g4[k]);
+        else if (prog)
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_dyn_program_gain(p, &st->prs, &p->prp[1], g4[k]);
+        else if (p->knee_shift_db == 0.0f)
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
+        else
+          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, g4[k]);
+      }
+      omx_oversampler_down(&st->ovs_a, g4, m, gain);
+      /* D-1, 2026-09-17 (the dynamics math review notes, measured by
+       * mix_dyn_math.test.c at all four rates): a half-band RINGS on a step, and the step a hard
+       * gate makes when it re-opens is the steepest this stage can produce — four poles of 0.1 ms
+       * attack take the gain from the range floor to unity inside a handful of oversampled
+       * samples. The gain the COMPUTER produced was in [0, ceil_lin]; the gain the decimator
+       * handed back was not. Measured on the unclamped path, gate at ratio 40 / range -80 dB /
+       * attack 0.1 ms: the applied gain reached 1.0244 / 1.0748 / 1.0819 / 1.0440 at 44.1 / 48 /
+       * 96 / 192 kHz — up to +0.68 dB of gain ADDED by a GATE, which is the defect the stage's
+       * own contract token names — and -0.0482 / -0.0686 / -0.0802 / -0.0098, a POLARITY FLIP on
+       * the samples either side of the opening.
+       *
+       * The clamp is not a smoothing: it is `omx_gaincomp_gain`'s own postcondition restated at the
+       * one place a filter can break it. It cannot fire at factor 1, which never filters the
+       * gain, so the base path stays bit-identical to the cascade that shipped before any of
+       * this. Two compares per base sample. */
+      for (uint32_t i = 0; i < m; i++) {
+        if (!(gain[i] >= 0.0f)) gain[i] = 0.0f; /* `!(x >= 0)` also catches a NaN */
+        else if (gain[i] > ceil_lin) gain[i] = ceil_lin;
+      }
+    }
+    /* The FLOOR, before the mix: a floor at 0 dB or above (none, a zeroed atom) never enters here. */
+    if (floored) omx_dyn_floor_gain(gain, m, floor_lin);
+    /* MIX after make-up, on either path: 100 % (dry 0) never enters here. */
+    if (p->dry > 0.0f) omx_dyn_mix_gain(gain, m, p->dry);
+
+    if (tap == 0u && st->xfade_left == 0u) {
+      /* Factor 1, no handover owed: every read is the sample just written, so the ring only has
+       * to hold the chunk's last `ring` inputs for a later switch — fed BEFORE the legs are
+       * overwritten, then the gain applied in place. Bit-identical to the walk below. */
+      const uint32_t keep = m < ring ? m : ring;
+      uint32_t w = omx_lookahead_fwd(st->delay_pos, (m - keep) % ring, ring);
+      for (uint32_t i = m - keep; i < m; i++) {
+        st->delay_l[w] = l[done + i];
+        st->delay_r[w] = r ? r[done + i] : l[done + i];
+        w = omx_lookahead_fwd(w, 1u, ring);
+      }
+      st->delay_pos = w;
+      for (uint32_t i = 0; i < m; i++) gmin = gain[i] < gmin ? gain[i] : gmin;
+      for (uint32_t i = 0; i < m; i++) l[done + i] *= gain[i];
+      if (r)
+        for (uint32_t i = 0; i < m; i++) r[done + i] *= gain[i];
+    } else {
+      for (uint32_t i = 0; i < m; i++) {
+        const float xl = l[done + i];
+        const float xr = r ? r[done + i] : xl;
+        st->delay_l[st->delay_pos] = xl;
+        st->delay_r[st->delay_pos] = xr;
+        const uint32_t rd = omx_lookahead_back(st->delay_pos, tap, ring);
+        float gl = st->delay_l[rd] * gain[i];
+        float gr = st->delay_r[rd] * gain[i];
+        float ge = gain[i]; /* the gain the listener got: the crossfade's blend while one is owed */
+        if (st->xfade_left > 0u) {
+          const float a = 1.0f - (float)st->xfade_left / (float)OMX_DYN_XFADE;
+          const uint32_t xt = st->xfade_tap;
+          const uint32_t ord = omx_lookahead_back(st->delay_pos, xt, ring);
+          gl = a * gl + (1.0f - a) * st->delay_l[ord] * st->xfade_gain;
+          gr = a * gr + (1.0f - a) * st->delay_r[ord] * st->xfade_gain;
+          ge = a * ge + (1.0f - a) * st->xfade_gain;
+          st->xfade_left--;
+        }
+        gmin = ge < gmin ? ge : gmin;
+        st->delay_pos = omx_lookahead_fwd(st->delay_pos, 1u, ring);
+        l[done + i] = gl;
+        if (r) r[done + i] = gr;
+      }
+    }
+    st->last_gain = gain[m - 1u];
+    done += m;
+  }
+  st->gr_min_db = omx_gr_block_db(gmin);
+  OMX_POST(omx_block_finite(l, n), "finite-out-l");
+  OMX_POST(omx_block_finite(r, n), "finite-out-r");
+  OMX_POST(st->last_gain >= 0.0f && st->last_gain - st->last_gain == 0.0f, "gain-finite-nonneg");
+  /* The gain that actually reached the audio is inside the gain computer's own range — the law
+   * D-1's clamp restores on the 4x path and that the base path has always kept. */
+  OMX_POST(st->last_gain <= p->gc.makeup_lin || p->gc.range_db > 0.0f ||
+               (p->dry > 0.0f && st->last_gain <= 1.0f),
+           "no-gain-added");
+  OMX_INVARIANT(omx_block_finite(st->env.stage, (uint32_t)OMX_DYN_ENV_STAGES), "envelope-finite");
+}
+#undef OMX_CONTRACT_STAGE
+
+/**
+ * @brief The same slot detecting on its OWN signal — the shape every comp slot and every un-keyed
+ *        gate takes. ONE kernel, no named variant: a key is a pointer, and its absence is a fact.
+ * @param l The first leg, processed in place.
+ * @param r The second leg, processed in place, or NULL (mono).
+ * @param n Frames.
+ * @param p The atom.
+ * @param st The slot's state.
+ * @note RT-safe and thread-safe as omx_dynamics_keyed().
+ */
+static inline void omx_dynamics(float *l, float *r, uint32_t n,
+                                const struct omx_dyn *p, struct omx_dyn_state *st) {
+  omx_dynamics_keyed(l, r, NULL, n, p, st);
+}
+
+#endif /* OMX_DYN_H */

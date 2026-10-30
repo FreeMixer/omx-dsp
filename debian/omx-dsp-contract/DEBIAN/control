@@ -1,0 +1,19 @@
+Package: omx-dsp-contract
+Source: omx-dsp
+Version: 0.26.0
+Architecture: all
+Maintainer: Pau Aliagas <linuxnow@gmail.com>
+Installed-Size: 285
+Depends: omx-contract-data (>= 3.1.0~)
+Breaks: libomxdsp-dev (<< 0.26.0)
+Replaces: libomxdsp-dev (<< 0.26.0)
+Section: libdevel
+Priority: optional
+Multi-Arch: foreign
+Homepage: https://github.com/FreeMixer/omx-dsp
+Description: omx-dsp's kernel and instance declarations, read at run time
+ omx-dsp's package of omx-contract's contract directory: the declarations of
+ its kernels and instance faces (their controls, units and readouts) under
+ /usr/share/omx-contract/contract.d/3/omx-dsp. A program that reads them while
+ it runs (a panel, the omx-contract command) needs this package, not the
+ development one.

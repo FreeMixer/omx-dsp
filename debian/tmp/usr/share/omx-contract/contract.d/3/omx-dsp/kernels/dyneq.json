@@ -1,0 +1,395 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "bandOn",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#sw"
+      },
+      "doc": "A band's switch. Off, the band is not in the EQ's bank and its dynamics do not run; on, its static section runs, parked at 0 dB as an EQ band is, and its dynamics run as its dynMode says. A band comes up off, as an EQ band does: the ids and the come-up value are EQ_BAND_ONS's, the EQ's own band switch, and the face holds the two equal at compile time.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "bandType",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#type"
+      },
+      "doc": "The band's shape, in the order of the integer the kernel reads, which is the order of the first three EQ_BAND_TYPES: a bell, a low shelf, a high shelf. A bell's dynamics act through the cookbook bandpass at its centre, a shelf's through half of the first-order allpass at its corner (omx_band_dyn_design).",
+      "ids": [
+        "bell",
+        "lowShelf",
+        "highShelf"
+      ],
+      "default": "bell",
+      "labels": [
+        "Bell",
+        "Low Shelf",
+        "High Shelf"
+      ],
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "freq",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#fc"
+      },
+      "doc": "The band's centre or corner, the EQ band's travel by reference. The come-up centres are the EQ's default rule for six bands (omx_eq_default_centres), so the bands start spread across the audio band.",
+      "travel": {
+        "min": {
+          "ref": "EQ_FREQ_RANGE.min"
+        },
+        "max": {
+          "ref": "EQ_FREQ_RANGE.max"
+        },
+        "step": {
+          "ref": "EQ_FREQ_RANGE.step"
+        },
+        "unit": "Hz"
+      },
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "gain",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#g"
+      },
+      "doc": "The band's static gain, the EQ band's travel by reference: the curve the band draws with its dynamics at rest. 0 dB parks the static section, as on the EQ, and the dynamics still act.",
+      "travel": {
+        "min": {
+          "ref": "EQ_GAIN_RANGE.min"
+        },
+        "max": {
+          "ref": "EQ_GAIN_RANGE.max"
+        },
+        "step": {
+          "ref": "EQ_GAIN_RANGE.step"
+        },
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "q",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#bq"
+      },
+      "doc": "The bell's Q, the EQ band's travel by reference; the dynamics' bandpass takes the same Q. A shelf reads it as the EQ's shelf does.",
+      "travel": {
+        "min": {
+          "ref": "EQ_Q_RANGE.min"
+        },
+        "max": {
+          "ref": "EQ_Q_RANGE.max"
+        },
+        "step": {
+          "ref": "EQ_Q_RANGE.step"
+        },
+        "unit": "",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "dynMode",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#dyn_mode_i"
+      },
+      "doc": "Whether and when the band's dynamics act, in the order of the integer the kernel reads: off, the band is its static section alone; down, it acts above its threshold, when the band is loud (band_dyn's above); up, it acts below its threshold, when the band is quiet (band_dyn's below). The range's sign says whether it cuts or boosts. A band comes up off, so a fresh dynamic EQ is an EQ.",
+      "ids": [
+        "off",
+        "down",
+        "up"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "Down",
+        "Up"
+      ],
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "threshold",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#thr"
+      },
+      "doc": "Where the band's dynamics start, in dB of the band's own level after its static section: band_dyn's threshold travel by reference.",
+      "travel": {
+        "min": {
+          "ref": "BAND_DYN_THRESHOLD_RANGE.min"
+        },
+        "max": {
+          "ref": "BAND_DYN_THRESHOLD_RANGE.max"
+        },
+        "step": {
+          "ref": "BAND_DYN_THRESHOLD_RANGE.step"
+        },
+        "unit": "dB",
+        "default": {
+          "ref": "BAND_DYN_THRESHOLD_RANGE.default"
+        },
+        "defaultFrom": "desk"
+      },
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "ratio",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#rat"
+      },
+      "doc": "How hard the band is held past its threshold: band_dyn's ratio travel by reference.",
+      "travel": {
+        "min": {
+          "ref": "BAND_DYN_RATIO_RANGE.min"
+        },
+        "max": {
+          "ref": "BAND_DYN_RATIO_RANGE.max"
+        },
+        "step": {
+          "ref": "BAND_DYN_RATIO_RANGE.step"
+        },
+        "unit": "",
+        "default": {
+          "ref": "BAND_DYN_RATIO_RANGE.default"
+        },
+        "defaultFrom": "desk"
+      },
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "range",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#rng"
+      },
+      "doc": "The most the dynamics add to the band's static gain, signed: below zero the deepest cut, above zero the largest boost. band_dyn's range travel by reference.",
+      "travel": {
+        "min": {
+          "ref": "BAND_DYN_RANGE_RANGE.min"
+        },
+        "max": {
+          "ref": "BAND_DYN_RANGE_RANGE.max"
+        },
+        "step": {
+          "ref": "BAND_DYN_RANGE_RANGE.step"
+        },
+        "unit": "dB",
+        "default": {
+          "ref": "BAND_DYN_RANGE_RANGE.default"
+        },
+        "defaultFrom": "desk"
+      },
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "attack",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#att"
+      },
+      "doc": "The band detector's attack, in ms: band_dyn's attack travel by reference, which stops at the oversampling floor; a step reaches 56.65 % at the attack time (the 4-stage cascade).",
+      "travel": {
+        "min": {
+          "ref": "BAND_DYN_ATTACK_RANGE.min"
+        },
+        "max": {
+          "ref": "BAND_DYN_ATTACK_RANGE.max"
+        },
+        "step": {
+          "ref": "BAND_DYN_ATTACK_RANGE.step"
+        },
+        "unit": "ms",
+        "default": {
+          "ref": "BAND_DYN_ATTACK_RANGE.default"
+        },
+        "defaultFrom": "desk"
+      },
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "release",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#rel"
+      },
+      "doc": "The band detector's release, in ms: band_dyn's release travel by reference; a step falls to 43.35 % at the release time (the 4-stage cascade).",
+      "travel": {
+        "min": {
+          "ref": "BAND_DYN_RELEASE_RANGE.min"
+        },
+        "max": {
+          "ref": "BAND_DYN_RELEASE_RANGE.max"
+        },
+        "step": {
+          "ref": "BAND_DYN_RELEASE_RANGE.step"
+        },
+        "unit": "ms",
+        "default": {
+          "ref": "BAND_DYN_RELEASE_RANGE.default"
+        },
+        "defaultFrom": "desk"
+      },
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "listen",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#lis"
+      },
+      "doc": "While on, the output is what the band's detector hears, its section B over the signal reaching the band, in place of the EQ's output; with more than one band listening, their sum. It comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "count": "DYNEQ_BANDS"
+    },
+    {
+      "name": "mixPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#mix_share"
+      },
+      "doc": "The share of the processed output, in percent: 100 is the dynamic EQ alone, bit for bit, 0 the input.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "band1GainDb",
+      "doc": "The gain band 1's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
+      "unit": "dB",
+      "min": {
+        "ref": "BAND_DYN_RANGE_RANGE.min"
+      },
+      "max": {
+        "ref": "BAND_DYN_RANGE_RANGE.max"
+      },
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band2GainDb",
+      "doc": "The gain band 2's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
+      "unit": "dB",
+      "min": {
+        "ref": "BAND_DYN_RANGE_RANGE.min"
+      },
+      "max": {
+        "ref": "BAND_DYN_RANGE_RANGE.max"
+      },
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band3GainDb",
+      "doc": "The gain band 3's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
+      "unit": "dB",
+      "min": {
+        "ref": "BAND_DYN_RANGE_RANGE.min"
+      },
+      "max": {
+        "ref": "BAND_DYN_RANGE_RANGE.max"
+      },
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band4GainDb",
+      "doc": "The gain band 4's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
+      "unit": "dB",
+      "min": {
+        "ref": "BAND_DYN_RANGE_RANGE.min"
+      },
+      "max": {
+        "ref": "BAND_DYN_RANGE_RANGE.max"
+      },
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band5GainDb",
+      "doc": "The gain band 5's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
+      "unit": "dB",
+      "min": {
+        "ref": "BAND_DYN_RANGE_RANGE.min"
+      },
+      "max": {
+        "ref": "BAND_DYN_RANGE_RANGE.max"
+      },
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band6GainDb",
+      "doc": "The gain band 6's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
+      "unit": "dB",
+      "min": {
+        "ref": "BAND_DYN_RANGE_RANGE.min"
+      },
+      "max": {
+        "ref": "BAND_DYN_RANGE_RANGE.max"
+      },
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "DYNEQ_BANDS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#OMX_DYNEQ_INSTANCE_BANDS"
+      },
+      "doc": "How many bands the dynamic EQ carries, each a static EQ section and its dynamics: six, the floating bands of the reference desks' dynamic EQs. Its state holds this many band-dynamics states.",
+      "unit": "",
+      "value": 6
+    }
+  }
+}

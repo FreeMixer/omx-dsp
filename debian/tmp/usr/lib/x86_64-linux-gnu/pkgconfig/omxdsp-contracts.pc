@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+prefix=/usr
+libdir=/usr/lib/x86_64-linux-gnu
+includedir=/usr/include
+datadir=/usr/share
+# the exports file omx-dsp-copy-check reads
+exports=${datadir}/omxdsp/omx-dsp-exports.json
+# the golden matched-Z peaking corpus (test/analysis/hrp_peaking_corpus.h) a consumer's HRP twins are read against
+hrpcorpus=${datadir}/omxdsp/hrp_peaking_corpus.h
+
+Name: omxdsp-contracts
+Description: DSP primitives and effect kernels of OpenMixer, linked statically (contracts compiled in)
+Version: 0.26.0
+Requires: omx-contract >= 3.1.0
+Cflags: -I${includedir} -ffp-contract=off -DOMX_CONTRACTS
+Libs: -L${libdir} -lomxdsp-contracts -lm

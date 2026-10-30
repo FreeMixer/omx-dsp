@@ -1,0 +1,23 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "INSTRUMENT_FAMILIES": {
+    "kind": "set",
+    "since": "2.14.0",
+    "doc": "The instrument families a channel may be assigned, a broad prior and never an identification: HRP narrows where its detector looks for a fundamental and how many voices it looks for by the family (HRP_FAMILY_SEARCH), and nothing else. The order is the integer that crosses a port or a process boundary (omx-dsp's OmxHrpFamily, the HRP live face's family port). A channel with no family carries -1, which no id names, and the detector then runs its own wide defaults; so the set has no come-up id.",
+    "ids": [
+      "drums",
+      "percussion",
+      "bass",
+      "guitar",
+      "keys",
+      "vocals",
+      "brass",
+      "wind",
+      "strings",
+      "playback"
+    ]
+  }
+}

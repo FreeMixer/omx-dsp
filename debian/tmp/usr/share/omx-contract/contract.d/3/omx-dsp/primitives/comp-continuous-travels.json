@@ -1,0 +1,28 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "COMP_CONTINUOUS_TRAVELS": {
+    "kind": "travels",
+    "doc": "The compressor's threshold and release as a plugin host draws them: COMP_LIMITS' bounds, units and defaults with no step. The console's row quantises them to whole steps (1 dB, 10 ms), and a travel whose step is 1 or more reads as an integer control; the omx-strip plugin has always offered them continuous, so it reads this table instead. Every number but the step is COMP_LIMITS', held equal by test/continuous-travels.test.mjs. Not rendered to C: no C reader needs a second spelling of the compressor's bounds.",
+    "fields": {
+      "thresholdDb": {
+        "min": -60,
+        "max": 0,
+        "step": 0,
+        "unit": "dB",
+        "default": -18,
+        "defaultFrom": "desk"
+      },
+      "releaseMs": {
+        "min": 5,
+        "max": 3000,
+        "step": 0,
+        "unit": "ms",
+        "default": 200,
+        "defaultFrom": "desk"
+      }
+    }
+  }
+}

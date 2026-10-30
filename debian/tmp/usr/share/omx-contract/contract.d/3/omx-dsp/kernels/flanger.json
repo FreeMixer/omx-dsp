@@ -1,0 +1,118 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "controls": [
+    {
+      "name": "rate",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#FLANGER_RATE_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_flanger_instance.h#lfo_inc"
+      },
+      "doc": "The flanger's jet sweep.",
+      "travel": {
+        "min": 0.05,
+        "max": 5,
+        "step": 0.01,
+        "unit": "Hz",
+        "default": 0.25,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "depth",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#FLANGER_DEPTH_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_flanger_instance.h#depth_samples"
+      },
+      "doc": "The flanger's peak-to-peak excursion above its declared 0.5 ms base.",
+      "travel": {
+        "min": 0,
+        "max": 5,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 2,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "feedback",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#FLANGER_FEEDBACK_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_flanger_instance.h#feedback"
+      },
+      "doc": "The flanger's SIGNED resonance. The ±0.95 clamp is DECLARED here — a PATCH asking for 1.0 is answered by this travel — and the kernel's own clamp is the enforcement half.",
+      "travel": {
+        "min": -0.95,
+        "max": 0.95,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.6,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mix",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#FLANGER_MIX_RANGE",
+          "at": "openmixer@827dc608d4ac45a1afa8acb4eca4d08ec21f4051"
+        },
+        "impl": "include/omxdsp/fx/omx_flanger_instance.h#mix"
+      },
+      "doc": "The flanger's wet/dry, as an instance of DRIVE_MIX_RANGE: 50 %, equal dry and wet, where the comb is deepest.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 50,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "constants": {
+    "FLANGER_BASE_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_flanger_instance.h#base_samples"
+      },
+      "doc": "The flanger's base delay, ms: the sweep rides on it up to the depth.",
+      "unit": "ms",
+      "value": 0.5
+    },
+    "FLANGER_MAX_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_flanger.h#OMX_FLANGER_CAP"
+      },
+      "doc": "The longest delay a flanger sweep reaches, rounded up to whole ms: the base delay plus the depth maximum. The delay line is sized from it.",
+      "unit": "ms",
+      "value": {
+        "derive": "ceilSum",
+        "of": [
+          {
+            "ref": "FLANGER_BASE_MS"
+          },
+          {
+            "ref": "FLANGER_DEPTH_RANGE.max"
+          }
+        ]
+      }
+    }
+  }
+}

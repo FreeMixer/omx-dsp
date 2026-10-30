@@ -1,0 +1,490 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "plateModDepth",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#REVERB_PLATE_MOD_DEPTH_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#plate_mod_depth"
+      },
+      "doc": "PLATE's tank MODULATION DEPTH, in percent of Dattorro's own excursion (±8 samples at his 29 761 Hz tuning rate, scaled to the live rate the way the tank lengths are). 100 is the depth the plate has always run at, so the come-up is bit-identical to the plate before the field; 0 brings back the unmodulated tank's ring; 400 is the wide, chorused EMT-style swing. The rate stays 1 Hz. Only PLATE reads it.",
+      "travel": {
+        "min": 0,
+        "max": 400,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mix",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_MIX_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#omx_reverb_instance_resolve"
+      },
+      "doc": "The REVERB's wet/dry. An insert keeps the dry signal (0.3); an `fxReturn` is wet-only (1), so the return carries only the effect. Both numbers live HERE and nowhere else: the row's `mix` limit, `ReverbController`'s seed and its fresh state read them through limitForKind.",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.3,
+        "defaultFrom": "desk",
+        "byKind": {
+          "fxReturn": 1
+        }
+      }
+    },
+    {
+      "name": "size",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_SIZE_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#omx_reverb_instance_resolve"
+      },
+      "doc": "The reverb's SIZE/DAMPING/WIDTH — each a NORMALIZED_RANGE instance with its own come-up value, matching `DEFAULT_REVERB_STATE`. Three separate constants rather than one shared default on `NORMALIZED_RANGE`: that range is the bare 0..1 REPRESENTATION, reused by fields across the whole console whose come-up values disagree (a fader position is not a reverb's damping), so a default belongs on the NAMED field, never on the shape it borrows.",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.7,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "damping",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_DAMPING_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#omx_reverb_instance_resolve"
+      },
+      "doc": "The reverb's DAMPING — a NORMALIZED_RANGE instance with its own come-up value, matching `DEFAULT_REVERB_STATE`. Declared with SIZE and WIDTH (see REVERB_SIZE_RANGE for why each is a named constant rather than a default on the shared 0..1 shape).",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "width",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_WIDTH_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#omx_reverb_instance_resolve"
+      },
+      "doc": "The reverb's stereo WIDTH — a NORMALIZED_RANGE instance with its own come-up value, matching `DEFAULT_REVERB_STATE`. Declared with SIZE and DAMPING (see REVERB_SIZE_RANGE for why each is a named constant rather than a default on the shared 0..1 shape).",
+      "travel": {
+        "min": 0,
+        "max": 1,
+        "step": 0,
+        "unit": "",
+        "default": 1,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "predelay",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_PREDELAY_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#predelay_ms"
+      },
+      "doc": "The reverb's PRE-DELAY travel — the gap before the first reflection, in milliseconds. Declared here so the unit crosses with the bounds: a `finiteNumber(0, 100)` codec publishes `unit: ''`, and a surface binding that draws a millisecond control it cannot label. The panel knowing better than the wire is the wrong way round.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "ms",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "lowcut",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_LOWCUT_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#lowcut"
+      },
+      "doc": "The reverb's LOW cut, as an instance of REVERB_CUT_RANGE — same bounds, its own come-up value. `0` reads as \"none\" (`mix_reverb.h`), which is also `DEFAULT_REVERB_STATE`'s seed, so a fresh reverb's low cut and its declared default are the same fact stated once. Split from REVERB_CUT_RANGE rather than adding `default` there: the low and high cut share ONE travel (the C imposes one constraint on both) but do NOT share one come-up value, and a `default` on the shared range could only be honest for one of the two fields that read it.",
+      "travel": {
+        "min": 0,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "highcut",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_HIGHCUT_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#highcut"
+      },
+      "doc": "The reverb's HIGH cut, as an instance of REVERB_CUT_RANGE — same bounds, its own come-up value. The top of the travel reads as \"open\" (`mix_reverb.h`), matching `DEFAULT_REVERB_STATE`'s seed.",
+      "travel": {
+        "min": 0,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 20000,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "reverse",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_REVERSE_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#reverse_ms"
+      },
+      "doc": "REVERSE's MIRROR WINDOW — how long a slice of the wet is played backward, in milliseconds. A DECLARED travel and never derived from `size`'s RT60: an RT60 of seconds cannot be buffered at 192 kHz, and a window silently clamped to fit is the silent-clamp defect. The ceiling is what `mix_reverb.h`'s pool budgets a ring for (`OMX_REVERB_REVERSE_MAX_MS`), so the console offers exactly the travel the kernel accepts — nothing wider, nothing narrower.",
+      "travel": {
+        "min": 50,
+        "max": 500,
+        "step": 10,
+        "unit": "ms",
+        "default": 300,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "hold",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_HOLD_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#hold_ms"
+      },
+      "doc": "GATED's HOLD — how long the wet stays at full level after the key falls away, in milliseconds. The Phil-Collins tail is cut where the operator puts the cut, so this is the control that decides the effect's length; `size` still decides what is being cut off.",
+      "travel": {
+        "min": 10,
+        "max": 2000,
+        "step": 10,
+        "unit": "ms",
+        "default": 120,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "release",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_RELEASE_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#release_ms"
+      },
+      "doc": "GATED's RELEASE — how long the held wet takes to reach zero, in milliseconds. A straight line down, short by design: a long release is a reverb tail again, which is the thing a gated reverb exists to remove.",
+      "travel": {
+        "min": 1,
+        "max": 500,
+        "step": 1,
+        "unit": "ms",
+        "default": 20,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "gateThreshold",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "core/src/strip-fx-limits.ts#REVERB_GATE_THRESHOLD_RANGE",
+          "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
+        },
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#gate_threshold_db"
+      },
+      "doc": "GATED's ARM THRESHOLD — the level the reverb's own mono feed must reach to arm the hold, in dBFS. Declared, because the alternative is a hidden onset detector: the kernel compares `|input|` against exactly this number and nothing else.",
+      "travel": {
+        "min": -80,
+        "max": 0,
+        "step": 1,
+        "unit": "dBFS",
+        "default": -40,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "algorithm",
+      "kind": "choice",
+      "doc": "The reverb's algorithms, in the order of the integer the kernel reads. Reverse and gated are the room network handed a window and a gate.",
+      "ids": [
+        "room",
+        "plate",
+        "hall",
+        "reverse",
+        "gated"
+      ]
+    },
+    {
+      "name": "earlyDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#early_level"
+      },
+      "doc": "The early reflections' level, dB: the declared tap set (REVERB_EARLY_TAP_MS, REVERB_EARLY_TAP_GAINS) read from the pre-delayed feed, even taps on the left, odd on the right, beside the tail. The travel's floor is off, no early reflections at all, and is the come-up value, so a fresh reverb is the one that shipped, bit for bit.",
+      "travel": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -60,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tailDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#tail_level"
+      },
+      "doc": "The tail's level, dB: the reverb network's output. 0 dB is the tail as it shipped, the come-up value; the travel's floor is off, the early reflections alone.",
+      "travel": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "earlySizePct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#early_size"
+      },
+      "doc": "The early reflections' room, percent: every tap's time scaled from REVERB_EARLY_SIZE_MIN of the table at 0 % to REVERB_EARLY_SIZE_MAX at 100 %, linearly.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 50,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "duckDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#duck_depth"
+      },
+      "doc": "The wet's ducking depth, dB, the delay's duck (omx_duck): the tail and its reflections pull down while the dry is loud. 0 ducks nothing, the come-up value, bit for bit.",
+      "travel": {
+        "min": -24,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "duckThresholdDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#duck_thr"
+      },
+      "doc": "The dry level the ducking starts at, dBFS.",
+      "travel": {
+        "min": -60,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -30,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "duckReleaseMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#duck_rel"
+      },
+      "doc": "How fast the wet comes back once the dry falls, ms; the attack is FX_DUCK_ATTACK_MS.",
+      "travel": {
+        "min": 20,
+        "max": 2000,
+        "step": 10,
+        "unit": "ms",
+        "default": 250,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "wetDeess",
+      "kind": "choice",
+      "global": "REVERB_WET_DEESSES",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#deess_on"
+      },
+      "doc": "The wet's de-esser: on, the de-esser kernel in split mode on the wet, at deessFreqHz and deessThresholdDb with the de-esser's own come-up width, ratio, range, attack and release, so an s does not splash the tail. It comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ]
+    },
+    {
+      "name": "deessFreqHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#deess_freq"
+      },
+      "doc": "The wet de-esser's band, Hz: the de-esser's frequency travel by reference.",
+      "travel": {
+        "min": {
+          "ref": "DEESS_FREQ_RANGE.min"
+        },
+        "max": {
+          "ref": "DEESS_FREQ_RANGE.max"
+        },
+        "step": {
+          "ref": "DEESS_FREQ_RANGE.step"
+        },
+        "unit": "Hz",
+        "default": {
+          "ref": "DEESS_FREQ_RANGE.default"
+        },
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "deessThresholdDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#deess_thr"
+      },
+      "doc": "The wet de-esser's threshold, dB: the de-esser's threshold travel by reference.",
+      "travel": {
+        "min": {
+          "ref": "DEESS_THRESHOLD_RANGE.min"
+        },
+        "max": {
+          "ref": "DEESS_THRESHOLD_RANGE.max"
+        },
+        "step": {
+          "ref": "DEESS_THRESHOLD_RANGE.step"
+        },
+        "unit": "dB",
+        "default": {
+          "ref": "DEESS_THRESHOLD_RANGE.default"
+        },
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "constants": {
+    "REVERB_GATE_ATTACK_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb.h#gate_att_step"
+      },
+      "doc": "The gated reverb's gate attack, ms: the time the gate takes to open on a hit.",
+      "unit": "ms",
+      "value": 1.5
+    },
+    "REVERB_EARLY_TAP_MS": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#OMX_REVERB_INSTANCE_TAP_MS"
+      },
+      "doc": "The early reflections' times, ms after the pre-delay, at a size scale of 1: eight taps, the even ones on the left, the odd on the right, none landing on another's sample at any oracle rate.",
+      "unit": "ms",
+      "values": [
+        3.1,
+        5.3,
+        7.9,
+        10.7,
+        13.9,
+        17.3,
+        21.1,
+        25.3
+      ]
+    },
+    "REVERB_EARLY_TAP_GAINS": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#OMX_REVERB_INSTANCE_TAP_GAINS"
+      },
+      "doc": "The early reflections' gains, linear, one per REVERB_EARLY_TAP_MS entry, falling with the time.",
+      "unit": "",
+      "values": [
+        0.84,
+        0.75,
+        0.67,
+        0.6,
+        0.53,
+        0.47,
+        0.42,
+        0.37
+      ]
+    },
+    "REVERB_EARLY_SIZE_MIN": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#early_scale"
+      },
+      "doc": "The scale the early taps' times take at earlySizePct 0, a share of REVERB_EARLY_TAP_MS.",
+      "unit": "",
+      "value": 0.5
+    },
+    "REVERB_EARLY_SIZE_MAX": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_reverb_instance.h#early_scale"
+      },
+      "doc": "The scale the early taps' times take at earlySizePct 100, a share of REVERB_EARLY_TAP_MS; the early ring is sized for it.",
+      "unit": "",
+      "value": 1.5
+    }
+  }
+}

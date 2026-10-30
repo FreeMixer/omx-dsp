@@ -1,0 +1,22 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "BIQUAD_KINDS": {
+    "kind": "set",
+    "since": "2.14.0",
+    "doc": "The biquad section kinds the EQ design builds, in the order of the integer a kernel reads: the bell, the two shelves, the pass filters, the notch, the bandpass (the de-esser's detector band, never an EQ band), and the first- and second-order allpasses (the dynamic EQ's and the phase tool's sections). The design itself is omx-dsp's `omx_eq_design`; the console draws its curves from a twin of it, and both dispatch on this list. No come-up id: a kind is chosen by the stage that designs the section.",
+    "ids": [
+      "peaking",
+      "lowShelf",
+      "highShelf",
+      "highpass",
+      "lowpass",
+      "notch",
+      "bandpass",
+      "allpass1",
+      "allpass2"
+    ]
+  }
+}

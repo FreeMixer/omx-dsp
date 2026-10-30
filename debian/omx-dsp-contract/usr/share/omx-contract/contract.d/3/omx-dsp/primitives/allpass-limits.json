@@ -1,0 +1,13 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "ALLPASS_LIMITS": {
+    "kind": "sheet",
+    "doc": "The first-order all-pass section's contract tolerance. `unityTolerance` is the fraction of the larger side within which the block energy identity (the sum of y squared plus the pole times the end state squared equals the sum of x squared plus the pole times the start state squared) must hold, which is what makes the section unity magnitude. A design constant of the primitive, not a control: no row serves it.",
+    "value": {
+      "unityTolerance": 0.0001
+    }
+  }
+}

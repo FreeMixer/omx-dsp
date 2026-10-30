@@ -1,0 +1,194 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "range",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#range_row"
+      },
+      "doc": "The tracking range, in the order of the integer the kernel reads: low (a bass, 35 to 140 Hz), mid (70 to 280 Hz), high (140 to 560 Hz); each a row of SUBOCT_RANGE_LO_HZ, SUBOCT_RANGE_HI_HZ, SUBOCT_POST1_HZ and SUBOCT_POST2_HZ. Low comes up.",
+      "ids": [
+        "low",
+        "mid",
+        "high"
+      ],
+      "default": "low",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ]
+    },
+    {
+      "name": "oct1",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#o1"
+      },
+      "doc": "The octave below, percent of the tracked band divided once (omx_divider) and low-passed at the range's post1.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "oct2",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#o2"
+      },
+      "doc": "Two octaves below, percent: the first octave divided again and low-passed at the range's post2.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "dry",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#dr"
+      },
+      "doc": "The input, percent. With both octaves at 0 and the dry at 100 the face is the input bit for bit, the divider still tracking.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "trackGateDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#gate_db"
+      },
+      "doc": "The tracked band's level, dBFS of its peak envelope, under which the octaves fade out over SUBOCT_GATE_RAMP_MS and trackedHz reads 0.",
+      "travel": {
+        "min": -80,
+        "max": -20,
+        "step": 0.5,
+        "unit": "dBFS",
+        "default": -50,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "trackedHz",
+      "doc": "The fundamental the divider tracks, Hz: the rate over the samples between its last two toggles, one toggle an input period; 0 while gated.",
+      "unit": "Hz",
+      "min": 0,
+      "max": 600,
+      "scale": "log",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "SUBOCT_RANGE_LO_HZ": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_LO"
+      },
+      "doc": "Each range's lowest tracked fundamental, Hz; the tracking band's high-pass sits an octave under it.",
+      "unit": "Hz",
+      "values": [
+        35,
+        70,
+        140
+      ]
+    },
+    "SUBOCT_RANGE_HI_HZ": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_HI"
+      },
+      "doc": "Each range's highest tracked fundamental, Hz: the tracking band's low-pass.",
+      "unit": "Hz",
+      "values": [
+        140,
+        280,
+        560
+      ]
+    },
+    "SUBOCT_POST1_HZ": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_POST1"
+      },
+      "doc": "Each range's low-pass on the first octave, Hz, 24 dB per octave.",
+      "unit": "Hz",
+      "values": [
+        90,
+        180,
+        360
+      ]
+    },
+    "SUBOCT_POST2_HZ": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_POST2"
+      },
+      "doc": "Each range's low-pass on the second octave, Hz, 24 dB per octave.",
+      "unit": "Hz",
+      "values": [
+        45,
+        90,
+        180
+      ]
+    },
+    "SUBOCT_HYSTERESIS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#omx_suboct_arm_level"
+      },
+      "doc": "The arming threshold as a share of the tracked peak: a toggle needs a dip under -1/4 of the peak, which a fundamental-dominant note makes once a cycle and noise under half of it never makes.",
+      "unit": "",
+      "value": 0.25
+    },
+    "SUBOCT_ENV_ATTACK_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_ENV"
+      },
+      "doc": "The tracked peak's attack, ms: within the first cycle of the highest tracked note.",
+      "unit": "ms",
+      "value": 1
+    },
+    "SUBOCT_ENV_RELEASE_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_ENV"
+      },
+      "doc": "The tracked peak's release, ms: longer than the lowest tracked period, so the threshold does not sag between peaks.",
+      "unit": "ms",
+      "value": 100
+    },
+    "SUBOCT_GATE_RAMP_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_suboct_instance.h#ramp_step"
+      },
+      "doc": "How long the octaves take to fade out under the gate, or in over it, ms.",
+      "unit": "ms",
+      "value": 5
+    }
+  }
+}

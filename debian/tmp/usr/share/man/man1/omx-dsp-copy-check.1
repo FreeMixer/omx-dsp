@@ -1,0 +1,66 @@
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\" Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+.TH OMX-DSP-COPY-CHECK 1 "" "omx-dsp" "User Commands"
+.SH NAME
+omx-dsp-copy-check \- find code that writes a libomxdsp function again
+.SH SYNOPSIS
+.B omx-dsp-copy-check
+[\fB\-\-root\fR \fIDIR\fR] [\fB\-\-exports\fR \fIFILE\fR] [\fB\-\-allow\fR \fIFILE\fR] [\fB\-\-enforce\fR]
+.br
+.B omx-dsp-copy-check \-\-generate
+[\fB\-\-version\fR \fIV\fR] \fIOMXDSP_TREE\fR
+.br
+.B omx-dsp-copy-check \-\-self\-test
+[\fB\-\-sabotage\fR]
+.SH DESCRIPTION
+Run it at the root of a project that uses libomxdsp. It reads the tracked C and
+TypeScript or JavaScript sources and prints one line for each place where the
+project defines a libomxdsp name, shares most of the body of a libomxdsp
+function, uses two of its constants together with its maths calls, or writes
+one of its short expressions inline, such as a decibel conversion. Tests,
+fakes, fixtures, oracles and generated directories are left out.
+.PP
+The list of what the library exports is a data file installed with the
+library, \fI/usr/share/omxdsp/omx-dsp-exports.json\fR. The command looks for it
+next to itself, in the \fIexports\fR variable of the \fIomxdsp.pc\fR file and in
+the standard share directories.
+.PP
+A copy that has to stay is listed in the file \fIomx-dsp-copies.allow\fR at the
+root of the project, one line per copy in the form
+\fIpath:function | export | reason | issue\fR. The check fails on an entry that
+no longer matches a copy and on an entry without a reason or an issue.
+.SH OPTIONS
+.TP
+.BI \-\-root " DIR"
+The project to scan. The default is the current directory.
+.TP
+.BI \-\-exports " FILE"
+The exports file to read instead of the installed one.
+.TP
+.BI \-\-allow " FILE"
+The allowlist to read instead of \fIomx-dsp-copies.allow\fR.
+.TP
+.B \-\-enforce
+Exit with status 1 when a copy is not on the allowlist or the allowlist has a
+stale or incomplete entry. Without it the command only reports and exits 0.
+.TP
+.B \-\-generate
+Write the exports file for the headers and sources of a libomxdsp tree to
+standard output. The library's own build does this.
+.TP
+.B \-\-self\-test
+From a libomxdsp source tree, plant copies in a scratch project and require
+each to be found and each legitimate use to pass. With \fB\-\-sabotage\fR it
+breaks each rule in turn and requires the self-test to fail.
+.SH FILES
+.TP
+.I /usr/share/omxdsp/omx-dsp-exports.json
+The exports file.
+.TP
+.I omx-dsp-copies.allow
+The allowlist, in the project root.
+.SH EXIT STATUS
+0 when the run finished (in report mode whatever it found), 1 when
+\fB\-\-enforce\fR found a problem, 2 when the exports file could not be found or read.
+.SH SEE ALSO
+.BR pkg-config (1)

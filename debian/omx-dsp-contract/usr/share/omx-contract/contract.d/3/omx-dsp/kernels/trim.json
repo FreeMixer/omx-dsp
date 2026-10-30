@@ -1,0 +1,33 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "controls": [
+    {
+      "name": "trimDb",
+      "kind": "travel",
+      "global": "TRIM_RANGE",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_trim_instance.h#tgt"
+      },
+      "doc": "The digital input trim, in dB: the console's fine head gain, applied first in a channel's lane as a click-free ramp from the last block's gain to this one (the console's trim range, -24..+24 dB in 0.1 dB steps, spelled minDb/maxDb/stepDb there). It comes up at 0 dB, the trim a channel has when none is set. omx-dsp's trim face takes it as `trim_db`.",
+      "travel": {
+        "min": -24,
+        "max": 24,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "aggregates": {
+    "TRIM_TRAVELS": {
+      "doc": "The trim as a table with the one field `trimDb`, the name the trim row and the omx-strip plugin store; generated from the trim kernel's control, so the travel has one home.",
+      "fields": [
+        "trimDb"
+      ]
+    }
+  }
+}

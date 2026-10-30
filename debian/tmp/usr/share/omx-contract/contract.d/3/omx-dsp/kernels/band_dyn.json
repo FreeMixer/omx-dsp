@@ -1,0 +1,135 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "controls": [
+    {
+      "name": "mode",
+      "kind": "choice",
+      "doc": "The side of the threshold the band acts on. Above acts when the band is loud, taming a resonance that only rings when pushed; below acts when it is quiet, lifting a band that drops out. The order is the integer the kernel reads: above is 0, below is 1.",
+      "ids": [
+        "above",
+        "below"
+      ],
+      "default": "above"
+    },
+    {
+      "name": "threshold",
+      "kind": "travel",
+      "doc": "Where the band starts to act, in dB of the band's own level and not the strip's. It is the same fact the de-esser's threshold is, so it carries the same travel.",
+      "travel": {
+        "min": {
+          "ref": "DEESS_THRESHOLD_RANGE.min"
+        },
+        "max": {
+          "ref": "DEESS_THRESHOLD_RANGE.max"
+        },
+        "step": {
+          "ref": "DEESS_THRESHOLD_RANGE.step"
+        },
+        "unit": "dB",
+        "default": {
+          "ref": "DEESS_THRESHOLD_RANGE.default"
+        },
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "ratio",
+      "kind": "travel",
+      "doc": "How hard the band is held once it is past its threshold. 2:1 rather than the de-esser's 4:1, because a dynamic band is corrective, not a limiter for a sibilant.",
+      "travel": {
+        "min": {
+          "ref": "DEESS_RATIO_RANGE.min"
+        },
+        "max": {
+          "ref": "DEESS_RATIO_RANGE.max"
+        },
+        "step": {
+          "ref": "DEESS_RATIO_RANGE.step"
+        },
+        "unit": "",
+        "default": 2,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "range",
+      "kind": "travel",
+      "doc": "The most the band may add to its static gain, signed: below zero the deepest cut, above zero the largest boost. The ceiling of +12 keeps static plus dynamic inside the EQ's own travel. Zero makes the band inert without switching it off.",
+      "travel": {
+        "min": {
+          "ref": "DEESS_RANGE_RANGE.min"
+        },
+        "max": 12,
+        "step": {
+          "ref": "DEESS_RANGE_RANGE.step"
+        },
+        "unit": "dB",
+        "default": -6,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "attack",
+      "kind": "travel",
+      "doc": "The detector's attack, in ms. The travel stops at the oversampling floor, below which the band would need the compressor's delayed control path. The detector is a 4-stage cascade, each stage a quarter of the time: a step reaches 56.65 % at the attack time.",
+      "travel": {
+        "min": {
+          "ref": "DETECTOR_OVERSAMPLE_AUTO_MS"
+        },
+        "max": {
+          "ref": "COMP_LIMITS.attackMs.max"
+        },
+        "step": {
+          "ref": "DEESS_ATTACK_RANGE.step"
+        },
+        "unit": "ms",
+        "default": 5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "release",
+      "kind": "travel",
+      "doc": "The detector's release, in ms. 100 ms is long enough not to modulate a 40 Hz band inside four cycles. The detector is a 4-stage cascade, each stage a quarter of the time: a step falls to 43.35 % at the release time.",
+      "travel": {
+        "min": {
+          "ref": "DEESS_RELEASE_RANGE.min"
+        },
+        "max": {
+          "ref": "COMP_LIMITS.releaseMs.max"
+        },
+        "step": {
+          "ref": "DEESS_RELEASE_RANGE.step"
+        },
+        "unit": "ms",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "constants": {
+    "BAND_DYN_KNEE_DB": {
+      "kind": "scalar",
+      "doc": "The soft knee of the band's gain computer, in dB. One knee for the one band-dynamics word, shared by every stage that runs it, the de-esser included: a second spelling of 6 would be a second place where the reduction starts.",
+      "unit": "dB",
+      "value": 6
+    },
+    "BAND_DYN_MAX_BANDS": {
+      "kind": "scalar",
+      "doc": "How many dynamic bands a channel may hold. A dynamic band is an operator band, so the capacity is the operator's reserve, read and not typed again.",
+      "unit": "",
+      "value": {
+        "ref": "OPERATOR_EQ_BANDS_RESERVE"
+      }
+    },
+    "DETECTOR_OVERSAMPLE_AUTO_MS": {
+      "kind": "scalar",
+      "doc": "The shortest attack, in ms, at which the compressor's detector does not alias. Below it the compressor engages its 4x control path, which adds 72 samples of latency; a zero-latency band has no such path, so its attack travel stops at this floor.",
+      "unit": "ms",
+      "value": 0.5
+    }
+  }
+}

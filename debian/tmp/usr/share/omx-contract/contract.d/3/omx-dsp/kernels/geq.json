@@ -1,0 +1,93 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "controls": [
+    {
+      "name": "band",
+      "kind": "travel",
+      "source": {
+        "from": {
+          "link": "declarations/src/index.ts#GEQ_BAND_RANGE",
+          "at": "openmixer@89343ca0a0d36b2a4b4a966e7a220ad7b4c06a03"
+        },
+        "impl": "include/omxdsp/fx/omx_geq_instance.h#band_db"
+      },
+      "doc": "One graphic-EQ fader's travel: EQ_GAIN_RANGE by reference (a graphic fader is an EQ gain), with the come-up value it needs as a row field — flat, 0 dB.",
+      "travel": {
+        "min": -15,
+        "max": 15,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "count": "GEQ_BANDS"
+    },
+    {
+      "name": "mode",
+      "kind": "choice",
+      "doc": "How the graphic EQ designs its sections from the faders, in the order of the integer the kernel reads (omx-dsp's enum omx_geq_mode): `standard` gives each section its fader as its gain, the classic proportional build-up; `true` solves the band interaction so the summed curve meets the faders at the centres, each section gain clamped at GEQ_DESIGN_GAIN_MAX_DB. A fresh instance comes up `standard`.",
+      "ids": [
+        "standard",
+        "true"
+      ],
+      "default": "standard"
+    }
+  ],
+  "readouts": [
+    {
+      "name": "designClamped",
+      "doc": "Whether the last design clamped: 1 when a `true` solve asked a section for more than GEQ_DESIGN_GAIN_MAX_DB and got the ceiling, 0 otherwise and always in `standard`. Derived by the design step, never written by a host (omx-dsp's OmxGeqDesign.clamped).",
+      "unit": "",
+      "min": 0,
+      "max": 1,
+      "scale": "stepped",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "GEQ_BAND_Q": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/eq.ts#GEQ_BAND_Q",
+          "at": "openmixer@89343ca0a0d36b2a4b4a966e7a220ad7b4c06a03"
+        },
+        "impl": "include/omxdsp/fx/omx_geq_instance.h#omx_geq_instance_column"
+      },
+      "doc": "The graphic EQ's band Q: the ISO third-octave bandwidth, `2^(1/6)/(2^(1/3) − 1) ≈ 4.318`, to one decimal as the M32 GEQ carries it. Read by the `geq31` preset and the graphic EQ's section design.",
+      "unit": "",
+      "value": 4.3
+    },
+    "GEQ_PROTO_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/eq.ts#GEQ_PROTO_DB",
+          "at": "openmixer@89343ca0a0d36b2a4b4a966e7a220ad7b4c06a03"
+        },
+        "impl": "include/omxdsp/fx/omx_geq_instance.h#omx_geq_true_gains"
+      },
+      "doc": "The prototype gain the `true` solve's first interaction matrix is evaluated at: the middle of the travel's magnitude, where a matched-Z section's dB response per dB of gain is closest to its average.",
+      "unit": "dB",
+      "value": 12
+    },
+    "GEQ_DESIGN_GAIN_MAX_DB": {
+      "kind": "scalar",
+      "source": {
+        "from": {
+          "link": "core/src/eq.ts#GEQ_DESIGN_GAIN_MAX_DB",
+          "at": "openmixer@89343ca0a0d36b2a4b4a966e7a220ad7b4c06a03"
+        },
+        "impl": "include/omxdsp/fx/omx_geq_instance.h#ceiling"
+      },
+      "doc": "The ceiling on a section gain the `true` solve may ask for: above the travel's worst case (26.0 dB, the alternating ±15 set) with margin. A solve past it clamps and the row says so (`designClamped`), never silently.",
+      "unit": "dB",
+      "value": 30
+    }
+  }
+}

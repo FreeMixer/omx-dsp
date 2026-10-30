@@ -1,0 +1,352 @@
+{
+  "$schema": "https://github.com/FreeMixer/omx-contract/raw/v3/schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "bands",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#nbf"
+      },
+      "doc": "How many bands the stage splits into, MBC_MIN_BANDS to MBC_MAX_BANDS, one crossover fewer. Three, body, presence and air, comes up.",
+      "travel": {
+        "min": {
+          "ref": "MBC_MIN_BANDS"
+        },
+        "max": {
+          "ref": "MBC_MAX_BANDS"
+        },
+        "step": 1,
+        "unit": "",
+        "default": 3,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "xoverHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#corner"
+      },
+      "doc": "Crossover n's corner, Hz, ascending: the first bands - 1 are in use. A corner at or below the one before it is moved just above it, and a non-finite corner is the come-up corner of the band count (MBC_CROSSOVER_DEFAULTS_<bands>), which is also where a fresh stage starts. A corner at or above MBC_CORNER_MAX_FRACTION of the rate is designed at that line.",
+      "travel": {
+        "min": 40,
+        "max": 16000,
+        "step": 1,
+        "unit": "Hz"
+      },
+      "count": "MBC_MAX_XOVERS"
+    },
+    {
+      "name": "thresholdDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#thr"
+      },
+      "doc": "The band's threshold, dB of the band's own RMS level.",
+      "travel": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -20,
+        "defaultFrom": "desk"
+      },
+      "count": "MBC_MAX_BANDS"
+    },
+    {
+      "name": "ratio",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#rat"
+      },
+      "doc": "The band's ratio; a hard knee.",
+      "travel": {
+        "min": 1,
+        "max": 20,
+        "step": 0.1,
+        "unit": "",
+        "default": 2,
+        "defaultFrom": "desk"
+      },
+      "count": "MBC_MAX_BANDS"
+    },
+    {
+      "name": "attackMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#att"
+      },
+      "doc": "The band detector's attack, ms. Below DETECTOR_OVERSAMPLE_AUTO_MS the whole stage takes the 4x control path, every band at one tap.",
+      "travel": {
+        "min": 0.1,
+        "max": 200,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 10,
+        "defaultFrom": "desk"
+      },
+      "count": "MBC_MAX_BANDS"
+    },
+    {
+      "name": "releaseMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#rel"
+      },
+      "doc": "The band detector's release, ms.",
+      "travel": {
+        "min": 10,
+        "max": 2000,
+        "step": 1,
+        "unit": "ms",
+        "default": 150,
+        "defaultFrom": "desk"
+      },
+      "count": "MBC_MAX_BANDS"
+    },
+    {
+      "name": "makeupDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#mk"
+      },
+      "doc": "The band's make-up, dB.",
+      "travel": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "count": "MBC_MAX_BANDS"
+    },
+    {
+      "name": "solo",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#so"
+      },
+      "doc": "The band's solo: while any band is soloed, only the soloed bands reach the sum. It comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "count": "MBC_MAX_BANDS"
+    },
+    {
+      "name": "bandBypass",
+      "kind": "choice",
+      "global": "MBCOMP_BAND_BYPASSES",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#band_off"
+      },
+      "doc": "The band's bypass: on, the band's compressor is the unity one and the band passes at the gain of the tree at rest. Named bandBypass so it is not the face's own bypass. It comes up off.",
+      "ids": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "count": "MBC_MAX_BANDS"
+    },
+    {
+      "name": "mixPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#mix_share"
+      },
+      "doc": "The share of the compressed bands, percent: each band blends its own input, so the dry signal is the tree at rest and the blend is in phase. 100 is the compressed sum, 0 the tree at rest.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "outputDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp_instance.h#out_db"
+      },
+      "doc": "The stage's output gain, dB, after the sum; 0 dB touches no sample.",
+      "travel": {
+        "min": -24,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "band1GainReductionDb",
+      "doc": "Band 1's gain reduction, dB with CLAP's sign: the band's gain computer re-run on its RMS level after the last block (omx_mbcomp_band_gr_db), make-up excluded; 0 while it reduces nothing, is bypassed or is past the band count.",
+      "unit": "dB",
+      "min": {
+        "ref": "MBCOMP_THRESHOLD_DB_RANGE.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band2GainReductionDb",
+      "doc": "Band 2's gain reduction, dB with CLAP's sign: the band's gain computer re-run on its RMS level after the last block (omx_mbcomp_band_gr_db), make-up excluded; 0 while it reduces nothing, is bypassed or is past the band count.",
+      "unit": "dB",
+      "min": {
+        "ref": "MBCOMP_THRESHOLD_DB_RANGE.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band3GainReductionDb",
+      "doc": "Band 3's gain reduction, dB with CLAP's sign: the band's gain computer re-run on its RMS level after the last block (omx_mbcomp_band_gr_db), make-up excluded; 0 while it reduces nothing, is bypassed or is past the band count.",
+      "unit": "dB",
+      "min": {
+        "ref": "MBCOMP_THRESHOLD_DB_RANGE.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band4GainReductionDb",
+      "doc": "Band 4's gain reduction, dB with CLAP's sign: the band's gain computer re-run on its RMS level after the last block (omx_mbcomp_band_gr_db), make-up excluded; 0 while it reduces nothing, is bypassed or is past the band count.",
+      "unit": "dB",
+      "min": {
+        "ref": "MBCOMP_THRESHOLD_DB_RANGE.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band5GainReductionDb",
+      "doc": "Band 5's gain reduction, dB with CLAP's sign: the band's gain computer re-run on its RMS level after the last block (omx_mbcomp_band_gr_db), make-up excluded; 0 while it reduces nothing, is bypassed or is past the band count.",
+      "unit": "dB",
+      "min": {
+        "ref": "MBCOMP_THRESHOLD_DB_RANGE.min"
+      },
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "MBC_MIN_BANDS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp.h#bands"
+      },
+      "doc": "The fewest bands the multiband compressor splits into: one crossover. omx_mbcomp_design and omx_mbcomp_process refuse a band count below it (`band-count-declared`), and a refused count reads as this floor.",
+      "unit": "",
+      "value": 2
+    },
+    "MBC_MAX_BANDS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp.h#omx_mbcomp_come_up_hz"
+      },
+      "doc": "The most bands the multiband compressor splits into, and the capacity of its inline state: `struct omx_mbcomp_state` holds this many band compressors and one crossover fewer per leg, so the ceiling and the arrays are one fact.",
+      "unit": "",
+      "value": 5
+    },
+    "MBC_MAX_XOVERS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp.h#OMX_MBC_COME_UP_HZ"
+      },
+      "doc": "The crossovers of a full tree, one fewer than MBC_MAX_BANDS: the count of the corner control and the capacity of each leg's crossover state.",
+      "unit": "",
+      "value": 4
+    },
+    "MBC_CORNER_MAX_FRACTION": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp.h#top"
+      },
+      "doc": "The highest crossover corner the multiband design builds, as a fraction of the live rate: a corner at or above `fraction x rate` is designed AT that line, because the LR4 section degenerates toward Nyquist. omx_mbcomp_design computes the line in double, so a C reader takes OMX_MBC_CORNER_MAX_FRACTION_DOUBLE. A 20 kHz corner is under the line from 48 kHz up; at 44.1 kHz the line is 19845 Hz and a 20 kHz corner is designed there.",
+      "unit": "",
+      "value": 0.45
+    },
+    "MBC_CROSSOVER_DEFAULTS_2": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp.h#OMX_MBC_COME_UP_HZ"
+      },
+      "doc": "The come-up crossover corners of a 2-band multiband stage, Hz, ascending: one split at 1 kHz.",
+      "unit": "Hz",
+      "values": [
+        1000
+      ]
+    },
+    "MBC_CROSSOVER_DEFAULTS_3": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp.h#OMX_MBC_COME_UP_HZ"
+      },
+      "doc": "The come-up crossover corners of a 3-band multiband stage, Hz, ascending: body, presence, air.",
+      "unit": "Hz",
+      "values": [
+        200,
+        2000
+      ]
+    },
+    "MBC_CROSSOVER_DEFAULTS_4": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp.h#OMX_MBC_COME_UP_HZ"
+      },
+      "doc": "The come-up crossover corners of a 4-band multiband stage, Hz, ascending.",
+      "unit": "Hz",
+      "values": [
+        150,
+        800,
+        5000
+      ]
+    },
+    "MBC_CROSSOVER_DEFAULTS_5": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_mbcomp.h#OMX_MBC_COME_UP_HZ"
+      },
+      "doc": "The come-up crossover corners of a 5-band multiband stage, Hz, ascending: two octaves apart.",
+      "unit": "Hz",
+      "values": [
+        100,
+        400,
+        1600,
+        6400
+      ]
+    }
+  }
+}
