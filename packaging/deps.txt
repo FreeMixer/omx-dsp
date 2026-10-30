@@ -4,3 +4,4 @@
 #
 # <rpm name>          <deb name>           <floor>  <workflow variable pinning the release tag>
 omx-contract-devel    libomx-contract-dev  3.1.0    OMX_CONTRACT_REF
+omx-contract-data     omx-contract-data    3.1.0
