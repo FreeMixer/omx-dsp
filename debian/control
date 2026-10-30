@@ -10,7 +10,7 @@ Rules-Requires-Root: no
 Package: libomxdsp-dev
 Architecture: any
 Multi-Arch: same
-Depends: libomx-contract-dev (>= 3.1.0), ${misc:Depends}
+Depends: libomx-contract-dev (>= 3.1.0), omx-dsp-contract (= ${source:Version}), ${misc:Depends}
 Description: audio toolbox of the OpenMixer console, a real-time-safe C library
  libomxdsp is the sound of the OpenMixer console, as a library: the filters,
  envelopes, delays, limiters, gates, compressors and other building blocks of
@@ -26,3 +26,16 @@ Description: audio toolbox of the OpenMixer console, a real-time-safe C library
  (omxdsp-contracts, contracts compiled in) and libomxdsp-tsan.a (omxdsp-tsan,
  contracts and ThreadSanitizer). Programs link the library statically; no
  shared library exists.
+
+Package: omx-dsp-contract
+Architecture: all
+Multi-Arch: foreign
+Depends: omx-contract-data (>= 3.1.0~), ${misc:Depends}
+Breaks: libomxdsp-dev (<< ${source:Version})
+Replaces: libomxdsp-dev (<< ${source:Version})
+Description: omx-dsp's kernel and instance declarations, read at run time
+ omx-dsp's package of omx-contract's contract directory: the declarations of
+ its kernels and instance faces (their controls, units and readouts) under
+ /usr/share/omx-contract/contract.d/3/omx-dsp. A program that reads them while
+ it runs (a panel, the omx-contract command) needs this package, not the
+ development one.
