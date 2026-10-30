@@ -246,7 +246,7 @@ jobs:
     steps:
       - name: Install the build tools
         run: |
-          dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip diffutils pkgconf-pkg-config
+          dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip diffutils pkgconf-pkg-config python3
 
       - name: Add the OpenMixer repository
         uses: FreeMixer/.github/.github/actions/add-openmixer@v1
@@ -321,7 +321,7 @@ jobs:
       - name: Install the build tools
         run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends ca-certificates curl git dpkg-dev debhelper build-essential lintian gawk pkgconf
+          apt-get install -y --no-install-recommends ca-certificates curl git dpkg-dev debhelper build-essential lintian gawk pkgconf python3
 
       - uses: actions/checkout@v4
         with:
