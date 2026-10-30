@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.26.0
+Version: 0.27.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -90,6 +90,17 @@ library exists.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Fri Oct 30 2026 Pau Aliagas <linuxnow@gmail.com> - 0.27.0-1
+- New sections and faces: omx_width (M/S width, complementary comb, bass mono)
+  and its instance face, the tone face (tilt span and the DJ filter map,
+  FX-9), and the leveler, the plosive tamer, the upward law of omx_dyn, the
+  compressor's release modes and effective-attack readout, and the
+  sub-octaver (FX-10 to FX-13, FX-16, FX-17); omx_envelope and omx_gaincomp
+  grow with them (#188).
+- Dependency floors come from packaging/deps.txt, one file for both
+  packages; a check refuses a new public name in a patch release.
+- The package jobs in CI install python3 (#253).
+
 * Sun Oct 25 2026 Pau Aliagas <linuxnow@gmail.com> - 0.26.0-1
 - New sections: omx_tilt (a first-order shelf pair about one pivot),
   omx_duck (the wet ducker, omx_duck_step), omx_doppler (a detuning read
