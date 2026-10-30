@@ -48,6 +48,23 @@ static void arm_fader_law(void) {
   }
   ok(worst_power <= 1e-6, "the pan law holds constant power at every pan", worst_power, 1e-6);
 
+  /* omx-dsp#250, found by fuzz_laws: the float nearest pi/2 is above it, so cosf of the hard-right angle was
+   * -4.37e-8, a far leg inverting at -147 dB and a fader coefficient below 0, against the law's own post
+   * `not-negative`. Neither leg of any pan is below 0, and the hard pans are exact. */
+  {
+    int below = 0;
+    for (int i = 0; i <= 4096; i++) {
+      const float pan = -1.0f + 2.0f * (float)i / 4096.0f;
+      if (omx_pan_law_gain(pan, OMX_PAN_LEG_L) < 0.0f || omx_pan_law_gain(pan, OMX_PAN_LEG_R) < 0.0f) below++;
+    }
+    ok(below == 0, "no leg of any pan is negative", below, 0.0);
+    ok(omx_pan_law_gain(1.0f, OMX_PAN_LEG_L) == 0.0f && omx_pan_law_gain(-1.0f, OMX_PAN_LEG_R) == 0.0f,
+       "the far leg of a hard pan is 0", omx_pan_law_gain(1.0f, OMX_PAN_LEG_L), 0.0);
+    struct omx_fader_law_params hard = {0.0f, 1.0f, OMX_PAN_LEG_L, 1.0f, 0, 1.0f, 0};
+    ok(omx_fader_law_coeff(&hard) == 0.0f, "a hard-right strip's left coefficient is 0, not below it",
+       omx_fader_law_coeff(&hard), 0.0);
+  }
+
   /* the declared defaults are unity: 0 dB fader, no pan, unity send and DCA, nothing muted */
   struct omx_fader_law_params unity = {0.0f, 0.0f, OMX_PAN_LEG_NONE, 1.0f, 0, 1.0f, 0};
   const float g_unity = omx_fader_law_coeff(&unity);

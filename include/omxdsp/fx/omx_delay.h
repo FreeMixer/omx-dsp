@@ -16,6 +16,7 @@
 #ifndef OMX_MIX_DELAY_H
 #define OMX_MIX_DELAY_H
 
+#include <float.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -121,7 +122,8 @@ static inline float omx_bpm_division_ms(float bpm, float division_beats) {
    * it is then converted to samples and indexed into a ring. Both halves are stated here so the
    * fault is attributed to the tempo, not to the ring read three calls later. */
   OMX_PRE(division_beats >= 0.0f, "division-is-not-negative");
-  float ms = bpm <= 0.0f ? 0.0f : division_beats * 60000.0f / bpm;
+  float ms = !(bpm > 0.0f) ? 0.0f : division_beats * 60000.0f / bpm;
+  if (ms > FLT_MAX) ms = FLT_MAX; /* a tempo near 0 is a time past the travel, which the caller holds at its top */
   OMX_POST(ms >= 0.0f && ms - ms == 0.0f, "a-synced-time-is-a-finite-non-negative-ms");
   return ms;
 }

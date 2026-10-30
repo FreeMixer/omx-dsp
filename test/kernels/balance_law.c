@@ -26,6 +26,19 @@ static void arm_balance_law(void) {
   ok(omx_clamp_pan(2.0f) == (float)OMX_PAN_RANGE_MAX, "the clamp holds the declared maximum", omx_clamp_pan(2.0f), (float)OMX_PAN_RANGE_MAX);
   ok(omx_clamp_pan(-2.0f) == (float)OMX_PAN_RANGE_MIN, "the clamp holds the declared minimum", omx_clamp_pan(-2.0f), (float)OMX_PAN_RANGE_MIN);
   ok(omx_clamp_pan(0.3f) == 0.3f, "the clamp passes an in-range pan", omx_clamp_pan(0.3f), 0.3);
+  /* omx-dsp#250, found by fuzz_laws: a NaN pan went through both compares and came out as a NaN gain on
+   * both legs. Any value is in the law's contract, and a non-finite pan is the centre, as the delay's taps read it. */
+  {
+    const float nan = nanf("");
+    float bl = -1.0f, br = -1.0f;
+    omx_balance_law(nan, &bl, &br);
+    ok(omx_clamp_pan(nan) == 0.0f, "a NaN pan clamps to the centre", omx_clamp_pan(nan), 0.0);
+    ok(bl == 1.0f && br == 1.0f, "a NaN pan is the unity centre on both legs, not a NaN gain", bl, 1.0);
+    omx_balance_law(INFINITY, &bl, &br);
+    ok(bl == 0.0f && br == 1.0f, "+Inf is hard right", bl, 0.0);
+    omx_balance_law(-INFINITY, &bl, &br);
+    ok(bl == 1.0f && br == 0.0f, "-Inf is hard left", br, 0.0);
+  }
 
   for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
     const float sr = OMX_FX_ORACLE_RATES[ri];

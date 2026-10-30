@@ -220,6 +220,47 @@ jobs:
       - name: make eq-defaults-table
         run: make eq-defaults-table
 
+  # The libFuzzer harnesses of fuzz/ (clang, libFuzzer, ASan, UBSan, the library's contracts), each run for 60 s from
+  # its seed corpus; red on any crash or broken contract, the crashing input uploaded. omx-contract's header is
+  # read from a checkout at OMX_CONTRACT_REF through OMX_CONTRACT_INC (no node and no install needed to fuzz).
+  fuzz:
+    name: fuzz (60 s per harness)
+    runs-on: ubuntu-latest
+    # a backstop: six harnesses of 60 s and their build end well inside this
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang and libFuzzer's runtime
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends clang libclang-rt-dev
+
+      - name: Fetch omx-contract at OMX_CONTRACT_REF
+        run: |
+          set -euo pipefail
+          case $OMX_CONTRACT_REF in
+            v[0-9]*.[0-9]*.[0-9]*) ref=refs/tags/$OMX_CONTRACT_REF ;;
+            *) echo "OMX_CONTRACT_REF is $OMX_CONTRACT_REF: pin a release tag" >&2; exit 1 ;;
+          esac
+          git init -q /tmp/omx-contract
+          git -C /tmp/omx-contract fetch -q --depth 1 https://github.com/FreeMixer/omx-contract "$ref"
+          git -C /tmp/omx-contract checkout -q FETCH_HEAD
+          echo "OMX_CONTRACT_INC=/tmp/omx-contract/include" >> "$GITHUB_ENV"
+
+      - name: Build the harnesses (clang, libFuzzer, ASan, UBSan, contracts)
+        run: make fuzz
+
+      - name: Fuzz each harness for 60 s
+        id: handback-fuzz
+        run: make fuzz-run FUZZ_TIME=60
+
+      - name: Upload the crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-findings
+          path: fuzz/findings/
+          if-no-files-found: ignore
+
   docs:
     name: make docs (the public headers are fully documented)
     runs-on: ubuntu-latest
