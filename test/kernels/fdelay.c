@@ -88,6 +88,29 @@ static void arm_fdelay(void) {
   }
   ok(omx_fdelay_cap_for(100.0f, 5) == 100u + 2u + 2u, "the cap is the delay plus the reach plus the slot", omx_fdelay_cap_for(100.0f, 5), 104.0);
   ok(omx_fdelay_max_delay(omx_fdelay_cap_for(100.0f, 3), 3) >= 100.0f, "a cap sized for a delay serves it", omx_fdelay_max_delay(omx_fdelay_cap_for(100.0f, 3), 3), 100.0);
+  /* omx-dsp#250, found by fuzz_delay: an order-5 line over the smallest ring it arms on (5 slots) serves delays up to 1
+   * while a fractional one is raised to its kernel's reach of 2, and the line delivered 2, past its ring, against its own
+   * post `clamped-delay-is-inside-the-ring`. The clamp now follows the raise: such a ring delivers its longest whole delay. */
+  {
+    float tiny[5] = {0};
+    struct omx_fdelay t;
+    ok(omx_fdelay_init(&t, tiny, 5u, 5) == OMX_FDELAY_OK, "the smallest ring an order-5 line arms on", 5, 0.0);
+    ok(omx_fdelay_max_delay(5u, 5) == 1.0f && omx_fdelay_min_delay(5) == 2.0f, "it serves less than the kernel's reach", omx_fdelay_max_delay(5u, 5), 1.0);
+    static const float REQ[] = {0.3f, 1.5f, 2.0f, 1e-30f, 1e9f, 0.0f, 1.0f, NAN};
+    int inside = 1;
+    for (unsigned i = 0; i < sizeof REQ / sizeof REQ[0]; i++) {
+      const float d = omx_fdelay_latency(&t, REQ[i]);
+      if (!(d >= 0.0f && d <= 1.0f && d == floorf(d))) inside = 0;
+    }
+    ok(inside, "every request is delivered as a whole delay inside the ring", inside, 1.0);
+    float x[64], y[64];
+    for (uint32_t i = 0; i < 64u; i++) y[i] = x[i] = rnd(-1.0f, 1.0f);
+    omx_fdelay_process(y, 64u, &t, 0.3f);
+    int exact = y[0] == 0.0f;
+    for (uint32_t i = 1; i < 64u; i++) if (y[i] != x[i - 1u]) exact = 0;
+    ok(exact, "a fractional request on that ring is the whole delay of 1, bit for bit", exact, 1.0);
+    expect_clean();
+  }
   ok(omx_fdelay_state_size() == sizeof(struct omx_fdelay), "the state layout is exported", (double)omx_fdelay_state_size(), sizeof(struct omx_fdelay));
   expect_clean();
   fd_arm_tick_pair();

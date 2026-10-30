@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+
+/* What every libFuzzer harness in fuzz/ shares: a cursor over the input, the readers that
+ * turn its bytes into the words a host hands the library, the block filler and the check
+ * that no contract was recorded.
+ *
+ * The cursor is TOTAL. Reading past the end of the input yields zeros, never a failure, so
+ * every input decodes to some sequence of calls and the end of the input ends the sequence.
+ * Nothing here reads a clock, the environment, a file or the network.
+ *
+ * A harness is built with -DOMX_CONTRACTS (the library's own PRE/POST laws record into a
+ * ledger, never abort) and defines OMX_CONTRACT_STORAGE before including this header, so the
+ * laws are checked on every call the input makes. */
+#ifndef OMXDSP_FUZZ_H
+#define OMXDSP_FUZZ_H
+
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <omxdsp/omx_contract.h>
+
+struct fuzz_in {
+  const uint8_t *p;
+  size_t n;
+};
+
+static inline struct fuzz_in fuzz_in(const uint8_t *data, size_t size) {
+  struct fuzz_in in = {data, size};
+  return in;
+}
+
+static inline uint8_t fuzz_u8(struct fuzz_in *in) {
+  if (in->n == 0) return 0;
+  in->n--;
+  return *in->p++;
+}
+
+/* Little-endian, like every multi-byte field the harnesses invent. */
+static inline uint16_t fuzz_u16(struct fuzz_in *in) {
+  uint16_t lo = fuzz_u8(in);
+  return (uint16_t)(lo | (uint16_t)fuzz_u8(in) << 8);
+}
+
+static inline uint32_t fuzz_u32(struct fuzz_in *in) {
+  uint32_t lo = fuzz_u16(in);
+  return lo | (uint32_t)fuzz_u16(in) << 16;
+}
+
+/* Any float: the four bytes are the IEEE word, so NaN, both infinities, denormals and
+ * every magnitude are reachable, which is what a host's control port can hold. */
+static inline float fuzz_f32(struct fuzz_in *in) {
+  uint32_t w = fuzz_u32(in);
+  float f;
+  memcpy(&f, &w, sizeof f);
+  return f;
+}
+
+/* Any double. */
+static inline double fuzz_f64(struct fuzz_in *in) {
+  uint64_t w = fuzz_u32(in);
+  w |= (uint64_t)fuzz_u32(in) << 32;
+  double d;
+  memcpy(&d, &w, sizeof d);
+  return d;
+}
+
+/* Any int a port can hold. */
+static inline int fuzz_int(struct fuzz_in *in) { return (int)fuzz_u32(in); }
+
+/* A float in [lo, hi] from two bytes: the sweeps a UI makes, reaching both ends exactly. */
+static inline float fuzz_range(struct fuzz_in *in, float lo, float hi) {
+  return lo + (hi - lo) * ((float)fuzz_u16(in) / 65535.0f);
+}
+
+/* A value in [0, n). */
+static inline uint32_t fuzz_below(struct fuzz_in *in, uint32_t n) { return n ? fuzz_u8(in) % n : 0u; }
+
+/* One of the nine rates the oracle grid declares. */
+static inline float fuzz_rate(struct fuzz_in *in) {
+  static const float rates[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
+  return rates[fuzz_below(in, OMX_ORACLE_FULL_RATES_COUNT)];
+}
+
+/* A block of n samples. Bit 0 of `mode` makes it HOSTILE (any float word per sample: NaN,
+ * Inf, denormals); otherwise every sample is finite, in [-2^k, 2^k] with k from the mode's
+ * higher bits (0..4), from a signed 16-bit word, so a loud programme and a silent one are
+ * both reachable and the finite-in, finite-out laws are in force. */
+static inline void fuzz_block(struct fuzz_in *in, float *b, uint32_t n, unsigned mode) {
+  const float scale = (float)(1u << ((mode >> 1) % 5u)) / 32768.0f;
+  for (uint32_t i = 0; i < n; i++) b[i] = (mode & 1u) ? fuzz_f32(in) : (float)(int16_t)fuzz_u16(in) * scale;
+}
+
+/* The harness's own failure: names the property and the detail, then dies, so libFuzzer
+ * writes the input that did it. */
+#define FUZZ_FAIL(...)                                      \
+  do {                                                      \
+    fprintf(stderr, "fuzz property broken: " __VA_ARGS__);  \
+    fputc('\n', stderr);                                    \
+    abort();                                                \
+  } while (0)
+
+#define FUZZ_CHECK(cond, ...)                \
+  do {                                       \
+    if (!(cond)) FUZZ_FAIL(__VA_ARGS__);     \
+  } while (0)
+
+/* The ledger the library's contracts record into (the build defines OMX_CONTRACTS). A call a
+ * harness makes inside every PRE it states breaks no law, so the ledger stays empty; a record
+ * names the stage and the token that failed. `ctx` says where in the input's story.
+ *
+ * One law is expected and skipped: the instance faces take the nine rates of the oracle grid, of
+ * which 32, 64 and 128 kHz are not declared rates, and at those every design records
+ * `rate-is-declared` by design (the instance tests say so). `declared` is whether the
+ * rate in force is a declared one; a record of that token is read as broken only when it is.
+ * A second is skipped: the crossover's `bands-partition-unity` (lo + hi equals the all-pass) is a law
+ * of one design. A multiband stage whose corner moves between two blocks carries the old design's
+ * state into the new one, and the identity breaks for the transient, which the contracts build
+ * records as a violation; a harness that moves the corners at random cannot read it. The identity is
+ * held where the design is fixed, by the suite's own xover arm.
+ * The ledger is emptied after each check, so a call's records are never pushed out by an earlier
+ * call's. `hostile` is set while the blocks hold non-finite samples: the sanitizers are then the
+ * oracle, and the ledger is only emptied. */
+static inline void fuzz_ledger_check(const char *ctx, int declared, int hostile) {
+#ifdef OMX_CONTRACTS
+  if (hostile) { /* non-finite samples break the finite-in laws by the caller's own act: no law to read */
+    omx_contract_reset();
+    return;
+  }
+  const uint32_t n = atomic_load_explicit(&omx_contract_log.count, memory_order_relaxed);
+  const uint32_t kept = n < OMX_CONTRACT_MAX ? n : OMX_CONTRACT_MAX;
+  for (uint32_t i = 0; i < kept; i++) {
+    const struct omx_contract_record *r = &omx_contract_log.rec[i];
+    if (!omx_contract_record_ready(r)) continue;
+    if (!declared && strcmp(r->token, "rate-is-declared") == 0) continue;
+    if (strcmp(r->token, "bands-partition-unity") == 0) continue;
+    FUZZ_FAIL("%s: contract broken: %s %s %s (%u in all)", ctx, r->stage, r->kind, r->token, (unsigned)n);
+  }
+  omx_contract_reset();
+#else
+  (void)ctx;
+  (void)declared;
+  (void)hostile;
+#endif
+}
+
+static inline void fuzz_ledger_clean(const char *ctx) { fuzz_ledger_check(ctx, 1, 0); }
+
+/* Forget what an earlier input left in the ledger: each input starts clean. */
+static inline void fuzz_ledger_reset(void) {
+#ifdef OMX_CONTRACTS
+  omx_contract_reset();
+  atomic_store_explicit(&omx_contract_log.count, 0u, memory_order_relaxed);
+#endif
+}
+
+#endif /* OMXDSP_FUZZ_H */
