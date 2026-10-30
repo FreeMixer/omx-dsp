@@ -145,7 +145,8 @@ static inline float omx_env_step(struct omx_env *env, const struct omx_env_param
   OMX_INVARIANT(omx_block_finite(env->stage, (uint32_t)OMX_DYN_ENV_STAGES), "envelope-finite");
 #ifdef OMX_CONTRACTS
   int inside = 1;
-  for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) inside &= env->stage[s] >= lo - 1e-6f && env->stage[s] <= hi + 1e-6f;
+  const float slack = 1e-6f * (1.0f + fmaxf(fabsf(lo), fabsf(hi))); /* relative to the level, as in omx_onepole() */
+  for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) inside &= env->stage[s] >= lo - slack && env->stage[s] <= hi + slack;
 #endif
   OMX_INVARIANT(inside, "no-overshoot");
   return y;
@@ -361,6 +362,7 @@ static inline float omx_env_program_release(struct omx_env_program_release *st,
           "pole-in-declared-range");
 #ifdef OMX_CONTRACTS
   const float lo = fminf(t, fminf(st->fast, st->slow));
+  const float slack = 1e-6f * (1.0f + fabsf(lo)); /* relative to the level, as in omx_onepole() */
 #endif
   const float slow_pole = omx_pole_from_time_ms(p->slow_min_ms + st->mem * p->slow_span_ms, p->sr);
   if (t <= st->fast) st->fast = t;
@@ -371,7 +373,7 @@ static inline float omx_env_program_release(struct omx_env_program_release *st,
   const float gr = (1.0f - p->share) * st->fast + p->share * st->slow;
   OMX_POST(gr - gr == 0.0f, "finite");
   OMX_POST(gr <= 0.0f, "no-gain-added");
-  OMX_INVARIANT(st->fast <= t + 1e-6f && st->slow <= t + 1e-6f && st->fast >= lo - 1e-6f && st->slow >= lo - 1e-6f,
+  OMX_INVARIANT(st->fast <= t + slack && st->slow <= t + slack && st->fast >= lo - slack && st->slow >= lo - slack,
                 "release-never-below-target");
   OMX_INVARIANT(st->mem >= 0.0f && st->mem <= 1.0f, "memory-in-unit-interval");
   return gr;

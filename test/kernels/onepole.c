@@ -84,6 +84,50 @@ static void onepole_time_constant_rme(void) {
   }
 }
 
+/* A POLE IS BELOW 1 (omx-dsp#250, found by fuzz_fx): a corner or a time so far from the rate that exp()
+ * rounds to 1 in float - a 1e-9 Hz reverb high cut, a 1e30 ms time - gave the pole 1.0f, which the
+ * constructors' own post forbids and which freezes the filter. They give OMX_POLE_MAX, the pole nearest 1,
+ * and every pole an ordinary corner or time makes is unchanged. */
+static void onepole_pole_below_one(void) {
+  const float sr = 48000.0f;
+  const float TINY[4] = { 1e-30f, 1e-9f, 1e-4f, 1e-3f };
+  for (int i = 0; i < 4; i++) {
+    const float p = omx_pole_from_cutoff_hz(TINY[i], sr);
+    ok(p < 1.0f && p >= 0.99999f, "a corner far below the rate is a pole below 1", p, 1.0);
+    ok(p == (float)expf(-2.0f * (float)M_PI * TINY[i] / sr) || p == OMX_POLE_MAX,
+       "a pole below the cap is the exp it was made from", p, 1.0);
+  }
+  const float BIG[3] = { 1e30f, 1e20f, 1e12f };
+  for (int i = 0; i < 3; i++) {
+    const float p = omx_pole_from_time_ms(BIG[i], sr);
+    ok(p < 1.0f && p >= 0.9999f, "a time far above the rate is a pole below 1", p, 1.0);
+  }
+  ok(omx_pole_from_cutoff_hz(1e-30f, sr) == OMX_POLE_MAX && omx_pole_from_time_ms(1e30f, sr) == OMX_POLE_MAX,
+     "the extremes are OMX_POLE_MAX exactly", OMX_POLE_MAX, 1.0);
+  float s = 0.5f;
+  omx_onepole(&s, 0.0f, omx_pole_from_cutoff_hz(1e-30f, sr));
+  ok(s < 0.5f && s > 0.49999f, "a filter built at the cap still moves, by one ulp-scale step", s, 0.5);
+  expect_clean();
+}
+
+/* THE POST IS RELATIVE (omx-dsp#250, found by fuzz_fx): "the step lies between the input and the state" was
+ * held to 1e-6 absolute, which the rounding of a sample of 1000 alone breaks. Steps at levels from 1 to 1e6 and
+ * poles from a wire to the cap leave the ledger clean, in both forms. */
+static void onepole_post_at_level(void) {
+  static const float LEVEL[] = { 1.0f, 30.0f, 1000.0f, 1e4f, 1e6f };
+  static const float POLE[] = { 0.0f, 0.3f, 0.9f, 0.99999f };
+  for (unsigned i = 0; i < sizeof LEVEL / sizeof LEVEL[0]; i++)
+    for (unsigned j = 0; j < sizeof POLE / sizeof POLE[0]; j++) {
+      float a = LEVEL[i] * 0.37f, b = LEVEL[i] * 0.37f;
+      for (unsigned k = 0; k < 4000u; k++) {
+        const float x = (k & 64u) ? LEVEL[i] : -LEVEL[i] * 0.61f;
+        omx_onepole(&a, x, POLE[j]);
+        omx_onepole_toward(&b, x, POLE[j]);
+      }
+    }
+  expect_clean();
+}
+
 /* The settled peak amplitude of a sine at `hz` through a one-pole of `pole` at `sr` (second half of 0.2 s). */
 static double onepole_settled_gain(float hz, float pole, float sr) {
   float s = 0.0f;
@@ -452,6 +496,8 @@ static void arm_onepole(void) {
   expect_clean();
   onepole_dc_gain();
   onepole_time_constant_rme();
+  onepole_pole_below_one();
+  onepole_post_at_level();
   onepole_corner_rme();
   onepole_fixed_point();
   onepole_folded_sites();
