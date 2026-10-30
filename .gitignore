@@ -2,3 +2,4 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 build/
 .git-push-failures.log
+fuzz/findings/

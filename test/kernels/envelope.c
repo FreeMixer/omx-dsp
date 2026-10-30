@@ -13,8 +13,33 @@ static double cascade_step(uint32_t n, double q) {
   return 1.0 - below;
 }
 
+/* THE INVARIANT IS RELATIVE (omx-dsp#250, found by fuzz_fx): `no-overshoot` held every stage to 1e-6 absolute of
+ * the span of the input and the stages, which the rounding of a level of 1000 breaks on its own. A loud level
+ * through the cascade at every kind of pole leaves the ledger clean, and so does the program release at -1000 dB. */
+static void arm_envelope_level(void) {
+  static const float LEVEL[] = {100.0f, 1000.0f, 1e5f};
+  static const float ATK[] = {0.229f, 0.7f, 0.99999f}, REL[] = {0.999f, 0.5f, 0.9f};
+  uint32_t seed = 7u;
+  for (unsigned i = 0; i < sizeof LEVEL / sizeof LEVEL[0]; i++)
+    for (unsigned j = 0; j < sizeof ATK / sizeof ATK[0]; j++)
+      for (unsigned m = 0; m < sizeof REL / sizeof REL[0]; m++) {
+        const struct omx_env_params e = {ATK[j], REL[m], OMX_DETECT_PEAK};
+        struct omx_env env;
+        memset(&env, 0, sizeof env);
+        float ac, rc;
+        omx_env_stage_poles(&e, 1u, &ac, &rc);
+        for (unsigned k = 0; k < 20000u; k++) {
+          seed = seed * 1664525u + 1013904223u;
+          const float d = (seed >> 30) == 0u ? 0.0f : LEVEL[i] * (float)(seed >> 8) / 16777216.0f;
+          omx_env_step(&env, &e, d, ac, rc);
+        }
+      }
+  expect_clean();
+}
+
 static void arm_envelope(void) {
   g_arm = "envelope";
+  arm_envelope_level();
   for (uint32_t ri = 0; ri < OMX_DECLARED_RATE_COUNT; ri++) {
     const float sr = OMX_DECLARED_RATES[ri];
     const struct omx_env_params e = {omx_pole_from_time_ms(5.0f, sr), omx_pole_from_time_ms(120.0f, sr), OMX_DETECT_PEAK};

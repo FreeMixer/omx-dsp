@@ -48,15 +48,18 @@ struct omx_fader_law_params {
  * @return `cos(theta)` for the L leg, `sin(theta)` for the R leg, `theta = (pan+1)·pi/4`: `gL²+gR²
  *         = 1` at every pan, so panning never changes the signal's total power.
  * @pre `pan-in-range`, `leg-is-stereo`.
- * @post `finite`.
+ * @post `finite`, never negative (a hard-right pan's far leg is 0, not -4e-8).
  * @note RT-safe: one `cosf` or `sinf`, both on the RT-safe allowlist. Thread-safe: pure.
  */
 static inline float omx_pan_law_gain(float pan, int leg) {
   OMX_PRE(pan >= -1.0f && pan <= 1.0f, "pan-in-range");
   OMX_PRE(leg == OMX_PAN_LEG_L || leg == OMX_PAN_LEG_R, "leg-is-stereo");
   const float theta = (pan + 1.0f) * 0.25f * (float)M_PI;
-  const float g = leg == OMX_PAN_LEG_L ? cosf(theta) : sinf(theta);
-  OMX_POST(g - g == 0.0f, "finite");
+  const float g0 = leg == OMX_PAN_LEG_L ? cosf(theta) : sinf(theta);
+  /* theta at pan = +1 is the float nearest pi/2, which is above it: cosf of it is -4.37e-8, a leg that
+   * inverts at -147 dB, against the post of the law that follows */
+  const float g = g0 < 0.0f ? 0.0f : g0;
+  OMX_POST(g - g == 0.0f && g >= 0.0f, "finite");
   return g;
 }
 #undef OMX_CONTRACT_STAGE
