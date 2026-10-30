@@ -8,7 +8,7 @@
  * PLACEMENT, so every arm here is about WHERE energy is, never about how much of it there is —
  * and the two facts the design makes sample-exact (zero at and after the hit, zero more than one
  * window before it) are asserted as exact zeros, because "small" and "absent" are different
- * answers and only one of them is the ruling.
+ * answers and only one of them is the decision.
  *
  * The live `reverse` voice is the control arm on the SAME click: it must put its energy on the
  * other side of the hit. One kernel, two placements — that is the design.
@@ -90,7 +90,7 @@ static void click(float *l, float *r, uint32_t n) {
 }
 
 /*
- * THE RULING, on one click: the swell is in the 300 ms BEFORE the hit, nowhere else, and the dry
+ * THE DECISION, on one click: the swell is in the 300 ms BEFORE the hit, nowhere else, and the dry
  * click is untouched where the operator played it.
  */
 static void test_swell_lands_before_the_hit(void) {

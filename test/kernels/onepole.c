@@ -348,7 +348,7 @@ static void onepole_rescale_reference_rme(void) {
  * -ln(p)·sr/2π, is within 0.01 Hz of 5 Hz at every rate; the approximation is what
  * omx_drive_time_constants computes, bit for bit; and it is a DIFFERENT float from the tier constructor's
  * at the low rates and the SAME float at the high ones (folding it would move a rig-rate coefficient — a
- * finding for a ruling, not a fold). */
+ * finding for a decision, not a fold). */
 static void onepole_dc_blocker(void) {
   int first_same = -1, monotone = 1, rig_differs = 1;
   for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {

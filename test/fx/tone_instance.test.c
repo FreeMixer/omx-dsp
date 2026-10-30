@@ -5,7 +5,7 @@
 // (OMX_FX_ORACLE_RATES, 32 to 192 kHz):
 //   A  flat and open is the input, bit for bit: a span of 0 and a filter of 0 at any pivot and
 //      resonance, a fresh instance, and a bypassed one at any setting;
-//   B  the tilt is a SPAN (omx-dsp#188 ruling R3b): a = 10^(tiltDb/40), the measured gain is 1/a at
+//   B  the tilt is a SPAN (omx-dsp#188 decision R3b): a = 10^(tiltDb/40), the measured gain is 1/a at
 //      DC and a at Nyquist (1e-6), 0 dB at the pivot and the prototype's closed form at a quarter and
 //      three times the pivot (1e-4 dB), 20 log10 a = tiltDb/2, the slope at the pivot
 //      20 log10(2) (a^2 - 1)/(a^2 + 1), about 2 dB per octave at +6; and the face's tilt is ONE

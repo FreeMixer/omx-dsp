@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * @file omx_allpass.h
- * @brief The all-pass sections: the first-order Gray–Markel lattice (RULED 2026-09-23)
+ * @brief The all-pass sections: the first-order Gray–Markel lattice (DECIDED 2026-09-23)
  *        and the second-order design.
  *
  * First order: `A(z) = (a + z⁻¹)/(1 + a·z⁻¹)` in the one-multiply lattice

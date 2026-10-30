@@ -57,7 +57,7 @@
 #include <omxdsp/omx_wetdry.h>
 #include <omxdsp/omx_contract.h>
 
-/** The Lagrange order this stage constructs — the fdelay ruling's §3 row. */
+/** The Lagrange order this stage constructs — the fdelay decision's §3 row. */
 #define OMX_FLANGER_ORDER OMX_FDELAY_MOD_READ_ORDER
 
 /* The base delay (OMX_FLANGER_BASE_MS) is declared in omx-contract: the shortest delay the sweep reaches. */

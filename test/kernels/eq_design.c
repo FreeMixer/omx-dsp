@@ -180,7 +180,7 @@ static double eqp_impulse_db(double f, double fs) {
   return 10.0 * log10(re * re + im * im);
 }
 
-/* The four bands the ruling named. */
+/* The four bands the decision named. */
 static const struct { const char *name; int kind; double f0, q, g; } EQP_RULING[] = {
   {"bell +12 dB 16 kHz Q 2", EQP_PEAK, 16000.0, 2.0, 12.0},
   {"bell -12 dB 10 kHz Q 1", EQP_PEAK, 10000.0, 1.0, -12.0},
@@ -189,7 +189,7 @@ static const struct { const char *name; int kind; double f0, q, g; } EQP_RULING[
 };
 
 /* THE MATCHED DESIGN AGAINST ITS ANALOGUE PROTOTYPE — moved from the engine's
- * eq-matched probe (the before/after of the 2026-09-14 ruling: the
+ * eq-matched probe (the before/after of the 2026-09-14 decision: the
  * EQ must match the analogue prototype to Nyquist BY COEFFICIENT DESIGN at the rate the desk runs;
  * the bilinear cookbook was 1.28 dB low at 20 kHz on a +12 dB bell at 16 kHz Q 2 at 96 kHz). The
  * three controls come first: an oracle that cannot detect presence cannot report absence. */
@@ -215,7 +215,7 @@ static void eqp_prototype_checks(void) {
   }
   for (uint32_t ri = 0; ri < OMX_FX_ORACLE_RATE_COUNT; ri++) {
     const double fs = OMX_FX_ORACLE_RATES[ri], nyq = fs * 0.5;
-    /* the span the ruling measured, 1..20 kHz, stopped at Nyquist where Nyquist is lower (32 kHz) */
+    /* the span the decision measured, 1..20 kHz, stopped at Nyquist where Nyquist is lower (32 kHz) */
     const double top = nyq < 20000.0 ? nyq : 20000.0;
     /* CONTROL (d): Orfanidis is EXACT at DC, f0 and Nyquist by construction, so reading zero there
      * proves the prototype above is the one the published method targets. It refuses at 32 kHz (a
@@ -241,7 +241,7 @@ static void eqp_prototype_checks(void) {
       /* AFTER is no further from the prototype than BEFORE, at every rate (the whole requirement
        * at 44.1/48 kHz, where no second-order design reaches 0.1 dB at 20 kHz) */
       ok(em <= eb, "the matched band is no further from the prototype than the cookbook, 1 kHz..20 kHz", em, eb);
-      /* THE RULING'S TARGET: <= 0.1 dB to 20 kHz at 96 kHz, and at every rate from 88.2 kHz up,
+      /* THE DECISION'S TARGET: <= 0.1 dB to 20 kHz at 96 kHz, and at every rate from 88.2 kHz up,
        * where the warp only shrinks */
       if (fs >= 88200.0) ok(em <= 0.1, "the matched band is within 0.1 dB of the prototype to 20 kHz", em, 0.1);
       /* WHAT THE DSP RUNS: omx_biquad's float32 impulse response agrees with the closed form of the
@@ -280,7 +280,7 @@ static void eqp_prototype_checks(void) {
         }
       }
       if (S[i].kind == EQP_HIGHPASS)
-        ok(hp_dc == 0.0, "the high-pass is the cookbook's, bit for bit (unchanged by the ruling)", hp_dc, 0.0);
+        ok(hp_dc == 0.0, "the high-pass is the cookbook's, bit for bit (unchanged by the decision)", hp_dc, 0.0);
       else
         ok(wm <= wb, S[i].kind == EQP_LOWPASS ? "the matched low-pass is no further from the prototype than the cookbook"
                                               : "the matched notch is no further from the prototype than the cookbook", wm, wb);

@@ -98,7 +98,7 @@ enum omx_reverb_algo {
  * 20.47 times the largest step the ROOM reference makes through the same input, at 44.1 / 48 /
  * 96 / 192 kHz.
  *
- * 1.5 ms is the LONGEST ramp inside the ruled 1-2 ms window that keeps the CLOSING's own law at
+ * 1.5 ms is the LONGEST ramp inside the decided 1-2 ms window that keeps the CLOSING's own law at
  * every declared rate — the gate adds no step the ROOM reference does not already carry.
  * Measured, not chosen: at 0.5, 1.0 and 1.5 ms the arming step is exactly ROOM's own at all four
  * rates; at 2.0 ms it exceeds it by 0.4 % at 192 kHz, because the ramp is still climbing when the
@@ -255,7 +255,7 @@ struct omx_reverb_return_state {
  * carried between segments changed voice for no reason the operator could see.
  *
  * `p' = p^(REF/sr)` holds the CORNER, which is what the knob means. 96 000 Hz is the reference
- * because it is the rate the desk runs (ruling 2026-09-14): at that rate the exponent is exactly
+ * because it is the rate the desk runs (decision 2026-09-14): at that rate the exponent is exactly
  * 1, no pow() is taken, and the 96 kHz response is bit-for-bit the one this console has always
  * made — pinned, all five configurations at three damping settings, by
  * `test/fx/fixtures/reverb_96k_reference.h` and `test/fx/reverb_math.test.c`'s identity arm.
@@ -385,7 +385,7 @@ static inline void omx_reverb_state_layout(struct omx_reverb_state *s, float *po
    * from it, which is how every reverb became a silent passthrough at 192 kHz until 2026-09-17.
    *
    *     44 100 Hz   187 469 floats   fits, x4.89 headroom
-   *     96 000 Hz   408 006 floats   fits, x2.25     <- THE RIG'S RATE (ruling 2026-09-14)
+   *     96 000 Hz   408 006 floats   fits, x2.25     <- THE RIG'S RATE (decision 2026-09-14)
    *    192 000 Hz   815 976 floats   fits, x1.12     <- OMX_REVERB_MAX_RATE, the declared ceiling
    *    384 000 Hz 1 631 922 floats   EXHAUSTS by 714 418
    *
@@ -885,7 +885,7 @@ static inline void omx_reverb_process_return(float *l, float *r, uint32_t n, con
         if (key >= gate_thresh) {
           /* The ARM opens over OMX_REVERB_GATE_ATTACK_MS. The hold branch keeps climbing rather
            * than snapping to 1, because a key that falls away one sample after arming would
-           * otherwise put the step back exactly where the ruling took it from. */
+           * otherwise put the step back exactly where the decision took it from. */
           gate_env += gate_att_step;
           if (gate_env > 1.0f) gate_env = 1.0f;
           gate_hold_left = gate_hold_samples;
