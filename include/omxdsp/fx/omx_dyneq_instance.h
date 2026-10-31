@@ -41,6 +41,7 @@
 
 #include <omxdsp/fx/omx_eq_instance.h>
 #include <omxdsp/omx_band_dyn.h>
+#include <omxdsp/fx/omx_instance_io.h>
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_wetdry.h>
 
@@ -281,9 +282,7 @@ static inline void omx_dyneq_instance_chunk(OmxDyneqInstance *s, float *l, float
 #define OMX_CONTRACT_STAGE "dyneq/instance-run"
 static inline void omx_dyneq_instance_run(OmxDyneqInstance *s, const float *in_l, const float *in_r, float *out_l,
                                           float *out_r, uint32_t n) {
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
-  if (out_l != in_l) memmove(out_l, in_l, (size_t)n * sizeof(float));
-  if (out_r != in_r) memmove(out_r, in_r, (size_t)n * sizeof(float));
+  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled) return;
   OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
   for (uint32_t o = 0; o < n; o += OMX_DYNEQ_INSTANCE_CHUNK) {

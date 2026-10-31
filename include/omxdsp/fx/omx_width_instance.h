@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <omxdsp/fx/omx_instance_io.h>
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_width.h>
 #include <omxdsp/omxdsp_definitions.h>
@@ -103,9 +104,7 @@ static inline void omx_width_instance_resolve(OmxWidthInstance *s, int bypass, f
  */
 static inline void omx_width_instance_run(OmxWidthInstance *s, const float *in_l, const float *in_r, float *out_l,
                                           float *out_r, uint32_t n) {
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
-  if (out_l != in_l) memmove(out_l, in_l, (size_t)n * sizeof(float));
-  if (out_r != in_r) memmove(out_r, in_r, (size_t)n * sizeof(float));
+  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled) return;
   omx_width_process(out_l, out_r, n, &s->p, &s->st);
 }

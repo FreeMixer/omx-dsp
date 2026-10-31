@@ -36,6 +36,7 @@
 
 #include <omxdsp/fx/omx_deesser_instance.h>
 #include <omxdsp/fx/omx_reverb.h>
+#include <omxdsp/fx/omx_instance_io.h>
 #include <omxdsp/omx_param.h>
 
 #define OMX_REVERB_INSTANCE_CHANNELS 2
@@ -247,13 +248,10 @@ static inline void omx_reverb_instance_resolve(OmxReverbInstance *s, int bypass,
 static inline void omx_reverb_instance_run(OmxReverbInstance *s, const float *in_l,
                                            const float *in_r, float *out_l, float *out_r,
                                            uint32_t n) {
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
-  if (out_l != in_l) memcpy(out_l, in_l, (size_t)n * sizeof(float));
-  if (out_r != in_r) memcpy(out_r, in_r, (size_t)n * sizeof(float));
+  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready) return;
   omx_reverb_process_return(out_l, out_r, n, &s->atom, &s->ret, &s->rstate, &s->state, s->sr);
-  OMX_POST(s->atom.enabled || (memcmp(out_l, in_l, (size_t)n * sizeof(float)) == 0 &&
-                               memcmp(out_r, in_r, (size_t)n * sizeof(float)) == 0),
+  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
            "bypass-identity");
 }
 #undef OMX_CONTRACT_STAGE
