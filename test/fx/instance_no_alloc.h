@@ -37,10 +37,16 @@ void __wrap_free(void *p) {
   __real_free(p);
 }
 
-/* Every contract record since the last call is a failure of the arm. */
+/* The ledger is drained after a resolve and a block where an arm makes many: at 32, 64 and 128 kHz each
+ * pole made records an explained `rate-is-declared`, and the ledger keeps only OMX_CONTRACT_MAX of them. */
+static uint32_t g_unexplained = 0u;
+static void drain(void) { g_unexplained += omx_fx_drain_ledger(g_sr); }
+
+/* Every unexplained contract record since the last call is a failure of the arm. */
 static void clean(void) {
-  const uint32_t unexplained = omx_fx_drain_ledger(g_sr);
-  ok(unexplained == 0u, "no contract violation in this arm", (double)unexplained, 0.0);
+  drain();
+  ok(g_unexplained == 0u, "no contract violation in this arm", (double)g_unexplained, 0.0);
+  g_unexplained = 0u;
 }
 
 /* The oracle's frame: the rate floor, then each arm list at each of the nine rates. */
