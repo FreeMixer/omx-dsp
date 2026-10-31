@@ -269,8 +269,9 @@ eq-defaults-table:
 	node tools/eq-defaults-golden.mjs --check
 
 # The generator runs once under make -j8 (test/gen-once.sh), and a Makefile that calls it from a recipe again turns it red.
-gen-once: $(HEADERS) test/gen-once.sh | $(BUILD)
+gen-once: $(HEADERS) test/gen-once.sh test/gen-once-loud.sh | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/gen-once.sh $(BUILD)/gen-once
+	bash test/gen-once-loud.sh $(BUILD)/gen-once-loud
 
 perturb: $(HEADERS) $(KERNELS) $(KERNELS_INC) test/perturb.sh test/omxdsp_perturb.c | $(BUILD)
 	OMXDSP_GEN="$(CURDIR)/$(BUILD)" CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/perturb.sh $(BUILD)/perturb
