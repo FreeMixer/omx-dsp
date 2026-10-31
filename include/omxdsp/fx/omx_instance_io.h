@@ -15,6 +15,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <omxdsp/omx_contract.h>
+
 /**
  * @brief Copy both legs of in to out where they differ.
  * @param in_l The left input, `n` samples.
@@ -59,6 +61,20 @@ static inline int omx_instance_copy_through(const float *in_l, const float *in_r
 static inline int omx_instance_same_block(const float *a_l, const float *a_r, const float *b_l, const float *b_r,
                                           uint32_t n) {
   return memcmp(a_l, b_l, (size_t)n * sizeof(float)) == 0 && memcmp(a_r, b_r, (size_t)n * sizeof(float)) == 0;
+}
+
+/**
+ * @brief The face's bind: zero its state and take the rate if the oracle set holds it.
+ * @param s The instance.
+ * @param size The instance's size.
+ * @param sr The rate.
+ * @return 1 when usable, 0 when `s` is null or the rate is outside the set.
+ * @note CONTROL thread. Allocates nothing.
+ */
+static inline int omx_instance_bind(void *s, size_t size, float sr) {
+  if (!s) return 0;
+  memset(s, 0, size);
+  return omx_rate_is_oracle_full(sr);
 }
 
 #endif /* OMX_INSTANCE_IO_H */
