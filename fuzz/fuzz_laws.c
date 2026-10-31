@@ -20,6 +20,8 @@
  *     never boosts: both legs in [0, 1], at least one of them 1, any pan;
  *   - the fader law's coefficient is finite, never negative, and zero when the strip or the DCA
  *     is muted;
+ *   - a slew's step is at most one sample's travel, its cursor stays between its ends and lands on the
+ *     target, and a hold's way back to open waits for a carried sample;
  *   - a ramp over n samples starts at the applied value (0 for a non-finite one), reaches no
  *     sample outside the span of its start and target, and ends on the target; nothing in it is
  *     non-finite whatever the caller held;
@@ -37,6 +39,7 @@
 #include <omxdsp/omx_onepole.h>
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_ramp.h>
+#include <omxdsp/mix/omx_slew.h>
 #include <omxdsp/omx_units.h>
 #include <omxdsp/omx_wetdry.h>
 
@@ -320,17 +323,58 @@ static void call_onepole(struct fuzz_in *in) {
   }
 }
 
+static void call_slew(struct fuzz_in *in) {
+  const float ms = fuzz_f32(in), sr = fuzz_rate(in);
+  const float step = omx_slew_step(ms, sr);
+  /* A step is one sample's travel at most, and never none.
+   * mutant: include/omxdsp/mix/omx_slew.h:48 `s < 1.0f ? (s > FLT_MIN ? s : FLT_MIN) : 1.0f` -> `s`
+   * input: slew */
+  if (!(step > 0.0f && step <= 1.0f)) {
+    FUZZ_SAY("omx_slew_step(%g, %g) = %g", (double)ms, (double)sr, (double)step);
+    abort();
+  }
+  const uint32_t n = 1u + fuzz_below(in, BLOCK_MAX);
+  static float x[BLOCK_MAX], y[BLOCK_MAX];
+  fuzz_block(in, x, n, fuzz_u8(in));
+  const float raw_cur = fuzz_f32(in), raw_tgt = fuzz_f32(in);
+  /* Gains, or any non-finite word: past a few units a step of 1e-4 no longer moves a float, which no gain reaches. */
+  const float cur0 = is_fin(raw_cur) ? fmodf(raw_cur, 4.0f) : raw_cur, tgt0 = is_fin(raw_tgt) ? fmodf(raw_tgt, 4.0f) : raw_tgt;
+  float cur = cur0;
+  omx_slew_gain(x, y, n, tgt0, step, &cur);
+  const float a = is_fin(cur0) ? cur0 : 0.0f, b = is_fin(tgt0) ? tgt0 : 0.0f;
+  /* The cursor stays between where it was and its target, and is exactly the target once the walk fits the block.
+   * mutant: include/omxdsp/mix/omx_slew.h:65 `up < tgt ? up : tgt` -> `up`
+   * input: slew */
+  const float dist = fabsf(b - a);
+  if (!(cur >= fminf(a, b) && cur <= fmaxf(a, b)) || ((float)n * step > dist * 1.01f + 1e-3f && cur != b)) {
+    FUZZ_SAY("a slew from %g to %g by %g over %u ended at %g", (double)a, (double)b, (double)step, (unsigned)n, (double)cur);
+    abort();
+  }
+  /* The hold's way back to open waits for a carried sample: over silence the position stays.
+   * mutant: include/omxdsp/mix/omx_slew.h:123 `h < t || xl != 0.0f || xr != 0.0f` -> `1`
+   * input: slew */
+  memset(x, 0, n * sizeof(float));
+  const float p0 = fuzz_range(in, 0.0f, 1.0f);
+  float pos = p0;
+  omx_slew_hold(x, x, y, y, n, 0.0f, step, &pos);
+  if (!(pos == p0)) {
+    FUZZ_SAY("a hold at %g opened over silence, to %g", (double)p0, (double)pos);
+    abort();
+  }
+}
+
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   struct fuzz_in in = fuzz_in(data, size);
   fuzz_ledger_reset();
   for (int i = 0; i < CALLS_MAX && in.n > 0; i++) {
-    switch (fuzz_below(&in, 6)) {
+    switch (fuzz_below(&in, 7)) {
       case 0: call_clamp(&in); break;
       case 1: call_units(&in); break;
       case 2: call_pan_fader(&in); break;
       case 3: call_ramp(&in); break;
       case 4: call_wetdry(&in); break;
-      default: call_onepole(&in); break;
+      case 5: call_onepole(&in); break;
+      default: call_slew(&in); break;
     }
     fuzz_ledger_clean("laws");
   }
