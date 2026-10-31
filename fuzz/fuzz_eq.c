@@ -21,9 +21,12 @@
  *   - no contract the library states is broken (the ledger stays empty): every section the bank
  *     designs has finite coefficients and both poles inside the unit circle;
  *   - the same sections are stable as the harness computes it from the coefficients, and the bank has at most as many sections as bands (a band that is off is
- *     not in it, a band at 0 dB gain is parked);
+ *     not in it);
+ *   - section i belongs to the i-th band that is on: its gain at DC is the one omx_eq_design.h
+ *     gives that band's kind and gain, to a tolerance, and it is parked exactly when the harness's
+ *     own rule finds a peaking or shelf band at 0 dB;
  *   - the cascade, over finite samples, gives finite samples on both legs, and a bank with no live
- *     section leaves the block as it was, bit for bit;
+ *     section leaves the block as it was, bit for bit, on each leg it runs;
  *   - the bank's magnitude (dB) is finite at any frequency, and a bank with no live section is
  *     0 dB there;
  *   - the head filters make at most OMX_EQ_PASS_MAX_SECTIONS sections, each stable;
@@ -43,6 +46,24 @@ static double fin_or(double x, double d) { return isfinite(x) ? x : d; }
 
 /* Both poles of {b0, b1, b2, a1, a2} inside the unit circle: the Jury conditions, the harness's own. */
 static int stable(const double *c) { return fabs(c[3]) < 1.0 + c[4] && c[4] < 1.0; }
+
+/* The band behind section i: the i-th one that is on. The caller has checked there are that many. */
+static const struct omx_eq_band *band_of(const struct omx_eq_band *bands, uint32_t i) {
+  while (!bands->on || i-- != 0u) bands++;
+  return bands;
+}
+
+/* A band that runs as the identity: a peaking or shelf band at exactly 0 dB. */
+static int parked(const struct omx_eq_band *b) {
+  return (b->kind == OMX_EQ_PEAKING || b->kind == OMX_EQ_LOWSHELF || b->kind == OMX_EQ_HIGHSHELF) && b->gain_db == 0.0;
+}
+
+/* A section's gain at DC by its band, as the comments of omx_eq_design.h give it: a low shelf
+ * 10^(gain/20), a high-pass and a band-pass none, and every other kind unity. */
+static double dc_gain(const struct omx_eq_band *b) {
+  if (b->kind == OMX_EQ_LOWSHELF) return pow(10.0, b->gain_db / 20.0);
+  return b->kind == OMX_EQ_HIGHPASS || b->kind == OMX_EQ_BANDPASS ? 0.0 : 1.0;
+}
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   struct fuzz_in in = fuzz_in(data, size);
@@ -126,7 +147,24 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       }
       coef[i][k] = (float)dcoef[i][k];
     }
-    live += enabled[i];
+    const struct omx_eq_band *own = band_of(bands, i);
+    /* A section is parked exactly when its band is a peaking or shelf band at 0 dB.
+     * mutant: include/omxdsp/omx_eq_design.h:489 `? 0u : 1u` -> `? 1u : 1u`
+     * input: parked-and-live */
+    if (!(enabled[i] == (parked(own) ? 0u : 1u))) {
+      FUZZ_SAY("section %u has enabled %u, band kind %d at %g dB", (unsigned)i, (unsigned)enabled[i], (int)own->kind, own->gain_db);
+      abort();
+    }
+    live += parked(own) ? 0u : 1u;
+    const double dc_num = dcoef[i][0] + dcoef[i][1] + dcoef[i][2], dc_den = 1.0 + dcoef[i][3] + dcoef[i][4];
+    /* A section has the gain at DC of the i-th band that is on. The denominator is positive in a
+     * stable section; the tolerance leaves room for its rounding at the lowest corner (about 1e-5).
+     * mutant: include/omxdsp/omx_eq_design.h:488 `b->kind, b->freq_hz, b->q, b->gain_db` -> `bands->kind, bands->freq_hz, bands->q, bands->gain_db`
+     * input: shelf-then-shelf */
+    if (!(fabs(dc_num - dc_gain(own) * dc_den) <= 1e-3 * fmax(dc_gain(own), 1.0) * dc_den)) {
+      FUZZ_SAY("section %u has %g at DC, band kind %d at %g dB owes %g", (unsigned)i, dc_num / dc_den, (int)own->kind, own->gain_db, dc_gain(own));
+      abort();
+    }
   }
   fuzz_ledger_check("eq bank", omx_rate_is_declared((float)rate), 0);
 
@@ -155,10 +193,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   /* the cascade over a finite block */
   const uint32_t n = 1u + fuzz_below(&in, BLOCK_MAX);
-  float l[BLOCK_MAX], r[BLOCK_MAX], l0[BLOCK_MAX];
+  float l[BLOCK_MAX], r[BLOCK_MAX], l0[BLOCK_MAX], r0[BLOCK_MAX];
   fuzz_block(&in, l, n, 0);
   fuzz_block(&in, r, n, 0);
   memcpy(l0, l, n * sizeof(float));
+  memcpy(r0, r, n * sizeof(float));
   float sl[OMX_EQ_MAX_BANDS][4], sr[OMX_EQ_MAX_BANDS][4];
   memset(sl, 0, sizeof sl);
   memset(sr, 0, sizeof sr);
@@ -177,6 +216,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
      * input: eq-off-mono */
     if (!(memcmp(l, l0, n * sizeof(float)) == 0)) {
       FUZZ_SAY("a bank with no live section changed the block");
+      abort();
+    }
+    /* In a stereo run, a bank with no live section leaves the right leg as it was too.
+     * mutant: include/omxdsp/omx_biquad.h:166 `OMX_POST(!r ||` -> `if (r && !nl) r[0] = 0.5f; OMX_POST(!r ||`
+     * input: bank-3 */
+    if (!(!((flags >> 2) & 1) || memcmp(r, r0, n * sizeof(float)) == 0)) {
+      FUZZ_SAY("a bank with no live section changed the right leg");
       abort();
     }
   }
