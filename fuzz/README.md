@@ -14,7 +14,7 @@ None of this is part of `make test`.
 
 | harness | what it feeds | the properties it holds the library to beyond "no crash" |
 |---|---|---|
-| `fuzz_fx` | every instance face under `include/omxdsp/fx/` (25 of them): init at a rate, resolve with raw ports, run a block | no contract broken; finite in gives finite out; an in-place run equals an out-of-place one; a refused rate leaves the face the identity |
+| `fuzz_fx` | every instance face under `include/omxdsp/fx/` (31 of them): init at a rate, resolve with raw ports, run a block | no contract broken; finite in gives finite out; an in-place run equals an out-of-place one; a refused rate leaves the face the identity |
 | `fuzz_laws` | the scalar laws every port goes through: clamps, dB and linear, pan, balance and fader laws, ramp, slew, wet/dry, the one-pole constructors | a clamp lands in its travel; constant-power pan; the balance law never boosts; a ramp stays between its ends; a mix stays between its inputs; a pole is in [0, 1) |
 | `fuzz_eq` | a bank of up to 24 bands and the head filters, designed at a rate, then a block through the cascade and the bank's magnitude | every designed section finite and stable; at most as many sections as bands; section i has the gain at DC of the i-th band that is on, and is parked exactly when that band is a peaking or shelf band at 0 dB; a bank with nothing live is the identity on each leg it runs, and 0 dB; finite out |
 | `fuzz_src` | a rate pair, the polyphase table, a take cut into blocks and flushed | the plan is taken exactly when it can be sized, and is the reduced ratio; each phase of the table sums to 1; a take is the same cut into blocks as whole, bit for bit; output bounded by the table's own gain; the identity plan returns the take |

@@ -1,0 +1,170 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "amountPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#am"
+      },
+      "doc": "How much of each band's distance from the target tone the face takes out, percent. It comes up at 0, the input bit for bit.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "rangeDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#rg"
+      },
+      "doc": "The most any one band moves, dB, either way.",
+      "travel": {
+        "min": 1,
+        "max": 12,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 3,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "speedDbPerS",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#sp"
+      },
+      "doc": "How fast each band walks, dB per second: slow enough that a mix's tone drifts into place and no note is chased.",
+      "travel": {
+        "min": 0.1,
+        "max": 6,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "slopeDbOct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#sl"
+      },
+      "doc": "The target spectrum's slope, dB per octave of density. -3 is pink noise, the long-term average of most programme; 0 is white.",
+      "travel": {
+        "min": -6,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB/oct",
+        "default": -3,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "band1GainDb",
+      "doc": "Band 1's gain now, dB.",
+      "unit": "dB",
+      "min": -12,
+      "max": 12,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band2GainDb",
+      "doc": "Band 2's gain now, dB.",
+      "unit": "dB",
+      "min": -12,
+      "max": 12,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band3GainDb",
+      "doc": "Band 3's gain now, dB.",
+      "unit": "dB",
+      "min": -12,
+      "max": 12,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    },
+    {
+      "name": "band4GainDb",
+      "doc": "Band 4's gain now, dB.",
+      "unit": "dB",
+      "min": -12,
+      "max": 12,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "BALANCER_BAND_HZ": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#OMX_BALANCER_INSTANCE_HZ"
+      },
+      "doc": "The centres of the bands measured and moved, Hz, two octaves apart.",
+      "unit": "Hz",
+      "values": [
+        125,
+        500,
+        2000,
+        8000
+      ]
+    },
+    "BALANCER_Q": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_instance_init"
+      },
+      "doc": "The Q of each band's detector and of its peaking section: 0.7 is about two octaves, so the bands meet.",
+      "unit": "",
+      "value": 0.7
+    },
+    "BALANCER_DETECT_MS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_instance_init"
+      },
+      "doc": "The time constant of the detector's power average, ms: long-term tone, not notes.",
+      "unit": "ms",
+      "value": 400
+    },
+    "BALANCER_GATE_DBFS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_tick"
+      },
+      "doc": "Under this mean band level, dBFS, the gains hold: a pause has no tone to correct.",
+      "unit": "dBFS",
+      "value": -60
+    },
+    "BALANCER_BAND_DB_OCT": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_tick"
+      },
+      "doc": "What a constant-Q band gains per octave on a flat spectrum, dB: its width doubles, 10 log10(2). The target's slope is the spectrum's, so a band's level is read against the slope plus this: on pink noise every band reads the same.",
+      "unit": "dB/oct",
+      "value": 3.0103
+    }
+  }
+}
