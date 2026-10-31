@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
- * @file omx_limiter.h (formerly mix_limiter.h)
+ * @file omx_limiter.h
  * @brief The precision limiter: a look-ahead, true-peak, stereo-linked brickwall.
  *
  * Composed from the library words only:

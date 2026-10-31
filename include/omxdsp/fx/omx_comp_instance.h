@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
- * omx_comp_instance.h (formerly omx_dynamics_instance.h) — the strip compressor as a plugin
+ * omx_comp_instance.h — the strip compressor as a plugin
  * instance: the shell's core, with no format in it. Named after the contract's `comp` kernel, the
  * engine's one spelling (OMX_STAGE_COMP, COMP_LIMITS).
  *

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The OFFLINE pre-hit reverse render's oracle (fx/omx_reverse_render.h; formerly the console's
- * mix_reverse_render.test.c). `make test-fx` runs it.
+ * The OFFLINE pre-hit reverse render's oracle (fx/omx_reverse_render.h). `make test-fx` runs it.
  *
  * The claim under test is a
  * PLACEMENT, so every arm here is about WHERE energy is, never about how much of it there is —
