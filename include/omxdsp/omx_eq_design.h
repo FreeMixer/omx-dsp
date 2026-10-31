@@ -19,18 +19,19 @@
 #include "omx_biquad.h"
 #include "omx_contract.h"
 #include "omx_matched_pair.h"
+#include "omxdsp_definitions.h"
 
-/** @brief The biquad kinds `rbjSection` designs, in core's `BiquadKind` order. */
+/** @brief The biquad kinds `rbjSection` designs: BIQUAD_KINDS, the set the definitions declare. */
 enum omx_eq_kind {
-  OMX_EQ_PEAKING = 0,   /**< A bell, matched pole and zero pairs. */
-  OMX_EQ_LOWSHELF = 1,  /**< A low shelf, DC gain `A²`. */
-  OMX_EQ_HIGHSHELF = 2, /**< A high shelf, DC gain unity. */
-  OMX_EQ_HIGHPASS = 3,  /**< The cookbook high-pass. */
-  OMX_EQ_LOWPASS = 4,   /**< Matched poles, fitted numerator; bilinear poles near Nyquist. */
-  OMX_EQ_NOTCH = 5,     /**< Matched poles under the cookbook numerator, a total null. */
-  OMX_EQ_BANDPASS = 6,  /**< The cookbook constant-0 dB-peak bandpass, cookbook poles: `½(1 − AP₂)`. */
-  OMX_EQ_ALLPASS1 = 7,  /**< A first-order allpass `(k + z⁻¹)/(1 + k z⁻¹)`, −90° at the corner. */
-  OMX_EQ_ALLPASS2 = 8,  /**< The second-order allpass, −180° at the corner: omx_allpass2_design(). */
+  OMX_EQ_PEAKING = OMX_BIQUAD_KINDS_PEAKING, /**< A bell, matched pole and zero pairs. */
+  OMX_EQ_LOWSHELF = OMX_BIQUAD_KINDS_LOW_SHELF, /**< A low shelf, DC gain `A²`. */
+  OMX_EQ_HIGHSHELF = OMX_BIQUAD_KINDS_HIGH_SHELF, /**< A high shelf, DC gain unity. */
+  OMX_EQ_HIGHPASS = OMX_BIQUAD_KINDS_HIGHPASS, /**< The cookbook high-pass. */
+  OMX_EQ_LOWPASS = OMX_BIQUAD_KINDS_LOWPASS, /**< Matched poles, fitted numerator; bilinear poles near Nyquist. */
+  OMX_EQ_NOTCH = OMX_BIQUAD_KINDS_NOTCH, /**< Matched poles under the cookbook numerator, a total null. */
+  OMX_EQ_BANDPASS = OMX_BIQUAD_KINDS_BANDPASS, /**< The cookbook constant-0 dB-peak bandpass, cookbook poles: `½(1 − AP₂)`. */
+  OMX_EQ_ALLPASS1 = OMX_BIQUAD_KINDS_ALLPASS1, /**< A first-order allpass `(k + z⁻¹)/(1 + k z⁻¹)`, −90° at the corner. */
+  OMX_EQ_ALLPASS2 = OMX_BIQUAD_KINDS_ALLPASS2, /**< The second-order allpass, −180° at the corner: omx_allpass2_design(). */
 };
 
 /** @brief The low-pass hand-over (omx-dsp#105): the corner band, as fractions of Nyquist, across
@@ -41,23 +42,23 @@ enum omx_eq_kind {
  *         linearly, and below Q = 0.5412 it holds that band. Above 1/√2 the prototype peaks and
  *         the band's end moves down to 0.8 by Q = 0.9 (omx-dsp#116), held above it. Below the band
  *         the low-pass is the matched design unchanged. */
-#define OMX_EQ_LOWPASS_HANDOVER_Q_HI 0.70710678118654752
+#define OMX_EQ_LOWPASS_HANDOVER_Q_HI OMX_LOWPASS_HANDOVER_Q_HI_DOUBLE
 /** @brief The low Q end of the hand-over table: Q = 0.5412, the low-Q half of the 24 dB Butterworth. */
-#define OMX_EQ_LOWPASS_HANDOVER_Q_LO 0.54119610014619698
+#define OMX_EQ_LOWPASS_HANDOVER_Q_LO OMX_LOWPASS_HANDOVER_Q_LO_DOUBLE
 /** @brief Where the hand-over starts at the high Q end, as a fraction of Nyquist. */
-#define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_HI 0.6
+#define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_HI OMX_LOWPASS_HANDOVER_LO_AT_HI_Q_DOUBLE
 /** @brief Where the hand-over ends at the high Q end, as a fraction of Nyquist. */
-#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI 0.85
+#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_HI OMX_LOWPASS_HANDOVER_HI_AT_HI_Q_DOUBLE
 /** @brief Where the hand-over starts at the low Q end, as a fraction of Nyquist. */
-#define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_LO 0.8
+#define OMX_EQ_LOWPASS_HANDOVER_LO_AT_Q_LO OMX_LOWPASS_HANDOVER_LO_AT_LO_Q_DOUBLE
 /** @brief Where the hand-over ends at the low Q end, as a fraction of Nyquist. */
-#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_LO 0.9
+#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_LO OMX_LOWPASS_HANDOVER_HI_AT_LO_Q_DOUBLE
 /** @brief The peaked end of the hand-over table (omx-dsp#116): from 1/√2 to this Q the band's end
  *         moves from 0.85 to OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_PEAK and the fitted Nyquist target is
  *         handed over to the cookbook's Nyquist zero (omx_eq_lowpass_nyquist_handover). */
-#define OMX_EQ_LOWPASS_HANDOVER_Q_PEAK 0.9
+#define OMX_EQ_LOWPASS_HANDOVER_Q_PEAK OMX_LOWPASS_HANDOVER_Q_PEAK_DOUBLE
 /** @brief Where the hand-over ends at the peaked end, as a fraction of Nyquist. */
-#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_PEAK 0.8
+#define OMX_EQ_LOWPASS_HANDOVER_HI_AT_Q_PEAK OMX_LOWPASS_HANDOVER_HI_AT_PEAK_Q_DOUBLE
 
 /**
  * @brief How far a peaked low-pass hands its Nyquist target over: 0 at or below Q = 1/√2, 1 at or
