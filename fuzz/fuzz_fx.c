@@ -100,7 +100,7 @@ FX_STD(chorus, OmxChorusInstance,
        { float spread = F(), rate = F(), depth = F(), voices = F(), mix = F();
          omx_chorus_instance_resolve(s, bypass, spread, rate, depth, voices, mix); })
 FX_STD(clipper, OmxClipperInstance,
-       { float d = F(), c = F(), so = F(); omx_clipper_instance_resolve(s, bypass, d, c, so); })
+       { float dr = F(), ce = F(), so = F(); omx_clipper_instance_resolve(s, bypass, dr, ce, so); })
 FX_STD(deesser, OmxDeesserInstance,
        { float f = F(), w = F(), th = F(), ra = F(), rg = F(), at = F(), re = F();
          int mode = I();
