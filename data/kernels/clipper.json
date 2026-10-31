@@ -1,0 +1,80 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "driveDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_clipper_instance.h#dr"
+      },
+      "doc": "The gain before the clip, dB. 0 is no push: a signal under the ceiling goes through bit for bit.",
+      "travel": {
+        "min": 0,
+        "max": 24,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "ceilingDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_clipper_instance.h#ce"
+      },
+      "doc": "The ceiling, dBFS: no sample leaves above it.",
+      "travel": {
+        "min": -24,
+        "max": 0,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "softnessPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_clipper_instance.h#so"
+      },
+      "doc": "How far under the ceiling the bend starts, percent of CLIPPER_KNEE_SPAN of the ceiling. 0 is a hard clip. Above the knee a sample bends along a hyperbola that leaves the straight line at slope 1 and never reaches the ceiling.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "gainReductionDb",
+      "doc": "The most the clip took off the block's loudest sample, in dB with CLAP's sign: 0 while nothing reached the knee, negative the reduction, measured after the drive.",
+      "unit": "dB",
+      "min": -60,
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "CLIPPER_KNEE_SPAN": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_clipper_instance.h#omx_clipper_instance_resolve"
+      },
+      "doc": "The share of the ceiling the bend spans at a softness of 100 %: the knee sits at (1 - span x softness) x ceiling, half the ceiling at full softness, 6 dB under it.",
+      "unit": "",
+      "value": 0.5
+    }
+  }
+}

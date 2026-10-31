@@ -31,6 +31,7 @@
 #include "fuzz.h"
 
 #include <omxdsp/fx/omx_chorus_instance.h>
+#include <omxdsp/fx/omx_clipper_instance.h>
 #include <omxdsp/fx/omx_comp_instance.h>
 #include <omxdsp/fx/omx_deesser_instance.h>
 #include <omxdsp/fx/omx_delay_instance.h>
@@ -93,6 +94,8 @@ struct fx {
 FX_STD(chorus, OmxChorusInstance,
        { float spread = F(), rate = F(), depth = F(), voices = F(), mix = F();
          omx_chorus_instance_resolve(s, bypass, spread, rate, depth, voices, mix); })
+FX_STD(clipper, OmxClipperInstance,
+       { float d = F(), c = F(), so = F(); omx_clipper_instance_resolve(s, bypass, d, c, so); })
 FX_STD(deesser, OmxDeesserInstance,
        { float f = F(), w = F(), th = F(), ra = F(), rg = F(), at = F(), re = F();
          int mode = I();
@@ -242,7 +245,7 @@ static const struct fx FX[] = {
     ROW(pitch, OmxPitchInstance),     ROW(plosive, OmxPlosiveInstance), ROW(reverb, OmxReverbInstance),
     ROW(rotary, OmxRotaryInstance),   ROW(suboct, OmxSuboctInstance),   ROW(tone, OmxToneInstance),
     ROW(transient, OmxTransientInstance), ROW(tremolo, OmxTremoloInstance), ROW(trim, OmxTrimInstance),
-    ROW(width, OmxWidthInstance),
+    ROW(width, OmxWidthInstance),     ROW(clipper, OmxClipperInstance),
 };
 #define FX_COUNT (sizeof FX / sizeof FX[0])
 

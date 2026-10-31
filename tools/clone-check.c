@@ -10,7 +10,8 @@
  *
  * Each file is read as tokens: comments and preprocessor lines go, every string and number literal is
  * one token, names stay as written. A region is a maximal run of at least MIN_TOKENS tokens that two
- * files share. A run that is half literals or more is a table, not code, and is not counted.
+ * files share. A run that is half literals or more is a table, and a run of fewer than MIN_STATEMENTS
+ * statements is a signature (every instance face opens on the same parameter list); neither is counted.
  * tools/clone-check.sh holds this output to tools/clone-baseline.txt.
  */
 #include <stdint.h>
@@ -19,6 +20,7 @@
 #include <string.h>
 
 #define MIN_TOKENS 30u
+#define MIN_STATEMENTS 4u
 
 typedef struct {
   const char *path;
@@ -169,7 +171,7 @@ int main(int argc, char **argv) {
     return 2;
   }
   g_lit = intern("<literal>", 9u);
-  const uint32_t lb = intern("{", 1u), rb = intern("}", 1u), lp = intern("(", 1u), rp = intern(")", 1u);
+  const uint32_t lb = intern("{", 1u), rb = intern("}", 1u), lp = intern("(", 1u), rp = intern(")", 1u), semi = intern(";", 1u);
   File *files = must(calloc(nf, sizeof *files));
   size_t nwin = 0u;
   for (uint32_t i = 0; i < nf; i++) {
@@ -197,10 +199,13 @@ int main(int argc, char **argv) {
         const uint32_t pa = w[x].pos, pb = w[y].pos;
         if (memcmp(fa->tok + pa, fb->tok + pb, MIN_TOKENS * sizeof(uint32_t)) != 0) continue;
         if (pa > 0u && pb > 0u && fa->tok[pa - 1u] == fb->tok[pb - 1u]) continue; /* not the region's start */
-        uint32_t len = MIN_TOKENS, lit = 0u;
+        uint32_t len = MIN_TOKENS, lit = 0u, stmts = 0u;
         while (pa + len < fa->n && pb + len < fb->n && fa->tok[pa + len] == fb->tok[pb + len]) len++;
-        for (uint32_t t = 0; t < len; t++) lit += fa->tok[pa + t] == g_lit;
-        if (2u * lit >= len) continue; /* a table */
+        for (uint32_t t = 0; t < len; t++) {
+          lit += fa->tok[pa + t] == g_lit;
+          stmts += fa->tok[pa + t] == semi;
+        }
+        if (2u * lit >= len || stmts < MIN_STATEMENTS) continue; /* a table, a signature */
         Pair *pr = &pairs[(size_t)w[x].file * nf + w[y].file];
         pr->regions++;
         pr->tokens += len;
