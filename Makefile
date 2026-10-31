@@ -337,6 +337,8 @@ checks:
 	bash tools/contract-single-source.sh --self-test
 	bash tools/travel-grid-check.sh
 	bash tools/travel-grid-check.sh --self-test
+	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/clone-check.sh
+	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/clone-check.sh --self-test
 	bash tools/umbrella-check.sh
 	bash tools/umbrella-check.sh --self-test
 	bash tools/face-conformance.sh
