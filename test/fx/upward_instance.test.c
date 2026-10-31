@@ -80,7 +80,7 @@ static void arm_law(void) {
       for (int c = 0; c < 3; c++)
         for (int d = 0; d < 8; d++) {
           const double got = settled(TS[a], RS[b], GS[c], LS[d], 0), want = law(TS[a], RS[b], GS[c], LS[d]);
-          worst = fmax(worst, fabs(got - want));
+          if (fabs(got - want) > worst) worst = fabs(got - want);
           ok(fabs(got - want) < 1e-3, "the settled lift is the closed form (1e-3 dB)", got, want);
         }
   printf("  %6.0f Hz: B worst %.2e dB\n", (double)g_sr, worst);
