@@ -94,19 +94,21 @@ static inline void fuzz_block(struct fuzz_in *in, float *b, uint32_t n, unsigned
   for (uint32_t i = 0; i < n; i++) b[i] = (mode & 1u) ? fuzz_f32(in) : (float)(int16_t)fuzz_u16(in) * scale;
 }
 
-/* The harness's own failure: names the property and the detail, then dies, so libFuzzer
- * writes the input that did it. */
-#define FUZZ_FAIL(...)                                      \
-  do {                                                      \
-    fprintf(stderr, "fuzz property broken: " __VA_ARGS__);  \
-    fputc('\n', stderr);                                    \
-    abort();                                                \
+/* What a check says before its abort(): the property and the detail. Each check is its own
+ * `if (...) abort();` in the harness, with its comment above it, so that the build contract of
+ * OSS Verify reads and measures it; libFuzzer then writes the input that did it. */
+#define FUZZ_SAY(...)                                      \
+  do {                                                     \
+    fprintf(stderr, "fuzz property broken: " __VA_ARGS__); \
+    fputc('\n', stderr);                                   \
   } while (0)
 
-#define FUZZ_CHECK(cond, ...)                \
-  do {                                       \
-    if (!(cond)) FUZZ_FAIL(__VA_ARGS__);     \
-  } while (0)
+/* Every sample finite: the harnesses' own reading, not the library's omx_block_finite. */
+static inline int fuzz_all_finite(const float *b, uint32_t n) {
+  for (uint32_t i = 0; i < n; i++)
+    if (!(b[i] - b[i] == 0.0f)) return 0;
+  return 1;
+}
 
 /* The ledger the library's contracts record into (the build defines OMX_CONTRACTS). A call a
  * harness makes inside every PRE it states breaks no law, so the ledger stays empty; a record
@@ -134,10 +136,15 @@ static inline void fuzz_ledger_check(const char *ctx, int declared, int hostile)
   const uint32_t kept = n < OMX_CONTRACT_MAX ? n : OMX_CONTRACT_MAX;
   for (uint32_t i = 0; i < kept; i++) {
     const struct omx_contract_record *r = &omx_contract_log.rec[i];
-    if (!omx_contract_record_ready(r)) continue;
-    if (!declared && strcmp(r->token, "rate-is-declared") == 0) continue;
-    if (strcmp(r->token, "bands-partition-unity") == 0) continue;
-    FUZZ_FAIL("%s: contract broken: %s %s %s (%u in all)", ctx, r->stage, r->kind, r->token, (unsigned)n);
+    const int skipped = !omx_contract_record_ready(r) || (!declared && strcmp(r->token, "rate-is-declared") == 0) ||
+                        strcmp(r->token, "bands-partition-unity") == 0;
+    /* No contract the library states is broken.
+     * mutant: include/omxdsp/omx_onepole.h:120 `pole >= 0.0f && pole < 1.0f` -> `pole < 0.0f`
+     * input: onepole */
+    if (!skipped) {
+      FUZZ_SAY("%s: contract broken: %s %s %s (%u in all)", ctx, r->stage, r->kind, r->token, (unsigned)n);
+      abort();
+    }
   }
   omx_contract_reset();
 #else
