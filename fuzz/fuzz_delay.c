@@ -266,7 +266,7 @@ static void integer(struct fuzz_in *in, uint32_t cap, int mono, int any_word) {
           abort();
         }
         /* It is the rounded delay, saturated at the ring's last slot, however large the request.
-         * mutant: include/omxdsp/omx_idelay.h:66 `s >= (float)cap ? cap : (uint32_t)s` -> `(uint32_t)s`
+         * mutant: include/omxdsp/omx_idelay.h:66 `s >= (float)cap ? cap : (uint32_t)s` -> `s >= (float)cap ? 0u : (uint32_t)s`
          * input: integer-any-ms-and-rate */
         if (!(got == samples_owed(any_ms, any_sr, cap))) {
           FUZZ_SAY("omx_idelay_samples(%g ms, %g, %u) = %u, the rule says %u", (double)any_ms, (double)any_sr, (unsigned)cap, (unsigned)got, (unsigned)samples_owed(any_ms, any_sr, cap));
