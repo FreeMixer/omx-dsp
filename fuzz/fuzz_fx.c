@@ -30,6 +30,7 @@
 #define OMX_CONTRACT_STORAGE 1
 #include "fuzz.h"
 
+#include <omxdsp/fx/omx_balancer_instance.h>
 #include <omxdsp/fx/omx_chorus_instance.h>
 #include <omxdsp/fx/omx_clipper_instance.h>
 #include <omxdsp/fx/omx_comp_instance.h>
@@ -160,6 +161,8 @@ FX_STD(loudlevel, OmxLoudlevelInstance,
        { float t = F(), r = F(), v = F(), g = F(); int w = I(); omx_loudlevel_instance_resolve(s, bypass, t, r, v, g, w); })
 FX_STD(spring, OmxSpringInstance,
        { float d = F(), l = F(), t = F(), p = F(), m = F(); omx_spring_instance_resolve(s, bypass, d, l, t, p, m); })
+FX_STD(balancer, OmxBalancerInstance,
+       { float a = F(), r = F(), v = F(), l = F(); omx_balancer_instance_resolve(s, bypass, a, r, v, l); })
 FX_STD(upward, OmxUpwardInstance,
        { float t = F(), r = F(), g = F(), a = F(), l = F(); omx_upward_instance_resolve(s, bypass, t, r, g, a, l); })
 FX_STD(width, OmxWidthInstance,
@@ -261,6 +264,7 @@ static const struct fx FX[] = {
     ROW(width, OmxWidthInstance),     ROW(clipper, OmxClipperInstance),
     ROW(upward, OmxUpwardInstance),   ROW(glue, OmxGlueInstance),
     ROW(loudlevel, OmxLoudlevelInstance), ROW(spring, OmxSpringInstance),
+    ROW(balancer, OmxBalancerInstance),
 };
 #define FX_COUNT (sizeof FX / sizeof FX[0])
 
