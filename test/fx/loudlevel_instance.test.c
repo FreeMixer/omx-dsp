@@ -188,7 +188,10 @@ static void arm_cut(void) {
   omx_loudlevel_instance_resolve(&g_v, 0, -10.0f, 24.0f, 6.0f, -70.0f, (int)OMX_LOUDLEVEL_WINDOWS_MOMENTARY);
   vrun(g_l, g_r, g_ol, g_or, n);
   double worst = 0.0;
-  for (uint32_t i = 1; i < n; i++) worst = fmax(worst, fabs(20.0 * log10((double)g_ol[i] / (double)g_ol[i - 1u])));
+  for (uint32_t i = 1; i < n; i++) {
+    const double v = fabs(20.0 * log10((double)g_ol[i] / (double)g_ol[i - 1u]));
+    if (v > worst) worst = v;
+  }
   const double allowed = 6.0 * (100.0 / (double)g_sr) * 0.01 * 1.1 + 1e-5;
   ok(worst < allowed, "no step between two samples: the walk per tick spread over the tick", worst, allowed);
   clean();
