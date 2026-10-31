@@ -150,19 +150,21 @@ static inline void fuzz_ledger_check(const char *ctx, int declared, int hostile)
   }
   const uint32_t n = atomic_load_explicit(&omx_contract_log.count, memory_order_relaxed);
   const uint32_t kept = n < OMX_CONTRACT_MAX ? n : OMX_CONTRACT_MAX;
-  for (uint32_t i = 0; i < kept; i++) {
+  const struct omx_contract_record *broken = NULL;
+  for (uint32_t i = 0; i < kept && !broken; i++) {
     const struct omx_contract_record *r = &omx_contract_log.rec[i];
     const int skipped = !omx_contract_record_ready(r) || (!declared && strcmp(r->token, "rate-is-declared") == 0) ||
                         strcmp(r->token, "bands-partition-unity") == 0;
-    /* No contract the library states is broken.
-     * mutant: include/omxdsp/omx_onepole.h:120 `pole >= 0.0f && pole < 1.0f` -> `pole < 0.0f`
-     * input: onepole
-     * mutant: include/omxdsp/omx_dyn.h:745 `gain[i] = g * p->gc.makeup_lin;` -> `gain[i] = g * p->gc.makeup_lin * (prog && done + i >= 64u && !omx_rate_is_declared(p->prp[0].sr) ? 2.0f : 1.0f);`
-     * input: comp-feedback-opto-64000 */
-    if (!skipped) {
-      FUZZ_SAY("%s: contract broken: %s %s %s (%u in all)", ctx, r->stage, r->kind, r->token, (unsigned)n);
-      abort();
-    }
+    if (!skipped) broken = r;
+  }
+  /* No contract the library states is broken.
+   * mutant: include/omxdsp/omx_onepole.h:120 `pole >= 0.0f && pole < 1.0f` -> `pole < 0.0f`
+   * input: onepole
+   * mutant: include/omxdsp/omx_dyn.h:745 `gain[i] = g * p->gc.makeup_lin;` -> `gain[i] = g * p->gc.makeup_lin * (prog && done + i >= 64u && !omx_rate_is_declared(p->prp[0].sr) ? 2.0f : 1.0f);`
+   * input: comp-feedback-opto-64000 */
+  if (broken) {
+    FUZZ_SAY("%s: contract broken: %s %s %s (%u in all)", ctx, broken->stage, broken->kind, broken->token, (unsigned)n);
+    abort();
   }
   omx_contract_reset();
 #else
