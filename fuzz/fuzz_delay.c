@@ -7,7 +7,9 @@
  *
  * Input:  [0]     bit 0: the line is fractional, else integer; bit 1: the order is 5, else 3
  *                 (fractional); bit 2: the blocks' samples are mono, else the integer pair runs
- *                 both legs; bit 3: the fractional line's order is the signed byte after the size
+ *                 both legs; bit 3: the fractional line's order is the signed byte after the size;
+ *                 bit 4: each block of the integer line starts with a raw float of ms and a raw
+ *                 float of rate, for omx_idelay_samples() alone
  *         [1..2]  u16 LE: the ring's size in samples (1..4096; refused sizes are part of the story)
  *         [3..]   the order, when bit 3 asks for it; then blocks until the input ends or 12 have run: a u8 block length (1..128), the
  *                 delay for the block (the fractional line: any float, NaN and the infinities
@@ -31,8 +33,8 @@
  *     Lagrange sum over the harness's copy of the take, to a tolerance;
  *   - a steady integer delay (the same one two blocks running) is the take delayed, bit for bit;
  *     a delay change (the cross-fade) stays between the two taps it fades;
- *   - omx_idelay_samples() lands in [0, cap) for any finite ms and any rate off the declared grid
- *     or on it, and is 0 for a delay of no length.
+ *   - omx_idelay_samples() is the rounded delay, saturated at cap - 1, for any finite ms and any
+ *     finite rate off the declared grid or on it, and 0 for a delay of no length.
  */
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/omx_fdelay.h>
@@ -46,6 +48,14 @@
 #define RING_MAX 4096u
 
 static float take_at(const float *take, long i) { return i < 0 ? 0.0f : take[i]; }
+
+/* The delay in samples: the nearest whole sample, 0 for no ms or no rate, and the ring's last slot
+ * for anything past it, however large. The rule in the comment of omx_idelay_samples(). */
+static uint32_t samples_owed(float ms, float sr, uint32_t cap) {
+  if (!(ms > 0.0f) || !(sr > 0.0f)) return 0u;
+  const float s = ms * sr * 0.001f + 0.5f;
+  return s >= (float)cap ? cap - 1u : (uint32_t)s;
+}
 
 /* A ring's longest delay at an order: the ring less the kernel's reach, the lookbehind and two. */
 static float longest(uint32_t cap, int order) {
@@ -233,7 +243,7 @@ static void fractional(struct fuzz_in *in, int order, uint32_t cap) {
   free(ring);
 }
 
-static void integer(struct fuzz_in *in, uint32_t cap, int mono) {
+static void integer(struct fuzz_in *in, uint32_t cap, int mono, int any_word) {
   float *rl = calloc(cap + 1u, sizeof(float)), *rr = calloc(cap + 1u, sizeof(float));
   /* not a property: calloc failed */
   if (!rl || !rr) abort();
@@ -243,6 +253,27 @@ static void integer(struct fuzz_in *in, uint32_t cap, int mono) {
   uint32_t last_l = 0, last_r = 0;
   for (int b = 0; b < BLOCKS_MAX && in->n > 0; b++) {
     const uint32_t n = 1u + fuzz_u8(in) % BLOCK_MAX;
+    if (any_word) {
+      const float any_ms = fuzz_f32(in), any_sr = fuzz_f32(in);
+      if (any_ms - any_ms == 0.0f && any_sr - any_sr == 0.0f) {
+        const uint32_t got = omx_idelay_samples(any_ms, any_sr, cap);
+        fuzz_ledger_reset(); /* the call records its PRE `rate-is-declared`: the harness made this one on purpose */
+        /* A delay in samples lands inside the ring for any finite ms and rate.
+         * mutant: include/omxdsp/omx_idelay.h:67 `d = d >= cap ? cap - 1 : d;` -> `d = d >= cap && s < 1.0e7f ? cap - 1 : d;`
+         * input: integer-any-ms-and-rate */
+        if (!(got < cap)) {
+          FUZZ_SAY("omx_idelay_samples(%g ms, %g, %u) = %u is outside the ring", (double)any_ms, (double)any_sr, (unsigned)cap, (unsigned)got);
+          abort();
+        }
+        /* It is the rounded delay, saturated at the ring's last slot, however large the request.
+         * mutant: include/omxdsp/omx_idelay.h:66 `s >= (float)cap ? cap : (uint32_t)s` -> `(uint32_t)s`
+         * input: integer-any-ms-and-rate */
+        if (!(got == samples_owed(any_ms, any_sr, cap))) {
+          FUZZ_SAY("omx_idelay_samples(%g ms, %g, %u) = %u, the rule says %u", (double)any_ms, (double)any_sr, (unsigned)cap, (unsigned)got, (unsigned)samples_owed(any_ms, any_sr, cap));
+          abort();
+        }
+      }
+    }
     const float sr = OMX_DECLARED_RATES[fuzz_below(in, OMX_DECLARED_RATE_COUNT)];
     const float ms_l = (float)fuzz_u16(in) * 0.1f, ms_r = (float)fuzz_u16(in) * 0.1f;
     const uint32_t tl = omx_idelay_samples(ms_l, sr, cap), tr = omx_idelay_samples(ms_r, sr, cap);
@@ -261,6 +292,13 @@ static void integer(struct fuzz_in *in, uint32_t cap, int mono) {
         FUZZ_SAY("a delay of no length is %u samples", (unsigned)tl);
         abort();
       }
+    }
+    /* A delay in samples is the rounded delay, on both legs.
+     * mutant: include/omxdsp/omx_idelay.h:64 `* 0.001f` -> `* 0.002f`
+     * input: integer-pair */
+    if (!(tl == samples_owed(ms_l, sr, cap) && tr == samples_owed(ms_r, sr, cap))) {
+      FUZZ_SAY("omx_idelay_samples(%g, %g ms, %g, %u) = %u / %u, the rule says %u / %u", (double)ms_l, (double)ms_r, (double)sr, (unsigned)cap, (unsigned)tl, (unsigned)tr, (unsigned)samples_owed(ms_l, sr, cap), (unsigned)samples_owed(ms_r, sr, cap));
+      abort();
     }
     float l[BLOCK_MAX], r[BLOCK_MAX];
     fuzz_block(in, l, n, 0);
@@ -333,7 +371,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const uint32_t cap = 1u + fuzz_u16(&in) % RING_MAX;
   fuzz_ledger_reset();
   if (flags & 1u) fractional(&in, (flags & 8u) ? (int)(int8_t)fuzz_u8(&in) : (flags & 2u) ? 5 : 3, cap);
-  else integer(&in, cap, (flags >> 2) & 1);
+  else integer(&in, cap, (flags >> 2) & 1, (flags >> 4) & 1);
   fuzz_ledger_clean("delay");
   return 0;
 }

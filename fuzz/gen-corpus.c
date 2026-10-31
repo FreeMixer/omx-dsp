@@ -155,6 +155,21 @@ static void gen_fx(void) {
   u16(&s, range16(22050.0, 8000.0, 768000.0));
   fx_step(&s, &FX[1], PORTS_HOT, sizeof PORTS_HOT / sizeof PORTS_HOT[0], 0, 0.9, 128u);
   finish("fx", "comp-22050", &s);
+  /* a comp on the feedback path in the opto release, at 64 kHz, on a block past 64 frames. Each frame
+   * records `rate-is-declared`; the law at the end of the block must still be read. */
+  u8(&s, 1u);
+  u8(&s, 0u);
+  u8(&s, 3u); /* 64 kHz, of the grid */
+  u8(&s, 0u);
+  f32(&s, 0.0f); f32(&s, 2.0f); f32(&s, 0.0f); f32(&s, 10.0f); f32(&s, 100.0f); f32(&s, 0.0f); f32(&s, 100.0f); /* threshold .. mix */
+  u32(&s, 0u); u32(&s, 0u); u32(&s, OMX_DETECTOR_TOPOLOGY_FEEDBACK); u32(&s, 0u); /* kind, oversampling, topology, key */
+  f32(&s, 0.0f); f32(&s, 0.0f); f32(&s, 0.0f); /* the key's filters and tilt */
+  u32(&s, 0u); f32(&s, 0.0f); u32(&s, 0u); u32(&s, 0u); f32(&s, 0.0f); /* link, hold, listen, duck, range */
+  u32(&s, OMX_COMP_RELEASE_MODES_OPTO);
+  u16(&s, 199u);
+  sine(&s, 200, 3.0, 0.1);
+  sine(&s, 200, 5.0, 0.1);
+  finish("fx", "comp-feedback-opto-64000", &s);
   /* hostile samples: bit 1 of the flags, raw float words per sample (NaN, Inf, a denormal, a huge one) */
   u8(&s, 10u); /* geq */
   u8(&s, 2u);
@@ -376,6 +391,21 @@ static void gen_delay(void) {
     sine(&s, 100, 5.0, 0.5);
   }
   finish("delay", "integer-right-steady", &s);
+  /* any ms and any rate: past the ring, past uint32_t, past a float, none, and off the grid */
+  static const float ANY[][2] = {{60000.0f, 192000.0f}, {1e30f, 48000.0f}, {1e30f, 1e30f}, {-5.0f, 22050.0f}, {0.1f, 22050.5f}, {5.0f, 0.0f}};
+  u8(&s, 0x10u);
+  u16(&s, 3000);
+  for (size_t b = 0; b < sizeof ANY / sizeof ANY[0]; b++) {
+    u8(&s, 3);
+    f32(&s, ANY[b][0]);
+    f32(&s, ANY[b][1]);
+    u8(&s, 2);
+    u16(&s, 100);
+    u16(&s, 200);
+    sine(&s, 4, 1.0, 0.5);
+    sine(&s, 4, 1.0, 0.5);
+  }
+  finish("delay", "integer-any-ms-and-rate", &s);
   free(s.p);
 }
 

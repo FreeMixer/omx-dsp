@@ -34,11 +34,12 @@
  *     has it; positive for the octaves law) for any finite width above 0.
  */
 #define OMX_CONTRACT_STORAGE 1
+#include "fuzz.h"
+
 #include <omxdsp/omx_biquad.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_magnitude.h>
 
-#include "fuzz.h"
 
 #define BLOCK_MAX 255u
 
@@ -69,6 +70,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   struct fuzz_in in = fuzz_in(data, size);
   const uint8_t flags = fuzz_u8(&in);
   const double rate = (double)((flags & 1u) ? fuzz_range(&in, 8000.0f, 768000.0f) : fuzz_rate(&in));
+  fuzz_rate_undeclared = !omx_rate_is_declared((float)rate);
   fuzz_ledger_reset();
 
   /* a braced initialiser reads its words in no fixed order: each field is its own statement */

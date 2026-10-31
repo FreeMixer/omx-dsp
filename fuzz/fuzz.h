@@ -23,6 +23,21 @@
 
 #include <omxdsp/omx_contract.h>
 
+/* The two laws a harness expects to be broken never take a slot of the ledger, which keeps only
+ * OMX_CONTRACT_MAX records. An instance face at 32, 64 or 128 kHz can record `rate-is-declared` once
+ * per frame, and every law after those would be counted and never read. A harness that can see them
+ * includes this header before the library's, so the library's inline code calls this, and sets
+ * fuzz_rate_undeclared while the rate in force is not a declared one. */
+#ifdef OMX_CONTRACTS
+static int fuzz_rate_undeclared;
+static inline void fuzz_contract_note(int ok, const char *stage, const char *token, const char *kind, uint32_t frame) {
+  const int expected = strcmp(token, "bands-partition-unity") == 0 ||
+                       (fuzz_rate_undeclared && strcmp(token, "rate-is-declared") == 0);
+  omx_contract_note(ok || expected, stage, token, kind, frame);
+}
+#define omx_contract_note fuzz_contract_note
+#endif
+
 struct fuzz_in {
   const uint8_t *p;
   size_t n;
@@ -124,7 +139,8 @@ static inline int fuzz_all_finite(const float *b, uint32_t n) {
  * records as a violation; a harness that moves the corners at random cannot read it. The identity is
  * held where the design is fixed, by the suite's own xover arm.
  * The ledger is emptied after each check, so a call's records are never pushed out by an earlier
- * call's. `hostile` is set while the blocks hold non-finite samples: the sanitizers are then the
+ * call's, and fuzz_contract_note() keeps the two expected laws out of it, so they never push out
+ * the records of the call that made them either. `hostile` is set while the blocks hold non-finite samples: the sanitizers are then the
  * oracle, and the ledger is only emptied. */
 static inline void fuzz_ledger_check(const char *ctx, int declared, int hostile) {
 #ifdef OMX_CONTRACTS
@@ -140,7 +156,9 @@ static inline void fuzz_ledger_check(const char *ctx, int declared, int hostile)
                         strcmp(r->token, "bands-partition-unity") == 0;
     /* No contract the library states is broken.
      * mutant: include/omxdsp/omx_onepole.h:120 `pole >= 0.0f && pole < 1.0f` -> `pole < 0.0f`
-     * input: onepole */
+     * input: onepole
+     * mutant: include/omxdsp/omx_dyn.h:745 `gain[i] = g * p->gc.makeup_lin;` -> `gain[i] = g * p->gc.makeup_lin * (prog && done + i >= 64u && !omx_rate_is_declared(p->prp[0].sr) ? 2.0f : 1.0f);`
+     * input: comp-feedback-opto-64000 */
     if (!skipped) {
       FUZZ_SAY("%s: contract broken: %s %s %s (%u in all)", ctx, r->stage, r->kind, r->token, (unsigned)n);
       abort();

@@ -28,6 +28,8 @@
  *   - ALIASING IS SAFE: A's in-place output equals B's out-of-place output, bit for bit;
  */
 #define OMX_CONTRACT_STORAGE 1
+#include "fuzz.h"
+
 #include <omxdsp/fx/omx_chorus_instance.h>
 #include <omxdsp/fx/omx_comp_instance.h>
 #include <omxdsp/fx/omx_deesser_instance.h>
@@ -54,7 +56,6 @@
 #include <omxdsp/fx/omx_trim_instance.h>
 #include <omxdsp/fx/omx_width_instance.h>
 
-#include "fuzz.h"
 
 #define BLOCK_MAX 512u
 #define STEPS_MAX 8
@@ -261,6 +262,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const unsigned bmode = (unsigned)(flags >> 1);
   const float rate = (flags & 1u) ? fuzz_range(&in, 8000.0f, 768000.0f) : fuzz_rate(&in);
 
+  fuzz_rate_undeclared = !omx_rate_is_declared(rate);
   char ctx[64];
   snprintf(ctx, sizeof ctx, "%s at %g Hz", fx->name, (double)rate);
   fuzz_ledger_reset();
