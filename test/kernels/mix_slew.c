@@ -145,6 +145,8 @@ static void arm_mix_slew(void) {
     }
   }
   /* the ends */
+  ok(omx_slew_step(FLT_MAX, 192000.0f) == FLT_MIN, "a time too long for a float is the smallest step, never none",
+     omx_slew_step(FLT_MAX, 192000.0f), FLT_MIN);
   float x = 1.0f, y = 9.0f, c0 = 0.4f;
   omx_slew_gain(&x, &y, 0u, 1.0f, 0.1f, &c0);
   ok(c0 == 0.4f && y == 9.0f, "n = 0 leaves the cursor and the output", c0, 0.4);
