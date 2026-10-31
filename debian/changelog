@@ -1,3 +1,11 @@
+omx-dsp (0.27.1) unstable; urgency=medium
+
+  * omx_idelay_samples() no longer casts a float past the range of uint32_t:
+    a delay far beyond the ring now clamps to the last slot (#263).
+  * The comments say decision where they said ruling (#252).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sat, 31 Oct 2026 07:00:00 +0100
+
 omx-dsp (0.27.0) unstable; urgency=medium
 
   * New sections and faces: omx_width (M/S width, complementary comb, bass mono)

@@ -1,6 +1,6 @@
 {
   "name": "@openmixer/omx-dsp",
-  "version": "0.27.0",
+  "version": "0.27.1",
   "description": "The TypeScript twins of omx-dsp kernels, each pinned to its C kernel by an agreement test",
   "type": "module",
   "license": "GPL-3.0-or-later",
