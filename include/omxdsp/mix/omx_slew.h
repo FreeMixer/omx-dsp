@@ -25,6 +25,7 @@
 #ifndef OMX_SLEW_H
 #define OMX_SLEW_H
 
+#include <float.h>
 #include <stdint.h>
 
 #include <omxdsp/omx_contract.h>
@@ -35,7 +36,8 @@
  * @brief The step per sample that crosses a distance of 1 in `ms` at rate `sr`: `1000 / (ms·sr)`.
  * @param ms The time, ms. Zero, a negative or a non-finite value is a jump, a step of 1.
  * @param sr The live rate, Hz, positive.
- * @return The step, in (0, 1]; a time shorter than one sample gives 1.
+ * @return The step, in (0, 1]; a time shorter than one sample gives 1, a time too long for a float
+ *         the smallest normal step.
  * @pre `rate-positive`.
  * @post `step-within-one-sample`.
  * @note RT-safe: one divide. Thread-safe: pure.
@@ -43,7 +45,7 @@
 static inline float omx_slew_step(float ms, float sr) {
   OMX_PRE(sr > 0.0f, "rate-positive");
   const float s = ms > 0.0f && ms - ms == 0.0f ? 1000.0f / (ms * sr) : 1.0f;
-  const float step = s < 1.0f ? s : 1.0f;
+  const float step = s < 1.0f ? (s > FLT_MIN ? s : FLT_MIN) : 1.0f;
   OMX_POST(step > 0.0f && step <= 1.0f, "step-within-one-sample");
   return step;
 }
