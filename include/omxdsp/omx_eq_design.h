@@ -107,30 +107,21 @@ static inline void omx_eq_lowpass_handover(double q, double band[2]) {
 
 #define OMX_CONTRACT_STAGE "eq-design/matched-pair"
 /**
- * @brief One conjugate pair placed by the matched-Z map, as `{p1, p2, dc}`.
+ * @brief One conjugate pair placed by the matched-Z map, as `{p1, p2, dc}`: omx_matched_pair() in the
+ *        array the designer works in.
  * @param wn Angular frequency, radians per sample, positive; held at or below π.
  * @param zeta Damping ratio, positive.
  * @param out `{p1, p2, dc}`: the z⁻¹ and z⁻² coefficients and the factored value at `z = 1`.
  * @pre `centre-and-damping-positive`.
  * @post `pair-inside-the-unit-circle`, `dc-positive`.
- * @note RT-safe: `exp`, `cos`, `sin`, `sqrt` on the RT-safe allowlist. Thread-safe: pure.
+ * @note RT-safe: omx_matched_pair(). Thread-safe: pure.
  */
 static inline void omx_eq_matched_pair(double wn, double zeta, double out[3]) {
   OMX_PRE(wn > 0.0 && zeta > 0.0, "centre-and-damping-positive");
-  const double w = wn > M_PI ? M_PI : wn;
-  if (zeta < 1.0) {
-    const double e = exp(-zeta * w), th = sqrt(1.0 - zeta * zeta) * w;
-    const double ec = e * cos(th), es = e * sin(th);
-    out[0] = -2.0 * ec;
-    out[1] = e * e;
-    out[2] = (1 - ec) * (1 - ec) + es * es;
-  } else {
-    const double sq = sqrt(zeta * zeta - 1.0);
-    const double z1 = exp(-w / (zeta + sq)), z2 = exp(-w * (zeta + sq));
-    out[0] = -(z1 + z2);
-    out[1] = z1 * z2;
-    out[2] = (1 - z1) * (1 - z2);
-  }
+  const OmxMatchedPair m = omx_matched_pair(wn, zeta);
+  out[0] = m.p1;
+  out[1] = m.p2;
+  out[2] = m.dc;
   OMX_POST(out[1] >= 0.0 && out[1] < 1.0, "pair-inside-the-unit-circle");
   OMX_POST(out[2] > 0.0 && isfinite(out[2]), "dc-positive");
 }
