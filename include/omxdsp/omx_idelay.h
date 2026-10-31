@@ -63,7 +63,7 @@ static inline uint32_t omx_idelay_samples(float ms, float sr, uint32_t cap) {
   if (ms <= 0.0f || cap == 0 || sr <= 0.0f) { OMX_POST(1, "delay-inside-the-ring"); return 0; }
   float s = ms * sr * 0.001f + 0.5f; /* round to nearest sample */
   if (s <= 0.0f) { OMX_POST(1, "delay-inside-the-ring"); return 0; }
-  uint32_t d = (uint32_t)s;
+  uint32_t d = s >= (float)cap ? cap : (uint32_t)s; /* no cast of a float past uint32_t's range */
   d = d >= cap ? cap - 1 : d;
   OMX_POST(d < cap, "delay-inside-the-ring");
   return d;

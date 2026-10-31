@@ -19,7 +19,7 @@
  * delivered per (channel, output key), less the note offs delivered, cleared by the channel's all
  * notes off (controller 120 or 123, which the map passes through). It keeps its own copy of the
  * leg in force, the one from the first bytes or the last valid one set_leg was given, and each
- * check of the policy reads that copy, never the map's.
+ * check of the policy reads that copy, never the map's; and its own table of the keys held.
  *
  * Properties, each an abort():
  *   - a message is dropped, passed or rewritten: 0, 1 or 2 are written, each with a status in
@@ -55,7 +55,32 @@ static int leg_valid(const struct omx_note_leg *l) {
 
 struct model {
   int sounding[OMX_NOTE_CHANNELS][OMX_NOTE_KEYS];
+  int held[OMX_NOTE_CHANNELS][OMX_NOTE_KEYS]; /* the input keys held, by the harness's own account */
+  int held_count;
 };
+
+/* A message as the map's header reads it: what it does to the keys held under the leg in force. */
+static void hold_model(struct model *md, const struct omx_note_leg *own, struct omx_note_msg msg) {
+  if (msg.status < 0x80u || msg.status >= 0xF0u || msg.data1 > 127u || msg.data2 > 127u) return;
+  const int kind = msg.status & 0xF0, ch = msg.status & 0x0F, key = msg.data1;
+  const int takes = own->channel == 0 || own->channel == ch + 1;
+  int *h = &md->held[ch][key];
+  if (kind == 0x80 || (kind == 0x90 && msg.data2 == 0u)) {
+    md->held_count -= *h;
+    *h = 0;
+  } else if (kind == 0x90) {
+    const int to = key + own->transpose;
+    if (takes && key >= own->key_low && key <= own->key_high && to >= 0 && to <= 127) {
+      md->held_count += !*h;
+      *h = 1;
+    }
+  } else if (kind == 0xB0 && takes && (msg.data1 == 120u || msg.data1 == 123u)) {
+    for (int k = 0; k < OMX_NOTE_KEYS; k++) {
+      md->held_count -= md->held[ch][k];
+      md->held[ch][k] = 0;
+    }
+  }
+}
 
 static void deliver(struct model *md, const struct omx_note_leg *own, const struct omx_note_msg *o, int n, int max,
                     struct omx_note_msg in) {
@@ -140,9 +165,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       msg.status = fuzz_u8(&in);
       msg.data1 = fuzz_u8(&in);
       msg.data2 = fuzz_u8(&in);
-      const int was_held = msg.status >= 0x80u && msg.status < 0xF0u && msg.data1 < 128u
-                               ? omx_note_map_is_held(&m, msg.status & 0x0F, msg.data1)
-                               : 0;
+      const int was_held = msg.data1 < 128u ? md.held[msg.status & 0x0F][msg.data1] : 0;
+      hold_model(&md, &own, msg);
       const int n = omx_note_map_event(&m, msg, out);
       deliver(&md, &own, out, n, OMX_NOTE_MAP_OUT_MAX, msg);
       const int note_on = (msg.status & 0xF0) == 0x90 && msg.data2 > 0u && msg.data2 < 128u && msg.data1 < 128u;
@@ -243,6 +267,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         }
         deliver(&md, &own, out, n, cap, none);
       } while (n == cap);
+      memset(md.held, 0, sizeof md.held);
+      md.held_count = 0;
       /* After release_all, nothing is held.
        * mutant: include/omxdsp/omx_note_map.h:340 `omx_note_map_mark(m, c, k, 0);` -> ``
        * input: channel-1-up-an-octave */
@@ -265,6 +291,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
      * input: omni-linear */
     if (!((int)m.held_count == popcount_held(&m))) {
       FUZZ_SAY("held_count %u is not the table's population %d", (unsigned)m.held_count, popcount_held(&m));
+      abort();
+    }
+    /* The table holds as many keys as the harness's own account of what was played.
+     * mutant: include/omxdsp/omx_note_map.h:306 `omx_note_map_mark(m, ch, key, 1);` -> ``
+     * input: omni-linear */
+    if (!(popcount_held(&m) == md.held_count)) {
+      FUZZ_SAY("the table holds %d keys, the harness counted %d", popcount_held(&m), md.held_count);
       abort();
     }
   }
