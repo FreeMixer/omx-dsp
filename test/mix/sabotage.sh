@@ -142,4 +142,10 @@ run bus_out_stage mix_bus_stage omx_bus_stage.h 's|  const float next_l = omx_me
 run key mix_key omx_key.h 's|    omx_rta_tap_mono_sum(kb, l, r, n);|    omx_rta_tap_mono_sum(kb, l, l, n);|'
 run pb mix_src_blend omx_src_blend.h 's|    track\[i\] = l + a \* (track\[i\] - l);|    track[i] = l + a * (track[i] + l);|'
 run level mix_meter omx_meter.h 's|  const double db = peak > 0.0f ? 20.0 \* log10((double)peak) : min;|  const double db = peak > 0.0f ? 20.0001 * log10((double)peak) : min;|'
+run slew_gain mix_slew omx_slew.h 's|    out\[i\] = in\[i\] \* g;|    out[i] = in[i] * g * 0.9999f;|'
+run slew_gain mix_slew omx_slew.h 's|    return up < tgt ? up : tgt;|    return up;|'
+run slew_hold mix_slew omx_slew.h 's/    if (h < t || xl != 0.0f || xr != 0.0f) h = omx_slew_move(h, t, step);/    h = omx_slew_move(h, t, step);/'
+run_arm slew_step mix_slew omx_slew.h 's|1000.0f / (ms \* sr)|1000.0f / (ms * (sr + 1000.0f))|'
+run_arm slew_heal_tgt mix_slew omx_slew.h 's|  const float t = tgt - tgt == 0.0f ? tgt : 0.0f;|  const float t = tgt;|'
+run_arm slew_heal_cur mix_slew omx_slew.h 's|  float g = \*cur - \*cur == 0.0f ? \*cur : 0.0f;|  float g = *cur;|'
 echo "mix-sabotage: every kernel's sabotage turns its oracle and its digests red"
