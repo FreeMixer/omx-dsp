@@ -95,6 +95,8 @@ static void test_ring_size_is_declared(void) {
 }
 
 static void test_samples_fixed_points(void) {
+  check(omx_idelay_samples(1e30f, 48000.0f, CAP) == CAP - 1, "a huge ms saturates at the ring's last slot");
+  check(omx_idelay_samples(1e30f, 1e30f, CAP) == CAP - 1, "a request past a float's range saturates too");
   check(omx_idelay_samples(0.0f, 48000.0f, CAP) == 0, "0 ms is 0 samples");
   check(omx_idelay_samples(-5.0f, 48000.0f, CAP) == 0, "a negative ms is floored to 0");
   check(omx_idelay_samples(1.0f, 48000.0f, CAP) == 48, "1 ms at 48 kHz is 48 samples");

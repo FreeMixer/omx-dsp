@@ -18,8 +18,8 @@ None of this is part of `make test`.
 | `fuzz_laws` | the scalar laws every port goes through: clamps, dB and linear, pan, balance and fader laws, ramp, wet/dry, the one-pole constructors | a clamp lands in its travel; constant-power pan; the balance law never boosts; a ramp stays between its ends; a mix stays between its inputs; a pole is in [0, 1) |
 | `fuzz_eq` | a bank of up to 24 bands and the head filters, designed at a rate, then a block through the cascade and the bank's magnitude | every designed section finite and stable; at most as many sections as bands; section i has the gain at DC of the i-th band that is on, and is parked exactly when that band is a peaking or shelf band at 0 dB; a bank with nothing live is the identity on each leg it runs, and 0 dB; finite out |
 | `fuzz_src` | a rate pair, the polyphase table, a take cut into blocks and flushed | the plan is taken exactly when it can be sized, and is the reduced ratio; each phase of the table sums to 1; a take is the same cut into blocks as whole, bit for bit; output bounded by the table's own gain; the identity plan returns the take |
-| `fuzz_delay` | the fractional delay line (orders 3 and 5, any ring size, any delay word) and the integer pair with its cross-fade | a line delivers the delay the rule in its comment owes; a refused order or ring leaves it unarmed, and an unarmed line leaves the block as it was; a whole delay is the take delayed, bit for bit; a fractional one is the Lagrange sum over the take, to float rounding, and bounded by the weights; a steady integer delay is exact, and a fade stays between its two taps |
-| `fuzz_note_map` | a stream of MIDI 1.0 channel messages through a leg's policy, with the policy changed in the middle | no note sticks and none is released that never sounded (a model of the downstream synth); `held_count` is the table's population; a note on is delivered exactly when the leg takes it and its transposed key is a key, and sounds that key; `out_of_range` counts the others the leg takes |
+| `fuzz_delay` | the fractional delay line (orders 3 and 5, any ring size, any delay word) and the integer pair with its cross-fade | a line delivers the delay the rule in its comment owes; a refused order or ring leaves it unarmed, and an unarmed line leaves the block as it was; a whole delay is the take delayed, bit for bit; a fractional one is the Lagrange sum over the take, to float rounding, and bounded by the weights; a steady integer delay is exact, and a fade stays between its two taps; `omx_idelay_samples()` is the rounded delay, saturated at the ring's last slot, for any finite ms and rate |
+| `fuzz_note_map` | a stream of MIDI 1.0 channel messages through a leg's policy, with the policy changed in the middle | no note sticks and none is released that never sounded (a model of the downstream synth); `held_count` is the table's population; the table holds what the harness's account of the stream holds; a note on is delivered exactly when the leg takes it and its transposed key is a key, and sounds that key; `out_of_range` counts the others the leg takes |
 
 There is no parser of presets, files or tables in libomxdsp: it holds no serialised format, and
 its tables are compiled in. When one is added it gets a harness here.
@@ -58,7 +58,7 @@ of the commit the OSS Verify enrollment pins, and `tools/check --checks` measure
 Where a check needs an expected value the harness works it out itself: the gcd of a plan, the
 stability of a section, the gain at DC of a band, which bands are parked, the validity of a leg and
 the leg in force, the delay a line owes and the Lagrange weights at its fraction, the last delays of
-the integer pair, whether a sample is finite, none of them through the library's own function.
+the integer pair and the delay in samples, the keys held, whether a sample is finite, none of them through the library's own function.
 
 ## The harnesses read their input as a grammar
 
@@ -77,5 +77,9 @@ the build directory.
 - A multiband stage whose corner moves between two blocks carries the old design's state into the
   new one, and the crossover's post `bands-partition-unity` is a law of one design: the harness
   skips that token, and the suite's own `xover` arm holds it where the design is fixed.
+- `rate-is-declared` at a rate of the grid that is not a declared one, and `bands-partition-unity`,
+  never reach the ledger of `fuzz_fx` and `fuzz_eq`: they include `fuzz.h` before the library, whose
+  `fuzz_contract_note()` drops them. An instance face can record the first once per frame, and the
+  ledger keeps 64 records, so they would push out every law after them.
 - A block of non-finite samples (the `fuzz_fx` hostile mode) breaks the PRE `finite-in` by the
   caller's own act; the ledger is not read then and the sanitizers are the oracle.
