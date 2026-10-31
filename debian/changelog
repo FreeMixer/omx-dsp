@@ -1,3 +1,21 @@
+omx-dsp (0.28.0) unstable; urgency=medium
+
+  * New: mix/omx_slew.h, a gain that crosses a declared time instead of one
+    block, omx_slew_step, omx_slew_gain and omx_slew_hold (the fade a rewire
+    needs), with closed-form oracles and digests at the nine rates (#235).
+  * New: MIXMATRIX_PERIOD_SHARE, 0.2 of the period, and make bench-mixmatrix
+    holds a 64 x 32 matrix to it at the nine rates.
+  * New: omx_round_half_up, and fx/omx_instance_io.h, the opening and the
+    bypass check of the instance faces.
+  * comp attackMs steps 0.1 and releaseMs 5, eq notchQ 0.1: each stepped from
+    its minimum missed its own default or maximum.
+  * The EQ kinds, the low-pass hand-over and the HRP family tables read their
+    declarations; no value moves.
+  * tools/clone-check.sh and tools/travel-grid-check.sh, each with its sabotage.
+  * The reverb's de-esser arm reads its level off the stimulus.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 01 Nov 2026 07:00:00 +0100
+
 omx-dsp (0.27.1) unstable; urgency=medium
 
   * omx_idelay_samples() no longer casts a float past the range of uint32_t:

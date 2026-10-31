@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.27.1
+Version: 0.28.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -90,6 +90,21 @@ library exists.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Sun Nov 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.28.0-1
+- New: mix/omx_slew.h, a gain that crosses a declared time instead of one
+  block, omx_slew_step, omx_slew_gain and omx_slew_hold (the fade a rewire
+  needs), with closed-form oracles and digests at the nine rates (#235).
+- New: MIXMATRIX_PERIOD_SHARE, 0.2 of the period, and make bench-mixmatrix
+  holds a 64 x 32 matrix to it at the nine rates.
+- New: omx_round_half_up, and fx/omx_instance_io.h, the opening and the
+  bypass check of the instance faces.
+- comp attackMs steps 0.1 and releaseMs 5, eq notchQ 0.1: each stepped from
+  its minimum missed its own default or maximum.
+- The EQ kinds, the low-pass hand-over and the HRP family tables read their
+  declarations; no value moves.
+- tools/clone-check.sh and tools/travel-grid-check.sh, each with its sabotage.
+- The reverb's de-esser arm reads its level off the stimulus.
+
 * Sat Oct 31 2026 Pau Aliagas <linuxnow@gmail.com> - 0.27.1-1
 - omx_idelay_samples() no longer casts a float past the range of uint32_t:
   a delay far beyond the ring now clamps to the last slot (#263).
