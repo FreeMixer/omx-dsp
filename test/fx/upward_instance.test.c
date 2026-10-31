@@ -99,7 +99,7 @@ static void arm_link(void) {
   sine(g_l, n, 1000.0, g_sr, a);
   memcpy(g_r, g_l, n * sizeof(float));
   omx_upward_instance_init(&g_u, g_sr);
-  omx_upward_instance_resolve(&g_u, 0, -20.0f, 3.0f, 24.0f, 200.0f, 200.0f);
+  omx_upward_instance_resolve(&g_u, 0, -20.0f, 3.0f, 24.0f, 100.0f, 100.0f);
   omx_upward_instance_run(&g_u, g_l, g_r, g_ol, g_or, n);
   drain();
   const double lift = 20.0 * log10(rms(g_ol, n - tail, n) / rms(g_l, n - tail, n));
