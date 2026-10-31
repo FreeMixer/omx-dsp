@@ -52,7 +52,7 @@
 #   make cost-deesser  the de-esser's ns/frame at every declared rate, default and stereo, by the
 #               plugin cost method (1 kHz sine at -6 dBFS, 512-frame blocks, 64 discarded, p50/p95)
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
-#               1024 frames
+#               1024 frames, then 64 x 32 held to MIXMATRIX_PERIOD_SHARE of the period at the nine rates
 #   make bench-gate  omx_dynamics as a gate, ns/sample/lane at every declared rate (open, slope, floor);
 #               tools/gate-cost-ab.sh <rev> compares a revision's kernel with this tree's, interleaved
 #   make bench-drive  omx_drive_process at the come-up atom, and its oversampler and shaper halves, ns/sample
@@ -721,6 +721,9 @@ cost-deesser: tools/deesser-cost.c $(HEADERS) $(FX_HEADERS) | $(BUILD)
 bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/bench-mixmatrix tools/bench-mixmatrix.c -lm
 	./$(BUILD)/bench-mixmatrix
+	@if ./$(BUILD)/bench-mixmatrix --share 0.000001 > /dev/null 2>&1; then \
+	  echo "bench-mixmatrix: FAIL: a budget nothing can meet left the bench green"; exit 1; fi
+	@echo "bench-mixmatrix: inside MIXMATRIX_PERIOD_SHARE at the nine rates, and a budget nothing can meet goes red"
 
 bench-gate: tools/gate-cost-bench.c $(LIB) $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/gate-cost-bench tools/gate-cost-bench.c $(LIB) -lm
