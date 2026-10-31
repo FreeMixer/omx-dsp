@@ -56,6 +56,7 @@
 #include <omxdsp/fx/omx_tremolo_instance.h>
 #include <omxdsp/fx/omx_trim_instance.h>
 #include <omxdsp/fx/omx_glue_instance.h>
+#include <omxdsp/fx/omx_loudlevel_instance.h>
 #include <omxdsp/fx/omx_upward_instance.h>
 #include <omxdsp/fx/omx_width_instance.h>
 
@@ -154,6 +155,8 @@ FX_STD(trim, OmxTrimInstance, { omx_trim_instance_resolve(s, bypass, F()); })
 FX_STD(glue, OmxGlueInstance,
        { float t = F(); int r = I(), a = I(), l = I(); float m = F(), h = F(), x = F();
          omx_glue_instance_resolve(s, bypass, t, r, a, l, m, h, x); })
+FX_STD(loudlevel, OmxLoudlevelInstance,
+       { float t = F(), r = F(), v = F(), g = F(); int w = I(); omx_loudlevel_instance_resolve(s, bypass, t, r, v, g, w); })
 FX_STD(upward, OmxUpwardInstance,
        { float t = F(), r = F(), g = F(), a = F(), l = F(); omx_upward_instance_resolve(s, bypass, t, r, g, a, l); })
 FX_STD(width, OmxWidthInstance,
@@ -254,6 +257,7 @@ static const struct fx FX[] = {
     ROW(transient, OmxTransientInstance), ROW(tremolo, OmxTremoloInstance), ROW(trim, OmxTrimInstance),
     ROW(width, OmxWidthInstance),     ROW(clipper, OmxClipperInstance),
     ROW(upward, OmxUpwardInstance),   ROW(glue, OmxGlueInstance),
+    ROW(loudlevel, OmxLoudlevelInstance),
 };
 #define FX_COUNT (sizeof FX / sizeof FX[0])
 
