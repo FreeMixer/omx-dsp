@@ -29,6 +29,7 @@ static void put(struct seed *s, const void *p, size_t n) {
   if (s->n + n > s->cap) {
     s->cap = (s->n + n) * 2 + 64;
     s->p = realloc(s->p, s->cap);
+    /* not a property: the generator's own allocation failed */
     if (!s->p) abort();
   }
   memcpy(s->p + s->n, p, n);
@@ -178,6 +179,7 @@ static void gen_laws(void) {
   /* clamp: v, lo, hi, default */
   u8(&s, 0); f32(&s, 5.0f); f32(&s, -1.0f); f32(&s, 1.0f); f32(&s, 0.0f);
   u8(&s, 0); f32(&s, NAN); f32(&s, -10.0f); f32(&s, 10.0f); f32(&s, 3.0f);
+  u8(&s, 0); f32(&s, 0.5f); f32(&s, -1.0f); f32(&s, 1.0f); f32(&s, 0.0f);
   finish("laws", "clamp", &s);
   /* units: dB, linear */
   u8(&s, 1); f32(&s, -6.0f); f32(&s, 0.5f);
@@ -189,6 +191,8 @@ static void gen_laws(void) {
   f32(&s, 0.8f); u8(&s, 0); f32(&s, 1.0f); u8(&s, 0);
   u8(&s, 2); u16(&s, 65535u); f32(&s, NAN); u16(&s, range16(0.0, -200.0, 60.0)); u8(&s, 1);
   f32(&s, 1.0f); u8(&s, 0); f32(&s, 1.0f); u8(&s, 0);
+  u8(&s, 2); u16(&s, range16(0.3, -1.0, 1.0)); f32(&s, 0.4f); u16(&s, range16(0.0, -200.0, 60.0)); u8(&s, 1);
+  f32(&s, 1.0f); u8(&s, 1); f32(&s, 1.0f); u8(&s, 0); /* muted */
   finish("laws", "pan-fader", &s);
   /* ramp: start, target, length */
   u8(&s, 3); f32(&s, 0.25f); f32(&s, 0.75f); u8(&s, 63);
@@ -204,6 +208,8 @@ static void gen_laws(void) {
   u16(&s, 30000); u16(&s, 50000);
   u8(&s, 5); u8(&s, 4); f32(&s, 1e30f); f32(&s, 1e-9f); u16(&s, 65535); f32(&s, 0.0f); f32(&s, NAN);
   u16(&s, 0); u16(&s, 65535);
+  u8(&s, 5); u8(&s, 2); f32(&s, 0.0f); f32(&s, 0.0f); u16(&s, 0); f32(&s, 48000.0f); f32(&s, 48000.0f);
+  u16(&s, 30000); u16(&s, 50000); /* a pole of 0: the step is the input */
   finish("laws", "onepole", &s);
   free(s.p);
 }
@@ -240,6 +246,34 @@ static void gen_eq(void) {
     snprintf(name, sizeof name, "bank-%d", variant);
     finish("eq", name, &s);
   }
+  /* one band on and one off, a live EQ, one leg */
+  u8(&s, 0x02); u8(&s, 2);
+  u8(&s, 0); f64(&s, 80.0); u8(&s, 0);
+  u8(&s, 0); f64(&s, 16000.0); u8(&s, 0);
+  u8(&s, 1);
+  for (int i = 0; i < 2; i++) {
+    u8(&s, 0); u8(&s, (unsigned)(i == 0)); f64(&s, 1000.0); f64(&s, 1.0); u16(&s, range16(3.0, -24.0, 24.0)); u8(&s, 0);
+  }
+  f64(&s, 1000.0);
+  u8(&s, 99);
+  sine(&s, 100, 3.0, 0.4);
+  sine(&s, 100, 5.0, 0.4);
+  f64(&s, 1.0);
+  f64(&s, 1000.0);
+  finish("eq", "bank-off-band", &s);
+  /* the EQ off, one leg: nothing live, and the block as it was */
+  u8(&s, 0x00); u8(&s, 2);
+  u8(&s, 0); f64(&s, 80.0); u8(&s, 0);
+  u8(&s, 0); f64(&s, 16000.0); u8(&s, 0);
+  u8(&s, 0);
+  u8(&s, 0); u8(&s, 1); f64(&s, 1000.0); f64(&s, 1.0); u16(&s, range16(3.0, -24.0, 24.0)); u8(&s, 0);
+  f64(&s, 1000.0);
+  u8(&s, 99);
+  sine(&s, 100, 3.0, 0.4);
+  sine(&s, 100, 5.0, 0.4);
+  f64(&s, 1.0);
+  f64(&s, 1000.0);
+  finish("eq", "eq-off-mono", &s);
   free(s.p);
 }
 
@@ -262,6 +296,7 @@ static void gen_src(void) {
     }
     finish("src", PAIRS[k].name, &s);
   }
+  u32(&s, 6); u32(&s, 4); u8(&s, 0); finish("src", "six-to-four", &s); /* a ratio that reduces, at rates the limit takes */
   u32(&s, 0); u32(&s, 48000); u8(&s, 0); finish("src", "zero-rate", &s);
   u32(&s, 44100); u32(&s, 4294967295u); u8(&s, 0); finish("src", "huge-ratio", &s);
   free(s.p);
@@ -270,7 +305,7 @@ static void gen_src(void) {
 /* ---- fuzz_delay: the fractional line at both orders, the integer line and its fades ---- */
 static void gen_delay(void) {
   struct seed s = {0};
-  static const float D[] = {0.0f, 1.0f, 2.5f, 10.0f, 33.75f, 100.0f, 0.3f, 400.0f};
+  static const float D[] = {0.0f, 1.0f, 2.5f, 10.0f, 33.75f, 100.0f, 0.3f, 400.0f, 5000.0f, NAN};
   for (int order5 = 0; order5 < 2; order5++) {
     u8(&s, 1u | (order5 ? 2u : 0u));
     u16(&s, 999);
@@ -301,6 +336,18 @@ static void gen_delay(void) {
     }
     finish("delay", mono ? "integer-mono" : "integer-pair", &s);
   }
+  /* no delay on the right from the first block, so its first block is steady */
+  u8(&s, 0u);
+  u16(&s, 3000);
+  for (int b = 0; b < 2; b++) {
+    u8(&s, 99);
+    u8(&s, 2);
+    u16(&s, 100);
+    u16(&s, 0);
+    sine(&s, 100, 3.0, 0.5);
+    sine(&s, 100, 5.0, 0.5);
+  }
+  finish("delay", "integer-right-steady", &s);
   free(s.p);
 }
 
@@ -340,6 +387,14 @@ static void gen_note_map(void) {
   msg(&s, 0xF8, 0, 0); msg(&s, 0xFF, 0, 0); msg(&s, 0x90, 200, 100); msg(&s, 0x70, 1, 1);
   u8(&s, 233);
   finish("note_map", "all-channels-and-noise", &s);
+  leg(&s, 0, 0, 127, -48, 0, 64);
+  msg(&s, 0x90, 30, 100); msg(&s, 0x90, 31, 100);
+  finish("note_map", "out-of-range-twice", &s);
+  leg(&s, 0, 0, 127, 0, 0, 64);
+  msg(&s, 0x90, 60, 100); msg(&s, 0x91, 61, 100);
+  finish("note_map", "held-at-the-end", &s);
+  leg(&s, 0, 0, 127, 0, 0, 64);
+  finish("note_map", "leg-only", &s);
   free(s.p);
 }
 

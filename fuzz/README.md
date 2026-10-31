@@ -38,6 +38,27 @@ reproduce one:
 
     build/fuzz/fuzz_fx fuzz/findings/fuzz_fx-crash-<sha1>
 
+## The checks and their records
+
+Each property is its own `if (...) abort();` in a harness, never `assert()` and never inside a
+macro, and the comment above it says what it checks and carries a record, as OSS Verify's
+`tools/check --checks` reads them (its `docs/build-contract.md`, "The checks of a fuzz target"):
+
+```
+/* A clamp lands inside its travel, whatever the word.
+ * mutant: include/omxdsp/omx_param.h:37 `(v <= hi ? v : hi)` -> `v`
+ * input: clamp */
+```
+
+A record is a one-line change of the library and the seed it shows on: with the change, that seed
+makes the check abort; without it, the seed passes. A stop after a failed allocation of the
+harness's own carries `not a property: <reason>` in place of a record. The line numbers are those
+of the commit the OSS Verify enrollment pins, and `tools/check --checks` measures each record there.
+
+Where a check needs an expected value the harness works it out itself: the gcd of a plan, the
+stability of a section, the validity of a leg, whether a sample is finite, none of them through the
+library's own function.
+
 ## The harnesses read their input as a grammar
 
 The header comment of each `fuzz_*.c` is the grammar of its input. The seed corpus in
