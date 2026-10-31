@@ -384,7 +384,7 @@
         },
         "impl": "include/omxdsp/omx_envelope.h#charge_pole"
       },
-      "doc": "The program-dependent release's model constants — the LA-2A's opto cell as DATA. `chargeMs`/`dischargeMs` are the word's memory constants, shared by every profile; each profile's `fastMs`, `slowMinMs`, `slowMaxMs` and `share` fit the unit's published two-stage recovery (opto); `auto` spans a bus compressor's fixed release detents, 100 ms to 1.2 s, half fast and half slow, provisional until a published figure refits it. Not operator controls: generated into `omx_contract_limits.h` as `OMX_PROGRAM_RELEASE_*`, which libomxdsp's `omx_env_program_release` reads.",
+      "doc": "The program-dependent release's model constants — the LA-2A's opto cell as DATA. `chargeMs`/`dischargeMs` are the word's memory constants, shared by every profile; each profile's `fastMs`, `slowMinMs`, `slowMaxMs` and `share` fit the unit's published two-stage recovery (opto); `auto` spans a bus compressor's fixed release detents, 100 ms to 1.2 s, half fast and half slow. Not operator controls: generated into `omx_contract_limits.h` as `OMX_PROGRAM_RELEASE_*`, which libomxdsp's `omx_env_program_release` reads.",
       "value": {
         "chargeMs": 1000,
         "dischargeMs": 5000,

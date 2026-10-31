@@ -15,8 +15,7 @@
 //      noise across a two-octave band is cut by consonantDb at the centre only (B), so the fall is
 //      printed, not pinned to consonantDb;
 //   D  a vowel alone at eight levels from -60 to 0 dBFS is the input bit for bit after its first 50 ms
-//      at a sensitivity above the contrast it raises (L2); at the declared 10 dB, which this buzzy vowel
-//      exceeds, its steady cuts are printed (the design leaves that default open, to a recorded take);
+//      at the declared 16 dB, above the 13.5 and 10.5 dB of steady contrast this buzzy vowel raises (L2);
 //   E  each p pop drives the pop cut to its full popDb (0.01 dB), and above 2 kHz (a 24 dB per octave
 //      high-pass, clear of the vowel's 700 Hz formant) the output is within 0.15 dB of the input;
 //   F  the cuts do not depend on the level: past the onset the per-sample gains at -20 dB and at 0 dB
@@ -60,12 +59,9 @@ void __wrap_free(void *p) {
 }
 
 /* The declarations, stated here so a moved one turns its arm red (plosive_instance-perturb.sh). */
-static const float DEFAULTS[9] = {6, 10, 8, 4000, 2, 12, 10, 40, 150};
-/* The corpus arms run both sensitivities at 14.5 dB, arm D at 16: the vowel's steady contrast reaches
- * 13.5 dB in the consonant band and 10.5 dB in the pop band (arm D prints it), above the declared 10, and
- * its onset more for a few ms past 50. */
-static const float CORPUS[9] = {6, 14.5f, 8, 4000, 2, 12, 14.5f, 40, 150};
-static const float VOWEL[9] = {6, 16, 8, 4000, 2, 12, 16, 40, 150};
+static const float DEFAULTS[9] = {6, 16, 8, 4000, 2, 12, 16, 40, 150};
+#define CORPUS DEFAULTS
+#define VOWEL DEFAULTS
 #define EDGE 0.45
 
 #define MAXN 400000u
@@ -261,13 +257,6 @@ static void arm_corpus(void) {
     same &= memcmp(g_ol + from, g_l + from, (n - from) * sizeof(float)) == 0;
   }
   ok(same, "a vowel alone is the input bit for bit after its first 50 ms, -60 to 0 dBFS", same, 1);
-  vowel(g_l, n, 0.1);
-  memcpy(g_r, g_l, n * sizeof(float));
-  setup_with(DEFAULTS);
-  run_gains(g_l, g_r, g_ol, g_or, n);
-  const float cd = 20.0f * log10f(g_gc[n - 1u]), pd = 20.0f * log10f(g_gp[n - 1u]);
-  printf("  plosive @ %.0f Hz: the vowel at the declared 10 dB: steady cuts %.2f dB (contrast %.1f dB) and %.2f dB (%.1f dB)\n",
-         (double)g_sr, cd, 10.0 - 6.0 * cd / DEFAULTS[0], pd, 10.0 - 6.0 * pd / DEFAULTS[5]);
   clean();
 
   /* C: t bursts over the vowel */
