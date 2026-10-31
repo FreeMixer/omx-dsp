@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.27.0
+Version: 0.27.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -90,6 +90,11 @@ library exists.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Sat Oct 31 2026 Pau Aliagas <linuxnow@gmail.com> - 0.27.1-1
+- omx_idelay_samples() no longer casts a float past the range of uint32_t:
+  a delay far beyond the ring now clamps to the last slot (#263).
+- The comments say decision where they said ruling (#252).
+
 * Fri Oct 30 2026 Pau Aliagas <linuxnow@gmail.com> - 0.27.0-1
 - New sections and faces: omx_width (M/S width, complementary comb, bass mono)
   and its instance face, the tone face (tilt span and the DJ filter map,
