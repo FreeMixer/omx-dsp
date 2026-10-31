@@ -35,6 +35,16 @@
 #define BLOCK_MAX 512u
 #define IN_MAX (BLOCKS_MAX * BLOCK_MAX)
 
+/* the harness's own gcd: the plan is held to this, not to the library's */
+static uint32_t gcd(uint32_t a, uint32_t b) {
+  while (b != 0u) {
+    const uint32_t t = a % b;
+    a = b;
+    b = t;
+  }
+  return a;
+}
+
 /* a take: the input samples as the blocks gave them, and where each block ends */
 struct take {
   float x[IN_MAX];
@@ -70,14 +80,29 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   struct omx_src_plan p;
   if (omx_src_plan_of(rin, rout, &p) != 0) {
-    FUZZ_CHECK(rin == 0 || rout == 0 || rout / omx_src_gcd(rout, rin) > OMX_SRC_MAX_L,
-               "the plan refused %u -> %u, which it can size", (unsigned)rin, (unsigned)rout);
+    /* The plan refuses only what it cannot size: a zero rate, or an interpolation factor past the limit.
+     * mutant: include/omxdsp/omx_src.h:89 `l > OMX_SRC_MAX_L` -> `l > 1u`
+     * input: 44100-48000 */
+    if (!(rin == 0 || rout == 0 || rout / gcd(rout, rin) > OMX_SRC_MAX_L)) {
+      FUZZ_SAY("the plan refused %u -> %u, which it can size", (unsigned)rin, (unsigned)rout);
+      abort();
+    }
     return 0;
   }
-  FUZZ_CHECK(omx_src_gcd(p.l, p.m) == 1u, "the plan %u/%u of %u -> %u is not reduced", (unsigned)p.l, (unsigned)p.m,
-             (unsigned)rin, (unsigned)rout);
-  FUZZ_CHECK((uint64_t)p.l * rin == (uint64_t)p.m * rout, "the plan %u/%u is not the ratio of %u -> %u", (unsigned)p.l,
-             (unsigned)p.m, (unsigned)rin, (unsigned)rout);
+  /* The plan is reduced, by the harness's own gcd.
+   * mutant: include/omxdsp/omx_src.h:86 `omx_src_gcd(out_rate, in_rate)` -> `1u`
+   * input: six-to-four */
+  if (!(gcd(p.l, p.m) == 1u)) {
+    FUZZ_SAY("the plan %u/%u of %u -> %u is not reduced", (unsigned)p.l, (unsigned)p.m, (unsigned)rin, (unsigned)rout);
+    abort();
+  }
+  /* The plan is the ratio of the two rates.
+   * mutant: include/omxdsp/omx_src.h:88 `in_rate / g` -> `in_rate / g + 2u`
+   * input: 44100-48000 */
+  if (!((uint64_t)p.l * rin == (uint64_t)p.m * rout)) {
+    FUZZ_SAY("the plan %u/%u is not the ratio of %u -> %u", (unsigned)p.l, (unsigned)p.m, (unsigned)rin, (unsigned)rout);
+    abort();
+  }
   const size_t ncoef = omx_src_coef_count(&p);
   float *coef = malloc(ncoef * sizeof(float));
   /* not a property: malloc failed */
@@ -114,22 +139,47 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const uint32_t wa = convert(&p, coef, &t, 1, flush, a, cap);
   const uint32_t wb = convert(&p, coef, &t, (flags & 1u) ? 0 : 1, flush, b, cap);
 
-  FUZZ_CHECK(wa == wb && memcmp(a, b, (size_t)wa * sizeof(float)) == 0,
-             "%u -> %u: the take cut into %d blocks is not the take run whole (%u and %u samples)", (unsigned)rin,
-             (unsigned)rout, t.blocks, (unsigned)wa, (unsigned)wb);
+  /* A take is the same however it is cut into blocks, bit for bit.
+   * mutant: include/omxdsp/omx_src.h:331 `i < in_n` -> `i + 1u < in_n`
+   * input: 44100-48000 */
+  if (!(wa == wb && memcmp(a, b, (size_t)wa * sizeof(float)) == 0)) {
+    FUZZ_SAY("%u -> %u: the take cut into %d blocks is not the take run whole (%u and %u samples)", (unsigned)rin, (unsigned)rout, t.blocks, (unsigned)wa, (unsigned)wb);
+    abort();
+  }
   const uint64_t want = omx_src_out_frames(t.n, &p);
-  FUZZ_CHECK(wa <= omx_src_out_capacity(&p, t.n + (flush ? p.taps : 0u)),
-             "%u -> %u: %u samples out of %u in exceeds the capacity", (unsigned)rin, (unsigned)rout, (unsigned)wa,
-             (unsigned)t.n);
-  if (!flush) FUZZ_CHECK(wa <= want + p.taps / 2u + 1u, "%u -> %u: %u samples out of %u in, a whole file is %u", (unsigned)rin,
-                         (unsigned)rout, (unsigned)wa, (unsigned)t.n, (unsigned)want);
+  if (!flush) {
+    /* Without a flush, a take makes no more than a whole file's frames and the half length of the filter.
+     * mutant: include/omxdsp/omx_src.h:309 `s->acc += (uint64_t)s->m` -> `s->acc += (uint64_t)s->m / 2u`
+     * input: 96000-48000 */
+    if (!(wa <= want + p.taps / 2u + 1u)) {
+      FUZZ_SAY("%u -> %u: %u samples out of %u in, a whole file is %u", (unsigned)rin, (unsigned)rout, (unsigned)wa, (unsigned)t.n, (unsigned)want);
+      abort();
+    }
+  }
+  /* A take makes no more samples than the capacity of what went in.
+   * mutant: include/omxdsp/omx_src.h:309 `s->acc += (uint64_t)s->m` -> `s->acc += (uint64_t)s->m / 2u`
+   * input: 48000-44100 */
+  if (!(wa <= omx_src_out_capacity(&p, t.n + (flush ? p.taps : 0u)))) {
+    FUZZ_SAY("%u -> %u: %u samples out of %u in exceeds the capacity", (unsigned)rin, (unsigned)rout, (unsigned)wa, (unsigned)t.n);
+    abort();
+  }
   for (uint32_t i = 0; i < wa; i++) {
-    FUZZ_CHECK(isfinite(a[i]) && fabs((double)a[i]) <= gain * (double)peak * 1.0001 + 1e-30,
-               "%u -> %u: output %u is %g, past %g x peak %g", (unsigned)rin, (unsigned)rout, (unsigned)i, (double)a[i], gain,
-               (double)peak);
+    /* Each output is finite, and inside the input's peak times the filter's worst gain.
+     * mutant: include/omxdsp/omx_src.h:281 `c[k] * h[k]` -> `1000.0f * c[k] * h[k]`
+     * input: 44100-48000 */
+    if (!(isfinite(a[i]) && fabs((double)a[i]) <= gain * (double)peak * 1.0001 + 1e-30)) {
+      FUZZ_SAY("%u -> %u: output %u is %g, past %g x peak %g", (unsigned)rin, (unsigned)rout, (unsigned)i, (double)a[i], gain, (double)peak);
+      abort();
+    }
   }
   if (p.l == 1u && p.m == 1u)
-    FUZZ_CHECK(wa >= t.n && memcmp(a, t.x, (size_t)t.n * sizeof(float)) == 0, "an identity plan changed the take");
+    /* An identity plan returns the take unchanged.
+     * mutant: include/omxdsp/omx_src.h:168 `coef[0] = 1.0f` -> `coef[0] = 0.5f`
+     * input: 48000-48000 */
+    if (!(wa >= t.n && memcmp(a, t.x, (size_t)t.n * sizeof(float)) == 0)) {
+      FUZZ_SAY("an identity plan changed the take");
+      abort();
+    }
   fuzz_ledger_clean("src");
   free(coef);
   free(a);

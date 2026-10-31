@@ -20,8 +20,7 @@
  * Properties, each an abort():
  *   - no contract the library states is broken (the ledger stays empty): every section the bank
  *     designs has finite coefficients and both poles inside the unit circle;
- *   - the same sections pass omx_biquad_stable() as the harness computes it from the
- *     coefficients, and the bank has at most as many sections as bands (a band that is off is
+ *   - the same sections are stable as the harness computes it from the coefficients, and the bank has at most as many sections as bands (a band that is off is
  *     not in it, a band at 0 dB gain is parked);
  *   - the cascade, over finite samples, gives finite samples on both legs, and a bank with no live
  *     section leaves the block as it was, bit for bit;
@@ -42,6 +41,9 @@
 
 static double fin_or(double x, double d) { return isfinite(x) ? x : d; }
 
+/* Both poles of {b0, b1, b2, a1, a2} inside the unit circle: the Jury conditions, the harness's own. */
+static int stable(const double *c) { return fabs(c[3]) < 1.0 + c[4] && c[4] < 1.0; }
+
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   struct fuzz_in in = fuzz_in(data, size);
   const uint8_t flags = fuzz_u8(&in);
@@ -58,10 +60,21 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   lpf.slope_24 = fuzz_u8(&in) & 1;
   double pass[OMX_EQ_PASS_MAX_SECTIONS][5];
   const uint32_t np = omx_eq_pass_design(&hpf, &lpf, rate, pass);
-  FUZZ_CHECK(np <= OMX_EQ_PASS_MAX_SECTIONS, "the head filters wrote %u sections", (unsigned)np);
+  /* The head filters write at most their limit of sections.
+   * mutant: include/omxdsp/omx_eq_design.h:528 `return n;` -> `return n + 9u;`
+   * input: bank-0 */
+  if (!(np <= OMX_EQ_PASS_MAX_SECTIONS)) {
+    FUZZ_SAY("the head filters wrote %u sections", (unsigned)np);
+    abort();
+  }
   for (uint32_t i = 0; i < np; i++)
-    FUZZ_CHECK(omx_biquad_stable(pass[i]) && isfinite(pass[i][0]) && isfinite(pass[i][1]) && isfinite(pass[i][2]),
-               "head section %u is unstable or not finite", (unsigned)i);
+    /* Each section of the head filters is stable and finite, by the harness's own reading of its coefficients.
+     * mutant: include/omxdsp/omx_eq_design.h:525 `coeffs[n++]);` -> `coeffs[n++]), coeffs[n - 1][4] = 2.0;`
+     * input: bank-0 */
+    if (!(stable(pass[i]) && isfinite(pass[i][0]) && isfinite(pass[i][1]) && isfinite(pass[i][2]))) {
+      FUZZ_SAY("head section %u is unstable or not finite", (unsigned)i);
+      abort();
+    }
   fuzz_ledger_check("eq pass", omx_rate_is_declared((float)rate), 0);
 
   const uint32_t nb = 1u + fuzz_below(&in, OMX_EQ_MAX_BANDS);
@@ -79,16 +92,38 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   double dcoef[OMX_EQ_MAX_BANDS][5];
   uint8_t enabled[OMX_EQ_MAX_BANDS];
   const uint32_t ns = omx_eq_bank_design((flags >> 1) & 1, bands, nb, rate, dcoef, enabled);
-  FUZZ_CHECK(ns <= nb, "the bank has %u sections for %u bands", (unsigned)ns, (unsigned)nb);
-  FUZZ_CHECK(((flags >> 1) & 1) ? ns == on_count : ns == 0, "the bank has %u sections for %u bands that are on",
-             (unsigned)ns, (unsigned)on_count);
+  /* The bank has at most as many sections as bands.
+   * mutant: include/omxdsp/omx_eq_design.h:493 `return n;` -> `return nbands + 1u;`
+   * input: bank-0 */
+  if (!(ns <= nb)) {
+    FUZZ_SAY("the bank has %u sections for %u bands", (unsigned)ns, (unsigned)nb);
+    abort();
+  }
+  /* The bank has a section for each band that is on, and none with the EQ off.
+   * mutant: include/omxdsp/omx_eq_design.h:487 `if (!b->on) continue;` -> ``
+   * input: bank-off-band */
+  if (!(((flags >> 1) & 1) ? ns == on_count : ns == 0)) {
+    FUZZ_SAY("the bank has %u sections for %u bands that are on", (unsigned)ns, (unsigned)on_count);
+    abort();
+  }
   float coef[OMX_EQ_MAX_BANDS][5];
   uint32_t live = 0;
   for (uint32_t i = 0; i < ns; i++) {
-    FUZZ_CHECK(omx_biquad_stable(dcoef[i]), "section %u is not stable: %g %g %g %g %g", (unsigned)i, dcoef[i][0],
-               dcoef[i][1], dcoef[i][2], dcoef[i][3], dcoef[i][4]);
+    /* Each section of the bank is stable, by the harness's own reading of its coefficients.
+     * mutant: include/omxdsp/omx_eq_design.h:488 `coeffs[n]);` -> `coeffs[n]), coeffs[n][4] = 2.0;`
+     * input: bank-0 */
+    if (!(stable(dcoef[i]))) {
+      FUZZ_SAY("section %u is not stable: %g %g %g %g %g", (unsigned)i, dcoef[i][0], dcoef[i][1], dcoef[i][2], dcoef[i][3], dcoef[i][4]);
+      abort();
+    }
     for (int k = 0; k < 5; k++) {
-      FUZZ_CHECK(isfinite(dcoef[i][k]), "section %u coefficient %d is not finite", (unsigned)i, k);
+      /* Each coefficient of the bank is finite.
+       * mutant: include/omxdsp/omx_eq_design.h:488 `coeffs[n]);` -> `coeffs[n]), coeffs[n][0] = NAN;`
+       * input: bank-0 */
+      if (!(isfinite(dcoef[i][k]))) {
+        FUZZ_SAY("section %u coefficient %d is not finite", (unsigned)i, k);
+        abort();
+      }
       coef[i][k] = (float)dcoef[i][k];
     }
     live += enabled[i];
@@ -99,8 +134,22 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   double f[4] = {fin_or(fuzz_f64(&in), 1000.0), 20.0, 1000.0, rate * 0.5}, db[4];
   omx_biquad_cascade_magnitude_db_d(dcoef, enabled, ns, f, 4, rate, -120.0, db);
   for (int i = 0; i < 4; i++) {
-    FUZZ_CHECK(isfinite(db[i]), "the bank's magnitude at %g Hz is %g", f[i], db[i]);
-    if (live == 0) FUZZ_CHECK(db[i] == 0.0, "a bank with no live section is %g dB at %g Hz", db[i], f[i]);
+    /* The bank's magnitude is finite at any frequency.
+     * mutant: include/omxdsp/omx_magnitude.h:125 `db_out[i] = db;` -> `db_out[i] = NAN;`
+     * input: bank-0 */
+    if (!(isfinite(db[i]))) {
+      FUZZ_SAY("the bank's magnitude at %g Hz is %g", f[i], db[i]);
+      abort();
+    }
+    if (live == 0) {
+      /* A bank with no live section is 0 dB.
+       * mutant: include/omxdsp/omx_magnitude.h:121 `double db = 0.0;` -> `double db = 1.0;`
+       * input: bank-3 */
+      if (!(db[i] == 0.0)) {
+        FUZZ_SAY("a bank with no live section is %g dB at %g Hz", db[i], f[i]);
+        abort();
+      }
+    }
   }
   fuzz_ledger_check("eq magnitude", omx_rate_is_declared((float)rate), 0);
 
@@ -115,18 +164,44 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   memset(sr, 0, sizeof sr);
   if ((flags >> 2) & 1) omx_biquad_cascade_stereo(l, r, n, ns, coef, enabled, sl, sr);
   else omx_biquad_cascade(l, n, ns, coef, enabled, sl);
-  FUZZ_CHECK(omx_block_finite(l, n) && omx_block_finite(r, n), "the cascade gave a non-finite sample");
-  if (live == 0) FUZZ_CHECK(memcmp(l, l0, n * sizeof(float)) == 0, "a bank with no live section changed the block");
+  /* The cascade gives finite samples for finite samples.
+   * mutant: include/omxdsp/omx_biquad.h:191 `enabled, state, NULL);` -> `enabled, state, NULL); buf[0] = NAN;`
+   * input: bank-2 */
+  if (!(fuzz_all_finite(l, n) && fuzz_all_finite(r, n))) {
+    FUZZ_SAY("the cascade gave a non-finite sample");
+    abort();
+  }
+  if (live == 0) {
+    /* A bank with no live section leaves the block as it was, bit for bit.
+     * mutant: include/omxdsp/omx_biquad.h:191 `enabled, state, NULL);` -> `enabled, state, NULL); buf[0] = 0.5f;`
+     * input: eq-off-mono */
+    if (!(memcmp(l, l0, n * sizeof(float)) == 0)) {
+      FUZZ_SAY("a bank with no live section changed the block");
+      abort();
+    }
+  }
   fuzz_ledger_check("eq cascade", omx_rate_is_declared((float)rate), 0);
 
   /* the width conversions */
   const double bw = fin_or(fuzz_f64(&in), 1.0);
   if (bw > 0.0) {
     const double q = omx_eq_bandwidth_q(fin_or(fuzz_f64(&in), 1000.0), bw, rate);
-    FUZZ_CHECK(isfinite(q) && q >= 0.0, "omx_eq_bandwidth_q gave %g", q); /* 0 where sinh overflows: the table has it */
+    /* The width to Q conversion is finite and not negative.
+     * mutant: include/omxdsp/omx_eq_design.h:321 `1.0 / (2.0 *` -> `-1.0 / (2.0 *`
+     * input: bank-0 */
+    if (!(isfinite(q) && q >= 0.0)) {
+      FUZZ_SAY("omx_eq_bandwidth_q gave %g", q);
+      abort();
+    } /* 0 where sinh overflows: the table has it */
   }
   const double q2 = omx_eq_octaves_q(bw);
-  FUZZ_CHECK(isfinite(q2) && q2 > 0.0, "omx_eq_octaves_q(%g) gave %g", bw, q2);
+  /* The octaves to Q conversion is finite and above 0.
+   * mutant: include/omxdsp/omx_eq_design.h:417 `if (q < OMX_EQ_Q_MIN) q = OMX_EQ_Q_MIN;` -> `q = -q;`
+   * input: bank-0 */
+  if (!(isfinite(q2) && q2 > 0.0)) {
+    FUZZ_SAY("omx_eq_octaves_q(%g) gave %g", bw, q2);
+    abort();
+  }
   fuzz_ledger_check("eq widths", omx_rate_is_declared((float)rate), 0);
   return 0;
 }
