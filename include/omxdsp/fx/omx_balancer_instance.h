@@ -159,10 +159,10 @@ static inline void omx_balancer_tick(OmxBalancerInstance *s) {
 #define OMX_CONTRACT_STAGE "balancer/instance-run"
 static inline void omx_balancer_instance_run(OmxBalancerInstance *s, const float *in_l, const float *in_r, float *out_l,
                                              float *out_r, uint32_t n) {
+  uint32_t o = 0u;
   if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled) return;
   OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
-  uint32_t o = 0u;
   while (o < n) {
     const uint32_t m = s->left < n - o ? s->left : n - o;
     for (uint32_t i = o; i < o + m; i++) {

@@ -91,6 +91,12 @@ library exists.
 
 %changelog
 * Sun Nov 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.28.0-1
+- New faces, each with closed-form oracles at the nine rates: clipper, upward
+  (an upward compressor), glue (a bus compressor), loudlevel (a leveler to a
+  LUFS target), balancer (a spectral balancer), spring (a spring reverb).
+- plosive sensitivityDb and popSensitivityDb come up at 16 dB, above the
+  steady contrast of a buzzy vowel. The leveler's table and width's comb and
+  bass mono stand as declared; none of these is provisional now.
 - New: mix/omx_slew.h, a gain that crosses a declared time instead of one
   block, omx_slew_step, omx_slew_gain and omx_slew_hold (the fade a rewire
   needs), with closed-form oracles and digests at the nine rates (#235).
