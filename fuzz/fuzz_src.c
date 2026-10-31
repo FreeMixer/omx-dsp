@@ -16,7 +16,10 @@
  * and the harness holds it to refusing exactly that; a refused plan ends the input.
  *
  * Properties, each an abort():
+ *   - the plan is taken exactly when both rates are above 0 and out / gcd(out, in) is at most
+ *     OMX_SRC_MAX_L;
  *   - the plan is the REDUCED ratio: l/m equals out/in, and gcd(l, m) is 1;
+ *   - the coefficients of each phase of the table sum to 1, to float rounding;
  *   - a call never makes more outputs than omx_src_out_capacity() allows for its input, and a take run
  *     without a flush makes no more than a whole file's omx_src_out_frames() plus the filter's half
  *     length (the outputs its first samples wait for);
@@ -88,6 +91,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       abort();
     }
     return 0;
+  }
+  /* A plan taken is one that can be sized: neither rate is 0, and the factor is inside the limit.
+   * mutant: include/omxdsp/omx_src.h:89 `l > OMX_SRC_MAX_L` -> `l > 2u * OMX_SRC_MAX_L`
+   * input: one-to-1025 */
+  if (!(rin != 0 && rout != 0 && rout / gcd(rout, rin) <= OMX_SRC_MAX_L)) {
+    FUZZ_SAY("the plan took %u -> %u, past the limit of %u", (unsigned)rin, (unsigned)rout, (unsigned)OMX_SRC_MAX_L);
+    abort();
   }
   /* The plan is reduced, by the harness's own gcd.
    * mutant: include/omxdsp/omx_src.h:86 `omx_src_gcd(out_rate, in_rate)` -> `1u`
@@ -180,6 +190,18 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       FUZZ_SAY("an identity plan changed the take");
       abort();
     }
+  for (uint32_t ph = 0; ph < p.l; ph++) {
+    double sum = 0.0;
+    for (uint32_t k = 0; k < p.taps; k++) sum += (double)coef[(size_t)ph * p.taps + k];
+    /* The coefficients of each phase sum to 1, the rule of the table in omx_src.h. The bound on the
+     * outputs above takes its gain from this table, so this is what holds the table's scale.
+     * mutant: include/omxdsp/omx_src.h:201 `*= g;` -> `*= 2.0f * g;`
+     * input: 44100-48000 */
+    if (!(fabs(sum - 1.0) <= 1e-4)) {
+      FUZZ_SAY("%u -> %u: phase %u of the table sums to %g", (unsigned)rin, (unsigned)rout, (unsigned)ph, sum);
+      abort();
+    }
+  }
   fuzz_ledger_clean("src");
   free(coef);
   free(a);
