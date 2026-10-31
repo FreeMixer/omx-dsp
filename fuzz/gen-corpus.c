@@ -274,6 +274,27 @@ static void gen_eq(void) {
   f64(&s, 1.0);
   f64(&s, 1000.0);
   finish("eq", "eq-off-mono", &s);
+  /* two bands on, a live EQ, one leg: {kind, gain, parked} of each band */
+  static const struct { const char *name; unsigned kind[2]; double gain[2]; unsigned park[2]; } TWO[] = {
+      {"parked-and-live", {0, 0}, {3.0, 3.0}, {1, 0}},  /* a peaking band at 0 dB, then a live one */
+      {"shelf-then-shelf", {1, 2}, {6.0, -6.0}, {0, 0}}, /* a low shelf, then a high shelf: their gains at DC differ */
+  };
+  for (size_t k = 0; k < sizeof TWO / sizeof TWO[0]; k++) {
+    u8(&s, 0x02); u8(&s, 2);
+    u8(&s, 0); f64(&s, 80.0); u8(&s, 0);
+    u8(&s, 0); f64(&s, 16000.0); u8(&s, 0);
+    u8(&s, 1);
+    for (int i = 0; i < 2; i++) {
+      u8(&s, TWO[k].kind[i]); u8(&s, 1); f64(&s, 1000.0); f64(&s, 1.0); u16(&s, range16(TWO[k].gain[i], -24.0, 24.0)); u8(&s, TWO[k].park[i]);
+    }
+    f64(&s, 1000.0);
+    u8(&s, 99);
+    sine(&s, 100, 3.0, 0.4);
+    sine(&s, 100, 5.0, 0.4);
+    f64(&s, 1.0);
+    f64(&s, 1000.0);
+    finish("eq", TWO[k].name, &s);
+  }
   free(s.p);
 }
 
@@ -297,6 +318,7 @@ static void gen_src(void) {
     finish("src", PAIRS[k].name, &s);
   }
   u32(&s, 6); u32(&s, 4); u8(&s, 0); finish("src", "six-to-four", &s); /* a ratio that reduces, at rates the limit takes */
+  u32(&s, 1); u32(&s, 1025); u8(&s, 0); finish("src", "one-to-1025", &s); /* the first factor past the limit */
   u32(&s, 0); u32(&s, 48000); u8(&s, 0); finish("src", "zero-rate", &s);
   u32(&s, 44100); u32(&s, 4294967295u); u8(&s, 0); finish("src", "huge-ratio", &s);
   free(s.p);
@@ -322,6 +344,12 @@ static void gen_delay(void) {
   u8(&s, 31); f32(&s, NAN); sine(&s, 32, 3.0, 0.5);
   u8(&s, 31); f32(&s, INFINITY); sine(&s, 32, 3.0, 0.5);
   finish("delay", "fractional-tiny-ring", &s);
+  /* an order the kernel does not have, so an unarmed line; a block that starts away from 0 */
+  u8(&s, 1u | 8u);
+  u16(&s, 999);
+  u8(&s, 4);
+  u8(&s, 3); f32(&s, 1.5f); for (int i = 0; i < 4; i++) u16(&s, 8192u);
+  finish("delay", "fractional-refused-order", &s);
   for (int mono = 0; mono < 2; mono++) {
     u8(&s, mono ? 4u : 0u);
     u16(&s, 3000);
