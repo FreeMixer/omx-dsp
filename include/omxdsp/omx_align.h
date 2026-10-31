@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
- * @file omx_align.h (formerly the alignment stage of the console's mix_dsp.h)
+ * @file omx_align.h
  * @brief The input alignment delay: one microphone pushed back to meet another.
  *
  * A per-STRIP input-stage latency: 100 % wet, no feedback, applied beside trim and polarity so

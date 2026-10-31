@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
- * omx_drive_instance.h (formerly mix_drive_lv2.h) — the DRIVE stage as a live insert for other
+ * omx_drive_instance.h — the DRIVE stage as a live insert for other
  * hosts: the shell's core, with no format in it.
  *
  * Under the HRP shells rule (one C core, several shells — what

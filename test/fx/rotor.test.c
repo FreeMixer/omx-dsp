@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
- * The rotor word's oracle (omx_rotor.h, formerly openmixer's mix_rotor.test.c),
+ * The rotor word's oracle (omx_rotor.h),
  * the design, at the nine oracle rates (32 to
  * 192 kHz), closed forms in double.
  *
