@@ -335,6 +335,8 @@ checks:
 	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
+	bash tools/travel-grid-check.sh
+	bash tools/travel-grid-check.sh --self-test
 	bash tools/umbrella-check.sh
 	bash tools/umbrella-check.sh --self-test
 	bash tools/face-conformance.sh
