@@ -17,13 +17,7 @@
 #include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_fft.h>
-
-/* Round half up, as the TS `Math.round` core computed with. */
-static double round_half_up(double x) {
-  double r = floor(x);
-  if (x - r >= 0.5) r += 1.0;
-  return r;
-}
+#include <omxdsp/omx_units.h>
 
 /* 20·log10(x) floored, as core's `linearToDbFloored`; `linearGainToDb` reads −∞ at or under 0. */
 static double lin_to_db_floored(double x, double floor_db) {
@@ -182,13 +176,13 @@ void omx_room_curve(const OmxRoomAccum *acc, double floor_db, double *hz, double
  * selection's `n / (k_hi − k_lo + 1)`. No two accepted arrivals sit closer. */
 static uint32_t impulse_lobe(const OmxRoomAccum *acc) {
   const double band_bins = acc->k_hi >= acc->k_lo ? (double)(acc->k_hi - acc->k_lo + 1u) : 1.0;
-  const double lobe = round_half_up((2.0 * (double)acc->fft_size) / band_bins);
+  const double lobe = omx_round_half_up((2.0 * (double)acc->fft_size) / band_bins);
   return lobe > 1.0 ? (uint32_t)lobe : 1u;
 }
 
 static double impulse_horizon(const OmxRoomAccum *acc, double window_ms) {
   const double sample_ms = 1000.0 / acc->sample_rate;
-  return round_half_up(window_ms / sample_ms);
+  return omx_round_half_up(window_ms / sample_ms);
 }
 
 uint32_t omx_room_impulse_capacity(const OmxRoomAccum *acc, double window_ms) {

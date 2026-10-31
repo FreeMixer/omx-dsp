@@ -14,18 +14,12 @@
 
 #include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_fft.h>
+#include <omxdsp/omx_units.h>
 
 #define OMX_CONTRACT_STAGE "analysis/sweep"
 
-/* Round half up, as the TS `Math.round` core computed with. */
-static double round_half_up(double x) {
-  double r = floor(x);
-  if (x - r >= 0.5) r += 1.0;
-  return r;
-}
-
 uint32_t omx_sweep_length(double sample_rate, double duration_s) {
-  const double n = round_half_up(duration_s * sample_rate);
+  const double n = omx_round_half_up(duration_s * sample_rate);
   if (!(n > 0.0) || !(n <= 2147483648.0)) return 0;
   return (uint32_t)n;
 }
@@ -53,7 +47,7 @@ int omx_sweep_generate(double sample_rate, double f0, double f1, double duration
     const double t = (double)i / sample_rate;
     stimulus[i] = sin(K * (exp(t / L) - 1.0));
   }
-  hann_fades(stimulus, n, round_half_up(fade_in_s * sample_rate), round_half_up(fade_out_s * sample_rate));
+  hann_fades(stimulus, n, omx_round_half_up(fade_in_s * sample_rate), omx_round_half_up(fade_out_s * sample_rate));
 
   /* The time-reversed sweep under the +6 dB/oct envelope e^{tRev/L}. */
   for (uint32_t i = 0; i < n; i++) {

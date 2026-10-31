@@ -15,14 +15,6 @@
 
 static double to_db(double mag) { return omx_lin_to_db_d(mag, OMX_FBS_FLOOR_LIN_DOUBLE); }
 
-/* Round half up, as the TS `Math.round` the recorded depths were computed with. */
-static double round_half_up(double x) {
-  double r = floor(x);
-  if (x - r >= 0.5) r += 1.0;
-  if (r == 0.0 && x < 0.0) r = -0.0;
-  return r;
-}
-
 OmxFbsThresholds omx_fbs_thresholds_default(void) {
   OmxFbsThresholds t;
   memset(&t, 0, sizeof(t));
@@ -160,7 +152,7 @@ static OmxFbsCandidate candidate_of(const OmxFbsDetector *d, const double *m, ui
   OmxFbsCandidate c;
   c.bin = bin;
   c.freq_hz = ((double)bin * d->sample_rate) / (double)d->fft_size;
-  const double r = round_half_up(papr(m, n, bin, total));
+  const double r = omx_round_half_up(papr(m, n, bin, total));
   c.depth_db = -(r < OMX_FBS_MAX_NOTCH_DEPTH_DB ? r : (double)OMX_FBS_MAX_NOTCH_DEPTH_DB);
   c.q = OMX_FBS_DEFAULT_NOTCH_Q;
   c.persistence = persistence;
