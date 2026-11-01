@@ -84,6 +84,9 @@
     },
     "HRP_FAMILY_SEARCH": {
       "kind": "sheet",
+      "source": {
+        "impl": "include/omxdsp/analysis/omx_hrp_correct.h#omx_hrp_family_search"
+      },
       "doc": "What each instrument family implies about the HRP search: `maxVoices`, how many notes the family can sound at once (the number its corrections are budgeted against), and `f0MinHz` to `f0MaxHz`, where its fundamentals can lie. Each is the widest the family can be, not the typical one: a range too narrow hides a note from the detector, one slightly too wide costs a few more sweep steps. One entry per INSTRUMENT_FAMILIES id; the confidence floor does not follow the family.",
       "value": {
         "drums": {

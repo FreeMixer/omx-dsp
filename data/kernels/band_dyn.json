@@ -113,6 +113,9 @@
   "constants": {
     "BAND_DYN_KNEE_DB": {
       "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_dyneq_instance.h#omx_dyneq_instance_resolve"
+      },
       "doc": "The soft knee of the band's gain computer, in dB. One knee for the one band-dynamics word, shared by every stage that runs it, the de-esser included: a second spelling of 6 would be a second place where the reduction starts.",
       "unit": "dB",
       "value": 6
@@ -127,6 +130,12 @@
     },
     "DETECTOR_OVERSAMPLE_AUTO_MS": {
       "kind": "scalar",
+      "source": {
+        "impl": {
+          "link": "core/src/model.ts#balanceGains",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "The shortest attack, in ms, at which the compressor's detector does not alias. Below it the compressor engages its 4x control path, which adds 72 samples of latency; a zero-latency band has no such path, so its attack travel stops at this floor.",
       "unit": "ms",
       "value": 0.5

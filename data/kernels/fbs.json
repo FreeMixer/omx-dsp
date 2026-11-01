@@ -102,6 +102,10 @@
         "from": {
           "link": "core/src/feedback.ts#FBS_TRACK_SLOTS",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": {
+          "link": "pipewire-native/src/fbs_detect_addon.c#js_fbs_create",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "Tracked candidate bins per armed channel. A candidate that finds no free slot is COUNTED and reported, never dropped silently; the identity corpus peaks at 34.",
@@ -114,6 +118,10 @@
         "from": {
           "link": "core/src/feedback.ts#PSHR_MIN_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": {
+          "link": "core/src/feedback.ts#binToHz",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "Minimum PSHR (`omx_fbs_pshr`) (dB) for a candidate frame to count as sub-harmonic-CLEAN. Evidence-set on the #116 corpus, margin on both sides: the four live false positives (musical overtones at 1 869.1 / 832.0 / 263.7 / 228.5 Hz) read PSHR between −10.2 and +8.8 dB across their windows — never a 5-frame sub-clean stretch, and the single closest approach (+8.8) is isolated between frames at ≈ −1 and −10 — while the committed #106 injected ramp reads ≥ +12.2 dB from its second frame on (its frame 0 sits at +9.4, costing exactly one frame of confirm latency, pinned in the corpus test). A static program line at f/2 of REAL feedback also clears this fast: the runaway gains several dB per hop on anything static, so the deferral is transient.",
@@ -152,6 +160,10 @@
         "from": {
           "link": "core/src/feedback.ts#GROWTH_MIN_DB_PER_FRAME",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": {
+          "link": "core/src/feedback.ts#binToHz",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "Minimum least-squares slope, in dB PER FRAME, over GROWTH_WINDOW_FRAMES for a bin to count as \"running away\" rather than merely holding level. Set with real margin on BOTH sides — comfortably above measurement jitter on a held tone or a quiet/broadband mix (well under 0.2 dB/frame in practice) and comfortably below a genuine feedback ramp, which climbs several dB across a handful of ~20 ms hops as it heads toward clipping. The acceptance bar is \"arming must never burst-alarm on non-growing content\", so this errs conservative (under-fire a marginal ramp) rather than tight (risk a false alarm) — the ramp gate (`omx_fbs_is_growing`) also requires the window's end to sit above its start, a cheap belt-and-braces check against a fit dragged positive by one mid-window wobble.",
@@ -164,6 +176,10 @@
         "from": {
           "link": "core/src/feedback.ts#GROWTH_MAX_DIP_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": {
+          "link": "core/src/feedback.ts#binToHz",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "Largest single-frame DIP (dB) a run-away window may contain. Real feedback climbs every hop; a small allowance covers measurement jitter and the −0.3 dB-ish wobble frames seen on live captures, while any real drop (a note ending, tremolo) breaks the run.",
@@ -176,6 +192,10 @@
         "from": {
           "link": "core/src/feedback.ts#GROWTH_MIN_TOTAL_RISE_DB",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": {
+          "link": "core/src/feedback.ts#binToHz",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "Minimum END-TO-END rise (dB) across the window. The live-music corpus showed sustained melody notes drifting up ~4–5 dB over a window without ever being feedback; a loop past unity gains several dB per hop and clears 6 dB in a window trivially. Below this the tone is holding level, not running away.",
@@ -188,6 +208,10 @@
         "from": {
           "link": "core/src/feedback.ts#GROWTH_MAX_SINGLE_FRAME_SHARE",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": {
+          "link": "core/src/feedback.ts#binToHz",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "Cap on the share of the window's total rise a SINGLE frame may carry. Feedback is exponential in amplitude ⇒ linear in dB ⇒ its rise is distributed roughly evenly across the window; a musical attack / re-articulation puts almost the whole rise in one hop (the exact shape behind every one of the 72 live false positives of the live-music corpus). One half is generous to real ramps (an even N-frame ramp puts 1/(N−1) per hop) and fatal to steps. A side effect worth knowing: a 2-sample window can never pass (one hop IS the whole rise), so confirmation always rests on at least three frames of actual ramp evidence.",
@@ -200,6 +224,10 @@
         "from": {
           "link": "core/src/feedback.ts#GROWTH_CONFIRM_FRAMES",
           "at": "openmixer@121319166e6a82ffb189fb6ad1c8b71cd6527459"
+        },
+        "impl": {
+          "link": "core/src/feedback.ts#binToHz",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "How many CONSECUTIVE frames the ramp gate (`omx_fbs_is_growing`) must hold before a bin confirms — the time-domain tiebreak for the one shape a single window cannot judge: a smooth musical crescendo. Within one window a +6 dB swell (live corpus: a C6 at 1 049 Hz, `[-53.7, -51.4, -50.4, -48, -47.3]`) is indistinguishable from slow feedback — the difference is only visible on the NEXT hop, where a crescendo peaks and plateaus (the window's rise collapses) while feedback keeps climbing. Requiring the gate to hold twice in a row costs a clean ramp nothing — its gate is already true while persistence is still arming — and blocks the swell that peaks the very frame it would have confirmed.",

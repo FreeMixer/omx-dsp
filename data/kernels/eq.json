@@ -204,6 +204,12 @@
     {
       "name": "bandOn",
       "kind": "choice",
+      "source": {
+        "impl": {
+          "link": "catalog/src/linked-plugins.generated.ts#LINKED_PLUGIN_ENTRIES",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "A band's switch. Off, the band is not in the EQ's bank (the slots close up); on, it runs, parked when it is a gain-carrying shape at 0 dB. A band comes up off (operator ruling, 2026-10-13): an omx-eq plugin brings every band up off so a racked instance is a wire, and the console's channel EQ reads its come-up value here. A stored session keeps its own band states; only a fresh band comes up off.",
       "ids": [
         "off",
@@ -294,12 +300,24 @@
     },
     "OPERATOR_EQ_BANDS_RESERVE": {
       "kind": "scalar",
+      "source": {
+        "impl": {
+          "link": "declarations/src/index.ts#MAX_INPUT_CHANNELS",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "The band slots kept for the operator's own hand: the reserve the feedback suppressor and the ring correction may never eat into. Nine is the working set a live EQ actually holds. The budget OPERATOR_EQ_BANDS_RESERVE + FBS_DEFAULT_MAX_AUTO_BANDS + HRP_DEFAULT_MAX_AUTO_BANDS (9 + 6 + 8 = 23) must fit EQ_MAX_BANDS, and `omx-contract validate` refuses data where it does not.",
       "unit": "",
       "value": 9
     },
     "EQ_BAND_COUNTS": {
       "kind": "sheet",
+      "source": {
+        "impl": {
+          "link": "plugins/omx-eq16/generated/omx_eq16_params.h#OMX_EQ_INSTANCE_BANDS",
+          "at": "omx-plugins@be3c0b104a730667a34fed4db5d9592739f27aa4"
+        }
+      },
       "doc": "How many bands each strip type's EQ starts with (`default`) and may hold (`max`). `channel` is the console's channel strip: it starts with four and the operator adds bands up to EQ_MAX_BANDS (a band added takes the frequency it is added at, so no default is declared for it). `strip` is the omx-strip plugin's EQ and `eq8`, `eq16` and `eq32` the omx-eq plugins, whose bands are fixed. A default may never exceed its maximum, and the default centres of any count come from the one default rule, whatever the strip.",
       "value": {
         "channel": {
@@ -350,6 +368,9 @@
     },
     "EQ_DEFAULT_CENTRES_FOUR_BAND_HZ": {
       "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/omx_eq_defaults.h#omx_eq_default_centres"
+      },
       "doc": "The default band centres of a four-band EQ, Hz: ISO 266 preferred values, two to two and a half octaves apart. The default rule gives every other band count its centres from the preferred series; four bands start here.",
       "unit": "Hz",
       "values": [
@@ -361,6 +382,9 @@
     },
     "EQ_CENTRE_SERIES_R20_HZ": {
       "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/omx_eq_defaults.h#omx_eq_default_centres"
+      },
       "doc": "The ISO 266 R20 preferred frequencies from 20 Hz to 20 kHz (61 values, sixth-octave spacing): the finer series the default band rule falls back to where R10 (ISO_THIRD_OCTAVE_CENTRES_HZ, 31 values) has too few to give every band its own centre. R10 is a subset of it.",
       "unit": "Hz",
       "values": [
@@ -429,6 +453,9 @@
     },
     "LOWPASS_HANDOVER": {
       "kind": "sheet",
+      "source": {
+        "impl": "include/omxdsp/omx_eq_design.h#OMX_EQ_LOWPASS_HANDOVER_Q_HI"
+      },
       "doc": "Where the low-pass section hands its poles over from the matched pair to the prewarped bilinear pair, as fractions of Nyquist, and how that band moves with Q. At `qHi` (1/sqrt(2), the 12 dB Butterworth) the band runs from `loAtHiQ` to `hiAtHiQ`; at `qLo` (0.5412, the low-Q half of the 24 dB Butterworth) and below, from `loAtLoQ` to `hiAtLoQ`; between the two it moves linearly. Above `qHi` the prototype peaks, and the band's end moves down to `hiAtPeakQ` by `qPeak`, held above it. Below the band the low-pass is the matched design unchanged.",
       "value": {
         "qHi": {
