@@ -57,7 +57,7 @@ sabotage drive fx/omx_clipper_instance.h 's|  const float g = s->drive_lin, c = 
 pids+=($!)
 sabotage readout fx/omx_clipper_instance.h 's|omx_lin_to_db(kept / over) : 0.0f|0.5f * omx_lin_to_db(kept / over) : 0.0f|' D &
 pids+=($!)
-sabotage bypass fx/omx_clipper_instance.h 's|  s->enabled = !bypass;|  s->enabled = !bypass || 1;|' A &
+sabotage bypass fx/omx_clipper_instance.h 's#  s->enabled = !bypass;#  s->enabled = !bypass || 1;#' A &
 pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
