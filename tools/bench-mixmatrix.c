@@ -12,11 +12,17 @@
  * ns/strip-output-frame it prints is the one that falls as the matrix gets sparser, which is the
  * number the "sparse-aware" decision is for. Every entry ramps (the worst case for both passes).
  * Prints one TSV row per strip count: strips, frames, dense_ns, sparse_ns.
+ *
+ * Then the budget: a 64 x 32 matrix, dense, every entry ramping, at quanta 64 and 1024, against
+ * MIXMATRIX_PERIOD_SHARE of the period at each of the nine oracle rates. The time is the fastest of REPS
+ * passes, which a loaded machine can only make slower. Exit 1 when a pass is over the budget.
+ * `--share S` asks for another share, so `make bench-mixmatrix` can watch a budget nothing can meet go red.
  */
 #include <omxdsp/omxdsp.h>
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #define OUT 16u
@@ -35,8 +41,62 @@ static double now_ns(void) {
   return (double)t.tv_sec * 1e9 + (double)t.tv_nsec;
 }
 
-int main(void) {
+/* The fastest of REPS passes of a dense strips x outs matrix over `frames`, every entry ramping, in ns. */
+static double dense_best_ns(uint32_t strips, uint32_t outs, uint32_t frames) {
+  float *in_buf = calloc((size_t)strips * frames, sizeof(float));
+  float *out_buf = calloc((size_t)outs * frames, sizeof(float));
+  float *g_prev = calloc((size_t)strips * outs, sizeof(float));
+  float *g_cur = calloc((size_t)strips * outs, sizeof(float));
+  const float **in_ptr = calloc(strips, sizeof *in_ptr);
+  float **out_ptr = calloc(outs, sizeof *out_ptr);
+  if (!in_buf || !out_buf || !g_prev || !g_cur || !in_ptr || !out_ptr) {
+    fprintf(stderr, "bench-mixmatrix: allocation failed\n");
+    exit(2);
+  }
+  uint32_t seed = 0x5eed5eedu;
+  for (size_t i = 0; i < (size_t)strips * frames; i++) {
+    seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+    in_buf[i] = ((float)(seed >> 8) / 16777216.0f) * 2.0f - 1.0f;
+  }
+  for (size_t i = 0; i < (size_t)strips * outs; i++) {
+    seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+    g_prev[i] = (float)(seed >> 8) / 16777216.0f;
+    g_cur[i] = 1.0f - g_prev[i];
+  }
+  for (uint32_t s = 0; s < strips; s++) in_ptr[s] = &in_buf[(size_t)s * frames];
+  for (uint32_t o = 0; o < outs; o++) out_ptr[o] = &out_buf[(size_t)o * frames];
+  double best = -1.0;
+  for (uint32_t r = 0; r < REPS; r++) {
+    const double a = now_ns();
+    omx_mixmatrix_dense(out_ptr, in_ptr, g_prev, g_cur, strips, outs, frames);
+    const double took = now_ns() - a;
+    if (best < 0.0 || took < best) best = took;
+  }
+  free(in_buf); free(out_buf); free(g_prev); free(g_cur); free(in_ptr); free(out_ptr);
+  return best;
+}
+
+/* The budget: 64 x 32 at quanta 64 and 1024, at every oracle rate. Returns the passes over `share`. */
+static int period_share(double share) {
+  static const float rates[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
+  static const uint32_t quanta[] = {64u, 1024u};
+  int over = 0;
+  printf("rate\tframes\tbest_ns\tshare_of_period\tbudget\n");
+  for (size_t q = 0; q < sizeof quanta / sizeof quanta[0]; q++) {
+    const double best = dense_best_ns(64u, 32u, quanta[q]);
+    for (size_t r = 0; r < OMX_ORACLE_FULL_RATES_COUNT; r++) {
+      const double period_ns = (double)quanta[q] * 1e9 / (double)rates[r];
+      const double got = best / period_ns;
+      printf("%.0f\t%u\t%.0f\t%.4f\t%.4f\n", (double)rates[r], quanta[q], best, got, share);
+      over += got > share;
+    }
+  }
+  return over;
+}
+
+int main(int argc, char **argv) {
   static const uint32_t strip_counts[] = {32u, 64u, 97u};
+  const double share = argc == 3 && strcmp(argv[1], "--share") == 0 ? strtod(argv[2], NULL) : OMX_MIXMATRIX_PERIOD_SHARE_DOUBLE;
   uint32_t seed = 0x5eed5eedu;
 
   printf("strips\tframes\tdense_ns_per_sof\tsparse_ns_per_sof\n");
@@ -108,6 +168,11 @@ int main(void) {
 
     free(in_buf); free(out_buf); free(g_prev); free(g_cur);
     free(in_ptr); free(out_ptr); free(entries); free(dense_ns); free(sparse_ns);
+  }
+  const int over = period_share(share);
+  if (over) {
+    fprintf(stderr, "bench-mixmatrix: %d passes over the budget of %.4f of the period\n", over, share);
+    return 1;
   }
   return 0;
 }

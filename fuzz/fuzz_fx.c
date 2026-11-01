@@ -30,7 +30,9 @@
 #define OMX_CONTRACT_STORAGE 1
 #include "fuzz.h"
 
+#include <omxdsp/fx/omx_balancer_instance.h>
 #include <omxdsp/fx/omx_chorus_instance.h>
+#include <omxdsp/fx/omx_clipper_instance.h>
 #include <omxdsp/fx/omx_comp_instance.h>
 #include <omxdsp/fx/omx_deesser_instance.h>
 #include <omxdsp/fx/omx_delay_instance.h>
@@ -54,6 +56,10 @@
 #include <omxdsp/fx/omx_transient_instance.h>
 #include <omxdsp/fx/omx_tremolo_instance.h>
 #include <omxdsp/fx/omx_trim_instance.h>
+#include <omxdsp/fx/omx_glue_instance.h>
+#include <omxdsp/fx/omx_loudlevel_instance.h>
+#include <omxdsp/fx/omx_spring_instance.h>
+#include <omxdsp/fx/omx_upward_instance.h>
 #include <omxdsp/fx/omx_width_instance.h>
 
 
@@ -93,6 +99,8 @@ struct fx {
 FX_STD(chorus, OmxChorusInstance,
        { float spread = F(), rate = F(), depth = F(), voices = F(), mix = F();
          omx_chorus_instance_resolve(s, bypass, spread, rate, depth, voices, mix); })
+FX_STD(clipper, OmxClipperInstance,
+       { float dr = F(), ce = F(), so = F(); omx_clipper_instance_resolve(s, bypass, dr, ce, so); })
 FX_STD(deesser, OmxDeesserInstance,
        { float f = F(), w = F(), th = F(), ra = F(), rg = F(), at = F(), re = F();
          int mode = I();
@@ -101,8 +109,10 @@ FX_STD(delay, OmxDelayInstance,
        { float t = F(), fb = F(), tone = F(), mix = F();
          int pp = I(), sync = I(), div = I(), mode = I();
          float dd = F(), dt = F(), dr = F();
+         float nt = F(), g0 = F(), p0 = F(), g1 = F(), p1 = F(), g2 = F(), p2 = F(), g3 = F(), p3 = F();
+         int f1 = I(), f2 = I(), f3 = I();
          omx_delay_instance_set_tempo(s, F());
-         omx_delay_instance_resolve(s, bypass, t, fb, tone, mix, pp, sync, div, mode, dd, dt, dr); })
+         omx_delay_instance_resolve(s, bypass, t, fb, tone, mix, pp, nt, g0, p0, f1, g1, p1, f2, g2, p2, f3, g3, p3, sync, div, mode, dd, dt, dr); })
 FX_STD(doubler, OmxDoublerInstance,
        { float v = F(), d = F(), dc = F(), mr = F(), md = F(), sp = F(), mx = F();
          omx_doubler_instance_resolve(s, bypass, v, d, dc, mr, md, sp, mx); })
@@ -146,6 +156,17 @@ FX_STD(transient, OmxTransientInstance,
 FX_STD(tremolo, OmxTremoloInstance,
        { float r = F(), d = F(), m = F(); int mode = I(); omx_tremolo_instance_resolve(s, bypass, r, d, m, mode); })
 FX_STD(trim, OmxTrimInstance, { omx_trim_instance_resolve(s, bypass, F()); })
+FX_STD(glue, OmxGlueInstance,
+       { float t = F(); int r = I(), a = I(), l = I(); float m = F(), h = F(), x = F();
+         omx_glue_instance_resolve(s, bypass, t, r, a, l, m, h, x); })
+FX_STD(loudlevel, OmxLoudlevelInstance,
+       { float t = F(), r = F(), v = F(), g = F(); int w = I(); omx_loudlevel_instance_resolve(s, bypass, t, r, v, g, w); })
+FX_STD(spring, OmxSpringInstance,
+       { float d = F(), l = F(), t = F(), p = F(), m = F(); omx_spring_instance_resolve(s, bypass, d, l, t, p, m); })
+FX_STD(balancer, OmxBalancerInstance,
+       { float a = F(), r = F(), v = F(), l = F(); omx_balancer_instance_resolve(s, bypass, a, r, v, l); })
+FX_STD(upward, OmxUpwardInstance,
+       { float t = F(), r = F(), g = F(), a = F(), l = F(); omx_upward_instance_resolve(s, bypass, t, r, g, a, l); })
 FX_STD(width, OmxWidthInstance,
        { float w = F(); int ps = I(); float pm = F(); int bm = I(); float bh = F();
          omx_width_instance_resolve(s, bypass, w, ps, pm, bm, bh); })
@@ -242,7 +263,10 @@ static const struct fx FX[] = {
     ROW(pitch, OmxPitchInstance),     ROW(plosive, OmxPlosiveInstance), ROW(reverb, OmxReverbInstance),
     ROW(rotary, OmxRotaryInstance),   ROW(suboct, OmxSuboctInstance),   ROW(tone, OmxToneInstance),
     ROW(transient, OmxTransientInstance), ROW(tremolo, OmxTremoloInstance), ROW(trim, OmxTrimInstance),
-    ROW(width, OmxWidthInstance),
+    ROW(width, OmxWidthInstance),     ROW(clipper, OmxClipperInstance),
+    ROW(upward, OmxUpwardInstance),   ROW(glue, OmxGlueInstance),
+    ROW(loudlevel, OmxLoudlevelInstance), ROW(spring, OmxSpringInstance),
+    ROW(balancer, OmxBalancerInstance),
 };
 #define FX_COUNT (sizeof FX / sizeof FX[0])
 

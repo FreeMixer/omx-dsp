@@ -23,6 +23,8 @@
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_delay_instance.h>
 
+#define TAPS_IDLE (float)OMX_FX_DELAY_TAPS_RANGE_DEFAULT, 1.0f, 0.0f, (int)OMX_DELAY_TAP1_FACTORS_DEFAULT, 0.7f, -0.5f, (int)OMX_DELAY_TAP2_FACTORS_DEFAULT, 0.5f, 0.5f, (int)OMX_DELAY_TAP3_FACTORS_DEFAULT, 0.35f, 0.0f
+
 #include "instance_oracle.h"
 
 #include <stdlib.h>
@@ -81,7 +83,7 @@ static OmxDelayInstance g_d;
 
 static void setup(const struct ctl *c) {
   omx_delay_instance_init(&g_d, g_sr);
-  omx_delay_instance_resolve(&g_d, 0, c->time, c->fb, c->tone, c->mix, c->pingpong, c->sync, c->division, c->mode,
+  omx_delay_instance_resolve(&g_d, 0, c->time, c->fb, c->tone, c->mix, c->pingpong, TAPS_IDLE, c->sync, c->division, c->mode,
                              c->duck, c->thr, c->rel);
   drain();
 }
@@ -123,7 +125,7 @@ static void arm_identity(void) {
   run(g_l, g_r, g_ol, g_or, n);
   static OmxDelayInstance r;
   omx_delay_instance_init(&r, g_sr);
-  omx_delay_instance_resolve(&r, 0, c.time, c.fb, c.tone, c.mix, c.pingpong, 0, 6, 0, 0.0f, -30.0f, 250.0f);
+  omx_delay_instance_resolve(&r, 0, c.time, c.fb, c.tone, c.mix, c.pingpong, TAPS_IDLE, 0, 6, 0, 0.0f, -30.0f, 250.0f);
   memcpy(g_al, g_l, n * sizeof(float));
   memcpy(g_ar, g_r, n * sizeof(float));
   for (uint32_t o = 0; o < n; o += 512u) {
@@ -147,7 +149,7 @@ static void arm_tempo(void) {
       c.fb = 0.0f;
       omx_delay_instance_init(&g_d, g_sr);
       omx_delay_instance_set_tempo(&g_d, BPM[b]);
-      omx_delay_instance_resolve(&g_d, 0, c.time, c.fb, c.tone, c.mix, 0, c.sync, c.division, 0, 0.0f, -30.0f, 250.0f);
+      omx_delay_instance_resolve(&g_d, 0, c.time, c.fb, c.tone, c.mix, 0, TAPS_IDLE, c.sync, c.division, 0, 0.0f, -30.0f, 250.0f);
       drain();
       double ms = 60000.0 / BPM[b] * BEATS[dv];
       ms = ms < OMX_FX_DELAY_TIME_RANGE_MAX ? ms : OMX_FX_DELAY_TIME_RANGE_MAX;
@@ -353,7 +355,7 @@ static void arm_hostile(void) {
   for (unsigned h = 0; h < sizeof W / sizeof W[0]; h++) {
     omx_delay_instance_init(&g_d, g_sr);
     omx_delay_instance_set_tempo(&g_d, W[h]);
-    omx_delay_instance_resolve(&g_d, 0, W[h], W[h], W[h], W[h], 7, 5, 99, -3, W[h], W[h], W[h]);
+    omx_delay_instance_resolve(&g_d, 0, W[h], W[h], W[h], W[h], 7, TAPS_IDLE, 5, 99, -3, W[h], W[h], W[h]);
     drain();
     const struct omx_fx_delay_color *c = &g_d.color;
     ok(c->mode == OMX_DELAY_MODES_DEFAULT && c->duck.depth_db >= OMX_DELAY_DUCK_DB_RANGE_MIN && c->duck.depth_db <= 0.0f &&
@@ -367,7 +369,7 @@ static void arm_hostile(void) {
   /* A synced time past the travel is held at its top. */
   omx_delay_instance_init(&g_d, g_sr);
   omx_delay_instance_set_tempo(&g_d, 20.0f);
-  omx_delay_instance_resolve(&g_d, 0, 300.0f, 0.5f, 0.0f, 1.0f, 0, 1, 1, 0, 0.0f, -30.0f, 250.0f);
+  omx_delay_instance_resolve(&g_d, 0, 300.0f, 0.5f, 0.0f, 1.0f, 0, TAPS_IDLE, 1, 1, 0, 0.0f, -30.0f, 250.0f);
   drain();
   ok(g_d.atom.d_l == omx_fxdelay_ms_to_samples((float)OMX_FX_DELAY_TIME_RANGE_MAX, g_sr),
      "a synced time past the travel is held at its top", g_d.atom.d_l, 0);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
- * omx_drive_instance.h (formerly mix_drive_lv2.h) — the DRIVE stage as a live insert for other
+ * omx_drive_instance.h — the DRIVE stage as a live insert for other
  * hosts: the shell's core, with no format in it.
  *
  * Under the HRP shells rule (one C core, several shells — what
@@ -74,6 +74,7 @@
 #include <omxdsp/fx/omx_drive.h>
 #include <omxdsp/fx/omx_drive_design.h>
 #include <omxdsp/omxdsp_definitions.h> /* the drive kernel's controls: every travel below */
+#include <omxdsp/fx/omx_instance_io.h>
 #include <omxdsp/omx_param.h>
 
 #define OMX_DRIVE_INSTANCE_CHANNELS 2
@@ -225,8 +226,7 @@ static inline void omx_drive_instance_run(OmxDriveInstance *s, const float *in_l
    * restated at the host boundary because the copy is this function's. */
   if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
   OMX_PRE(omx_block_finite(in_l, n) && omx_block_finite(in_r, n), "finite-in");
-  if (out_l != in_l) memmove(out_l, in_l, (size_t)n * sizeof(float));
-  if (out_r != in_r) memmove(out_r, in_r, (size_t)n * sizeof(float));
+  omx_instance_copy(in_l, in_r, out_l, out_r, n);
   if (!s || !s->ready) return;
   omx_drive_process(out_l, out_r, n, &s->atom, &s->state);
   OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");

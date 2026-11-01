@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
- * @file omx_reverse_render.h (formerly the console's mix_reverse_render.h)
+ * @file omx_reverse_render.h
  * @brief The PRE-HIT reverse swell, offline, over a whole region.
  *
  * The pre-hit reverse is an offline render lane: it must not affect anything if not enabled. The

@@ -93,6 +93,13 @@
  *
  *   level  blocks of noise from silence to +10 dB, NaN and infinite samples among them, an empty
  *          block, at five display minimums: each reading, in double
+ *
+ * The slew (omx_slew.h) has no engine copy to move yet; its digests are the library's own:
+ *
+ *   slew_gain  noise through omx_slew_gain over a run of blocks, the target and the time moving between
+ *              them, NaN targets among them: the output and the cursor
+ *   slew_hold  noise with silent runs, one and two legs, through omx_slew_hold, the target moving between
+ *              blocks: the output and the position
  */
 #include <math.h>
 #include <stdatomic.h>
@@ -136,6 +143,9 @@
 #include <omxdsp/mix/omx_mix_coef.h>
 #include <omxdsp/mix/omx_pan_law.h>
 #include <omxdsp/mix/omx_rta_tap.h>
+#ifdef GOLDEN_LIBRARY
+#include <omxdsp/mix/omx_slew.h>
+#endif
 #ifdef OMX_GOLDEN_ENGINE_KEY
 #include "mix_key_engine.h" /* the engine's struct omx_key and omx_key_build, cut out of mix_lane.h */
 #elif defined(GOLDEN_LIBRARY)
@@ -884,7 +894,40 @@ static void render_level(const char *k, uint32_t rate) {
   }
 }
 
-#endif /* the level meter's reading */
+static void render_slew(const char *k, uint32_t rate) {
+  static const float ms[] = {5.0f, 1.0f, 20.0f, 0.0f, 50.0f};
+  static const float tgts[] = {0.0f, 1.0f, 0.25f, 1.0f, 0.0f, 0.5f};
+  uint32_t s = rate ^ 0x51e7u;
+  if (strcmp(k, "slew_gain") == 0) {
+    float cur = 1.0f;
+    for (uint32_t blk = 0; blk < 24u; blk++) {
+      const uint32_t n = (rate / 200u) >> (blk % 4u);
+      const float t = blk == 13u ? NAN : tgts[blk % 6u];
+      for (uint32_t i = 0; i < n; i++) g_a[i] = lcg_noise(&s);
+      omx_slew_gain(g_a, g_a, n, t, omx_slew_step(ms[blk % 5u], (float)rate), &cur);
+      put(g_a, n * sizeof(float));
+      put_f(cur);
+    }
+  }
+  if (strcmp(k, "slew_hold") == 0) {
+    float pos = 0.0f;
+    for (uint32_t blk = 0; blk < 24u; blk++) {
+      const uint32_t n = (rate / 200u) >> (blk % 4u);
+      const int silent = blk % 5u == 3u, two = blk % 2u == 0u;
+      for (uint32_t i = 0; i < n; i++) {
+        const float x = lcg_noise(&s);
+        g_a[i] = silent ? 0.0f : x;
+        g_b[i] = silent ? 0.0f : -0.5f * x;
+      }
+      omx_slew_hold(g_a, two ? g_b : g_a, g_a, g_b, n, blk % 3u == 0u ? 1.0f : 0.0f, omx_slew_step(ms[blk % 5u], (float)rate), &pos);
+      put(g_a, n * sizeof(float));
+      if (two) put(g_b, n * sizeof(float));
+      put_f(pos);
+    }
+  }
+}
+
+#endif /* the level meter's reading and the slew */
 
 static int digest(const char *k, uint32_t rate, char hex[65]) {
   g_len = 0;
@@ -904,6 +947,7 @@ static int digest(const char *k, uint32_t rate, char hex[65]) {
 #endif
 #ifdef GOLDEN_LIBRARY
   render_level(k, rate);
+  render_slew(k, rate);
 #endif
   if (g_overflow) {
     fprintf(stderr, "mix_golden: the %s record at %u Hz overflows\n", k, rate);
@@ -938,7 +982,7 @@ int main(int argc, char **argv) {
 #else
   static const char *const kernels[] = {"pan", "lcr", "strip", "fold", "bus_out", "peak", "clip", "hold", "gr", "rta", "bus_sum", "rt_load",
                                         "split", "route_fill", "route_fold", "fold_fill", "strip_meter", "settled", "lcr_clev",
-                                        "mix_strip", "bus_out_gain", "bus_out_stage", "key", "pb", "level"};
+                                        "mix_strip", "bus_out_gain", "bus_out_stage", "key", "pb", "level", "slew_gain", "slew_hold"};
 #endif
   const unsigned nk = sizeof kernels / sizeof kernels[0];
   int fail = 0, checked = 0;

@@ -15,6 +15,19 @@
 #include "omxdsp_definitions.h"
 
 /**
+ * @brief Round half up, as JavaScript's `Math.round` does: 2.5 reads 3, -2.5 reads -2, -0.4 reads -0.
+ * @param x The value.
+ * @return The nearest whole number, a tie going up.
+ * @note Control thread and analysis only: `floor` from libm. Thread-safe: pure.
+ */
+static inline double omx_round_half_up(double x) {
+  double r = floor(x);
+  if (x - r >= 0.5) r += 1.0;
+  if (r == 0.0 && x < 0.0) r = -0.0;
+  return r;
+}
+
+/**
  * @brief Decibels to linear amplitude, `10^(dB/20)`.
  * @param db Level, dB; any finite value.
  * @return The linear amplitude: 0 dB is 1, −6 dB is about 0.501.

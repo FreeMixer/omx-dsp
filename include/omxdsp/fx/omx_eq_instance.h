@@ -65,6 +65,7 @@
 #include <omxdsp/omxdsp_definitions.h>
 #include <omxdsp/omx_eq_defaults.h>
 #include <omxdsp/omx_eq_design.h>
+#include <omxdsp/fx/omx_instance_io.h>
 #include <omxdsp/omx_param.h>
 
 /* The band count, a compile-time constant: OMX_EQ_INSTANCE_BANDS, one of the contract's
@@ -515,8 +516,7 @@ static inline void omx_eq_instance_run(OmxEqInstance *s, const float *in_l, cons
                                        float *out_r, uint32_t n) {
   if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
   if (!s || !s->ready) {
-    if (out_l != in_l) memmove(out_l, in_l, (size_t)n * sizeof(float));
-    if (out_r != in_r) memmove(out_r, in_r, (size_t)n * sizeof(float));
+    omx_instance_copy(in_l, in_r, out_l, out_r, n);
     return;
   }
   omx_eq_lv2_run(&s->leg[0], in_l, out_l, n);

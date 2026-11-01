@@ -226,6 +226,17 @@ static void gen_laws(void) {
   u8(&s, 5); u8(&s, 2); f32(&s, 0.0f); f32(&s, 0.0f); u16(&s, 0); f32(&s, 48000.0f); f32(&s, 48000.0f);
   u16(&s, 30000); u16(&s, 50000); /* a pole of 0: the step is the input */
   finish("laws", "onepole", &s);
+  /* slew: time, rate index, block length, block mode, the block, cursor, target, the hold's position */
+  u8(&s, 6); f32(&s, 1e-30f); u8(&s, 2); u8(&s, 7); u8(&s, 0);
+  for (int i = 0; i < 8; i++) u16(&s, (unsigned)(i * 4099) & 0xFFFFu);
+  f32(&s, 1.0f); f32(&s, 0.25f); u16(&s, 40000); /* a jump: the step's ceiling, the landing */
+  u8(&s, 6); f32(&s, 1.0f); u8(&s, 2); u8(&s, 47); u8(&s, 0);
+  for (int i = 0; i < 48; i++) u16(&s, (unsigned)(i * 257) & 0xFFFFu);
+  f32(&s, 0.01f); f32(&s, 1.0f); u16(&s, 20000); /* 1 ms at 48 kHz from 0.01: the block ends on the sample that lands */
+  u8(&s, 6); f32(&s, NAN); u8(&s, 4); u8(&s, 3); u8(&s, 0);
+  for (int i = 0; i < 4; i++) u16(&s, 1000u);
+  f32(&s, NAN); f32(&s, INFINITY); u16(&s, 65535);
+  finish("laws", "slew", &s);
   free(s.p);
 }
 
