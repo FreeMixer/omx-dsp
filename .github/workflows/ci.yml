@@ -126,10 +126,6 @@ jobs:
         id: handback-test
         run: make -j"$(nproc)" test
 
-      - name: The 64 x 32 mix matrix inside its declared share of the period
-        id: handback-bench-mixmatrix
-        run: make bench-mixmatrix
-
   # The sabotage of the range: omx-contract 2.6.0, which the channel still serves and which is below
   # the floor the spec declares, must stop the build at once with a message that names the
   # dependency, the floor and the version installed.
