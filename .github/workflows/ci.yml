@@ -45,7 +45,7 @@ jobs:
     # one generation under -j8): serially the suite reached 39 to 43 minutes of this 60-minute limit
     # once the remaining-FX wave's oracles and perturbation scripts joined it, and one trixie run went
     # past it. Every check still runs.
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
