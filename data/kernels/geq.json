@@ -28,6 +28,9 @@
     {
       "name": "mode",
       "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_geq_instance.h#omx_geq_mode"
+      },
       "doc": "How the graphic EQ designs its sections from the faders, in the order of the integer the kernel reads (omx-dsp's enum omx_geq_mode): `standard` gives each section its fader as its gain, the classic proportional build-up; `true` solves the band interaction so the summed curve meets the faders at the centres, each section gain clamped at GEQ_DESIGN_GAIN_MAX_DB. A fresh instance comes up `standard`.",
       "ids": [
         "standard",

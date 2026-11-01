@@ -21,13 +21,5 @@
         "defaultFrom": "desk"
       }
     }
-  ],
-  "aggregates": {
-    "TRIM_TRAVELS": {
-      "doc": "The trim as a table with the one field `trimDb`, the name the trim row and the omx-strip plugin store; generated from the trim kernel's control, so the travel has one home.",
-      "fields": [
-        "trimDb"
-      ]
-    }
-  }
+  ]
 }
