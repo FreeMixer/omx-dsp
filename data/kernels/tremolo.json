@@ -68,6 +68,12 @@
     {
       "name": "mode",
       "kind": "choice",
+      "source": {
+        "impl": {
+          "link": "catalog/src/linked-plugins.generated.ts#LINKED_PLUGIN_ENTRIES",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "What the tremolo's one oscillator modulates, in the order of the integer the kernel reads: the level of both legs in phase (tremolo), or the balance law's position with the legs in opposition (pan).",
       "ids": [
         "tremolo",

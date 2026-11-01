@@ -369,7 +369,8 @@
         "from": {
           "link": "core/src/strip-dynamics-limits.ts#COMP_LIMITS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
-        }
+        },
+        "impl": "include/omxdsp/fx/omx_comp_instance.h#omx_comp_instance_resolve"
       },
       "doc": "The legal range of each compressor field (engineering units). The widget clamps drags to these, `normalizeComp` enforces them, the row's codec refuses by them and the travel sheet publishes them. `default`/`defaultFrom` are the come-up values `defaultCompState` seeds a fresh strip with, read BACK from here rather than restated there."
     }

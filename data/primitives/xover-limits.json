@@ -5,6 +5,9 @@
   },
   "XOVER_LIMITS": {
     "kind": "sheet",
+    "source": {
+      "impl": "include/omxdsp/omx_xover.h#omx_xover_design"
+    },
     "doc": "The Linkwitz-Riley crossover primitives' numbers. `lr2SectionQ` is the Q of the one cookbook section an LR2 crossover runs per band (a squared first-order Butterworth, critically damped); `lr4SectionQ` is the Q of each of the two sections an LR4 crossover runs (a squared second-order Butterworth); `partitionTolerance` is the fraction of max(1, block peak) within which the low and high outputs must sum to the all-pass output. Measured worst case 9e-8. Design constants and tolerances, not controls.",
     "value": {
       "lr2SectionQ": 0.5,
