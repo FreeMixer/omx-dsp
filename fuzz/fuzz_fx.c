@@ -109,8 +109,10 @@ FX_STD(delay, OmxDelayInstance,
        { float t = F(), fb = F(), tone = F(), mix = F();
          int pp = I(), sync = I(), div = I(), mode = I();
          float dd = F(), dt = F(), dr = F();
+         float nt = F(), g0 = F(), p0 = F(), g1 = F(), p1 = F(), g2 = F(), p2 = F(), g3 = F(), p3 = F();
+         int f1 = I(), f2 = I(), f3 = I();
          omx_delay_instance_set_tempo(s, F());
-         omx_delay_instance_resolve(s, bypass, t, fb, tone, mix, pp, sync, div, mode, dd, dt, dr); })
+         omx_delay_instance_resolve(s, bypass, t, fb, tone, mix, pp, nt, g0, p0, f1, g1, p1, f2, g2, p2, f3, g3, p3, sync, div, mode, dd, dt, dr); })
 FX_STD(doubler, OmxDoublerInstance,
        { float v = F(), d = F(), dc = F(), mr = F(), md = F(), sp = F(), mx = F();
          omx_doubler_instance_resolve(s, bypass, v, d, dc, mr, md, sp, mx); })

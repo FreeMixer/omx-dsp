@@ -6,6 +6,8 @@ omx-dsp (0.28.0) unstable; urgency=medium
   * plosive sensitivityDb and popSensitivityDb come up at 16 dB, above the
     steady contrast of a buzzy vowel. The leveler's table and width's comb and
     bass mono stand as declared; none of these is provisional now.
+  * The delay face takes its read taps: fxDelayTaps, tap0..3 gain and pan and
+    tap1..3Factor; resolve() gains those twelve arguments after pingpong.
   * New: mix/omx_slew.h, a gain that crosses a declared time instead of one
     block, omx_slew_step, omx_slew_gain and omx_slew_hold (the fade a rewire
     needs), with closed-form oracles and digests at the nine rates (#235).
