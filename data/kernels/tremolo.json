@@ -81,21 +81,5 @@
       ],
       "default": "tremolo"
     }
-  ],
-  "aggregates": {
-    "TREMOLO_TRAVELS": {
-      "source": {
-        "from": {
-          "link": "core/src/strip-fx-limits.ts#TREMOLO_TRAVELS",
-          "at": "openmixer@9e854a9c85d832905f2b5f93440af37b1fb99f9e"
-        }
-      },
-      "doc": "The tremolo's numeric travels, field → declaration: the ONE map the row's state, its bounds, its OPTIONS and its controller read (`mode` is a member set, TREMOLO_MODES, beside it).",
-      "fields": [
-        "rateHz",
-        "depth",
-        "mix"
-      ]
-    }
-  }
+  ]
 }

@@ -165,26 +165,6 @@
       ]
     }
   ],
-  "aggregates": {
-    "ROTARY_TRAVELS": {
-      "source": {
-        "from": {
-          "link": "core/src/strip-fx-limits.ts#ROTARY_TRAVELS",
-          "at": "openmixer@4fc6671b1677f520586175344772e0eb95fe39d9"
-        }
-      },
-      "doc": "The rotary's numeric travels, field → declaration: the ONE map the row's state, its bounds, its OPTIONS and its controller read (`speed` is a member set, ROTARY_SPEEDS, beside it).",
-      "fields": [
-        "hornSlowHz",
-        "hornFastHz",
-        "drumSlowHz",
-        "drumFastHz",
-        "accel",
-        "balance",
-        "mix"
-      ]
-    }
-  },
   "constants": {
     "ROTARY_CROSSOVER_HZ": {
       "kind": "scalar",

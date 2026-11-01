@@ -405,12 +405,6 @@
         }
       }
     },
-    "DYN_FB_LOOP_DELAY_SAMPLES": {
-      "kind": "scalar",
-      "doc": "The feedback detector's loop delay, in samples: the output y[n] depends on the gain at n, so the detector can only have heard y[n - 1]. Not a latency: the audio is never delayed by it. omx-dsp's feedback state holds exactly this many output samples per leg.",
-      "unit": "",
-      "value": 1
-    },
     "DETECTOR_OVERSAMPLE_LATENCY_SAMPLES": {
       "kind": "scalar",
       "source": {
