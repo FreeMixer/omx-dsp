@@ -117,20 +117,20 @@ typedef enum {
   /** No family assigned — the honest answer, and NOT a copy of the wide defaults: a caller with
    *  no family runs `omx_hrp_config_default`, which is their one home. */
   OMX_HRP_FAMILY_NONE = -1,
-  OMX_HRP_FAMILY_DRUMS = 0,
-  OMX_HRP_FAMILY_PERCUSSION = 1,
-  OMX_HRP_FAMILY_BASS = 2,
-  OMX_HRP_FAMILY_GUITAR = 3,
-  OMX_HRP_FAMILY_KEYS = 4,
-  OMX_HRP_FAMILY_VOCALS = 5,
-  OMX_HRP_FAMILY_BRASS = 6,
-  OMX_HRP_FAMILY_WIND = 7,
-  OMX_HRP_FAMILY_STRINGS = 8,
-  OMX_HRP_FAMILY_PLAYBACK = 9
+  OMX_HRP_FAMILY_DRUMS = OMX_INSTRUMENT_FAMILIES_DRUMS,
+  OMX_HRP_FAMILY_PERCUSSION = OMX_INSTRUMENT_FAMILIES_PERCUSSION,
+  OMX_HRP_FAMILY_BASS = OMX_INSTRUMENT_FAMILIES_BASS,
+  OMX_HRP_FAMILY_GUITAR = OMX_INSTRUMENT_FAMILIES_GUITAR,
+  OMX_HRP_FAMILY_KEYS = OMX_INSTRUMENT_FAMILIES_KEYS,
+  OMX_HRP_FAMILY_VOCALS = OMX_INSTRUMENT_FAMILIES_VOCALS,
+  OMX_HRP_FAMILY_BRASS = OMX_INSTRUMENT_FAMILIES_BRASS,
+  OMX_HRP_FAMILY_WIND = OMX_INSTRUMENT_FAMILIES_WIND,
+  OMX_HRP_FAMILY_STRINGS = OMX_INSTRUMENT_FAMILIES_STRINGS,
+  OMX_HRP_FAMILY_PLAYBACK = OMX_INSTRUMENT_FAMILIES_PLAYBACK
 } OmxHrpFamily;
 
-/** How many families the vocabulary holds. Twin of `INSTRUMENT_FAMILIES.length`. */
-#define OMX_HRP_FAMILY_COUNT 10
+/** How many families the vocabulary holds: INSTRUMENT_FAMILIES' count. */
+#define OMX_HRP_FAMILY_COUNT ((int)OMX_INSTRUMENT_FAMILIES_COUNT)
 
 /**
  * The search a family implies — `HRP_FAMILY_SEARCH`, transcribed. Every reason for every number
@@ -151,16 +151,56 @@ static inline OmxHrpConfig omx_hrp_family_search(int family) {
   OmxHrpConfig c = omx_hrp_config_default();
   if (family < 0 || family >= OMX_HRP_FAMILY_COUNT) return c;
   switch ((OmxHrpFamily)family) {
-    case OMX_HRP_FAMILY_DRUMS:      c.max_voices = 1; c.f0_min_hz = 35.0f;   c.f0_max_hz = 400.0f;  break;
-    case OMX_HRP_FAMILY_PERCUSSION: c.max_voices = 1; c.f0_min_hz = 60.0f;   c.f0_max_hz = 1200.0f; break;
-    case OMX_HRP_FAMILY_BASS:       c.max_voices = 2; c.f0_min_hz = 25.0f;   c.f0_max_hz = 400.0f;  break;
-    case OMX_HRP_FAMILY_GUITAR:     c.max_voices = 6; c.f0_min_hz = 60.0f;   c.f0_max_hz = 1400.0f; break;
-    case OMX_HRP_FAMILY_KEYS:       c.max_voices = 8; c.f0_min_hz = 27.5f;   c.f0_max_hz = 4200.0f; break;
-    case OMX_HRP_FAMILY_VOCALS:     c.max_voices = 2; c.f0_min_hz = 80.0f;   c.f0_max_hz = 1200.0f; break;
-    case OMX_HRP_FAMILY_BRASS:      c.max_voices = 2; c.f0_min_hz = 40.0f;   c.f0_max_hz = 1400.0f; break;
-    case OMX_HRP_FAMILY_WIND:       c.max_voices = 2; c.f0_min_hz = 55.0f;   c.f0_max_hz = 2600.0f; break;
-    case OMX_HRP_FAMILY_STRINGS:    c.max_voices = 8; c.f0_min_hz = 40.0f;   c.f0_max_hz = 2800.0f; break;
-    case OMX_HRP_FAMILY_PLAYBACK:   c.max_voices = 8; c.f0_min_hz = 25.0f;   c.f0_max_hz = 2100.0f; break;
+    case OMX_HRP_FAMILY_DRUMS:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_DRUMS_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_DRUMS_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_DRUMS_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_PERCUSSION:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_PERCUSSION_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_PERCUSSION_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_PERCUSSION_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_BASS:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_BASS_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_BASS_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_BASS_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_GUITAR:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_GUITAR_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_GUITAR_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_GUITAR_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_KEYS:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_KEYS_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_KEYS_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_KEYS_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_VOCALS:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_VOCALS_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_VOCALS_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_VOCALS_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_BRASS:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_BRASS_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_BRASS_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_BRASS_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_WIND:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_WIND_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_WIND_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_WIND_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_STRINGS:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_STRINGS_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_STRINGS_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_STRINGS_F0_MAX_HZ;
+      break;
+    case OMX_HRP_FAMILY_PLAYBACK:
+      c.max_voices = OMX_HRP_FAMILY_SEARCH_PLAYBACK_MAX_VOICES;
+      c.f0_min_hz = (float)OMX_HRP_FAMILY_SEARCH_PLAYBACK_F0_MIN_HZ;
+      c.f0_max_hz = (float)OMX_HRP_FAMILY_SEARCH_PLAYBACK_F0_MAX_HZ;
+      break;
     case OMX_HRP_FAMILY_NONE:
     default: return c;
   }

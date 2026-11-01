@@ -16,7 +16,10 @@
  *   F  in == out (an aliased port) is the out-of-place answer;
  *   G  an instance run between two others leaves each the instance alone (no shared state);
  *   H  init, resolve (re-engage included) and run allocate nothing: malloc, calloc, realloc and
- *      free are wrapped at link time and counted across the instance's whole life.
+ *      free are wrapped at link time and counted across the instance's whole life;
+ *   I  the read taps: tap k at omx_fxdelay_ms_to_samples(time x num / den), bounded to the time travel,
+ *      with gain_k times the balance law written out here, nothing between them; a factor outside its
+ *      set reads as the tap's default.
  *   make test-fx
  */
 #include <stdlib.h>
@@ -30,6 +33,9 @@
   (int)OMX_DELAY_SYNCS_DEFAULT, (int)OMX_DELAY_DIVISIONS_DEFAULT, (int)OMX_DELAY_MODES_DEFAULT,         \
       (float)OMX_DELAY_DUCK_DB_RANGE_DEFAULT, (float)OMX_DELAY_DUCK_THRESHOLD_DB_RANGE_DEFAULT,         \
       (float)OMX_DELAY_DUCK_RELEASE_MS_RANGE_DEFAULT
+
+/* The taps' come-up values: one tap, at unity and centre; taps 1..3 at their declared defaults. */
+#define TAPS_IDLE (float)OMX_FX_DELAY_TAPS_RANGE_DEFAULT, 1.0f, 0.0f, (int)OMX_DELAY_TAP1_FACTORS_DEFAULT, 0.7f, -0.5f, (int)OMX_DELAY_TAP2_FACTORS_DEFAULT, 0.5f, 0.5f, (int)OMX_DELAY_TAP3_FACTORS_DEFAULT, 0.35f, 0.0f
 
 #include "instance_harness.h"
 
@@ -76,7 +82,7 @@ typedef struct {
 } Knobs;
 
 static void resolve(OmxDelayInstance *s, int bypass, const Knobs *k) {
-  omx_delay_instance_resolve(s, bypass, k->time, k->feedback, k->tone, k->mix, k->pingpong, COLOR_IDLE);
+  omx_delay_instance_resolve(s, bypass, k->time, k->feedback, k->tone, k->mix, k->pingpong, TAPS_IDLE, COLOR_IDLE);
 }
 
 /* Heap-held: an instance carries its two 2 s rings. */
@@ -178,8 +184,8 @@ static void arm_clamps(void) {
       memcpy(want, in, sizeof want);
       in[knob] = x;
       want[knob] = land(x, LO[knob], HI[knob], DEF[knob]);
-      omx_delay_instance_resolve(s, 0, in[0], in[1], in[2], in[3], 1, COLOR_IDLE);
-      omx_delay_instance_resolve(e, 0, want[0], want[1], want[2], want[3], 1, COLOR_IDLE);
+      omx_delay_instance_resolve(s, 0, in[0], in[1], in[2], in[3], 1, TAPS_IDLE, COLOR_IDLE);
+      omx_delay_instance_resolve(e, 0, want[0], want[1], want[2], want[3], 1, TAPS_IDLE, COLOR_IDLE);
       char what[128];
       snprintf(what, sizeof what, "D: control %d at %g lands at %g", knob, (double)x, (double)want[knob]);
       ok(memcmp(&s->atom, &e->atom, sizeof s->atom) == 0, what);
@@ -194,8 +200,8 @@ static void arm_clamps(void) {
     OmxDelayInstance *s = inst(), *e = inst();
     omx_delay_instance_init(s, g_sr);
     omx_delay_instance_init(e, g_sr);
-    omx_delay_instance_resolve(s, 0, 4.0f, 0.5f, 0.4f, 0.6f, BAD[m], COLOR_IDLE);
-    omx_delay_instance_resolve(e, 0, 4.0f, 0.5f, 0.4f, 0.6f, OMX_DELAY_INSTANCE_PINGPONG_DEFAULT, COLOR_IDLE);
+    omx_delay_instance_resolve(s, 0, 4.0f, 0.5f, 0.4f, 0.6f, BAD[m], TAPS_IDLE, COLOR_IDLE);
+    omx_delay_instance_resolve(e, 0, 4.0f, 0.5f, 0.4f, 0.6f, OMX_DELAY_INSTANCE_PINGPONG_DEFAULT, TAPS_IDLE, COLOR_IDLE);
     ok(memcmp(&s->atom, &e->atom, sizeof s->atom) == 0, "D: a ping-pong outside its ids reads as the declared default");
     free(s); free(e);
   }
@@ -287,6 +293,68 @@ static void arm_no_allocation(void) {
   drain_violations("H: no contract broken");
 }
 
+/* I: the read taps. An impulse on both legs, one tap per factor, mix 1 and no feedback: tap k arrives at
+ * omx_fxdelay_ms_to_samples(time x num / den), the time bounded to the travel's top, at gain_k times the
+ * balance law written out here: bL = 1 - p right of centre, 1 left of it; bR mirrored. */
+static double bal_l(double p) { return p <= 0.0 ? 1.0 : 1.0 - p; }
+static double bal_r(double p) { return p >= 0.0 ? 1.0 : 1.0 + p; }
+#define TAPS_N 400000u
+static float g_tl[TAPS_N], g_tr[TAPS_N], g_tol[TAPS_N], g_tor[TAPS_N];
+static void arm_taps(void) {
+  static const uint32_t NUM[11] = {1, 1, 3, 1, 2, 3, 1, 4, 3, 2, 3}, DEN[11] = {4, 3, 8, 2, 3, 4, 1, 3, 2, 1, 1};
+  static const int SETS[3][3] = {{3, 5, 8}, {0, 2, 10}, {1, 7, 9}};
+  static const float G[4] = {0.9f, 0.6f, 0.45f, 0.3f}, P[4] = {0.0f, -0.6f, 0.6f, 0.25f};
+  static OmxDelayInstance inst_taps;
+  OmxDelayInstance *s = &inst_taps;
+  for (int set = 0; set < 3; set++) {
+    const float time = set == 2 ? 1800.0f : 250.0f;
+    omx_delay_instance_init(s, g_sr);
+    omx_delay_instance_resolve(s, 0, time, 0.0f, 0.0f, 1.0f, 0, 4.0f, G[0], P[0], SETS[set][0], G[1], P[1], SETS[set][1], G[2], P[2],
+                               SETS[set][2], G[3], P[3], COLOR_IDLE);
+    uint32_t want_d[4];
+    double top = 0.0;
+    want_d[0] = omx_fxdelay_ms_to_samples(time, g_sr);
+    for (int k = 1; k < 4; k++) {
+      double ms = (double)time * NUM[SETS[set][k - 1]] / DEN[SETS[set][k - 1]];
+      const int over = ms > 2000.0;
+      ms = over ? 2000.0 : ms;
+      want_d[k] = omx_fxdelay_ms_to_samples((float)ms, g_sr);
+      int cl = -1;
+      const float got_ms = omx_delay_instance_tap_ms(s, (uint32_t)k, &cl);
+      ok(fabs((double)got_ms - ms) <= 1e-3 * ms && cl == over, "I: each tap's delivered time and clamp are the closed form");
+    }
+    for (int k = 0; k < 4; k++) top = want_d[k] > top ? want_d[k] : top;
+    const uint32_t n = (uint32_t)top + 8u;
+    memset(g_tl, 0, n * sizeof(float));
+    memset(g_tr, 0, n * sizeof(float));
+    g_tl[0] = g_tr[0] = 1.0f;
+    for (uint32_t o = 0; o < n; o += 4096u)
+      omx_delay_instance_run(s, g_tl + o, g_tr + o, g_tol + o, g_tor + o, n - o < 4096u ? n - o : 4096u);
+    for (int k = 0; k < 4; k++) {
+      double wl = 0.0, wr = 0.0;
+      for (int j = 0; j < 4; j++)
+        if (want_d[j] == want_d[k]) {
+          wl += (double)G[j] * bal_l(P[j]);
+          wr += (double)G[j] * bal_r(P[j]);
+        }
+      ok(fabs((double)g_tol[want_d[k]] - wl) < 1e-6 && fabs((double)g_tor[want_d[k]] - wr) < 1e-6,
+         "I: tap k arrives at its time with its gain and pan");
+    }
+    double rest = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+      int at = 0;
+      for (int k = 0; k < 4; k++) at |= i == want_d[k];
+      if (!at) rest += fabs((double)g_tol[i]) + fabs((double)g_tor[i]);
+    }
+    ok(rest == 0.0, "I: nothing arrives between the taps");
+  }
+  /* a factor outside the set reads as the tap's declared default */
+  omx_delay_instance_init(s, g_sr);
+  omx_delay_instance_resolve(s, 0, 400.0f, 0.0f, 0.0f, 1.0f, 0, 2.0f, 1.0f, 0.0f, 99, 1.0f, 0.0f, -1, 1.0f, 0.0f, 11, 1.0f, 0.0f, COLOR_IDLE);
+  ok(fabsf(omx_delay_instance_tap_ms(s, 1u, NULL) - 200.0f) < 1e-3f, "I: a factor outside the set is the declared 1/2");
+  ok(fabsf(omx_delay_instance_tap_ms(s, 3u, NULL) - 600.0f) < 1e-3f, "I: and tap 3's is 3/2");
+}
+
 int main(void) {
   omx_fx_require_rate_floor();
   omx_fx_require_full_rates_cover_declared();
@@ -299,6 +367,7 @@ int main(void) {
     arm_reengage_clears();
     arm_alias_and_independence();
     arm_no_allocation();
+    arm_taps();
   }
   return finish("delay_instance");
 }

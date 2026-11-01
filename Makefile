@@ -52,7 +52,7 @@
 #   make cost-deesser  the de-esser's ns/frame at every declared rate, default and stereo, by the
 #               plugin cost method (1 kHz sine at -6 dBFS, 512-frame blocks, 64 discarded, p50/p95)
 #   make bench-mixmatrix  omx_mixmatrix dense/sparse ns per strip-output-frame, 32/64/97 strips x
-#               1024 frames
+#               1024 frames, then 64 x 32 held to MIXMATRIX_PERIOD_SHARE of the period at the nine rates
 #   make bench-gate  omx_dynamics as a gate, ns/sample/lane at every declared rate (open, slope, floor);
 #               tools/gate-cost-ab.sh <rev> compares a revision's kernel with this tree's, interleaved
 #   make bench-drive  omx_drive_process at the come-up atom, and its oversampler and shaper halves, ns/sample
@@ -335,6 +335,10 @@ checks:
 	sh tools/contract-include-selftest.sh
 	bash tools/contract-single-source.sh
 	bash tools/contract-single-source.sh --self-test
+	bash tools/travel-grid-check.sh
+	bash tools/travel-grid-check.sh --self-test
+	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/clone-check.sh
+	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/clone-check.sh --self-test
 	bash tools/umbrella-check.sh
 	bash tools/umbrella-check.sh --self-test
 	bash tools/face-conformance.sh
@@ -417,9 +421,9 @@ check-log10f: tools/log10f-check.c test/support/log10f_cr.h | $(BUILD)
 #   test/fx/<k>_math.test.c    the contracts battery, contracts compiled in, the ledger read;
 #                              a kernel whose oracle reads the ledger itself may have none
 #   test/fx/<k>_golden.test.c  the golden digests, compared with test/golden/<k>.sha256
-FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness mbcomp dyneq_instance mbcomp_instance doubler_instance tone_instance leveler_instance plosive_instance width_instance suboct_instance
+FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn deesser dyn_controls trim_instance align reverse_render dynamics_feedback idelay loudness mbcomp dyneq_instance mbcomp_instance doubler_instance tone_instance leveler_instance plosive_instance width_instance suboct_instance clipper_instance upward_instance glue_instance loudlevel_instance spring_instance balancer_instance
 # Oracles that read the contract ledger themselves build with contracts and threads.
-FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true dyneq_instance comp_key mbcomp_instance delay_color gate_key reverb_return doubler_instance tone_instance dyn_upward leveler_instance comp_release plosive_instance transient_readouts width_instance suboct_instance $(addsuffix _instance,$(FX_INSTANCES))
+FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true dyneq_instance comp_key mbcomp_instance delay_color gate_key reverb_return doubler_instance tone_instance dyn_upward leveler_instance comp_release plosive_instance transient_readouts width_instance suboct_instance clipper_instance upward_instance glue_instance loudlevel_instance spring_instance balancer_instance $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
 FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true band_dyn_poly comp_key delay_color gate_key reverb_return dyn_upward comp_release transient_readouts
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
@@ -474,6 +478,12 @@ FX_LDFLAGS_tone_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_leveler_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_plosive_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_width_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_clipper_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_upward_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_glue_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_loudlevel_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_spring_instance = $(FX_NO_ALLOC_LDFLAGS)
+FX_LDFLAGS_balancer_instance = $(FX_NO_ALLOC_LDFLAGS)
 FX_LDFLAGS_suboct_instance = $(FX_NO_ALLOC_LDFLAGS)
 
 $(BUILD)/fx_%: test/fx/%.test.c $(FX_DEPS)
@@ -719,6 +729,9 @@ cost-deesser: tools/deesser-cost.c $(HEADERS) $(FX_HEADERS) | $(BUILD)
 bench-mixmatrix: tools/bench-mixmatrix.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/bench-mixmatrix tools/bench-mixmatrix.c -lm
 	./$(BUILD)/bench-mixmatrix
+	@if ./$(BUILD)/bench-mixmatrix --share 0.000001 > /dev/null 2>&1; then \
+	  echo "bench-mixmatrix: FAIL: a budget nothing can meet left the bench green"; exit 1; fi
+	@echo "bench-mixmatrix: inside MIXMATRIX_PERIOD_SHARE at the nine rates, and a budget nothing can meet goes red"
 
 bench-gate: tools/gate-cost-bench.c $(LIB) $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $(BUILD)/gate-cost-bench tools/gate-cost-bench.c $(LIB) -lm

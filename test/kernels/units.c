@@ -7,6 +7,11 @@
 
 static void arm_units(void) {
   g_arm = "units";
+  ok(omx_round_half_up(2.5) == 3.0 && omx_round_half_up(2.4999) == 2.0 && omx_round_half_up(-2.5) == -2.0 &&
+         omx_round_half_up(-2.6) == -3.0 && omx_round_half_up(0.0) == 0.0,
+     "round half up: a tie goes up, as Math.round", omx_round_half_up(-2.5), -2.0);
+  ok(signbit(omx_round_half_up(-0.4)) && omx_round_half_up(-0.4) == 0.0, "round half up: -0.4 reads -0, as Math.round",
+     omx_round_half_up(-0.4), 0.0);
   ok(omx_db_to_lin(0.0f) == 1.0f, "0 dB is unity", omx_db_to_lin(0.0f), 1.0);
   ok(fabsf(omx_db_to_lin(-6.0f) - 0.501187f) < 1e-5f, "-6 dB is 0.501187", omx_db_to_lin(-6.0f), 0.501187);
   ok(fabsf(omx_db_to_lin(20.0f) - 10.0f) < 1e-5f, "+20 dB is 10", omx_db_to_lin(20.0f), 10.0);

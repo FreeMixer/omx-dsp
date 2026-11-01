@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
- * @file omx_idelay.h (formerly the route and bus-output delay of the console's mix_dsp.h)
+ * @file omx_idelay.h
  * @brief The integer delay line: a whole-sample delay over a caller-owned ring whose re-point
  *        cross-fades from the old tap to the new one across one block.
  *

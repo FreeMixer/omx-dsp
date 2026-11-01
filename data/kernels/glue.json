@@ -1,0 +1,206 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "thresholdDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#th"
+      },
+      "doc": "The level, dBFS, above which the bus is pulled down.",
+      "travel": {
+        "min": -40,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -10,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "ratio",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#ra"
+      },
+      "doc": "The ratio, the detents a bus compressor offers, in the order of the integer the kernel reads: GLUE_RATIO_VALUES.",
+      "ids": [
+        "r2",
+        "r4",
+        "r10"
+      ],
+      "default": "r2",
+      "labels": [
+        "2:1",
+        "4:1",
+        "10:1"
+      ]
+    },
+    {
+      "name": "attack",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#at"
+      },
+      "doc": "The attack, in the order of the integer the kernel reads: GLUE_ATTACK_MS. It comes up at 10 ms, which lets a kick through before the bus moves.",
+      "ids": [
+        "a01",
+        "a03",
+        "a1",
+        "a3",
+        "a10",
+        "a30"
+      ],
+      "default": "a10",
+      "labels": [
+        "0.1 ms",
+        "0.3 ms",
+        "1 ms",
+        "3 ms",
+        "10 ms",
+        "30 ms"
+      ]
+    },
+    {
+      "name": "release",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#rl"
+      },
+      "doc": "The release, in the order of the integer the kernel reads: GLUE_RELEASE_MS, then auto, the compressor's program-dependent release (PROGRAM_RELEASE_PROFILES.auto).",
+      "ids": [
+        "r100",
+        "r300",
+        "r600",
+        "r1200",
+        "auto"
+      ],
+      "default": "auto",
+      "labels": [
+        "0.1 s",
+        "0.3 s",
+        "0.6 s",
+        "1.2 s",
+        "Auto"
+      ]
+    },
+    {
+      "name": "makeupDb",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#mk"
+      },
+      "doc": "The gain after the pull, dB.",
+      "travel": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "keyHpHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#hp"
+      },
+      "doc": "The detector's high-pass corner, Hz: 0 is out; a corner keeps the low end from pumping the whole bus.",
+      "travel": {
+        "min": 0,
+        "max": 500,
+        "step": 1,
+        "unit": "Hz",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mixPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#mx"
+      },
+      "doc": "The compressed bus against the dry one, percent: below 100 is parallel compression.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "readouts": [
+    {
+      "name": "gainReductionDb",
+      "doc": "The compressor's gain reduction, in dB with CLAP's sign: 0 while it reduces nothing, negative the deepest gain of the block, make-up included.",
+      "unit": "dB",
+      "min": -40,
+      "max": 0,
+      "scale": "linear",
+      "rateHz": {
+        "ref": "READOUT_RATE_HZ"
+      }
+    }
+  ],
+  "constants": {
+    "GLUE_KNEE_DB": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#omx_glue_instance_resolve"
+      },
+      "doc": "The knee, dB, across the threshold: narrow, so the detents keep the character of a VCA bus compressor.",
+      "unit": "dB",
+      "value": 3
+    },
+    "GLUE_RATIO_VALUES": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#OMX_GLUE_INSTANCE_RATIOS"
+      },
+      "doc": "The ratios of the `ratio` detents.",
+      "unit": "",
+      "values": [
+        2,
+        4,
+        10
+      ]
+    },
+    "GLUE_ATTACK_MS": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#OMX_GLUE_INSTANCE_ATTACKS"
+      },
+      "doc": "The attacks of the `attack` detents, ms.",
+      "unit": "ms",
+      "values": [
+        0.1,
+        0.3,
+        1,
+        3,
+        10,
+        30
+      ]
+    },
+    "GLUE_RELEASE_MS": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#OMX_GLUE_INSTANCE_RELEASES"
+      },
+      "doc": "The releases of the `release` detents but the last, ms.",
+      "unit": "ms",
+      "values": [
+        100,
+        300,
+        600,
+        1200
+      ]
+    }
+  }
+}

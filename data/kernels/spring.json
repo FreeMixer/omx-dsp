@@ -1,0 +1,129 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.1.0"
+  },
+  "controls": [
+    {
+      "name": "decayS",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#dc"
+      },
+      "doc": "The time the tail takes to fall 60 dB, seconds.",
+      "travel": {
+        "min": 0.5,
+        "max": 8,
+        "step": 0.1,
+        "unit": "s",
+        "default": 2,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "lengthMs",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#ln"
+      },
+      "doc": "The spring's delay, ms: the time of one trip along it, the first return.",
+      "travel": {
+        "min": 20,
+        "max": 60,
+        "step": 1,
+        "unit": "ms",
+        "default": 35,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "tensionPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#tn"
+      },
+      "doc": "How hard the spring is drawn, percent: it sets the dispersion's corner from SPRING_CHIRP_HZ, and with it the drip of the low notes arriving after the high ones.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 50,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "dampHz",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#dp"
+      },
+      "doc": "The loop's low-pass corner, Hz: the tail darkens as it falls.",
+      "travel": {
+        "min": 1000,
+        "max": 10000,
+        "step": 100,
+        "unit": "Hz",
+        "default": 4000,
+        "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "mixPct",
+      "kind": "travel",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#mx"
+      },
+      "doc": "The wet against the dry, percent. It comes up at 0, the input bit for bit.",
+      "travel": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      }
+    }
+  ],
+  "constants": {
+    "SPRING_SECTIONS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#omx_spring_chain_delay"
+      },
+      "doc": "The first-order all-pass sections in the loop: enough of them and the low notes come later, the sound of a spring.",
+      "unit": "",
+      "value": 40
+    },
+    "SPRING_CHIRP_HZ": {
+      "kind": "list",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#OMX_SPRING_INSTANCE_CHIRP"
+      },
+      "doc": "The all-pass sections' corner at a tension of 0 and of 100 %, Hz, moved linearly between.",
+      "unit": "Hz",
+      "values": [
+        1200,
+        3600
+      ]
+    },
+    "SPRING_RIGHT_RATIO": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#omx_spring_instance_resolve"
+      },
+      "doc": "The right spring's length against the left's: two springs of different lengths, as a tank carries, so the legs decorrelate.",
+      "unit": "",
+      "value": 1.13
+    },
+    "SPRING_LOOP_MAX": {
+      "kind": "scalar",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_spring_instance.h#omx_spring_instance_resolve"
+      },
+      "doc": "The loop gain's ceiling: the tail always decays.",
+      "unit": "",
+      "value": 0.97
+    }
+  }
+}

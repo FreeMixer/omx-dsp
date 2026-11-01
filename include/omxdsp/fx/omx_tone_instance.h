@@ -34,6 +34,7 @@
 
 #include <omxdsp/omx_biquad.h>
 #include <omxdsp/omx_eq_design.h>
+#include <omxdsp/fx/omx_instance_io.h>
 #include <omxdsp/omx_param.h>
 #include <omxdsp/omx_tilt.h>
 #include <omxdsp/omxdsp_definitions.h>
@@ -148,9 +149,7 @@ static inline double omx_tone_instance_magnitude(const OmxToneInstance *s, doubl
 #define OMX_CONTRACT_STAGE "tone/instance-run"
 static inline void omx_tone_instance_run(OmxToneInstance *s, const float *in_l, const float *in_r, float *out_l,
                                          float *out_r, uint32_t n) {
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
-  if (out_l != in_l) memmove(out_l, in_l, (size_t)n * sizeof(float));
-  if (out_r != in_r) memmove(out_r, in_r, (size_t)n * sizeof(float));
+  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled || !(s->tilt_on || s->filter_on)) return;
   OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
   float *legs[2] = {out_l, out_r};

@@ -17,8 +17,8 @@
 //      the unducked wet (0.01 dB);
 //   E  the wet de-esser: a steady sine at deessFreqHz made the whole wet comes out as the declared split
 //      transfer g x, g from the ABOVE characteristic (DEESS_KNEE_DB, ratio and floor written out here) of
-//      the detector's level, sample for sample within a derived bound, 10 dB over the threshold; 20 dB
-//      under it the wet is itself, bit for bit;
+//      the level the declared detector reads off the wet, the detector run here in double, sample for
+//      sample within a derived bound, 10 dB over the threshold; 20 dB under it the wet is itself, bit for bit;
 //   F  hostile words land inside the declared travels, the ledger is clean, nothing allocates.
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_reverb_instance.h>
@@ -59,6 +59,7 @@ static const double TAP_G[8] = {0.84, 0.75, 0.67, 0.6, 0.53, 0.47, 0.42, 0.37};
 
 #define MAXN 400000u
 static float g_l[MAXN], g_r[MAXN], g_ol[MAXN], g_or[MAXN], g_al[MAXN], g_ar[MAXN];
+static double g_lv[MAXN];
 
 static uint32_t g_unexplained = 0;
 static void drain(void) { g_unexplained += omx_fx_drain_ledger(g_sr); }
@@ -230,21 +231,50 @@ static void arm_duck(void) {
  * DEESS_KNEE_DB, ratio DEESS_RATIO, floored at DEESS_RANGE, all written out here. The wet is made one
  * steady sine on both legs (width 0, the tail at its floor, the early taps alone, a sine at the band's
  * centre, where the cookbook bandpass passes it whole and its notch complement has a zero), so B = x
- * once the notch's transient has died and y = g x. L is read from the detector's state after each
- * sample, and the de-essed wet is compared, sample by sample, with g x, x the wet with the de-esser off.
- * The tolerance is derived: the level in dB is within 1e-4 dB (omx_lin_to_db_poly), which moves d by
- * at most (1 - 1/ratio) 1e-4 dB, the gain back to linear is within 2e-6 relative (omx_db_to_lin_poly),
- * so g is within 2e-5 relative; the notch's residual is at most A r^m, r the section's pole radius and
+ * once the notch's transient has died and y = g x. L is not read from the kernel: the arm runs the
+ * declared detector on the wet itself (deess_level), the cookbook bandpass and four one-poles in double,
+ * each taking pole^4 of its time constant, the attack's while its input is above it and the release's
+ * otherwise, DEESS_ATTACK_MS and DEESS_RELEASE_MS written out. So a detector that reads the wrong level
+ * turns the arm red. The de-essed wet is compared, sample by sample, with g x, x the wet with the
+ * de-esser off. The tolerance is derived: the level in dB is within 1e-4 dB (omx_lin_to_db_poly), which
+ * moves d by at most (1 - 1/ratio) 1e-4 dB, the gain back to linear is within 2e-6 relative
+ * (omx_db_to_lin_poly), so g is within 2e-5 relative; the kernel's float detector stands off this one by
+ * at most its float rounding, relative e = (band_err + 8 eps) summed over the release's recursion gain,
+ * which moves g by (1 - 1/ratio) e; the notch's residual is at most A r^m, r the section's pole radius and
  * m the samples since the last tap came in, the float section adds (1 - g) A 8 eps / (1 - r), and y's
  * two float operations add 2 ulp of A. */
 #define DEESS_KNEE_DB 6.0
 #define DEESS_RATIO 4.0
 #define DEESS_RANGE -12.0
+#define DEESS_ATTACK_MS 1.0
+#define DEESS_RELEASE_MS 60.0
 static double deess_gain(double level_db, double thr) {
   const double x = level_db - thr, half = 0.5 * DEESS_KNEE_DB, slope = 1.0 / DEESS_RATIO - 1.0;
   double d = x <= -half ? 0.0 : x < half ? slope * (x + half) * (x + half) / (2.0 * DEESS_KNEE_DB) : slope * x;
   d = d < DEESS_RANGE ? DEESS_RANGE : d;
   return pow(10.0, d / 20.0);
+}
+
+/* The declared detector over the wet x[], in double, independent of the kernel: B(x) by the cookbook
+ * bandpass (b0, 0, -b0, a1, a2), |B| into four one-poles. Writes the level after each sample into lv[]. */
+static void deess_level(const float *x, double *lv, uint32_t n, double w0, double alpha, double sr) {
+  const double a0 = 1.0 + alpha, b0 = alpha / a0, a1 = -2.0 * cos(w0) / a0, a2 = (1.0 - alpha) / a0;
+  const double ac = exp(-4.0 / (DEESS_ATTACK_MS * 0.001 * sr)), rc = exp(-4.0 / (DEESS_RELEASE_MS * 0.001 * sr));
+  double x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0, stage[4] = {0.0, 0.0, 0.0, 0.0};
+  for (uint32_t i = 0; i < n; i++) {
+    const double in = (double)x[i], y = b0 * (in - x2) - a1 * y1 - a2 * y2;
+    x2 = x1;
+    x1 = in;
+    y2 = y1;
+    y1 = y;
+    double d = fabs(y);
+    for (int s = 0; s < 4; s++) {
+      const double c = d > stage[s] ? ac : rc;
+      stage[s] = c * stage[s] + (1.0 - c) * d;
+      d = stage[s];
+    }
+    lv[i] = d;
+  }
 }
 
 static void arm_deess(void) {
@@ -258,6 +288,8 @@ static void arm_deess(void) {
   /* the float section's own error on B, relative to A: its rounding, a few ulp a sample, summed by the
    * recursion's gain 1 / (1 - r) */
   const double band_err = 8.0 * FLT_EPSILON / (1.0 - radius);
+  /* the kernel's float detector against this one: the same rounding, summed by the slowest stage's gain */
+  const double level_err = (band_err + 8.0 * FLT_EPSILON) / (DEESS_RELEASE_MS > 0.0 ? 1.0 - exp(-4.0 / (DEESS_RELEASE_MS * 0.001 * (double)g_sr)) : 1.0);
   const uint32_t last_tap = (uint32_t)(5.0f * 0.001f * g_sr) + (uint32_t)ceil(25.3 * 1.0 * 0.001 * g_sr) + 2u;
   /* two thresholds: 10 dB under the wet's level (on the ratio, above the knee, over the floor) and 20 dB
    * over it (below the knee: g = 1, the wet whole) */
@@ -285,19 +317,19 @@ static void arm_deess(void) {
     omx_reverb_instance_resolve(&g_v, 0, 100.0f, 1.0f, 0.6f, 0.4f, 0.0f, 5.0f, 0.0f, 0.0f, 300.0f, 100.0f, 200.0f, -40.0f,
                                 OMX_REVERB_ROOM, x.early, x.tail, 50.0f, IDLE.duck, IDLE.thr, IDLE.rel, x.deess, x.dfreq, x.dthr);
     drain();
+    deess_level(g_al, g_lv, n, w0, alpha, (double)g_sr);
     double worst = 0.0, gmin = 1.0;
     uint32_t over = 0u, same = 1u;
     for (uint32_t i = 0; i < n; i++) {
       omx_reverb_instance_run(&g_v, g_l + i, g_r + i, g_ol + i, g_or + i, 1u);
       drain();
-      const double level = g_v.rstate.deess.band.env.stage[OMX_DYN_ENV_STAGES - 1];
-      const double g = deess_gain(20.0 * log10(level > 1e-9 ? level : 1e-9), (double)x.dthr);
+      const double g = deess_gain(20.0 * log10(g_lv[i] > 1e-9 ? g_lv[i] : 1e-9), (double)x.dthr);
       gmin = fmin(gmin, g);
       same &= g_ol[i] == g_or[i];
       if (pass) same &= g_ol[i] == g_al[i];
       if (i < last_tap + 8u) continue;
-      const double tol = 2e-5 * fabs(g_al[i]) + (1.0 - g) * peak * (pow(radius, (double)(i - last_tap)) + band_err) +
-                         2.0 * FLT_EPSILON * peak;
+      const double tol = (2e-5 + (1.0 - 1.0 / DEESS_RATIO) * level_err) * fabs(g_al[i]) +
+                         (1.0 - g) * peak * (pow(radius, (double)(i - last_tap)) + band_err) + 2.0 * FLT_EPSILON * peak;
       const double e = fabs((double)g_ol[i] - g * g_al[i]);
       worst = fmax(worst, e / tol);
       over += !(e <= tol);
