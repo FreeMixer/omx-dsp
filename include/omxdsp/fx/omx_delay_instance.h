@@ -62,6 +62,14 @@
 
 /** The beats of each division, DELAY_DIVISION_BEATS, in the order of its ids. */
 static const float OMX_DELAY_INSTANCE_DIVISION_BEATS[OMX_DELAY_DIVISION_BEATS_COUNT] = OMX_DELAY_DIVISION_BEATS_INIT;
+/** The tap factor set, DELAY_TAP_FACTOR_NUMS / DELAY_TAP_FACTOR_DENS, member by member: tap1..3Factor's ids. */
+static const uint32_t OMX_DELAY_INSTANCE_TAP_NUMS[OMX_DELAY_TAP_FACTOR_NUMS_COUNT] = OMX_DELAY_TAP_FACTOR_NUMS_INIT;
+static const uint32_t OMX_DELAY_INSTANCE_TAP_DENS[OMX_DELAY_TAP_FACTOR_DENS_COUNT] = OMX_DELAY_TAP_FACTOR_DENS_INIT;
+_Static_assert(OMX_DELAY_TAP_FACTOR_NUMS_COUNT == OMX_DELAY_TAP1_FACTORS_COUNT &&
+                   OMX_DELAY_TAP_FACTOR_DENS_COUNT == OMX_DELAY_TAP1_FACTORS_COUNT &&
+                   OMX_DELAY_TAP2_FACTORS_COUNT == OMX_DELAY_TAP1_FACTORS_COUNT &&
+                   OMX_DELAY_TAP3_FACTORS_COUNT == OMX_DELAY_TAP1_FACTORS_COUNT,
+               "one factor per member of each tap's set");
 _Static_assert(OMX_DELAY_DIVISION_BEATS_COUNT == OMX_DELAY_DIVISIONS_COUNT, "one beat count per division");
 _Static_assert((int)OMX_DELAY_MODES_DIGITAL == (int)OMX_FX_DELAY_DIGITAL && (int)OMX_DELAY_MODES_TAPE == (int)OMX_FX_DELAY_TAPE &&
                    (int)OMX_DELAY_MODES_ANALOG == (int)OMX_FX_DELAY_ANALOG,
@@ -83,6 +91,9 @@ typedef struct {
   struct omx_fx_delay_state state;
   struct omx_fx_delay_color color;        /**< the mode and the wet duck */
   struct omx_fx_delay_color_state cstate; /**< the loop low pass, the wow and the duck's follower */
+  struct omx_fx_delay_taps taps;          /**< the read taps, from fxDelayTaps and tap0..3 */
+  float tap_ms[OMX_FXDELAY_MAX_TAPS];     /**< each tap's time as delivered, ms */
+  int tap_clamped[OMX_FXDELAY_MAX_TAPS];  /**< each tap's time met the time travel's top */
   float bpm;                              /**< the host's tempo, BPM */
   float ring_l[OMX_FXDELAY_CAP];
   float ring_r[OMX_FXDELAY_CAP];
@@ -149,6 +160,9 @@ static inline void omx_delay_instance_clear(OmxDelayInstance *s) {
 #define OMX_CONTRACT_STAGE "fx-delay/instance-resolve"
 static inline void omx_delay_instance_resolve(OmxDelayInstance *s, int bypass, float fx_delay_time,
                                               float fx_delay_feedback, float tone, float mix, int pingpong,
+                                              float fx_delay_taps, float tap0_gain, float tap0_pan, int tap1_factor,
+                                              float tap1_gain, float tap1_pan, int tap2_factor, float tap2_gain,
+                                              float tap2_pan, int tap3_factor, float tap3_gain, float tap3_pan,
                                               int sync, int division, int mode, float duck_db,
                                               float duck_threshold_db, float duck_release_ms) {
   if (!s || !s->ready) return;
@@ -199,6 +213,30 @@ static inline void omx_delay_instance_resolve(OmxDelayInstance *s, int bypass, f
   o->mix = omx_clamp_or(mix, (float)OMX_DELAY_MIX_RANGE_MIN, (float)OMX_DELAY_MIX_RANGE_MAX,
                         OMX_DELAY_INSTANCE_MIX_DEFAULT);
   o->pingpong = pingpong == 0 || pingpong == 1 ? pingpong : OMX_DELAY_INSTANCE_PINGPONG_DEFAULT;
+  /* The read taps: tap 0 is the delay's own time, tap k >= 1 the time times its factor, formed in double and
+   * bounded to the time travel's top before the one rounding; each tap's gain pair by the balance law. */
+  const float nt = omx_clamp_or(fx_delay_taps, (float)OMX_FX_DELAY_TAPS_RANGE_MIN, (float)OMX_FX_DELAY_TAPS_RANGE_MAX,
+                                (float)OMX_FX_DELAY_TAPS_RANGE_DEFAULT);
+  const int f1 = tap1_factor >= 0 && tap1_factor < (int)OMX_DELAY_TAP1_FACTORS_COUNT ? tap1_factor : (int)OMX_DELAY_TAP1_FACTORS_DEFAULT;
+  const int f2 = tap2_factor >= 0 && tap2_factor < (int)OMX_DELAY_TAP2_FACTORS_COUNT ? tap2_factor : (int)OMX_DELAY_TAP2_FACTORS_DEFAULT;
+  const int f3 = tap3_factor >= 0 && tap3_factor < (int)OMX_DELAY_TAP3_FACTORS_COUNT ? tap3_factor : (int)OMX_DELAY_TAP3_FACTORS_DEFAULT;
+  const int fk[OMX_FXDELAY_MAX_TAPS] = {0, f1, f2, f3};
+  const float gk[OMX_FXDELAY_MAX_TAPS] = {tap0_gain, tap1_gain, tap2_gain, tap3_gain};
+  const float pk[OMX_FXDELAY_MAX_TAPS] = {tap0_pan, tap1_pan, tap2_pan, tap3_pan};
+  struct omx_fx_delay_taps *t = &s->taps;
+  t->ntaps = (uint32_t)lrintf(nt);
+  for (uint32_t k = 0; k < (uint32_t)OMX_FXDELAY_MAX_TAPS; k++) {
+    omx_fxdelay_tap_legs(gk[k], pk[k], &t->gl[k], &t->gr[k]);
+    s->tap_clamped[k] = 0;
+    if (k == 0u) {
+      t->d[0] = 0u;
+      continue;
+    }
+    const float tms = omx_fxdelay_tap_ms(time_ms, OMX_DELAY_INSTANCE_TAP_NUMS[fk[k]], OMX_DELAY_INSTANCE_TAP_DENS[fk[k]], &s->tap_clamped[k]);
+    t->d[k] = omx_fxdelay_ms_to_samples(tms, s->sr);
+    s->tap_ms[k] = tms;
+  }
+  s->tap_ms[0] = time_ms;
   OMX_POST(o->feedback >= 0.0f && o->feedback < 1.0f && o->mix >= 0.0f && o->mix <= 1.0f && o->tone >= 0.0f &&
                o->tone <= 1.0f && o->d_l <= s->state.cap && o->d_r <= s->state.cap,
            "atom-meets-the-kernel-preconditions");
@@ -214,7 +252,7 @@ static inline void omx_delay_instance_run(OmxDelayInstance *s, const float *in_l
                                           float *out_r, uint32_t n) {
   if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready) return;
-  omx_fx_delay_process_color(out_l, out_r, n, &s->atom, NULL, &s->color, &s->cstate, &s->state, s->sr);
+  omx_fx_delay_process_color(out_l, out_r, n, &s->atom, &s->taps, &s->color, &s->cstate, &s->state, s->sr);
   OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
            "bypass-identity");
 }
@@ -224,6 +262,14 @@ static inline void omx_delay_instance_run(OmxDelayInstance *s, const float *in_l
 static inline uint32_t omx_delay_instance_latency(const OmxDelayInstance *s) {
   (void)s;
   return 0u;
+}
+
+/** Tap `k`'s time as the last resolve delivered it, ms, and whether it met the time travel's top: the
+ * plugin's tapMs and tapClamped outputs. A `k` outside the taps reads 0. */
+static inline float omx_delay_instance_tap_ms(const OmxDelayInstance *s, uint32_t k, int *clamped) {
+  const int in = s && k < (uint32_t)OMX_FXDELAY_MAX_TAPS;
+  if (clamped) *clamped = in ? s->tap_clamped[k] : 0;
+  return in ? s->tap_ms[k] : 0.0f;
 }
 
 #endif /* OMX_DELAY_INSTANCE_H */

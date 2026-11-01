@@ -152,6 +152,41 @@
       }
     },
     {
+      "name": "tap1Factor",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#f1"
+      },
+      "doc": "Read tap 1's time as a factor of the delay time, in the order of the integer the kernel reads: the members of DELAY_TAP_FACTOR_NUMS / DELAY_TAP_FACTOR_DENS at the same position. The tap sits at time x num / den, bounded to the time travel's top (omx_fxdelay_tap_ms). It comes up at 1/2.",
+      "ids": [
+        "quarter",
+        "third",
+        "threeEighths",
+        "half",
+        "twoThirds",
+        "threeQuarters",
+        "one",
+        "fourThirds",
+        "threeHalves",
+        "two",
+        "three"
+      ],
+      "default": "half",
+      "labels": [
+        "1/4",
+        "1/3",
+        "3/8",
+        "1/2",
+        "2/3",
+        "3/4",
+        "1",
+        "4/3",
+        "3/2",
+        "2",
+        "3"
+      ]
+    },
+    {
       "name": "tap1Gain",
       "kind": "travel",
       "table": "DELAY_TAP_LIMITS",
@@ -178,6 +213,41 @@
       }
     },
     {
+      "name": "tap2Factor",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#f2"
+      },
+      "doc": "Read tap 2's time as a factor of the delay time, in the order of the integer the kernel reads: the members of DELAY_TAP_FACTOR_NUMS / DELAY_TAP_FACTOR_DENS at the same position. The tap sits at time x num / den, bounded to the time travel's top (omx_fxdelay_tap_ms). It comes up at 3/4.",
+      "ids": [
+        "quarter",
+        "third",
+        "threeEighths",
+        "half",
+        "twoThirds",
+        "threeQuarters",
+        "one",
+        "fourThirds",
+        "threeHalves",
+        "two",
+        "three"
+      ],
+      "default": "threeQuarters",
+      "labels": [
+        "1/4",
+        "1/3",
+        "3/8",
+        "1/2",
+        "2/3",
+        "3/4",
+        "1",
+        "4/3",
+        "3/2",
+        "2",
+        "3"
+      ]
+    },
+    {
       "name": "tap2Gain",
       "kind": "travel",
       "table": "DELAY_TAP_LIMITS",
@@ -202,6 +272,41 @@
         "default": 0.5,
         "defaultFrom": "desk"
       }
+    },
+    {
+      "name": "tap3Factor",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_delay_instance.h#f3"
+      },
+      "doc": "Read tap 3's time as a factor of the delay time, in the order of the integer the kernel reads: the members of DELAY_TAP_FACTOR_NUMS / DELAY_TAP_FACTOR_DENS at the same position. The tap sits at time x num / den, bounded to the time travel's top (omx_fxdelay_tap_ms). It comes up at 3/2.",
+      "ids": [
+        "quarter",
+        "third",
+        "threeEighths",
+        "half",
+        "twoThirds",
+        "threeQuarters",
+        "one",
+        "fourThirds",
+        "threeHalves",
+        "two",
+        "three"
+      ],
+      "default": "threeHalves",
+      "labels": [
+        "1/4",
+        "1/3",
+        "3/8",
+        "1/2",
+        "2/3",
+        "3/4",
+        "1",
+        "4/3",
+        "3/2",
+        "2",
+        "3"
+      ]
     },
     {
       "name": "tap3Gain",

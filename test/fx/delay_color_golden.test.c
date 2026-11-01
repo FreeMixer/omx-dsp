@@ -25,7 +25,7 @@ static void render(float sr, float *out) {
   uint32_t lcg = 0x1234567u;
   float l[BLOCK], r[BLOCK], ol[BLOCK], orr[BLOCK];
   for (int o = 0; o < OMX_FX_GOLDEN_FRAMES; o += BLOCK) {
-    omx_delay_instance_resolve(&d, 0, 300.0f, 0.55f, 0.2f, 0.5f, 1, (int)OMX_DELAY_SYNCS_TEMPO,
+    omx_delay_instance_resolve(&d, 0, 300.0f, 0.55f, 0.2f, 0.5f, 1, (float)OMX_FX_DELAY_TAPS_RANGE_DEFAULT, 1.0f, 0.0f, (int)OMX_DELAY_TAP1_FACTORS_DEFAULT, 0.7f, -0.5f, (int)OMX_DELAY_TAP2_FACTORS_DEFAULT, 0.5f, 0.5f, (int)OMX_DELAY_TAP3_FACTORS_DEFAULT, 0.35f, 0.0f, (int)OMX_DELAY_SYNCS_TEMPO,
                                (int)OMX_DELAY_DIVISIONS_QUARTER, MODE[4 * o / OMX_FX_GOLDEN_FRAMES], -12.0f, -30.0f,
                                200.0f);
     for (int i = 0; i < BLOCK; i++) omx_fx_golden_stimulus(o + i, &lcg, &l[i], &r[i]);
