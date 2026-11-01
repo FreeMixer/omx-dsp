@@ -21,7 +21,7 @@
       "source": {
         "impl": "tools/bench-mixmatrix.c#main"
       },
-      "doc": "The share of one audio period a 64 x 32 mix matrix may take on one core: dense, every coefficient ramping, at the top rate, where a period is shortest. The console's whole chain warns at 60 % of `quantum / rate` (the RT admission budget), and the matrix is one stage of it, so it gets a third. It measures 6.5 % at 192 kHz on a desktop core and 1.6 % at 48 kHz, so a slower core stays inside and a kernel that gets three times slower does not.",
+      "doc": "The share of one audio period a 64 x 32 mix matrix may take on one core: dense, every coefficient ramping, at the top rate, where a period is shortest. The console's whole chain warns at 60 % of `quantum / rate` (the RT admission budget), and the matrix is one stage of it, so it gets a third. It measures 6.5 % at 192 kHz on a desktop core and 1.6 % at 48 kHz, so a kernel that gets three times slower does not fit. A shared CI runner measured 27 %: the budget is the console's core, checked on the desk.",
       "unit": "",
       "value": 0.2
     }

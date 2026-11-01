@@ -26,6 +26,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 | `make analysis-engine-identity OPENMIXER=<checkout>` | builds the analysis golden against the engine's own `mix_dsp.h`, `hrp_render.h` and `hrp_lv2.h` and requires the committed digests, then its sabotage; a desk check, not run in CI |
 | `make room-ts-golden OPENMIXER=<checkout>` | runs core's room analysis and alignment fit from an OpenMixer checkout under node (22.6 or later) and requires the committed parity table `test/analysis/fixtures/room_ts.h`; a desk check, not run in CI |
 | `make eq-sabotage` | the EQ bank, head-filter and drawn-curve arms (`eq-curve`, `eq-design-ts`) against nine sabotaged copies of the headers; each must fail both arms (part of `make test`) |
+| `make bench-mixmatrix` | the mix matrix's cost, then a 64 x 32 matrix held to MIXMATRIX_PERIOD_SHARE of the period at the nine rates, and a budget nothing can meet must go red; a desk check, not run in CI, whose shared runners time a core the console does not run on |
 | `make golden-write` | rewrites every kernel's `test/golden/<kernel>.sha256`; only in a commit that bumps the minor version or adds a kernel |
 
 `make -jN test` is supported. `tools/kernels-gen.sh` runs once, as the Make rule that produces
