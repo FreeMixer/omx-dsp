@@ -40,7 +40,7 @@ jobs:
 
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.OMX_RUNNER || 'ubuntu-latest' }}
     # Run one make job per CPU (BUILDING.md: make -jN test is supported, and make gen-once holds the
     # one generation under -j8): serially the suite reached 39 to 43 minutes of this 60-minute limit
     # once the remaining-FX wave's oracles and perturbation scripts joined it, and one trixie run went
@@ -131,7 +131,7 @@ jobs:
   # dependency, the floor and the version installed.
   contract-floor:
     name: below the omx-contract floor the build refuses (${{ matrix.image }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.OMX_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -276,7 +276,7 @@ jobs:
 
   rpm:
     name: omx-dsp-devel (fc44, ${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.OMX_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -349,7 +349,7 @@ jobs:
 
   deb:
     name: libomxdsp-dev (${{ matrix.suite }}, ${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.OMX_RUNNER || 'ubuntu-latest' }}
     # the package build runs make test (dh_auto_test), which alone takes 20 to 30 minutes on a hosted
     # runner: 30 cut both suites off on every run since 2026-10-17, as it did the test job
     timeout-minutes: 60
