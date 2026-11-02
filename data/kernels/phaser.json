@@ -128,44 +128,7 @@
       }
     }
   ],
-  "aggregates": {
-    "PHASER_TRAVELS": {
-      "source": {
-        "from": {
-          "link": "core/src/strip-fx-limits.ts#PHASER_TRAVELS",
-          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
-        }
-      },
-      "doc": "The phaser's continuous travels by row field — the ONE map its control bounds and its row travels both read. `stages` is not here: it moves through PHASER_STAGE_COUNTS.",
-      "fields": [
-        "rateHz",
-        "baseHz",
-        "depthOct",
-        "feedback",
-        "mix"
-      ]
-    }
-  },
   "constants": {
-    "PHASER_STAGE_COUNTS": {
-      "kind": "list",
-      "source": {
-        "from": {
-          "link": "core/src/strip-fx-limits.ts#PHASER_STAGE_COUNTS",
-          "at": "openmixer@9c761b9875b0b02b8a0d0155052fb34d8c71da90"
-        }
-      },
-      "doc": "The member set the `stages` field accepts: PHASER_STAGES_RANGE walked by its step.",
-      "unit": "",
-      "values": [
-        2,
-        4,
-        6,
-        8,
-        10,
-        12
-      ]
-    },
     "PHASER_F_TOP_HZ": {
       "kind": "scalar",
       "source": {

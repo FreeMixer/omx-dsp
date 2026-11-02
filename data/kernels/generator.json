@@ -44,6 +44,12 @@
       "name": "oscillatorFreq",
       "kind": "travel",
       "global": "OSCILLATOR_FREQ_RANGE",
+      "source": {
+        "impl": {
+          "link": "core/src/talkback.ts#MIN_FREQ_HZ",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "The oscillator's frequency travel: the audible band, 20 Hz to 20 kHz, stepped by 10 Hz on a nudge. omx-dsp's omx_gen_osc takes the frequency in Hz.",
       "travel": {
         "min": 20,

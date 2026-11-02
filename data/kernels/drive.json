@@ -107,6 +107,12 @@
     {
       "name": "curve",
       "kind": "choice",
+      "source": {
+        "impl": {
+          "link": "core/src/moved-stage-fields.ts#MOVED_STAGE_ROWS",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "The drive's shaper curves, in the order of the integer the kernel reads. Exciter runs the soft shape in a parallel-sum topology.",
       "ids": [
         "soft",
@@ -119,6 +125,12 @@
     {
       "name": "band",
       "kind": "choice",
+      "source": {
+        "impl": {
+          "link": "core/src/moved-stage-fields.ts#MOVED_STAGE_ROWS",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "Which part of the spectrum the drive's curve is fed, in the order of the integer the kernel reads. The split is complementary, so mix 0 stays bit-identical to the dry signal.",
       "ids": [
         "full",

@@ -138,17 +138,17 @@
       "doc": "Where the band's dynamics start, in dB of the band's own level after its static section: band_dyn's threshold travel by reference.",
       "travel": {
         "min": {
-          "ref": "BAND_DYN_THRESHOLD_RANGE.min"
+          "ref": "DEESS_THRESHOLD_RANGE.min"
         },
         "max": {
-          "ref": "BAND_DYN_THRESHOLD_RANGE.max"
+          "ref": "DEESS_THRESHOLD_RANGE.max"
         },
         "step": {
-          "ref": "BAND_DYN_THRESHOLD_RANGE.step"
+          "ref": "DEESS_THRESHOLD_RANGE.step"
         },
         "unit": "dB",
         "default": {
-          "ref": "BAND_DYN_THRESHOLD_RANGE.default"
+          "ref": "DEESS_THRESHOLD_RANGE.default"
         },
         "defaultFrom": "desk"
       },
@@ -163,18 +163,16 @@
       "doc": "How hard the band is held past its threshold: band_dyn's ratio travel by reference.",
       "travel": {
         "min": {
-          "ref": "BAND_DYN_RATIO_RANGE.min"
+          "ref": "DEESS_RATIO_RANGE.min"
         },
         "max": {
-          "ref": "BAND_DYN_RATIO_RANGE.max"
+          "ref": "DEESS_RATIO_RANGE.max"
         },
         "step": {
-          "ref": "BAND_DYN_RATIO_RANGE.step"
+          "ref": "DEESS_RATIO_RANGE.step"
         },
         "unit": "",
-        "default": {
-          "ref": "BAND_DYN_RATIO_RANGE.default"
-        },
+        "default": 2,
         "defaultFrom": "desk"
       },
       "count": "DYNEQ_BANDS"
@@ -188,18 +186,14 @@
       "doc": "The most the dynamics add to the band's static gain, signed: below zero the deepest cut, above zero the largest boost. band_dyn's range travel by reference.",
       "travel": {
         "min": {
-          "ref": "BAND_DYN_RANGE_RANGE.min"
+          "ref": "DEESS_RANGE_RANGE.min"
         },
-        "max": {
-          "ref": "BAND_DYN_RANGE_RANGE.max"
-        },
+        "max": 12,
         "step": {
-          "ref": "BAND_DYN_RANGE_RANGE.step"
+          "ref": "DEESS_RANGE_RANGE.step"
         },
         "unit": "dB",
-        "default": {
-          "ref": "BAND_DYN_RANGE_RANGE.default"
-        },
+        "default": -6,
         "defaultFrom": "desk"
       },
       "count": "DYNEQ_BANDS"
@@ -213,18 +207,16 @@
       "doc": "The band detector's attack, in ms: band_dyn's attack travel by reference, which stops at the oversampling floor; a step reaches 56.65 % at the attack time (the 4-stage cascade).",
       "travel": {
         "min": {
-          "ref": "BAND_DYN_ATTACK_RANGE.min"
+          "ref": "DETECTOR_OVERSAMPLE_AUTO_MS"
         },
         "max": {
-          "ref": "BAND_DYN_ATTACK_RANGE.max"
+          "ref": "COMP_LIMITS.attackMs.max"
         },
         "step": {
-          "ref": "BAND_DYN_ATTACK_RANGE.step"
+          "ref": "DEESS_ATTACK_RANGE.step"
         },
         "unit": "ms",
-        "default": {
-          "ref": "BAND_DYN_ATTACK_RANGE.default"
-        },
+        "default": 5,
         "defaultFrom": "desk"
       },
       "count": "DYNEQ_BANDS"
@@ -238,18 +230,16 @@
       "doc": "The band detector's release, in ms: band_dyn's release travel by reference; a step falls to 43.35 % at the release time (the 4-stage cascade).",
       "travel": {
         "min": {
-          "ref": "BAND_DYN_RELEASE_RANGE.min"
+          "ref": "DEESS_RELEASE_RANGE.min"
         },
         "max": {
-          "ref": "BAND_DYN_RELEASE_RANGE.max"
+          "ref": "COMP_LIMITS.releaseMs.max"
         },
         "step": {
-          "ref": "BAND_DYN_RELEASE_RANGE.step"
+          "ref": "DEESS_RELEASE_RANGE.step"
         },
         "unit": "ms",
-        "default": {
-          "ref": "BAND_DYN_RELEASE_RANGE.default"
-        },
+        "default": 100,
         "defaultFrom": "desk"
       },
       "count": "DYNEQ_BANDS"
@@ -295,11 +285,9 @@
       "doc": "The gain band 1's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
       "unit": "dB",
       "min": {
-        "ref": "BAND_DYN_RANGE_RANGE.min"
+        "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": {
-        "ref": "BAND_DYN_RANGE_RANGE.max"
-      },
+      "max": 12,
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -310,11 +298,9 @@
       "doc": "The gain band 2's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
       "unit": "dB",
       "min": {
-        "ref": "BAND_DYN_RANGE_RANGE.min"
+        "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": {
-        "ref": "BAND_DYN_RANGE_RANGE.max"
-      },
+      "max": 12,
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -325,11 +311,9 @@
       "doc": "The gain band 3's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
       "unit": "dB",
       "min": {
-        "ref": "BAND_DYN_RANGE_RANGE.min"
+        "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": {
-        "ref": "BAND_DYN_RANGE_RANGE.max"
-      },
+      "max": 12,
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -340,11 +324,9 @@
       "doc": "The gain band 4's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
       "unit": "dB",
       "min": {
-        "ref": "BAND_DYN_RANGE_RANGE.min"
+        "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": {
-        "ref": "BAND_DYN_RANGE_RANGE.max"
-      },
+      "max": 12,
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -355,11 +337,9 @@
       "doc": "The gain band 5's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
       "unit": "dB",
       "min": {
-        "ref": "BAND_DYN_RANGE_RANGE.min"
+        "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": {
-        "ref": "BAND_DYN_RANGE_RANGE.max"
-      },
+      "max": 12,
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -370,11 +350,9 @@
       "doc": "The gain band 6's dynamics apply now, in dB, both ways: a cut negative, a boost positive, 0 while the band rests, is off or its dynamics are off. The band's gain computer re-run on the level its detector reached at the block's last sample (omx_band_dyn_offset_db), so the reading and the gain the sample took are one computation.",
       "unit": "dB",
       "min": {
-        "ref": "BAND_DYN_RANGE_RANGE.min"
+        "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": {
-        "ref": "BAND_DYN_RANGE_RANGE.max"
-      },
+      "max": 12,
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
