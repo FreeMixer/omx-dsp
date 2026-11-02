@@ -155,6 +155,12 @@
       "name": "deessMode",
       "kind": "choice",
       "global": "DEESS_MODES",
+      "source": {
+        "impl": {
+          "link": "core/src/moved-stage-fields.ts#MOVED_STAGE_ROWS",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "The de-esser's modes, in the order of the integer the kernel reads: split attenuates the detected band only, wideband the whole signal while the sibilance lasts.",
       "ids": [
         "split",

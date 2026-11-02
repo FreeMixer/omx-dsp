@@ -108,7 +108,8 @@
         "from": {
           "link": "declarations/src/index.ts#TRANSIENT_LIMITS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
-        }
+        },
+        "impl": "include/omxdsp/fx/omx_transient.h#omx_transient_resolve"
       },
       "doc": "The legal range of each transient-designer field (engineering units). Every kind comes up flat: no per-kind default differs. the engine's limits generator emits each as `OMX_TRANSIENT_<FIELD>_{MIN,MAX,DEFAULT}` for `mix_transient.h`'s resolve; the row publishes them on OPTIONS when it lands."
     }

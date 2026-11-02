@@ -7,6 +7,12 @@
     {
       "name": "keySource",
       "kind": "choice",
+      "source": {
+        "impl": {
+          "link": "catalog/src/linked-plugins.generated.ts#LINKED_PLUGIN_ENTRIES",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "Where the gate listens: its own input (self), or the key it is handed (sidechain), in the order of the integer the key port carries.",
       "ids": [
         "self",
@@ -207,11 +213,15 @@
         "from": {
           "link": "core/src/strip-dynamics-limits.ts#GATE_LIMITS",
           "at": "openmixer@964a798356925f6bc3774459d9904362b9d3f986"
-        }
+        },
+        "impl": "include/omxdsp/fx/omx_gate_instance.h#omx_gate_instance_init"
       },
       "doc": "The legal range of each gate field (engineering units). The widget clamps drags to these, `normalizeGate` enforces them, the row's codec refuses by them and the travel sheet publishes them — one source of truth. `rangeDb` reaches GATE_RANGE_FLOOR_DB, shown as \"−∞\" in readouts (a gate fully closed is silence)."
     },
     "GATE_KEY_LIMITS": {
+      "source": {
+        "impl": "include/omxdsp/fx/omx_gate_instance.h#omx_gate_instance_init"
+      },
       "doc": "The travel of each edge of the keyed gate's detector filter, 0 (off) up to 20 kHz in whole Hz, as the console's `/channel/{kind}/{index}/gate/key` row serves them (the console's GATE_KEY_LIMITS). A property of the detector filter, not of any desk: no come-up value is declared."
     }
   }

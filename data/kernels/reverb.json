@@ -250,6 +250,12 @@
     {
       "name": "algorithm",
       "kind": "choice",
+      "source": {
+        "impl": {
+          "link": "core/src/moved-stage-fields.ts#MOVED_STAGE_ROWS",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
+        }
+      },
       "doc": "The reverb's algorithms, in the order of the integer the kernel reads. Reverse and gated are the room network handed a window and a gate.",
       "ids": [
         "room",

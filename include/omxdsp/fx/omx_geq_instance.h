@@ -70,8 +70,8 @@ _Static_assert(sizeof omx_geq_instance_centres_hz / sizeof omx_geq_instance_cent
 /** @brief The graphic EQ's design modes: the faders as section gains, or the
  *         two-pass interaction solve. */
 enum omx_geq_mode {
-  OMX_GEQ_MODE_STANDARD = 0, /**< Each section's gain is its fader: the proportional build-up. */
-  OMX_GEQ_MODE_TRUE = 1      /**< The section gains solve the band interaction. */
+  OMX_GEQ_MODE_STANDARD = OMX_GEQ_MODES_STANDARD, /**< Each section's gain is its fader: the proportional build-up. */
+  OMX_GEQ_MODE_TRUE = OMX_GEQ_MODES_TRUE          /**< The section gains solve the band interaction. */
 };
 
 /** @brief One finished design: what {@link omx_geq_instance_design} computes on the control thread

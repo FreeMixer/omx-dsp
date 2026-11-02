@@ -23,6 +23,10 @@
         "from": {
           "link": "pipewire-native/src/mix_src.h#OMX_SRC_STOPBAND_DB",
           "at": "openmixer@6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
+        },
+        "impl": {
+          "link": "pipewire-native/src/take_convert.c#js_take_convert_create",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "Stopband attenuation the window is designed for, in dB. 96 dB is below the noise floor of any take this console can capture (float capture of a 24-bit converter), so the conversion is not what limits the file.",
@@ -35,6 +39,10 @@
         "from": {
           "link": "pipewire-native/src/mix_src.h#OMX_SRC_ROLLOFF",
           "at": "openmixer@6ee8a9bde1017b118f9d7ce67758698423ff8ef3"
+        },
+        "impl": {
+          "link": "pipewire-native/src/take_convert.c#js_take_convert_create",
+          "at": "openmixer@1f6a7123a9ce24f5d214aee2473c70a9d4be1713"
         }
       },
       "doc": "How much of the shared Nyquist the passband keeps. The remaining 8 % is the transition band the window needs to reach its stopband: at 48 kHz that puts the corner at 22.08 kHz and the stopband in place by 24 kHz.",

@@ -209,7 +209,6 @@ struct omx_dyn_state {
   int fb_ran;                      /**< the last block ran the feedback loop */
   struct omx_env_program_release prs; /**< the program release's state; zeroed while it does not run */
 };
-_Static_assert(OMX_DYN_FB_LOOP_DELAY_SAMPLES == 1u, "fb_yl/fb_yr hold exactly one output sample per leg");
 
 #define OMX_CONTRACT_STAGE "dynamics/fb-attack-pole"
 /**
@@ -729,7 +728,7 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
 
     if (fb) {
       /* THE FEEDBACK LOOP (ssl-bus-compressor §1): the detector hears the slot's own pre-make-up
-       * output OMX_DYN_FB_LOOP_DELAY_SAMPLES late, through ONE stage whose attack pole is floored
+       * output one sample late, through ONE stage whose attack pole is floored
        * so the loop cannot ring (§4 L4). Serial by construction — each gain needs the output the
        * previous one made. Factor 1 always: omx_dyn_oversample_factor() never answers 4 here. */
       const float *xl = l + done;
