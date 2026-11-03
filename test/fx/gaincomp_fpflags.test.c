@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 //
-// The gate's off-centre knee raises no floating-point exception the per-sample function does not. The
-// branch-free lane (omx_gaincomp_gain_shifted_lane) evaluates the knee for every sample, also outside the
-// knee where the per-sample function never calls it, and selects it away there. At a knee shift of exactly
-// +knee/2 (a threshold below the knee range, moved whole onto it by omx_gate_knee) the knee's lower edge is
-// the threshold itself, and below it the Bezier's denominator is 0. The value is selected away; the sticky
-// flags are not, and a host running with FE_INVALID or FE_DIVBYZERO trapping would stop in the gate. Two
-// arms, release flags (the lanes are the loops' when the build has libmvec):
-//   LANE  omx_gaincomp_gain_shifted_lane over a level sweep at shift -half, 0 < shift < half and +half:
-//         FE_INVALID and FE_DIVBYZERO stay clear, and every value is omx_gaincomp_gain_shifted's, bit for bit;
-//   GATE  the gate instance with its threshold below, above and inside the knee range, over noise that
-//         crosses the range: FE_INVALID and FE_DIVBYZERO stay clear across the whole run.
+// The gain computer's branch-free lanes raise no floating-point exception the per-sample functions do not. A lane
+// evaluates every arm for every sample, also where the per-sample function never would, and selects the arm it
+// needs. Two ways that went wrong: at a knee shift of exactly +knee/2 (a threshold below the knee range, moved whole
+// onto it by omx_gate_knee) the off-centre knee's denominator is 0 below the threshold; and a compiler that
+// vectorises `disc > 0 ? disc : 0` followed by sqrtf as a select after the square root takes the square root of a
+// negative number outside the knee (GCC 13). The values are selected away; the sticky flags are not, and a host
+// running with FE_INVALID or FE_DIVBYZERO trapping would stop in the gate. Three arms, release flags (the lanes
+// are the kernels' loops when the build has libmvec):
+//   LANE  omx_gaincomp_gain_shifted_lane, one call at a time, over a level sweep at shift -half, 0 < shift < half
+//         and +half: FE_INVALID and FE_DIVBYZERO stay clear, and every value is omx_gaincomp_gain_shifted's, bit
+//         for bit;
+//   LOOP  the same sweep through vectorised loops (OMX_FM_SIMD) of the shifted lane at those shifts and of the
+//         centred lane (omx_gaincomp_gain_lane) in ABOVE, BELOW and UPWARD at a hard and at soft knees: the flags
+//         stay clear;
+//   GATE  the gate instance with its threshold below, above and inside the knee range, centred in it, and with a
+//         hard knee, over noise that crosses the range, at every oracle rate: the flags stay clear.
 #include <fenv.h>
 #include <math.h>
 #include <stdint.h>
@@ -77,6 +82,55 @@ static void arm_lane(void) {
     }
 }
 
+#define NL 4001
+
+/* visible outside the unit, so the compiler keeps the stores of a loop whose result nothing here reads */
+float g_lev[NL], g_out[NL];
+
+/* One block through a lane, the loop the kernels run; out of line so the flags read are this loop's. */
+__attribute__((noinline)) static void loop_shifted(const struct omx_gaincomp_params *p, float shift) {
+  const struct omx_gaincomp_params gc = *p;
+  OMX_FM_SIMD
+  for (int i = 0; i < NL; i++) g_out[i] = omx_gaincomp_gain_shifted_lane(&gc, shift, g_lev[i]);
+}
+__attribute__((noinline)) static void loop_centred(const struct omx_gaincomp_params *p) {
+  const struct omx_gaincomp_params gc = *p;
+  OMX_FM_SIMD
+  for (int i = 0; i < NL; i++) g_out[i] = omx_gaincomp_gain_lane(&gc, g_lev[i]);
+}
+
+static void arm_loop(void) {
+  g_arm = "LOOP";
+  for (int i = 0; i < NL; i++) g_lev[i] = powf(10.0f, (-200.0f + 0.05f * (float)i) / 20.0f); /* -200 .. 0 dBFS */
+  static const float knees[] = {6.0f, 16.0f, 0.5f};
+  static const float where[] = {-0.5f, 0.25f, 0.5f};
+  char what[160];
+  for (unsigned k = 0; k < sizeof knees / sizeof knees[0]; k++)
+    for (unsigned w = 0; w < sizeof where / sizeof where[0]; w++) {
+      const struct omx_gaincomp_params p = {OMX_DYN_BELOW, -40.0f, 4.0f, knees[k], -80.0f, 1.0f};
+      const float shift = where[w] * knees[k];
+      feclearexcept(FE_ALL_EXCEPT);
+      loop_shifted(&p, shift);
+      const int flags = fetestexcept(FE_BAD);
+      snprintf(what, sizeof what, "shifted lane, knee %g dB, shift %g dB: the loop raises %s", (double)knees[k],
+               (double)shift, flags_name(flags));
+      ok(flags == 0, what, (double)flags, 0.0);
+    }
+  static const int modes[] = {OMX_DYN_ABOVE, OMX_DYN_BELOW, OMX_DYN_UPWARD};
+  static const float cknees[] = {0.0f, 0.5f, 6.0f, 16.0f};
+  for (unsigned m = 0; m < sizeof modes / sizeof modes[0]; m++)
+    for (unsigned k = 0; k < sizeof cknees / sizeof cknees[0]; k++) {
+      const float range = modes[m] == OMX_DYN_BELOW ? -80.0f : modes[m] == OMX_DYN_UPWARD ? 12.0f : 0.0f;
+      const struct omx_gaincomp_params p = {modes[m], -40.0f, 4.0f, cknees[k], range, 1.0f};
+      feclearexcept(FE_ALL_EXCEPT);
+      loop_centred(&p);
+      const int flags = fetestexcept(FE_BAD);
+      snprintf(what, sizeof what, "centred lane, mode %d, knee %g dB: the loop raises %s", modes[m], (double)cknees[k],
+               flags_name(flags));
+      ok(flags == 0, what, (double)flags, 0.0);
+    }
+}
+
 #define N 4096u
 
 static uint32_t g_seed;
@@ -89,8 +143,10 @@ static float rnd(void) {
 
 static void arm_gate(float sr) {
   g_arm = "GATE";
-  /* threshold, knee start, knee end: below the range (shift +half), above it (shift -half), inside it */
-  static const float cases[][3] = {{-60.0f, -43.0f, -37.0f}, {-30.0f, -43.0f, -37.0f}, {-40.0f, -46.0f, -38.0f}};
+  /* threshold, knee start, knee end: below the range (shift +half), above it (shift -half), inside it, centred
+   * on it, and a hard knee (start == end) */
+  static const float cases[][3] = {{-60.0f, -43.0f, -37.0f}, {-30.0f, -43.0f, -37.0f}, {-40.0f, -46.0f, -38.0f},
+                                   {-40.0f, -44.0f, -36.0f}, {-40.0f, -40.0f, -40.0f}};
   static OmxGateInstance g;
   static float l[N], r[N], ol[N], or_[N];
   for (unsigned c = 0; c < sizeof cases / sizeof cases[0]; c++) {
@@ -124,6 +180,7 @@ static void arm_gate(float sr) {
 
 int main(void) {
   arm_lane();
+  arm_loop();
   for (unsigned i = 0; i < OMX_FX_ORACLE_RATE_COUNT; i++) arm_gate(OMX_FX_ORACLE_RATES[i]);
   printf("gaincomp_fpflags: %d checks, %d failed\n", g_checks, g_failed);
   return g_failed ? 1 : 0;
