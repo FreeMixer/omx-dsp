@@ -1,6 +1,6 @@
 {
   "kernel": "loudlevel",
-  "since": "0.28.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "LOUDLEVEL_TARGET_LUFS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, implemented at include/omxdsp/fx/omx_loudlevel_instance.h#tg"
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#tg"
       },
       "value": {
         "min": -40,
@@ -25,7 +25,7 @@
     {
       "name": "LOUDLEVEL_RANGE_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, implemented at include/omxdsp/fx/omx_loudlevel_instance.h#rg"
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#rg"
       },
       "value": {
         "min": 0,
@@ -40,7 +40,7 @@
     {
       "name": "LOUDLEVEL_SPEED_DB_PER_S_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, implemented at include/omxdsp/fx/omx_loudlevel_instance.h#sp"
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#sp"
       },
       "value": {
         "min": 0.1,
@@ -55,7 +55,7 @@
     {
       "name": "LOUDLEVEL_GATE_LUFS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, implemented at include/omxdsp/fx/omx_loudlevel_instance.h#gt"
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#gt"
       },
       "value": {
         "min": -70,
@@ -70,7 +70,7 @@
     {
       "name": "LOUDLEVEL_WINDOWS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, implemented at include/omxdsp/fx/omx_loudlevel_instance.h#wn"
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#wn"
       },
       "value": [
         "momentary",

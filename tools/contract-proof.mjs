@@ -37,6 +37,17 @@ export const MOVED_AFTER_PIN = new Map([
   ['OMX_INPUT_ALIGN_DELAY_RANGE_STEP_DOUBLE', 'the same step, as a double'],
 ]);
 
+/** The units a first-release item gained after v0.1.3 (a sheet's new field), each with the reason. */
+export const ADDED_AFTER_PIN = new Map();
+
+/**
+ * The release line `since` is read in: omx-contract's, frozen at the move. An item first shipped before the definitions
+ * moved here says the omx-contract release that carried it (1.0.0 to MOVED_AT); one first shipped after says AFTER_MOVE,
+ * and its origin sentence names the omx-dsp release and commit. recipes/README.md states the rule.
+ */
+export const MOVED_AT = '2.14.0';
+export const AFTER_MOVE = '3.0.0';
+
 /** The units v0.1.3 read that the definitions no longer carry, each with the reason. */
 export const DROPPED_AFTER_PIN = new Map();
 
@@ -93,8 +104,23 @@ function addedLater(answersDir, texts, first) {
   return out;
 }
 
+const vcmp = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0; };
+const inLine = (v) => /^\d+\.\d+\.\d+$/.test(v) && (v === AFTER_MOVE || (vcmp(v, '1.0.0') >= 0 && vcmp(v, MOVED_AT) <= 0));
+
+/** Every `since` of this library's (an answer's, an answered item's, a data item's) outside the release line, as `<where>: <since>`. */
+function sinceProblems(answersDir, texts) {
+  const bad = [];
+  for (const f of readdirSync(answersDir)) {
+    const a = JSON.parse(readFileSync(join(answersDir, f), 'utf8'));
+    if (!inLine(a.since ?? '')) bad.push(`${f}: ${a.since}`);
+    for (const it of a.items) if (it.since !== undefined && !inLine(it.since)) bad.push(`${f} ${it.name}: ${it.since}`);
+  }
+  for (const [rel, t] of Object.entries(texts)) for (const [name, it] of entriesOf(rel, JSON.parse(t))) if (it.since !== undefined && !inLine(it.since)) bad.push(`${rel} ${name}: ${it.since}`);
+  return bad;
+}
+
 /** The round-trip over `dataDir` and `answersDir`. Returns the report; `ok` is the verdict. */
-export function roundTrip({ dataDir = join(HERE, 'data'), answersDir = join(HERE, 'recipes/answers'), moved = MOVED_AFTER_PIN, dropped = DROPPED_AFTER_PIN } = {}) {
+export function roundTrip({ dataDir = join(HERE, 'data'), answersDir = join(HERE, 'recipes/answers'), moved = MOVED_AFTER_PIN, added = ADDED_AFTER_PIN, dropped = DROPPED_AFTER_PIN } = {}) {
   const first = loadRecipe(resolve(OC)).tree.firstRelease;
   const texts = { ...textsUnder(join(resolve(OC), 'data')), ...textsUnder(dataDir) };
   const resolved = resolveData(loadData(null, texts));
@@ -110,12 +136,15 @@ export function roundTrip({ dataDir = join(HERE, 'data'), answersDir = join(HERE
   const movedHere = unequal.filter((k) => moved.has(k) && !firstRelease.has(k));
   const differing = unequal.filter((k) => !movedHere.includes(k));
   const movedStale = [...moved.keys()].filter((k) => !movedHere.includes(k));
-  const notInPin = S.filter((u) => !pinned.has(u.key) && firstRelease.has(u.key)).map((u) => u.key);
+  const addedHere = S.filter((u) => !pinned.has(u.key) && firstRelease.has(u.key) && added.has(u.key)).map((u) => u.key);
+  const notInPin = S.filter((u) => !pinned.has(u.key) && firstRelease.has(u.key) && !added.has(u.key)).map((u) => u.key);
+  const addedStale = [...added.keys()].filter((k) => !addedHere.includes(k));
+  const sinceOff = sinceProblems(answersDir, textsUnder(dataDir));
   const inOrder = JSON.stringify(P.filter((u) => ours.has(u.key)).map((u) => u.key)) === JSON.stringify(S.filter((u) => pinned.has(u.key)).map((u) => u.key));
   const readMissing = read.filter((k) => !ours.has(k) && !dropped.has(k));
   const droppedStale = [...dropped.keys()].filter((k) => ours.has(k) || !read.includes(k));
-  const ok = !differing.length && !movedStale.length && !notInPin.length && inOrder && !readMissing.length && !droppedStale.length;
-  return { ok, units: S.length, pinUnits: P.length, read: read.length, differing, moved: movedHere, movedStale, notInPin, inOrder, readMissing, droppedStale };
+  const ok = !differing.length && !movedStale.length && !notInPin.length && !addedStale.length && inOrder && !readMissing.length && !droppedStale.length && !sinceOff.length;
+  return { ok, units: S.length, pinUnits: P.length, read: read.length, differing, moved: movedHere, movedStale, added: addedHere, addedStale, notInPin, inOrder, readMissing, droppedStale, sinceOff };
 }
 
 /** A scratch tree of omx-contract's schema and recipe, this tree's data and answers, and their renders. */
@@ -142,8 +171,10 @@ function completenessTree() {
 function report(r) {
   console.log(`round-trip: ${r.units} units, ${r.pinUnits} in ${PIN_TAG}'s header, order ${r.inOrder ? 'kept' : 'BROKEN'}, ${r.read - r.readMissing.length}/${r.read} read units carried`);
   if (r.moved.length) console.log(`  moved after ${PIN_TAG}, declared as in use today: ${r.moved.join(', ')}`);
+  if (r.added.length) console.log(`  added to a first-release item after ${PIN_TAG}: ${r.added.join(', ')}`);
   for (const [k, v] of [['differing from the pin', r.differing], ['not in the pin and of no later item', r.notInPin], ['named as moved but not', r.movedStale],
-    ['read by the pin and no longer carried', r.readMissing], ['named as dropped but not', r.droppedStale]]) if (v.length) console.log(`  ${k}: ${v.join(', ')}`);
+    ['named as added but not', r.addedStale], ['read by the pin and no longer carried', r.readMissing], ['named as dropped but not', r.droppedStale],
+    [`a since outside the release line (1.0.0..${MOVED_AT}, or ${AFTER_MOVE} after the move)`, r.sinceOff]]) if (v.length) console.log(`  ${k}: ${v.join(', ')}`);
   console.log(`round-trip: ${r.ok ? 'HOLDS' : 'FAILS'}`);
 }
 
@@ -164,6 +195,14 @@ if (process.argv.includes('--self-test')) {
     writeFileSync(f, JSON.stringify(a, null, 2));
     red('an answer whose since is planted back to the first release', roundTrip({ answersDir: join(t, 'answers') }), (r) => r.notInPin.some((k) => k.startsWith('OMX_TRIM_')));
     red('a moved unit left out of MOVED_AFTER_PIN', roundTrip({ moved: new Map() }), (r) => r.differing.includes('OMX_INPUT_ALIGN_DELAY_RANGE_STEP'));
+    const g = join(t, 'answers', 'width.json');
+    writeFileSync(f, readFileSync(join(HERE, 'recipes/answers', 'trim.json')));
+    const w = JSON.parse(readFileSync(g, 'utf8'));
+    w.since = '0.27.0';
+    writeFileSync(g, JSON.stringify(w, null, 2));
+    red('an answer whose since is an omx-dsp release', roundTrip({ answersDir: join(t, 'answers') }), (r) => r.sinceOff.some((x) => x.startsWith('width.json')));
+    red('a unit named as added that was not', roundTrip({ added: new Map([...ADDED_AFTER_PIN, ['OMX_COMP_RATIO_MIN', 'planted']]) }), (r) => r.addedStale.includes('OMX_COMP_RATIO_MIN'));
+    red('a dropped unit left unnamed', roundTrip({ dropped: new Map() }), (r) => r.readMissing.includes('OMX_DELAY_TIME_MS_MAX'));
     red('a unit named as moved that did not move', roundTrip({ moved: new Map([...MOVED_AFTER_PIN, ['OMX_COMP_RATIO_MIN', 'planted']]) }), (r) => r.movedStale.includes('OMX_COMP_RATIO_MIN'));
   } finally {
     rmSync(t, { recursive: true, force: true });

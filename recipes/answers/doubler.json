@@ -1,6 +1,6 @@
 {
   "kernel": "doubler",
-  "since": "0.27.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "DOUBLER_VOICES_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#voice_count"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#voice_count"
       },
       "value": {
         "min": 1,
@@ -25,7 +25,7 @@
     {
       "name": "DOUBLER_DELAY_MS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#dms"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#dms"
       },
       "value": {
         "min": 5,
@@ -40,7 +40,7 @@
     {
       "name": "DOUBLER_DETUNE_CENTS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#cents"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#cents"
       },
       "value": {
         "min": 0,
@@ -55,7 +55,7 @@
     {
       "name": "DOUBLER_MOD_RATE_HZ_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#mrate"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#mrate"
       },
       "value": {
         "min": 0.1,
@@ -70,7 +70,7 @@
     {
       "name": "DOUBLER_MOD_DEPTH_MS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#mdepth"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#mdepth"
       },
       "value": {
         "min": 0,
@@ -85,7 +85,7 @@
     {
       "name": "DOUBLER_SPREAD_PCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#spread"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#spread"
       },
       "value": {
         "min": 0,
@@ -100,7 +100,7 @@
     {
       "name": "DOUBLER_MIX_PCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#mix_share"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#mix_share"
       },
       "value": {
         "min": 0,
@@ -115,7 +115,7 @@
     {
       "name": "DOUBLER_MAX_VOICES",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_VOICES"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_VOICES"
       },
       "value": 4,
       "unit": "",
@@ -124,7 +124,7 @@
     {
       "name": "DOUBLER_VOICE_DETUNES",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_DETUNES"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_DETUNES"
       },
       "value": [
         1,
@@ -138,7 +138,7 @@
     {
       "name": "DOUBLER_VOICE_DELAYS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_DELAYS"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_DELAYS"
       },
       "value": [
         1,
@@ -152,7 +152,7 @@
     {
       "name": "DOUBLER_VOICE_PANS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_PANS"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_PANS"
       },
       "value": [
         -1,
@@ -166,7 +166,7 @@
     {
       "name": "DOUBLER_WINDOW_MS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_WINDOW_MS"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_WINDOW_MS"
       },
       "value": 20,
       "unit": "ms",
@@ -175,7 +175,7 @@
     {
       "name": "DOUBLER_FADE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_FADE"
+        "origin": "first declared in omx-dsp data/kernels/doubler.json at e9ae3925cae7, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_doubler_instance.h#OMX_DOUBLER_INSTANCE_FADE"
       },
       "value": 0.25,
       "unit": "",

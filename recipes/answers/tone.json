@@ -1,6 +1,6 @@
 {
   "kernel": "tone",
-  "since": "0.27.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "TONE_TILT_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#span_db"
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_tone_instance.h#span_db"
       },
       "value": {
         "min": -6,
@@ -25,7 +25,7 @@
     {
       "name": "TONE_PIVOT_HZ_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#pivot_hz"
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_tone_instance.h#pivot_hz"
       },
       "value": {
         "min": 200,
@@ -40,7 +40,7 @@
     {
       "name": "TONE_FILTER_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#filter"
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_tone_instance.h#filter"
       },
       "value": {
         "min": -100,
@@ -55,7 +55,7 @@
     {
       "name": "TONE_RESONANCE_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#q"
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_tone_instance.h#q"
       },
       "value": {
         "min": 0.5,
@@ -70,7 +70,7 @@
     {
       "name": "TONE_FILTER_LOW_HZ",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#OMX_TONE_INSTANCE_LOW_HZ"
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_tone_instance.h#OMX_TONE_INSTANCE_LOW_HZ"
       },
       "value": 20,
       "unit": "Hz",
@@ -79,7 +79,7 @@
     {
       "name": "TONE_FILTER_HIGH_HZ",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#OMX_TONE_INSTANCE_HIGH_HZ"
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_tone_instance.h#OMX_TONE_INSTANCE_HIGH_HZ"
       },
       "value": 20000,
       "unit": "Hz",

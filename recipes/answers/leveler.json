@@ -1,6 +1,6 @@
 {
   "kernel": "leveler",
-  "since": "0.27.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "LEVELER_AMOUNT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#amt"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#amt"
       },
       "value": {
         "min": 0,
@@ -25,7 +25,7 @@
     {
       "name": "LEVELER_DIRECTIONS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#dir"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#dir"
       },
       "value": [
         "down",
@@ -43,7 +43,7 @@
     {
       "name": "LEVELER_SPEEDS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#spd"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#spd"
       },
       "value": [
         "slow",
@@ -61,7 +61,7 @@
     {
       "name": "LEVELER_AMOUNT_POINTS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_POINTS"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_POINTS"
       },
       "value": [
         0,
@@ -76,7 +76,7 @@
     {
       "name": "LEVELER_DOWN_THRESHOLD_DB",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_T"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_T"
       },
       "value": [
         0,
@@ -91,7 +91,7 @@
     {
       "name": "LEVELER_DOWN_RATIO",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_R"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_R"
       },
       "value": [
         1,
@@ -106,7 +106,7 @@
     {
       "name": "LEVELER_DOWN_MAKEUP_DB",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_M"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_DOWN_M"
       },
       "value": [
         0,
@@ -121,7 +121,7 @@
     {
       "name": "LEVELER_UP_THRESHOLD_DB",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_T"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_T"
       },
       "value": [
         -40,
@@ -136,7 +136,7 @@
     {
       "name": "LEVELER_UP_RATIO",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_R"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_R"
       },
       "value": [
         1,
@@ -151,7 +151,7 @@
     {
       "name": "LEVELER_UP_RANGE_DB",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_RANGE"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_UP_RANGE"
       },
       "value": [
         0,
@@ -166,7 +166,7 @@
     {
       "name": "LEVELER_SPEED_ATTACK_MS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_ATTACK"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_ATTACK"
       },
       "value": [
         30,
@@ -179,7 +179,7 @@
     {
       "name": "LEVELER_SPEED_RELEASE_MS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_RELEASE"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_RELEASE"
       },
       "value": [
         800,
@@ -192,7 +192,7 @@
     {
       "name": "LEVELER_KNEE_DB",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_KNEE"
+        "origin": "first declared in omx-dsp data/kernels/leveler.json at 04933dcdf7d3, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_leveler_instance.h#OMX_LEVELER_INSTANCE_KNEE"
       },
       "value": 6,
       "unit": "dB",

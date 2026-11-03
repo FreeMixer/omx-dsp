@@ -1,6 +1,6 @@
 {
   "kernel": "dyneq",
-  "since": "0.27.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "DYNEQ_BAND_ONS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#sw"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#sw"
       },
       "value": [
         "off",
@@ -26,7 +26,7 @@
     {
       "name": "DYNEQ_BAND_TYPES",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#type"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#type"
       },
       "value": [
         "bell",
@@ -44,7 +44,7 @@
     {
       "name": "DYNEQ_FREQ_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#fc"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#fc"
       },
       "value": {
         "min": 20,
@@ -57,7 +57,7 @@
     {
       "name": "DYNEQ_GAIN_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#g"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#g"
       },
       "value": {
         "min": -15,
@@ -72,7 +72,7 @@
     {
       "name": "DYNEQ_Q_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#bq"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#bq"
       },
       "value": {
         "min": 0.3,
@@ -87,7 +87,7 @@
     {
       "name": "DYNEQ_DYN_MODES",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#dyn_mode_i"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#dyn_mode_i"
       },
       "value": [
         "off",
@@ -105,7 +105,7 @@
     {
       "name": "DYNEQ_THRESHOLD_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#thr"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#thr"
       },
       "value": {
         "min": -60,
@@ -120,7 +120,7 @@
     {
       "name": "DYNEQ_RATIO_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#rat"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#rat"
       },
       "value": {
         "min": 1,
@@ -135,7 +135,7 @@
     {
       "name": "DYNEQ_RANGE_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#rng"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#rng"
       },
       "value": {
         "min": -24,
@@ -150,7 +150,7 @@
     {
       "name": "DYNEQ_ATTACK_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#att"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#att"
       },
       "value": {
         "min": 0.5,
@@ -165,7 +165,7 @@
     {
       "name": "DYNEQ_RELEASE_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#rel"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#rel"
       },
       "value": {
         "min": 5,
@@ -180,7 +180,7 @@
     {
       "name": "DYNEQ_LISTENS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#lis"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#lis"
       },
       "value": [
         "off",
@@ -196,7 +196,7 @@
     {
       "name": "DYNEQ_MIX_PCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#mix_share"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#mix_share"
       },
       "value": {
         "min": 0,
@@ -211,7 +211,7 @@
     {
       "name": "DYNEQ_BANDS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#OMX_DYNEQ_INSTANCE_BANDS"
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_dyneq_instance.h#OMX_DYNEQ_INSTANCE_BANDS"
       },
       "value": 6,
       "unit": "",

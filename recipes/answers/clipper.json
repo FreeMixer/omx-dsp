@@ -1,6 +1,6 @@
 {
   "kernel": "clipper",
-  "since": "0.28.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "CLIPPER_DRIVE_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, implemented at include/omxdsp/fx/omx_clipper_instance.h#dr"
+        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_clipper_instance.h#dr"
       },
       "value": {
         "min": 0,
@@ -25,7 +25,7 @@
     {
       "name": "CLIPPER_CEILING_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, implemented at include/omxdsp/fx/omx_clipper_instance.h#ce"
+        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_clipper_instance.h#ce"
       },
       "value": {
         "min": -24,
@@ -40,7 +40,7 @@
     {
       "name": "CLIPPER_SOFTNESS_PCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, implemented at include/omxdsp/fx/omx_clipper_instance.h#so"
+        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_clipper_instance.h#so"
       },
       "value": {
         "min": 0,
@@ -55,7 +55,7 @@
     {
       "name": "CLIPPER_KNEE_SPAN",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, implemented at include/omxdsp/fx/omx_clipper_instance.h#omx_clipper_instance_resolve"
+        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_clipper_instance.h#omx_clipper_instance_resolve"
       },
       "value": 0.5,
       "unit": "",

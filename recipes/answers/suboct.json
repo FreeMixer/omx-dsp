@@ -1,6 +1,6 @@
 {
   "kernel": "suboct",
-  "since": "0.27.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "SUBOCT_RANGES",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#range_row"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#range_row"
       },
       "value": [
         "low",
@@ -28,7 +28,7 @@
     {
       "name": "SUBOCT_OCT1_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#o1"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#o1"
       },
       "value": {
         "min": 0,
@@ -43,7 +43,7 @@
     {
       "name": "SUBOCT_OCT2_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#o2"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#o2"
       },
       "value": {
         "min": 0,
@@ -58,7 +58,7 @@
     {
       "name": "SUBOCT_DRY_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#dr"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#dr"
       },
       "value": {
         "min": 0,
@@ -73,7 +73,7 @@
     {
       "name": "SUBOCT_TRACK_GATE_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#gate_db"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#gate_db"
       },
       "value": {
         "min": -80,
@@ -88,7 +88,7 @@
     {
       "name": "SUBOCT_RANGE_LO_HZ",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_LO"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_LO"
       },
       "value": [
         35,
@@ -101,7 +101,7 @@
     {
       "name": "SUBOCT_RANGE_HI_HZ",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_HI"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_HI"
       },
       "value": [
         140,
@@ -114,7 +114,7 @@
     {
       "name": "SUBOCT_POST1_HZ",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_POST1"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_POST1"
       },
       "value": [
         90,
@@ -127,7 +127,7 @@
     {
       "name": "SUBOCT_POST2_HZ",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_POST2"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_POST2"
       },
       "value": [
         45,
@@ -140,7 +140,7 @@
     {
       "name": "SUBOCT_HYSTERESIS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#omx_suboct_arm_level"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#omx_suboct_arm_level"
       },
       "value": 0.25,
       "unit": "",
@@ -149,7 +149,7 @@
     {
       "name": "SUBOCT_ENV_ATTACK_MS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_ENV"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_ENV"
       },
       "value": 1,
       "unit": "ms",
@@ -158,7 +158,7 @@
     {
       "name": "SUBOCT_ENV_RELEASE_MS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_ENV"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_ENV"
       },
       "value": 100,
       "unit": "ms",
@@ -167,7 +167,7 @@
     {
       "name": "SUBOCT_GATE_RAMP_MS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, implemented at include/omxdsp/fx/omx_suboct_instance.h#ramp_step"
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#ramp_step"
       },
       "value": 5,
       "unit": "ms",

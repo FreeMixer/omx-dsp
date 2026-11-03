@@ -1,6 +1,6 @@
 {
   "kernel": "balancer",
-  "since": "0.28.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "BALANCER_AMOUNT_PCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#am"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#am"
       },
       "value": {
         "min": 0,
@@ -25,7 +25,7 @@
     {
       "name": "BALANCER_RANGE_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#rg"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#rg"
       },
       "value": {
         "min": 1,
@@ -40,7 +40,7 @@
     {
       "name": "BALANCER_SPEED_DB_PER_S_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#sp"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#sp"
       },
       "value": {
         "min": 0.1,
@@ -55,7 +55,7 @@
     {
       "name": "BALANCER_SLOPE_DB_OCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#sl"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#sl"
       },
       "value": {
         "min": -6,
@@ -70,7 +70,7 @@
     {
       "name": "BALANCER_BAND_HZ",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#OMX_BALANCER_INSTANCE_HZ"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#OMX_BALANCER_INSTANCE_HZ"
       },
       "value": [
         125,
@@ -84,7 +84,7 @@
     {
       "name": "BALANCER_Q",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_instance_init"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_instance_init"
       },
       "value": 0.7,
       "unit": "",
@@ -93,7 +93,7 @@
     {
       "name": "BALANCER_DETECT_MS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_instance_init"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_instance_init"
       },
       "value": 400,
       "unit": "ms",
@@ -102,7 +102,7 @@
     {
       "name": "BALANCER_GATE_DBFS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_tick"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_tick"
       },
       "value": -60,
       "unit": "dBFS",
@@ -111,7 +111,7 @@
     {
       "name": "BALANCER_BAND_DB_OCT",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_tick"
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_tick"
       },
       "value": 3.0103,
       "unit": "dB/oct",

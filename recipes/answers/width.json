@@ -1,6 +1,6 @@
 {
   "kernel": "width",
-  "since": "0.27.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "WIDTH_WIDTH_PCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#wpct"
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_width_instance.h#wpct"
       },
       "value": {
         "min": 0,
@@ -25,7 +25,7 @@
     {
       "name": "WIDTH_PSEUDOS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#pmode"
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_width_instance.h#pmode"
       },
       "value": [
         "off",
@@ -43,7 +43,7 @@
     {
       "name": "WIDTH_PSEUDO_MS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#pms"
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_width_instance.h#pms"
       },
       "value": {
         "min": 0,
@@ -58,7 +58,7 @@
     {
       "name": "WIDTH_BASS_MONOS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#bmode"
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_width_instance.h#bmode"
       },
       "value": [
         "off",
@@ -74,7 +74,7 @@
     {
       "name": "WIDTH_BASS_MONO_HZ_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#bhz"
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_width_instance.h#bhz"
       },
       "value": {
         "min": 20,
@@ -89,7 +89,7 @@
     {
       "name": "WIDTH_COMB_GAIN",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/omx_width.h#omx_width_process"
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/omx_width.h#omx_width_process"
       },
       "value": 0.5,
       "unit": "",
@@ -98,7 +98,7 @@
     {
       "name": "WIDTH_MAX_DELAY_MS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/omx_width.h#omx_width_delay"
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/omx_width.h#omx_width_delay"
       },
       "value": 30,
       "unit": "ms",
