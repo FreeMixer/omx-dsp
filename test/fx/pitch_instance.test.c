@@ -42,12 +42,6 @@ static float *ring(uint32_t cap) { return calloc(cap, sizeof(float)); }
 /* the allocation counter: fx_harness.h (linked with --wrap=malloc,calloc,realloc,free) */
 #include "fx_harness.h"
 
-/* Where a hostile word must land: every non-finite word at the default, else inside [lo, hi]. */
-static float land(float x, float lo, float hi, float def) {
-  if (x - x != 0.0f) return def;
-  return x < lo ? lo : x > hi ? hi : x;
-}
-
 static int same_atom(const struct omx_pitch *a, const struct omx_pitch *b) {
   return a->enabled == b->enabled && a->dir == b->dir && a->window == b->window && a->step == b->step &&
          a->mix == b->mix && memcmp(a->lp, b->lp, sizeof a->lp) == 0;

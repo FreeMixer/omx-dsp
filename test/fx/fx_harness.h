@@ -3,8 +3,8 @@
 /**
  * @file fx_harness.h
  * @brief The allocation counter of the instance oracles that prove a face allocates nothing: the one copy every
- *        `*_instance.test.c` linked with `-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free`
- *        (FX_NO_ALLOC_LDFLAGS) includes. While `g_counting` is set, every allocator call counts in `g_allocs`.
+ *        `*_instance.test.c` and analysis oracle linked with
+ *        `-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free` (FX_NO_ALLOC_LDFLAGS) includes. While `g_counting` is set, every allocator call counts in `g_allocs`.
  */
 #ifndef OMXDSP_TEST_FX_HARNESS_H
 #define OMXDSP_TEST_FX_HARNESS_H
@@ -14,6 +14,10 @@ void *__real_malloc(size_t n);
 void *__real_calloc(size_t n, size_t sz);
 void *__real_realloc(void *p, size_t n);
 void __real_free(void *p);
+void *__wrap_malloc(size_t n);
+void *__wrap_calloc(size_t n, size_t sz);
+void *__wrap_realloc(void *p, size_t n);
+void __wrap_free(void *p);
 
 static int g_counting = 0;
 static long g_allocs = 0;
