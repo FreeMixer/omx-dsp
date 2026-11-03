@@ -123,6 +123,39 @@
       },
       "doc": "The travel of each edge of the keyed gate's detector filter, 0 (off) up to 20 kHz in whole Hz, as the console's `/channel/{kind}/{index}/gate/key` row serves them (the console's GATE_KEY_LIMITS). A property of the detector filter, not of any desk: no come-up value is declared.",
       "since": "2.7.0"
+    },
+    {
+      "name": "GATE_KEY_LISTENS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/gate.json at 5d7e9c614694, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_gate_instance.h#listen_on"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "While on, the outputs carry what the gate's detector reads: the key (the sidechain, or the gate's own mono sum) after the key filter and the tilt on both outputs, or, for a self-keyed gate with no key filter and a flat tilt, each input leg on its own output, since the detector then reads the legs. The gate keeps running underneath. It comes up off."
+    },
+    {
+      "name": "GATE_KEY_TILT_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/gate.json at 5d7e9c614694, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_gate_instance.h#tilt_slope"
+      },
+      "value": {
+        "min": -6,
+        "max": 6,
+        "step": 0.5,
+        "unit": "dB/oct",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The key's tilt, in dB per octave at KEY_TILT_PIVOT_HZ, after the key filter: positive lets the gate open on a brighter key (a tom, a snare) and stay shut on the low end, negative the other way (omx_tilt, the compressor's key tilt). 0 is flat, the come-up value, bit for bit."
     }
   ]
 }

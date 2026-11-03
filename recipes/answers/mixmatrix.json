@@ -16,6 +16,16 @@
       "value": 128,
       "doc": "The input cap a summing bus can be sized to — **the engine's declared input ceiling**, read from the engine's declarations rather than re-typed here. A gig with more than this many inputs needs more than one engine node; below it a bus is sized to `min(N, BUS_INPUT_CAP)`. It was a literal 64 until 2026-09-15, said to mirror the engine's `MAX_BUS_INPUTS` — and it did, but that 64 was the PipeWire builtin mixer's single-tier fan-in (8 × 8), never the engine's bound: the native node has allocated `OMX_MAX_STRIPS` (128) strips all along. Two literals agreeing by hand is how the console came to refuse a 96-channel desk it could carry. the engine's conformance test holds this to the C header; the console allocation design carries the ruling and the measured cost of width.",
       "unit": ""
+    },
+    {
+      "name": "MIXMATRIX_PERIOD_SHARE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mixmatrix.json at 42d289641390, shipped in omx-dsp 0.28.0; implemented at tools/bench-mixmatrix.c#main"
+      },
+      "value": 0.2,
+      "unit": "",
+      "doc": "The share of one audio period a 64 x 32 mix matrix may take on one core: dense, every coefficient ramping, at the top rate, where a period is shortest. The console's whole chain warns at 60 % of `quantum / rate` (the RT admission budget), and the matrix is one stage of it, so it gets a third. It measures 6.5 % at 192 kHz on a desktop core and 1.6 % at 48 kHz, so a kernel that gets three times slower does not fit. A shared CI runner measured 27 %: the budget is the console's core, checked on the desk."
     }
   ]
 }
