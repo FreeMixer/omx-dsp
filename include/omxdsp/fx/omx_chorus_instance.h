@@ -72,9 +72,7 @@ static inline uint32_t omx_chorus_instance_cap_for(float sr) {
  * sweep the inline rings cannot hold, is refused. Allocates nothing.
  */
 static inline int omx_chorus_instance_init(OmxChorusInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   const uint32_t cap = omx_chorus_instance_cap_for(sr);
   if (cap > OMX_CHORUS_CAP) return 0;
   s->sr = sr;

@@ -69,9 +69,7 @@ typedef struct {
  * {@link omx_transient_instance_run} is then the identity: absence is a wire, not a crash.
  */
 static inline int omx_transient_instance_init(OmxTransientInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->atom.enabled = 0;
   omx_transient_state_init(&s->state);

@@ -80,9 +80,7 @@ static inline void omx_tone_instance_resolve(OmxToneInstance *s, int bypass, flo
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
  * set. The face comes up at its declared defaults, flat and open. Allocates nothing. */
 static inline int omx_tone_instance_init(OmxToneInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->ready = 1;
   omx_tone_instance_resolve(s, 0, (float)OMX_TONE_TILT_DB_RANGE_DEFAULT, (float)OMX_TONE_PIVOT_HZ_RANGE_DEFAULT,

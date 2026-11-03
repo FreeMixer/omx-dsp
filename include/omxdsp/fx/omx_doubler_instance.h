@@ -97,9 +97,7 @@ static inline void omx_doubler_instance_resolve(OmxDoublerInstance *s, int bypas
                                                 float spread_pct, float mix_pct);
 
 static inline int omx_doubler_instance_init(OmxDoublerInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   if (omx_fdelay_init(&s->line, s->ring, OMX_DOUBLER_INSTANCE_CAP, OMX_DOUBLER_INSTANCE_ORDER) != OMX_FDELAY_OK) return 0;
   omx_lfo_start(&s->lfo);
   s->sr = sr;

@@ -37,30 +37,8 @@
 
 static int g_checks, g_failed;
 
-/* The allocation counter: the oracle links with --wrap=malloc,calloc,realloc,free (the Makefile's
- * FX_LDFLAGS_mbcomp), and counts only while an RT arm runs. */
-void *__real_malloc(size_t n);
-void *__real_calloc(size_t n, size_t sz);
-void *__real_realloc(void *p, size_t n);
-void __real_free(void *p);
-static int g_counting;
-static long g_allocs;
-void *__wrap_malloc(size_t n) {
-  g_allocs += g_counting;
-  return __real_malloc(n);
-}
-void *__wrap_calloc(size_t n, size_t sz) {
-  g_allocs += g_counting;
-  return __real_calloc(n, sz);
-}
-void *__wrap_realloc(void *p, size_t n) {
-  g_allocs += g_counting;
-  return __real_realloc(p, n);
-}
-void __wrap_free(void *p) {
-  g_allocs += g_counting;
-  __real_free(p);
-}
+/* the allocation counter: fx_harness.h (FX_LDFLAGS_mbcomp links with --wrap=malloc,calloc,realloc,free) */
+#include "fx_harness.h"
 static uint32_t g_unexplained;
 
 /* Drain the ledger at `sr`. Outside the declared six every design and every pole records
