@@ -21,7 +21,7 @@
 #ifndef OMXDSP_DEFINITIONS_H
 #define OMXDSP_DEFINITIONS_H
 /*
- * GENERATED — DO NOT EDIT BY HAND.
+ * GENERATED: DO NOT EDIT BY HAND.
  * Rendered by `omx-contract render --target c --package omx-dsp` from data/, the definitions of the kernels
  * and DSP constants this library implements. The rendered file is kept in this repository so the library
  * builds without node; the values are changed where they are declared and the file is re-rendered, never
