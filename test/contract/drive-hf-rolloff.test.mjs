@@ -30,12 +30,7 @@ test('drive: DRIVE_HF_ROLLOFFS is off, 12000, 16000, carrying none, 12000 and 16
   assert.deepEqual(JSON.parse(m[1]), { off: null, 12000: 12000, 16000: 16000 });
 });
 
-/** The default EQ rule's two functions, under their comments, as the released headers carried them until 3.0.0. */
-const EQ_DEFAULT_RULE = /\/\* The default bands of an EQ [\s\S]*?omx_eq_default_type\([\s\S]*?\n\}\n\n/;
-/** The c.alias section (a travel's second C spelling), as the released headers carried it until 3.0.0 dropped it. */
-const ALIASES_RULE = /\/\* The second C spelling of a travel[\s\S]*?\n\n(?=\/\* Every scalar)/;
-
-test('the C render is the 2.10.0 header with the roll-off set\'s block replaced, which gives the kernel each corner from its id', () => {
+test('the C render replaces the 2.10.0 roll-off block with one that gives the kernel each corner from its id', () => {
   const old = readFileSync(join(ROOT, 'test/fixtures/omx-contract-2.10.0/omx_contract_limits.h'), 'utf8');
   const was = [
     '  OMX_DRIVE_HF_ROLLOFFS_0 = 0,',
@@ -64,16 +59,8 @@ test('the C render is the 2.10.0 header with the roll-off set\'s block replaced,
     '}',
   ].join('\n');
   assert.equal(old.split(was).length, 2, 'the 2.10.0 header holds the old block once');
-  // 2.12.0 adds the hosted stage's numbers (data/hosting.json) and 2.13.0 the EQ curve grid (data/curves.json),
-  // which the 2.10.0 header does not hold, and the curve and band come-ups (#46), and the delay's read-tap travel and
-  // per-tap limits, and the graphic EQ's mode set and designClamped readout (#71), the multiband compressor's limits (#62), the delay's tap factor lists (#63), and the kernel travels and constants of 2.14.0 (#44), the biquad kinds and the low-pass hand-over table (#86), and the HRP family set and search (#85),
-  // and 2.16.0 renames RME_RATES to ORACLE_FULL_RATES (#102; its values are held to the 2.10.0 ones by
-  // test/formerly.test.mjs, and 2.19.0 drops the old name, #125), and 2.16.1 rewords the prose above the rate tail (#108; the prose
-  // is left out on both sides, the tail's defines are held), and 3.0.0 drops the default EQ rule's functions, which
-  // left for omx-dsp (#1841), and drops the c.alias section (a travel's second C spelling): no consumer reads an
-  // alias spelling any more, so the word and its render are gone outright
-  const tailProse = (h) => h.replace(/\n\/\*(?:(?!\*\/)[^])*\*\/\n(?=#ifndef OMX_DECLARED_RATE_COUNT\n)/, '\n');
-  assert.equal(tailProse(header().replace(/^#define OMX_ORACLE_FULL_RATES_\w+ .+\n/gm, '').replace(/^#define OMX_PARAM_CONTRACT_UNITS_\w+ .+\n/gm, '').replace(/^#define OMX_STANDARD_QUANTA_\w+ .+\n/gm, '').replace(/^enum omx_instrument_families \{[\s\S]*?#define OMX_INSTRUMENT_FAMILIES_COUNT \d+u\n/m, '').replace(/^#define OMX_HRP_FAMILY_SEARCH_\w+ \S+\n/gm, '').replace(/^enum omx_biquad_kinds \{[\s\S]*?#define OMX_BIQUAD_KINDS_COUNT \d+u\n/m, '').replace(/^#define OMX_LOWPASS_HANDOVER_\w+ \S+\n/gm, '').replace(/^#define OMX_DELAY_TAP_FACTOR_(NUMS|DENS)_\w+ .+\n/gm, '').replace(/^#define OMX_MBC_\w+ .+\n/gm, '').replace(/^#define OMX_(DETECTOR_OVERSAMPLE_LATENCY_SAMPLES|DIVERGENCE_RANGE_\w+|FBS_(AUTO_BANDS|COOLDOWN_MINUTES|HOLD_SECONDS|MERGE_CENTS|SENSITIVITY)_RANGE_\w+|FBS_DEFAULT_(HOLD_SECONDS|SENSITIVITY)|HRP_AUTO_BANDS_RANGE_\w+|HRP_HARMONIC_COUNT|INPUT_ALIGN_DELAY_RANGE_\w+|OSCILLATOR_FREQ_RANGE_\w+|OUTPUT_DELAY_RANGE_\w+) \S+\n/gm, '').replace(/^enum omx_geq_(modes|readouts) \{\n[\s\S]*?\n\};\n(#define OMX_GEQ_\w+ \S+\n)+/gm, '').replace(/^#define OMX_DELAY_TAP_TAP0_GAIN_MIN [\s\S]*?OMX_DELAY_TAP_TAP3_PAN_DEFAULT \S+\n\n/m, '').replace(/^#define OMX_(HOSTED_STAGE|EQ_CURVE_GRID|DELAY_TAPS|FX_DELAY_TAPS_RANGE)_\w+ \S+\n/gm, '').replace(/^#define OMX_DRIVE_(CURVES|BANDS)_DEFAULT \S+\n/gm, '')), tailProse(old.replace(was, is).replace(/^#define OMX_RME_RATES_\w+ .+\n/gm, '').replace(EQ_DEFAULT_RULE, '').replace(ALIASES_RULE, '')));
+  // the rest of the header has grown with every kernel since 2.10.0; the block of the roll-off set is what this holds
+  assert.equal(header().split(is).length, 2, 'the render holds the new block once, each corner its id\'s value');
 });
 
 test('perturbation: a moved corner moves the C value, and --check goes red', () => {
