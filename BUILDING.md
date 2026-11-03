@@ -114,14 +114,15 @@ log10f 8.08 to 1.87, expf 6.22 to 1.80, powf 11.74 to 7.22. `include/omxdsp/omx_
 
 The build decides, per function, by compiling and linking a probe (`tools/fastmath-probe.sh`): a function
 counts only when the compiler turns a loop over it into a call of its `_ZGV` symbol and the program links with
-`-lm -lmvec`. The Makefile then adds `-fopenmp-simd -fno-math-errno -fno-trapping-math` and
+`-lm -lmvec`. The Makefile then adds `-fopenmp-simd -fno-math-errno` and
 `-DOMX_FASTMATH_MVEC_<F>=1` for each function found, and `-lmvec` to the link; `omxdsp.pc` carries the same in its
 `Cflags` and `Libs`, so a consumer that links the static library takes libmvec on exactly the targets where the
 library was built with it (`pkg-config --cflags --libs omxdsp`). Where libmvec is absent (Debian 12 on arm64;
 glibc older than 2.35 on x86-64; glibc older than 2.40 for `tanhf` and `powf` on aarch64) the probe finds nothing, the
 flags are empty and every kernel calls the libm as before. `make FASTMATH=off` forces that path. `-fopenmp-simd`
-links no OpenMP runtime; the two other flags let the compiler treat the four functions as pure and speculate their
-arithmetic, and neither enables an exception.
+links no OpenMP runtime; `-fno-math-errno` lets the compiler treat the four functions as pure, and enables no
+exception. The trapping-math default is kept: the loops select with `omx_fm_select()` rather than `?:` on floats, so
+nothing has to be speculated for them to vectorise.
 
 The output through libmvec is not bit-identical to the libm's. Held by:
 

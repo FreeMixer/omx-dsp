@@ -34,9 +34,9 @@ void omx_probe(float *x, int n) {
 }
 int main(int argc, char **argv) { float v[8] = {1, 2, 3, 4, 5, 6, 7, 8}; omx_probe(v, 8); return (int)v[argc & 7] == 99; }
 C
-  "$CC" -O2 -fopenmp-simd -fno-math-errno -fno-trapping-math -S -o "$T/p.s" "$T/p.c" >/dev/null 2>&1 || continue
+  "$CC" -O2 -fopenmp-simd -fno-math-errno -S -o "$T/p.s" "$T/p.c" >/dev/null 2>&1 || continue
   grep -q "_ZGV[A-Za-z0-9]*_$f" "$T/p.s" || continue
-  "$CC" -O2 -fopenmp-simd -fno-math-errno -fno-trapping-math -o "$T/p" "$T/p.c" -lm -lmvec >/dev/null 2>&1 || continue
+  "$CC" -O2 -fopenmp-simd -fno-math-errno -o "$T/p" "$T/p.c" -lm -lmvec >/dev/null 2>&1 || continue
   found="$found $f"
 done
 echo $found

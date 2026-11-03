@@ -20,8 +20,10 @@
  * call the libm exactly as before: a system without libmvec (Debian 12 on arm64, glibc older than
  * 2.40 for tanhf and powf on aarch64, older than 2.35 on x86-64) builds and runs the plain path, and
  * so does a consumer that ignores the flags. `-fopenmp-simd` only reads the `omp simd` pragmas; it
- * links no OpenMP runtime. `-fno-math-errno` and `-fno-trapping-math` let the compiler treat the four functions as pure
- * and speculate their arithmetic (neither enables an exception; the library never reads the FP flags), so a loop over them vectorises.
+ * links no OpenMP runtime. `-fno-math-errno` lets the compiler treat the four functions as pure (it enables no
+ * exception; the library never reads errno or the FP flags), so a loop over them vectorises. The trapping-math
+ * default stays: a loop that must vectorise selects with omx_fm_select(), never `?:` on floats, so its arithmetic
+ * is evaluated unconditionally and the compiler has nothing to speculate (tools/fastmath-vec-check.sh holds it).
  *
  * ## What it is not
  *
@@ -103,7 +105,7 @@ extern float powf(float, float);
  * @return `a` or `b`, bit for bit.
  * @note RT-safe: three integer operations. Thread-safe: pure.
  */
-static inline float omx_fm_select(int cond, float a, float b) {
+static inline OMX_FM_ALWAYS float omx_fm_select(int cond, float a, float b) {
   const uint32_t m = (uint32_t)0 - (uint32_t)(cond != 0);
   uint32_t x, y;
   memcpy(&x, &a, sizeof x);
