@@ -1,0 +1,121 @@
+{
+  "kernel": "balancer",
+  "since": "0.28.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "6ff310b0c8420f32766c1b098b5d5b7f318d3900"
+  },
+  "items": [
+    {
+      "name": "BALANCER_AMOUNT_PCT_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#am"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "How much of each band's distance from the target tone the face takes out, percent. It comes up at 0, the input bit for bit."
+    },
+    {
+      "name": "BALANCER_RANGE_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#rg"
+      },
+      "value": {
+        "min": 1,
+        "max": 12,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 3,
+        "defaultFrom": "desk"
+      },
+      "doc": "The most any one band moves, dB, either way."
+    },
+    {
+      "name": "BALANCER_SPEED_DB_PER_S_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#sp"
+      },
+      "value": {
+        "min": 0.1,
+        "max": 6,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0.5,
+        "defaultFrom": "desk"
+      },
+      "doc": "How fast each band walks, dB per second: slow enough that a mix's tone drifts into place and no note is chased."
+    },
+    {
+      "name": "BALANCER_SLOPE_DB_OCT_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#sl"
+      },
+      "value": {
+        "min": -6,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB/oct",
+        "default": -3,
+        "defaultFrom": "desk"
+      },
+      "doc": "The target spectrum's slope, dB per octave of density. -3 is pink noise, the long-term average of most programme; 0 is white."
+    },
+    {
+      "name": "BALANCER_BAND_HZ",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#OMX_BALANCER_INSTANCE_HZ"
+      },
+      "value": [
+        125,
+        500,
+        2000,
+        8000
+      ],
+      "unit": "Hz",
+      "doc": "The centres of the bands measured and moved, Hz, two octaves apart."
+    },
+    {
+      "name": "BALANCER_Q",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_instance_init"
+      },
+      "value": 0.7,
+      "unit": "",
+      "doc": "The Q of each band's detector and of its peaking section: 0.7 is about two octaves, so the bands meet."
+    },
+    {
+      "name": "BALANCER_DETECT_MS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_instance_init"
+      },
+      "value": 400,
+      "unit": "ms",
+      "doc": "The time constant of the detector's power average, ms: long-term tone, not notes."
+    },
+    {
+      "name": "BALANCER_GATE_DBFS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_tick"
+      },
+      "value": -60,
+      "unit": "dBFS",
+      "doc": "Under this mean band level, dBFS, the gains hold: a pause has no tone to correct."
+    },
+    {
+      "name": "BALANCER_BAND_DB_OCT",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/balancer.json at 6ff310b0c842, implemented at include/omxdsp/fx/omx_balancer_instance.h#omx_balancer_tick"
+      },
+      "value": 3.0103,
+      "unit": "dB/oct",
+      "doc": "What a constant-Q band gains per octave on a flat spectrum, dB: its width doubles, 10 log10(2). The target's slope is the spectrum's, so a band's level is read against the slope plus this: on pink noise every band reads the same."
+    }
+  ]
+}

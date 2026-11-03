@@ -1,0 +1,221 @@
+{
+  "kernel": "dyneq",
+  "since": "0.27.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "10c5d46376e6576eca19a67e8a24a2b2b8a339ab"
+  },
+  "items": [
+    {
+      "name": "DYNEQ_BAND_ONS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#sw"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "A band's switch. Off, the band is not in the EQ's bank and its dynamics do not run; on, its static section runs, parked at 0 dB as an EQ band is, and its dynamics run as its dynMode says. A band comes up off, as an EQ band does: the ids and the come-up value are EQ_BAND_ONS's, the EQ's own band switch, and the face holds the two equal at compile time."
+    },
+    {
+      "name": "DYNEQ_BAND_TYPES",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#type"
+      },
+      "value": [
+        "bell",
+        "lowShelf",
+        "highShelf"
+      ],
+      "default": "bell",
+      "labels": [
+        "Bell",
+        "Low Shelf",
+        "High Shelf"
+      ],
+      "doc": "The band's shape, in the order of the integer the kernel reads, which is the order of the first three EQ_BAND_TYPES: a bell, a low shelf, a high shelf. A bell's dynamics act through the cookbook bandpass at its centre, a shelf's through half of the first-order allpass at its corner (omx_band_dyn_design)."
+    },
+    {
+      "name": "DYNEQ_FREQ_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#fc"
+      },
+      "value": {
+        "min": 20,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz"
+      },
+      "doc": "The band's centre or corner, the EQ band's travel by reference. The come-up centres are the EQ's default rule for six bands (omx_eq_default_centres), so the bands start spread across the audio band."
+    },
+    {
+      "name": "DYNEQ_GAIN_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#g"
+      },
+      "value": {
+        "min": -15,
+        "max": 15,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band's static gain, the EQ band's travel by reference: the curve the band draws with its dynamics at rest. 0 dB parks the static section, as on the EQ, and the dynamics still act."
+    },
+    {
+      "name": "DYNEQ_Q_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#bq"
+      },
+      "value": {
+        "min": 0.3,
+        "max": 8,
+        "step": 0.1,
+        "unit": "",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "doc": "The bell's Q, the EQ band's travel by reference; the dynamics' bandpass takes the same Q. A shelf reads it as the EQ's shelf does."
+    },
+    {
+      "name": "DYNEQ_DYN_MODES",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#dyn_mode_i"
+      },
+      "value": [
+        "off",
+        "down",
+        "up"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "Down",
+        "Up"
+      ],
+      "doc": "Whether and when the band's dynamics act, in the order of the integer the kernel reads: off, the band is its static section alone; down, it acts above its threshold, when the band is loud (band_dyn's above); up, it acts below its threshold, when the band is quiet (band_dyn's below). The range's sign says whether it cuts or boosts. A band comes up off, so a fresh dynamic EQ is an EQ."
+    },
+    {
+      "name": "DYNEQ_THRESHOLD_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#thr"
+      },
+      "value": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -30,
+        "defaultFrom": "desk"
+      },
+      "doc": "Where the band's dynamics start, in dB of the band's own level after its static section: band_dyn's threshold travel by reference."
+    },
+    {
+      "name": "DYNEQ_RATIO_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#rat"
+      },
+      "value": {
+        "min": 1,
+        "max": 20,
+        "step": 0.1,
+        "unit": "",
+        "default": 2,
+        "defaultFrom": "desk"
+      },
+      "doc": "How hard the band is held past its threshold: band_dyn's ratio travel by reference."
+    },
+    {
+      "name": "DYNEQ_RANGE_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#rng"
+      },
+      "value": {
+        "min": -24,
+        "max": 12,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -6,
+        "defaultFrom": "desk"
+      },
+      "doc": "The most the dynamics add to the band's static gain, signed: below zero the deepest cut, above zero the largest boost. band_dyn's range travel by reference."
+    },
+    {
+      "name": "DYNEQ_ATTACK_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#att"
+      },
+      "value": {
+        "min": 0.5,
+        "max": 100,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 5,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band detector's attack, in ms: band_dyn's attack travel by reference, which stops at the oversampling floor; a step reaches 56.65 % at the attack time (the 4-stage cascade)."
+    },
+    {
+      "name": "DYNEQ_RELEASE_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#rel"
+      },
+      "value": {
+        "min": 5,
+        "max": 3000,
+        "step": 1,
+        "unit": "ms",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band detector's release, in ms: band_dyn's release travel by reference; a step falls to 43.35 % at the release time (the 4-stage cascade)."
+    },
+    {
+      "name": "DYNEQ_LISTENS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#lis"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "While on, the output is what the band's detector hears, its section B over the signal reaching the band, in place of the EQ's output; with more than one band listening, their sum. It comes up off."
+    },
+    {
+      "name": "DYNEQ_MIX_PCT_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#mix_share"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "The share of the processed output, in percent: 100 is the dynamic EQ alone, bit for bit, 0 the input."
+    },
+    {
+      "name": "DYNEQ_BANDS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/dyneq.json at 10c5d46376e6, implemented at include/omxdsp/fx/omx_dyneq_instance.h#OMX_DYNEQ_INSTANCE_BANDS"
+      },
+      "value": 6,
+      "unit": "",
+      "doc": "How many bands the dynamic EQ carries, each a static EQ section and its dynamics: six, the floating bands of the reference desks' dynamic EQs. Its state holds this many band-dynamics states."
+    }
+  ]
+}
