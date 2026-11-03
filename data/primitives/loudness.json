@@ -42,5 +42,35 @@
     "doc": "The width of a bin of the loudness core's block histograms, from BS1770_ABSOLUTE_GATE_LUFS up: this library's resolution, not a clause of BS.1770 or EBU Tech 3342, which state no histogram. LU is written dB here until omx-contract carries the unit (omx-contract#145).",
     "unit": "dB",
     "value": 0.1
+  },
+  "TECH3342_RANGE_GATE_LU": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_RANGE_GATE_LU"
+    },
+    "doc": "The loudness range's relative gate of EBU Tech 3342 v4.0 (November 2023), \"Loudness Range: A measure to supplement EBU R 128 loudness normalisation\": the short-term blocks it measures are those above the absolute gate and no more than 20 LU below their mean. LU is written dB here until omx-contract carries the unit (omx-contract#145).",
+    "unit": "dB",
+    "value": -20
+  },
+  "TECH3342_RANGE_LOW_PERCENTILE": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_RANGE_LOW"
+    },
+    "doc": "The low end of the loudness range of EBU Tech 3342 v4.0 (November 2023), \"Loudness Range: A measure to supplement EBU R 128 loudness normalisation\": the 10th percentile of the gated short-term loudness distribution, as a fraction.",
+    "unit": "",
+    "value": 0.1
+  },
+  "TECH3342_RANGE_HIGH_PERCENTILE": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_RANGE_HIGH"
+    },
+    "doc": "The high end of the loudness range of EBU Tech 3342 v4.0 (November 2023), \"Loudness Range: A measure to supplement EBU R 128 loudness normalisation\": the 95th percentile of the gated short-term loudness distribution, as a fraction.",
+    "unit": "",
+    "value": 0.95
   }
 }
