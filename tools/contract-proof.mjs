@@ -57,7 +57,10 @@ export const MOVED_AT = '2.14.0';
 export const AFTER_MOVE = '3.0.0';
 
 /** The units v0.1.3 read that the definitions no longer carry, each with the reason. */
-export const DROPPED_AFTER_PIN = new Map();
+export const DROPPED_AFTER_PIN = new Map([
+  ['OMX_DELAY_TIME_MS_MAX', 'e2a13a0: the c.alias blocks left the definitions and the header lost its alias section; omx_delay.h reads OMX_FX_DELAY_TIME_RANGE_MAX'],
+  ['OMX_FBS_DEFAULT_MAX_AUTO_BANDS', 'f8b816e: the fbs rows no omx-dsp source reads went to the console\'s own declarations, not here'],
+]);
 
 const OC = process.argv[2];
 if (!OC || !existsSync(join(OC, 'lib/data.mjs'))) {
