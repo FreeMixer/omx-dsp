@@ -19,7 +19,9 @@
  * consumer. Without those macros this header declares nothing, OMX_FM_SIMD is empty and the kernels
  * call the libm exactly as before: a system without libmvec (Debian 12 on arm64, glibc older than
  * 2.40 for tanhf and powf on aarch64, older than 2.35 on x86-64) builds and runs the plain path, and
- * so does a consumer that ignores the flags. `-fopenmp-simd` only reads the `omp simd` pragmas; it
+ * so does a consumer that ignores the flags. A partial set is the plain path for every loop that needs a
+ * function it lacks: the dynamics gain loops vectorise only with log10f and powf (OMX_DYN_LANES), the drive's
+ * tanh loop only with tanhf (OMX_DRIVE_LANES); `make fastmath-partial` holds it for log10f and expf alone. `-fopenmp-simd` only reads the `omp simd` pragmas; it
  * links no OpenMP runtime. `-fno-math-errno` lets the compiler treat the four functions as pure (it enables no
  * exception; the library never reads errno or the FP flags), so a loop over them vectorises. The trapping-math
  * default stays: a loop that must vectorise selects with omx_fm_select(), never `?:` on floats, so its arithmetic
