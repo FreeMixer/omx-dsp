@@ -10,13 +10,15 @@
  *                 its order, and every unit v0.1.3 read in include/, src/, test/ or its Makefile. A unit v0.1.3 lacks
  *                 belongs to an item a later release added (its answer says `since`); a unit whose value moved after
  *                 v0.1.3 is named in MOVED_AFTER_PIN with its reason, and the list is exact.
+ *   reads         every unit this library's code read at READS_PIN (its last build against a committed limits header)
+ *                 renders with that commit's text, the c.alias spellings ALIAS_REMOVAL took out left aside.
  *   completeness  every kernel of data/kernels/ has every artifact omx-contract's recipes/kernel.recipe.json lists,
  *                 checked in a scratch tree of data/, these answers and their renders.
  *
  *   node tools/contract-proof.mjs <omx-contract checkout> [--self-test]
  *
- * --self-test plants an answer change (a later item's `since` set to the first release) and a moved value, and
- * fails unless the round-trip goes red on each. Exit 0 both proofs hold, 1 one fails, 2 usage.
+ * --self-test plants an answer change, a since outside the release line, moved, added and dropped units left unnamed or
+ * named wrongly, and a moved and a removed unit the READS_PIN code read, and fails unless each is red. Exit 0 both proofs hold, 1 one fails, 2 usage.
  */
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -26,6 +28,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PIN_TAG = 'v0.1.3';
+/** The last commit that built against a committed limits header (0.1.5-8): every unit its code read must still render. */
+export const READS_PIN = '4108494';
+/** The commit that removed the c.alias spellings; the defines it took out of omxdsp_definitions.h are those spellings. */
+export const ALIAS_REMOVAL = 'e2a13a0';
 const PIN_HEADER = 'include/omxdsp/omx_contract_limits.h';
 
 /**
@@ -89,13 +95,13 @@ function textsUnder(dir, pre = '') {
 
 const git = (...a) => execFileSync('git', ['-C', HERE, ...a], { encoding: 'utf8', maxBuffer: 1 << 28 });
 
-/** v0.1.3's header and the units of it that v0.1.3's own include/, src/, test/ and Makefile read. */
-function pin() {
-  const header = git('show', `${PIN_TAG}:${PIN_HEADER}`);
+/** A ref's limits header and the units of it that the ref's own include/, src/, test/, tools/ and Makefile read. */
+function pin(ref = PIN_TAG) {
+  const header = git('show', `${ref}:${PIN_HEADER}`);
   const keys = [...header.matchAll(/^#define (OMX_\w+)/gm)].map((m) => m[1]);
-  const files = git('ls-tree', '-r', '--name-only', PIN_TAG).split('\n')
-    .filter((f) => (/^(include|src|test)\//.test(f) || f === 'Makefile') && f !== PIN_HEADER);
-  const code = files.map((f) => git('show', `${PIN_TAG}:${f}`).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')).join('\n');
+  const files = git('ls-tree', '-r', '--name-only', ref).split('\n')
+    .filter((f) => (/^(include|src|test|tools)\//.test(f) || f === 'Makefile') && f !== PIN_HEADER);
+  const code = files.map((f) => git('show', `${ref}:${f}`).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')).join('\n');
   return { header, read: keys.filter((k) => new RegExp(`\\b${k}\\b`).test(code)) };
 }
 
@@ -159,6 +165,22 @@ export function roundTrip({ dataDir = join(HERE, 'data'), answersDir = join(HERE
   return { ok, units: S.length, pinUnits: P.length, read: read.length, differing, moved: movedHere, movedStale, added: addedHere, addedStale, notInPin, inOrder, readMissing, droppedStale, sinceOff };
 }
 
+/**
+ * Every unit READS_PIN's code read, but the c.alias spellings ALIAS_REMOVAL took out, is in the render of `dataDir`
+ * with READS_PIN's text, or named in `moved` (its value moved since, with the reason).
+ */
+export function readsCheck({ dataDir = join(HERE, 'data'), moved = MOVED_AFTER_PIN } = {}) {
+  const { header, read } = pin(READS_PIN);
+  const aliases = new Set([...git('show', ALIAS_REMOVAL, '--', 'include/omxdsp/omxdsp_definitions.h').matchAll(/^-#define (OMX_\w+)/gm)].map((m) => m[1]));
+  const checked = read.filter((k) => !aliases.has(k));
+  const texts = { ...textsUnder(join(resolve(OC), 'data')), ...textsUnder(dataDir) };
+  const ours = new Map(units(renderC(resolveData(loadData(null, texts))).find((f) => f.path === 'omxcontract/omx_contract_limits.h').text).map((u) => [u.key, text(u)]));
+  const theirs = new Map(units(header).map((u) => [u.key, text(u)]));
+  const missing = checked.filter((k) => !ours.has(k));
+  const differing = checked.filter((k) => ours.has(k) && ours.get(k) !== theirs.get(k) && !moved.has(k));
+  return { ok: !missing.length && !differing.length && aliases.size > 0, read: read.length, aliases: read.length - checked.length, missing, differing };
+}
+
 /** A scratch tree of omx-contract's schema and recipe, this tree's data and answers, and their renders. */
 function completenessTree() {
   const dir = mkdtempSync(join(tmpdir(), 'omx-dsp-contract-proof-'));
@@ -215,6 +237,20 @@ if (process.argv.includes('--self-test')) {
     red('an answer whose since is an omx-dsp release', roundTrip({ answersDir: join(t, 'answers') }), (r) => r.sinceOff.some((x) => x.startsWith('width.json')));
     red('a unit named as added that was not', roundTrip({ added: new Map([...ADDED_AFTER_PIN, ['OMX_COMP_RATIO_MIN', 'planted']]) }), (r) => r.addedStale.includes('OMX_COMP_RATIO_MIN'));
     red('a dropped unit left unnamed', roundTrip({ dropped: new Map() }), (r) => r.readMissing.includes('OMX_DELAY_TIME_MS_MAX'));
+    cpSync(join(HERE, 'data'), join(t, 'data'), { recursive: true });
+    const ch = join(t, 'data/kernels/chorus.json');
+    const cd = JSON.parse(readFileSync(ch, 'utf8'));
+    cd.controls.find((c) => c.name === 'rate').travel.default = 0.7;
+    writeFileSync(ch, JSON.stringify(cd, null, 2));
+    const mv = readsCheck({ dataDir: join(t, 'data') });
+    if (mv.ok || !mv.differing.includes('OMX_CHORUS_RATE_RANGE_DEFAULT')) { console.log('contract-proof: FAIL: a moved read unit left the reads green'); bad = 1; }
+    else console.log('contract-proof: self-test: a moved read unit is red, named');
+    cd.controls.find((c) => c.name === 'rate').travel.default = JSON.parse(readFileSync(join(HERE, 'data/kernels/chorus.json'), 'utf8')).controls.find((c) => c.name === 'rate').travel.default;
+    cd.controls = cd.controls.filter((c) => c.name !== 'rate');
+    writeFileSync(ch, JSON.stringify(cd, null, 2));
+    const rm = readsCheck({ dataDir: join(t, 'data') });
+    if (rm.ok || !rm.missing.includes('OMX_CHORUS_RATE_RANGE_MIN')) { console.log('contract-proof: FAIL: a removed read travel left the reads green'); bad = 1; }
+    else console.log('contract-proof: self-test: a removed read travel is red, named');
     red('a unit named as moved that did not move', roundTrip({ moved: new Map([...MOVED_AFTER_PIN, ['OMX_COMP_RATIO_MIN', 'planted']]) }), (r) => r.movedStale.includes('OMX_COMP_RATIO_MIN'));
   } finally {
     rmSync(t, { recursive: true, force: true });
@@ -224,6 +260,10 @@ if (process.argv.includes('--self-test')) {
 
 const r = roundTrip();
 report(r);
+const rd = readsCheck();
+console.log(`reads: ${rd.read - rd.aliases - rd.missing.length - rd.differing.length}/${rd.read - rd.aliases} units ${READS_PIN} read render with its text (${rd.aliases} c.alias spellings ${ALIAS_REMOVAL} removed left out)`);
+for (const [k, v] of [['missing', rd.missing], ['differing', rd.differing]]) if (v.length) console.log(`  ${k}: ${v.join(', ')}`);
+console.log(`reads: ${rd.ok ? 'HOLD' : 'FAIL'}`);
 const tree = completenessTree();
 let v;
 try {
@@ -234,4 +274,4 @@ try {
 for (const l of v.lines) console.log(l);
 for (const g of v.gaps) console.log(`  GAP ${g}`);
 console.log(v.ok ? 'completeness: every kernel has every artifact of the recipe' : `completeness: ${v.gaps.length} gap(s)`);
-process.exit(r.ok && v.ok ? 0 : 1);
+process.exit(r.ok && rd.ok && v.ok ? 0 : 1);
