@@ -64,7 +64,7 @@ static inline void omx_mix_strip(const float *inL, const float *inR, float *rest
   OMX_PRE(omx_block_finite(inL, n), "finite-tap-l");
   OMX_PRE(omx_block_finite(inR, n), "finite-tap-r");
   OMX_PRE(tgtL - tgtL == 0.0f && tgtR - tgtR == 0.0f, "finite-coef");
-  OMX_PRE(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-accumulator-in");
+  OMX_PRE(omx_block_pair_finite(busL, busR, n), "finite-accumulator-in");
   if (n == 0) return;
   const struct omx_mixmatrix_entry el = omx_bus_sum_entry(0u, 0u, *curL, tgtL);
   const struct omx_mixmatrix_entry er = omx_bus_sum_entry(0u, 1u, *curR, tgtR);
@@ -72,7 +72,7 @@ static inline void omx_mix_strip(const float *inL, const float *inR, float *rest
   omx_bus_sum_accumulate(busR, inR, n, &er);
   *curL = el.g_cur;
   *curR = er.g_cur;
-  OMX_POST(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-accumulator-out");
+  OMX_POST(omx_block_pair_finite(busL, busR, n), "finite-accumulator-out");
   OMX_POST(*curL - *curL == 0.0f && *curR - *curR == 0.0f, "ramp-self-heals-to-finite");
 }
 #undef OMX_CONTRACT_STAGE
@@ -149,7 +149,7 @@ static inline void omx_bus_out_stage(float *busL, float *busR, uint32_t n, int c
   if (next_l != held_l) atomic_store_explicit(peakL, next_l, memory_order_relaxed);
   const float next_r = omx_meter_hold_peak(held_r, mR);
   if (next_r != held_r) atomic_store_explicit(peakR, next_r, memory_order_relaxed);
-  OMX_POST(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-bus-out");
+  OMX_POST(omx_block_pair_finite(busL, busR, n), "finite-bus-out");
 }
 #undef OMX_CONTRACT_STAGE
 

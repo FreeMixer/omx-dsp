@@ -80,9 +80,7 @@ static inline void omx_tone_instance_resolve(OmxToneInstance *s, int bypass, flo
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
  * set. The face comes up at its declared defaults, flat and open. Allocates nothing. */
 static inline int omx_tone_instance_init(OmxToneInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->ready = 1;
   omx_tone_instance_resolve(s, 0, (float)OMX_TONE_TILT_DB_RANGE_DEFAULT, (float)OMX_TONE_PIVOT_HZ_RANGE_DEFAULT,
@@ -151,7 +149,7 @@ static inline void omx_tone_instance_run(OmxToneInstance *s, const float *in_l, 
                                          float *out_r, uint32_t n) {
   if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled || !(s->tilt_on || s->filter_on)) return;
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   float *legs[2] = {out_l, out_r};
   for (int c = 0; c < 2; c++) {
     float *x = legs[c];
@@ -160,7 +158,7 @@ static inline void omx_tone_instance_run(OmxToneInstance *s, const float *in_l, 
     if (s->filter_on)
       for (uint32_t i = 0; i < n; i++) x[i] = omx_biquad_d(x[i], s->fc, s->fs[c]);
   }
-  OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(out_l, out_r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

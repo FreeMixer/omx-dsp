@@ -25,7 +25,8 @@ mode=check
 case "${1:-}" in --write) mode=write; shift ;; --self-test) mode=self; shift ;; esac
 [ -f build/libomxdsp.a ] || { echo "analysis-engine-identity: build/libomxdsp.a is missing: make lib first" >&2; exit 2; }
 [ $# -eq 1 ] || { echo "usage: $0 [--write|--self-test] <openmixer checkout>" >&2; exit 2; }
-engine="$(cd "$1" && pwd)/packages/pipewire-native/src"
+pkgs="$(cd "$1" && pwd)/packages"
+engine="$pkgs/pipewire-native/src"
 for h in mix_dsp.h hrp_render.h hrp_lv2.h; do
   [ -f "$engine/$h" ] || { echo "analysis-engine-identity: $engine has no $h" >&2; exit 2; }
 done

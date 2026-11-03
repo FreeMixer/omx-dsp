@@ -26,6 +26,14 @@ struct omx_lfo {
 };
 
 /**
+ * @brief Whether the oscillator's phase is inside its turn, [0, 1).
+ * @param l The oscillator.
+ * @return 1 when the phase is in [0, 1), else 0.
+ * @note RT-safe and thread-safe: a read.
+ */
+static inline int omx_lfo_in_turn(const struct omx_lfo *l) { return l->phase >= 0.0f && l->phase < 1.0f; }
+
+/**
  * @brief The state's size, for a host that lays the state out itself.
  * @return `sizeof(struct omx_lfo)`.
  * @note RT-safe and thread-safe: a constant.

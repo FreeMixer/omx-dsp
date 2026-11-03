@@ -20,4 +20,15 @@ export const TOLERANCES = {
   octavesToQ: { rel: 1e-12 },
   // The answer is a power of two.
   fftSizeForRate: { abs: 0 },
+  // The same closed forms in double, -ffp-contract=off on the C side; libm against V8 is a few ulp, amplified
+  // where p1 -> -2, p2 -> 1 (a low centre at a high rate). The worst gap is 2e-13; the bound is 500 times that and
+  // 400 times under the float32 half-ulp the engine narrows every coefficient to.
+  rbjSection: { abs: 1e-10, rel: 1e-10 },
+  // The kernel clamps a float: its input is narrowed first, at most 2^-24 relative.
+  clampEqQFor: { rel: F32 },
+  // dB of a magnitude quotient from the same design in double; the worst gap is 1.8e-10 dB (a hair off a notch's
+  // null, where the numerator cancels). 1e-8 dB is 55 times that and a millionth of a 0.01 dB meter step.
+  biquadMagnitudeDb: { abs: 1e-8 },
+  // A sum of up to four of those: 1e-8 dB holds with 13 times to spare.
+  magnitudeSumDb: { abs: 1e-8 },
 };

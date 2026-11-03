@@ -97,9 +97,7 @@ static inline void omx_doubler_instance_resolve(OmxDoublerInstance *s, int bypas
                                                 float spread_pct, float mix_pct);
 
 static inline int omx_doubler_instance_init(OmxDoublerInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   if (omx_fdelay_init(&s->line, s->ring, OMX_DOUBLER_INSTANCE_CAP, OMX_DOUBLER_INSTANCE_ORDER) != OMX_FDELAY_OK) return 0;
   omx_lfo_start(&s->lfo);
   s->sr = sr;
@@ -192,12 +190,13 @@ static inline void omx_doubler_instance_resolve(OmxDoublerInstance *s, int bypas
 #define OMX_CONTRACT_STAGE "doubler/instance-run"
 static inline void omx_doubler_instance_run(OmxDoublerInstance *s, const float *in_l, const float *in_r, float *out_l,
                                             float *out_r, uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready || !s->enabled || !(s->mix > 0.0f)) return;
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  if (!omx_instance_through_engaged(in_l, in_r, out_l, out_r, n, s && s->ready && s->enabled && s->mix > 0.0f))
+    return;
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   const float dry = 1.0f - s->mix;
   for (uint32_t i = 0; i < n; i++) {
-    const float xl = out_l[i], xr = out_r[i];
+    const float xl = out_l[i];
+    const float xr = out_r[i];
     omx_fdelay_write(&s->line, 0.5f * (xl + xr));
     float wl = 0.0f, wr = 0.0f;
     for (uint32_t k = 0; k < s->nv; k++) {
@@ -210,7 +209,7 @@ static inline void omx_doubler_instance_run(OmxDoublerInstance *s, const float *
     omx_lfo_advance(&s->lfo);
     omx_wetdry_mix(&out_l[i], &out_r[i], xl, xr, wl, wr, dry, s->mix);
   }
-  OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(out_l, out_r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

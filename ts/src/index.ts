@@ -6,5 +6,19 @@
  * agreement test in test/ that feeds both the same grid.
  */
 export { ANALYSIS_FLOOR_DB, dbToLinearGain, linearGainToDb, linearToDbFloored } from './units.js';
-export { octavesToQ } from './eq.js';
+export {
+  biquadMagnitudeDb,
+  clampEqQFor,
+  lowpassHandover,
+  magnitudeSumDb,
+  matchedPair,
+  octavesToQ,
+  rbjSection,
+  sectionMagnitudeDb,
+  type BiquadBand,
+  type BiquadKind,
+  type BiquadSection,
+  type BiquadType,
+} from './eq.js';
+export { EQ_NOTCH_Q_RANGE, EQ_Q_RANGE, LOWPASS_HANDOVER, RTA_FFT_SIZE_MAX, RTA_TARGET_BIN_HZ } from './definitions.js';
 export { fftSizeForRate } from './rta.js';

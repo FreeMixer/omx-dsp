@@ -1,0 +1,187 @@
+{
+  "kernel": "glue",
+  "since": "3.0.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "716ec91f7dc67af19f143301b48fb6a5d7952499"
+  },
+  "items": [
+    {
+      "name": "GLUE_THRESHOLD_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#th"
+      },
+      "value": {
+        "min": -40,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -10,
+        "defaultFrom": "desk"
+      },
+      "doc": "The level, dBFS, above which the bus is pulled down."
+    },
+    {
+      "name": "GLUE_RATIOS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#ra"
+      },
+      "value": [
+        "r2",
+        "r4",
+        "r10"
+      ],
+      "default": "r2",
+      "labels": [
+        "2:1",
+        "4:1",
+        "10:1"
+      ],
+      "doc": "The ratio, the detents a bus compressor offers, in the order of the integer the kernel reads: GLUE_RATIO_VALUES."
+    },
+    {
+      "name": "GLUE_ATTACKS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#at"
+      },
+      "value": [
+        "a01",
+        "a03",
+        "a1",
+        "a3",
+        "a10",
+        "a30"
+      ],
+      "default": "a10",
+      "labels": [
+        "0.1 ms",
+        "0.3 ms",
+        "1 ms",
+        "3 ms",
+        "10 ms",
+        "30 ms"
+      ],
+      "doc": "The attack, in the order of the integer the kernel reads: GLUE_ATTACK_MS. It comes up at 10 ms, which lets a kick through before the bus moves."
+    },
+    {
+      "name": "GLUE_RELEASES",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#rl"
+      },
+      "value": [
+        "r100",
+        "r300",
+        "r600",
+        "r1200",
+        "auto"
+      ],
+      "default": "auto",
+      "labels": [
+        "0.1 s",
+        "0.3 s",
+        "0.6 s",
+        "1.2 s",
+        "Auto"
+      ],
+      "doc": "The release, in the order of the integer the kernel reads: GLUE_RELEASE_MS, then auto, the compressor's program-dependent release (PROGRAM_RELEASE_PROFILES.auto)."
+    },
+    {
+      "name": "GLUE_MAKEUP_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#mk"
+      },
+      "value": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The gain after the pull, dB."
+    },
+    {
+      "name": "GLUE_KEY_HP_HZ_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#hp"
+      },
+      "value": {
+        "min": 0,
+        "max": 500,
+        "step": 1,
+        "unit": "Hz",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The detector's high-pass corner, Hz: 0 is out; a corner keeps the low end from pumping the whole bus."
+    },
+    {
+      "name": "GLUE_MIX_PCT_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#mx"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "The compressed bus against the dry one, percent: below 100 is parallel compression."
+    },
+    {
+      "name": "GLUE_KNEE_DB",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#omx_glue_instance_resolve"
+      },
+      "value": 3,
+      "unit": "dB",
+      "doc": "The knee, dB, across the threshold: narrow, so the detents keep the character of a VCA bus compressor."
+    },
+    {
+      "name": "GLUE_RATIO_VALUES",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#OMX_GLUE_INSTANCE_RATIOS"
+      },
+      "value": [
+        2,
+        4,
+        10
+      ],
+      "unit": "",
+      "doc": "The ratios of the `ratio` detents."
+    },
+    {
+      "name": "GLUE_ATTACK_MS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#OMX_GLUE_INSTANCE_ATTACKS"
+      },
+      "value": [
+        0.1,
+        0.3,
+        1,
+        3,
+        10,
+        30
+      ],
+      "unit": "ms",
+      "doc": "The attacks of the `attack` detents, ms."
+    },
+    {
+      "name": "GLUE_RELEASE_MS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#OMX_GLUE_INSTANCE_RELEASES"
+      },
+      "value": [
+        100,
+        300,
+        600,
+        1200
+      ],
+      "unit": "ms",
+      "doc": "The releases of the `release` detents but the last, ms."
+    }
+  ]
+}

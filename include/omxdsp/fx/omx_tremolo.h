@@ -98,7 +98,7 @@ static inline void omx_tremolo_gains(const struct omx_tremolo *p, float s, float
  */
 static inline void omx_tremolo_process(float *l, float *r, uint32_t n, const struct omx_tremolo *p,
                                        struct omx_tremolo_state *s) {
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
   OMX_PRE(p->depth >= 0.0f && p->depth <= 1.0f, "depth-in-unit-range");
   OMX_PRE(p->mix >= 0.0f && p->mix <= 1.0f, "mix-in-unit-range");
   OMX_PRE(p->lfo_inc >= 0.0f && p->lfo_inc < 1.0f, "an-increment-is-inside-one-turn");
@@ -111,7 +111,7 @@ static inline void omx_tremolo_process(float *l, float *r, uint32_t n, const str
     l[i] *= gl;
     r[i] *= gr;
   }
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

@@ -136,7 +136,7 @@ static inline void omx_loudlevel_instance_run(OmxLoudlevelInstance *s, const flo
                                               float *out_r, uint32_t n) {
   if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled) return;
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   uint32_t o = 0u;
   while (o < n) {
     const uint32_t m = n - o < s->left ? n - o : s->left;

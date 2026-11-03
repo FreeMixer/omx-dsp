@@ -30,7 +30,8 @@ if (!openmixerArg || !contractTsArg) {
 const openmixer = resolve(openmixerArg);
 const contractTs = resolve(contractTsArg);
 register('./ts-golden-hooks.mjs', import.meta.url, { data: { openmixer, contractTs } });
-const core = async (m) => import(pathToFileURL(`${openmixer}/packages/core/src/${m}.ts`).href);
+const pkgs = `${openmixer}/packages`;
+const core = async (m) => import(pathToFileURL(`${pkgs}/core/src/${m}.ts`).href);
 const transfer = await core('room-transfer');
 const impulse = await core('room-impulse');
 const rt60 = await core('room-rt60');

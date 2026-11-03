@@ -2,13 +2,14 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /**
  * The kernel half of every agreement test: ts-twin-oracle.c answers a kernel by name for a grid of rows, one
- * process per call (moved here with the twins from the console). It links this checkout's
- * build/libomxdsp.a when `make lib` has built it (CI does), else the installed omx-dsp through pkg-config, and
- * says which on stderr so a run never hides what it measured.
+ * process per call. It links, in this order: the library OMXDSP_CFLAGS and OMXDSP_LIBS name (a consumer that
+ * resolves its own omx-dsp build sets both), this checkout's build/libomxdsp.a when `make lib` has built it (CI
+ * does), else the installed omx-dsp through pkg-config, and says which on stderr so a run never hides what it
+ * measured. Published in @openmixer/omx-dsp as `@openmixer/omx-dsp/oracle`, with the C source beside it.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,10 +18,15 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = join(HERE, 'ts-twin-oracle.c');
 const REPO = join(HERE, '..', '..');
 
-/** The compile and link flags: the in-tree library first, the installed one second. */
+/** The compile and link flags: the caller's library first, the in-tree one second, the installed one third. */
 export const linkage = () => {
+  const { OMXDSP_CFLAGS: cflags, OMXDSP_LIBS: libs } = process.env;
+  if (cflags !== undefined || libs !== undefined) {
+    if (cflags === undefined || !libs) throw new Error('ts-twin-oracle: set both OMXDSP_CFLAGS and OMXDSP_LIBS, or neither');
+    return { from: `OMXDSP_LIBS ${libs}`, flags: `${cflags} -o @ '${SRC}' ${libs}` };
+  }
   const archive = join(REPO, 'build', 'libomxdsp.a');
-  if (existsSync(archive)) return { from: 'tree', flags: `-ffp-contract=off -I'${join(REPO, 'include')}' -o @ '${SRC}' '${archive}' -lm` };
+  if (existsSync(archive) && existsSync(join(REPO, 'include', 'omxdsp'))) return { from: 'tree', flags: `-ffp-contract=off -I'${join(REPO, 'include')}' -o @ '${SRC}' '${archive}' -lm` };
   const pc = execFileSync('pkg-config', ['--cflags', '--libs', 'omxdsp'], { encoding: 'utf8' }).trim();
   return { from: `installed omx-dsp ${execFileSync('pkg-config', ['--modversion', 'omxdsp'], { encoding: 'utf8' }).trim()}`, flags: `-o @ '${SRC}' ${pc}` };
 };
@@ -29,7 +35,9 @@ let built = '';
 export const oraclePath = () => {
   if (built) return built;
   const { from, flags } = linkage();
-  const key = createHash('sha256').update(readFileSync(SRC)).update(flags).digest('hex').slice(0, 16);
+  // an archive the flags name is part of the key, so a rebuilt library is never answered by an old binary
+  const stamp = (flags.match(/'?([^' ]+\.a)'?/g) ?? []).map((a) => a.replace(/'/g, '')).filter(existsSync).map((a) => `${a}:${statSync(a).size}:${statSync(a).mtimeMs}`).join(',');
+  const key = createHash('sha256').update(readFileSync(SRC)).update(flags).update(stamp).digest('hex').slice(0, 16);
   const dir = join(tmpdir(), `omx-dsp-ts-oracle-${process.getuid?.() ?? 0}`);
   mkdirSync(dir, { recursive: true });
   const bin = join(dir, `oracle-${key}`);
@@ -45,6 +53,10 @@ export const oraclePath = () => {
 
 export const oracleKernels = () =>
   execFileSync(oraclePath(), ['--list'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+
+/** The rates a rate-dependent twin is checked at: the contract's full oracle grid the library was built with. */
+export const oracleRates = () =>
+  execFileSync(oraclePath(), ['--rates'], { encoding: 'utf8' }).split('\n').filter(Boolean).map(Number);
 
 const wire = (x) => {
   if (Object.is(x, -0)) return '-0';

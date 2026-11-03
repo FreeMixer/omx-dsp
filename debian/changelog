@@ -14,6 +14,23 @@ omx-dsp (0.29.0) unstable; urgency=medium
   * data: 16 items nobody read are retired, geq's modes read GEQ_MODES, and 43
     items gain an implementation link or a stated reader.
   * ci: the heavy jobs run where vars.OMX_RUNNER says; make test may take 90 minutes.
+  * With a libmvec that lacks a function a loop needs (aarch64 glibc before
+    2.40), that loop takes the plain path; the gate's knee lane raises no
+    floating-point exception; a package build no longer picks up the vector
+    flags from the environment (#272).
+  * The package builds run make check-package (the suite, the oracles and the
+    goldens) and leave the sabotage runs to CI; each build takes minutes, not an
+    hour (#276).
+  * Requires omx-contract 3.8.0 or later.
+  * The TypeScript package also exports the four twins the console used to copy
+    (clampEqQFor, matchedPair, biquadMagnitudeDb, magnitudeSumDb) and the oracle
+    that pins the twins (@openmixer/omx-dsp/oracle).
+  * The round-trip and completeness proofs over omx-dsp's own data and answers
+    live here now (make contract-proof). The BS.1770 and EBU Tech 3342 loudness
+    constants are declared once and referenced; glue, dyneq and balancer bounds
+    refer to their declared values instead of repeating the numbers.
+  * The instance tests share one harness and the clone baseline is gone; CI runs
+    FreeMixer/.github's shared checks.
 
  -- Pau Aliagas <linuxnow@gmail.com>  Tue, 03 Nov 2026 10:30:00 +0100
 

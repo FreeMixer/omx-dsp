@@ -124,13 +124,12 @@
     {
       "name": "EQ_NOTCH_Q_RANGE",
       "source": {
-        "path": "index.ts",
-        "export": "EQ_NOTCH_Q_RANGE"
+        "origin": "imported as index.ts EQ_NOTCH_Q_RANGE ({\"min\":0.3,\"max\":116,\"step\":1,\"unit\":\"\"}) at the console engine's 964a79835692; moved in omx-dsp 09ff9da: a travel's step must reach its maximum and default from its minimum"
       },
       "value": {
         "min": 0.3,
         "max": 116,
-        "step": 1,
+        "step": 0.1,
         "unit": ""
       },
       "doc": "The Q extent of a NOTCH band. Wider than EQ_Q_RANGE on purpose (#116, operator decision): an ultra-narrow surgical cut is the notch shape's whole point — the FBS ring-out pool plants dbx-AFS-style ring killers at Q ≈ 116 (~1/80 octave), inaudible on program yet fatal to a single ringing frequency. Gain-carrying shapes stay bounded at EQ_Q_RANGE — a Q-116 bell is a resonator, not an EQ move.",

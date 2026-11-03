@@ -83,9 +83,7 @@ static inline void omx_suboct_instance_resolve(OmxSuboctInstance *s, int bypass,
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
  * set. The sub-octaver comes up at its declared defaults. Allocates nothing. */
 static inline int omx_suboct_instance_init(OmxSuboctInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->ready = 1;
   s->rng = -1;
@@ -150,7 +148,7 @@ static inline void omx_suboct_instance_run(OmxSuboctInstance *s, const float *in
                                            float *out_r, uint32_t n) {
   if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled) return;
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   const int wire = s->o1 == 0.0f && s->o2 == 0.0f && s->dr == 1.0f;
   for (uint32_t i = 0; i < n; i++, s->n++) {
     const float x = 0.5f * (out_l[i] + out_r[i]);
@@ -174,7 +172,7 @@ static inline void omx_suboct_instance_run(OmxSuboctInstance *s, const float *in
     out_r[i] = s->dr * out_r[i] + sub;
   }
   for (int k = 0; k < OMX_DYN_ENV_STAGES; k++) s->e0.stage[k] = omx_flush(s->e0.stage[k]), s->e1.stage[k] = omx_flush(s->e1.stage[k]);
-  OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(out_l, out_r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

@@ -287,7 +287,9 @@
       "min": {
         "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": 12,
+      "max": {
+        "ref": "DYNEQ_RANGE_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -300,7 +302,9 @@
       "min": {
         "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": 12,
+      "max": {
+        "ref": "DYNEQ_RANGE_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -313,7 +317,9 @@
       "min": {
         "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": 12,
+      "max": {
+        "ref": "DYNEQ_RANGE_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -326,7 +332,9 @@
       "min": {
         "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": 12,
+      "max": {
+        "ref": "DYNEQ_RANGE_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -339,7 +347,9 @@
       "min": {
         "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": 12,
+      "max": {
+        "ref": "DYNEQ_RANGE_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -352,7 +362,9 @@
       "min": {
         "ref": "DEESS_RANGE_RANGE.min"
       },
-      "max": 12,
+      "max": {
+        "ref": "DYNEQ_RANGE_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
