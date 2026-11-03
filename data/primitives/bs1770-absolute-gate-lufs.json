@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "BS1770_ABSOLUTE_GATE_LUFS": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_ABSOLUTE_GATE_LUFS"
+    },
+    "doc": "The absolute gating threshold of ITU-R BS.1770-4 (§2.8, as EBU R 128 adopts it): a 400 ms block at or below -70 LUFS is silence to the gated measures, and the loudness histogram starts at it. The one value the loudness core gates by, the leveler's gate travel starts at and its loudness readout floors at. LUFS is written dB here until omx-contract carries the unit (omx-contract#145).",
+    "unit": "dB",
+    "value": -70
+  }
+}
