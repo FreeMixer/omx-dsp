@@ -51,6 +51,21 @@ static inline OMX_FM_ALWAYS float omx_lin_to_db(float lin) {
 }
 
 /**
+ * @brief omx_lin_to_db() for a vectorised loop: the same float, the floor taken by omx_fm_select().
+ *
+ * A compiler may split the `?:` of omx_lin_to_db() into a branch that folds log10f of the floor to a
+ * constant and calls log10f on the other side only (GCC 12 does); the call then sits under a condition and
+ * the loop does not vectorise. The select of bits leaves one unconditional call.
+ * @param lin Amplitude, linear; values below OMX_LIN_TO_DB_FLOOR_LIN (1e-9) read as the floor.
+ * @return omx_lin_to_db(lin).
+ * @note RT-safe: one `log10f`. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_lin_to_db_lane(float lin) {
+  const float floor_lin = OMX_LIN_TO_DB_FLOOR_LIN;
+  return 20.0f * log10f(omx_fm_select(lin < floor_lin, floor_lin, lin));
+}
+
+/**
  * @brief Linear magnitude to decibels in double precision, floored at a caller-named level.
  *
  * The analysis-tier spelling: a detector that compares ratios of summed spectrum magnitudes

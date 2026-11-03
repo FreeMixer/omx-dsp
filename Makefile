@@ -98,7 +98,7 @@ else
 MVEC_FUNCS := $(shell sh tools/fastmath-probe.sh "$(CC)")
 endif
 ifneq ($(MVEC_FUNCS),)
-MVEC_CFLAGS = -fopenmp-simd -fno-math-errno -fno-trapping-math $(foreach f,$(MVEC_FUNCS),-DOMX_FASTMATH_MVEC_$(shell echo $(f) | tr a-z A-Z)=1)
+MVEC_CFLAGS = -fopenmp-simd -fno-math-errno $(foreach f,$(MVEC_FUNCS),-DOMX_FASTMATH_MVEC_$(shell echo $(f) | tr a-z A-Z)=1)
 MVEC_LIBS   = -lmvec
 override CFLAGS += $(MVEC_CFLAGS)
 endif
