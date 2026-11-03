@@ -66,6 +66,7 @@
 
 #include <omxdsp/omx_biquad.h>
 #include <omxdsp/omx_envelope.h>
+#include <omxdsp/omx_fastmath.h>
 #include <omxdsp/omx_onepole.h>
 #include <omxdsp/omx_ramp.h>
 #include <omxdsp/omx_contract.h>
@@ -327,6 +328,44 @@ static inline float omx_drive_sample(int curve, float u, const struct omx_drive_
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "drive/shape-block"
+/**
+ * @brief The biased curve over a block, in place: `x[i] = omx_drive_sample(curve, drive * x[i], s)`.
+ *
+ * The curve switch is taken once, outside the loop, and each curve's loop is a straight line of
+ * arithmetic with no per-sample state, so the compiler vectorises it (libmvec's tanhf for SOFT and
+ * EXCITER, vector divides and square roots for TAPE and TUBE) when the build declared libmvec
+ * (omx_fastmath.h). Without it the loop is the scalar one and the result is bit for bit what the
+ * per-sample call gives. With libmvec the tanhf of SOFT and EXCITER differs from the libm's by at
+ * most OMX_FM_TANHF_MAX_ULP ULP, which `make fastmath-diff` states in dB at the output of the stage.
+ * @param curve OMX_DRIVE_TAPE, OMX_DRIVE_TUBE, OMX_DRIVE_SOFT or OMX_DRIVE_EXCITER.
+ * @param s The block's bias constants, from omx_drive_bias_for().
+ * @param drive The linear drive gain applied before the curve.
+ * @param x The samples, in place; finite.
+ * @param n Samples.
+ * @post `finite-out`.
+ * @note RT-safe: no allocation, no state. Thread-safe on distinct blocks.
+ */
+static inline void omx_drive_shape_block(int curve, const struct omx_drive_bias *s, float drive, float *x,
+                                         uint32_t n) {
+  switch (curve) {
+    case OMX_DRIVE_TAPE:
+      OMX_FM_SIMD
+      for (uint32_t i = 0; i < n; i++) x[i] = omx_drive_sample(OMX_DRIVE_TAPE, drive * x[i], s);
+      break;
+    case OMX_DRIVE_TUBE:
+      OMX_FM_SIMD
+      for (uint32_t i = 0; i < n; i++) x[i] = omx_drive_sample(OMX_DRIVE_TUBE, drive * x[i], s);
+      break;
+    default: /* SOFT, EXCITER and anything else: omx_drive_shape's default arm, tanh */
+      OMX_FM_SIMD
+      for (uint32_t i = 0; i < n; i++) x[i] = omx_drive_sample(OMX_DRIVE_SOFT, drive * x[i], s);
+      break;
+  }
+  OMX_POST(omx_block_finite(x, n), "finite-out");
+}
+#undef OMX_CONTRACT_STAGE
+
 /* ---- small in-place helpers ----------------------------------------------------------- */
 
 /** Push `n` samples into a delay line and read back what was written `lat` samples ago. */
@@ -390,7 +429,7 @@ static inline void omx_drive_leg_chunk(struct omx_drive_leg *g, const struct omx
   const float drive = p->drive_lin;
   const float w = p->even_w;
   const struct omx_drive_bias bias = omx_drive_bias_for(shaper, w);
-  for (uint32_t i = 0; i < n_up; i++) g->up[i] = omx_drive_sample(shaper, drive * g->up[i], &bias);
+  omx_drive_shape_block(shaper, &bias, drive, g->up, n_up);
   omx_oversampler_down(&g->os, g->up, n, g->wet);
 
   /* 4. un-tilt (the exact inverse of step 1's shelf, so the dry path's tone is untouched),

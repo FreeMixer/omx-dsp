@@ -17,6 +17,7 @@
 
 #include "omx_contract.h"
 #include <omxdsp/omxdsp_definitions.h>
+#include "omx_fastmath.h"
 #include "omx_units.h"
 
 /** @brief Gain-computer mode: act on the signal ABOVE the threshold (comp / limiter). */
@@ -101,6 +102,30 @@ static inline float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float
 }
 #undef OMX_CONTRACT_STAGE
 
+/**
+ * @brief The gate's off-centre knee: the quadratic Bezier between the expander's line and 0 dB, at `x`.
+ *
+ * The root in [0, 1] of `(xl + xh) u^2 - 2 xl u + (xl - x) = 0`, in the form with no cancellation and
+ * no division by a vanishing leading coefficient (the centred knee's is 0). The discriminant is
+ * `(xh - xl)^2` at `x = xh` and moves linearly to `(2 xl)^2` at `x = xl`, so it is not negative on the
+ * knee; the clamp only absorbs rounding. Meaningful for `xl < x < xh`; outside it the value is
+ * arbitrary (possibly not finite) and the caller selects the line or 0 dB instead.
+ * @param p The parameters; BELOW mode.
+ * @param xl The knee's lower edge, dB from the threshold.
+ * @param xh The knee's upper edge, dB from the threshold.
+ * @param x The level, dB from the threshold.
+ * @return The gain, dB, before the range floor.
+ * @note RT-safe: arithmetic and one sqrtf. Thread-safe: pure.
+ */
+static inline float omx_gaincomp_knee_shifted(const struct omx_gaincomp_params *p, float xl, float xh, float x) {
+  const float a = xl + xh, b = -2.0f * xl, d = x - xl;
+  float disc = b * b + 4.0f * a * d;
+  disc = disc > 0.0f ? disc : 0.0f;
+  const float u = 2.0f * d / (b + sqrtf(disc));
+  const float w = 1.0f - u;
+  return w * w * (p->ratio - 1.0f) * xl;
+}
+
 #define OMX_CONTRACT_STAGE "gaincomp/db-shifted"
 /**
  * @brief The BELOW static gain, dB, with the knee's centre moved `shift_db` off the threshold.
@@ -139,18 +164,7 @@ static inline float omx_gaincomp_db_shifted(const struct omx_gaincomp_params *p,
   float g;
   if (x <= xl) g = (p->ratio - 1.0f) * x;
   else if (x >= xh) g = 0.0f;
-  else {
-    /* The root in [0, 1] of (xl + xh) u^2 - 2 xl u + (xl - x) = 0, in the form with no
-     * cancellation and no division by a vanishing leading coefficient (the centred knee's is 0).
-     * The discriminant is (xh - xl)^2 at x = xh and moves linearly to (2 xl)^2 at x = xl, so it
-     * is not negative on the knee; the clamp only absorbs rounding. */
-    const float a = xl + xh, b = -2.0f * xl, d = x - xl;
-    float disc = b * b + 4.0f * a * d;
-    disc = disc > 0.0f ? disc : 0.0f;
-    const float u = 2.0f * d / (b + sqrtf(disc));
-    const float w = 1.0f - u;
-    g = w * w * (p->ratio - 1.0f) * xl;
-  }
+  else g = omx_gaincomp_knee_shifted(p, xl, xh, x);
   g = g < p->range_db ? p->range_db : g;
   OMX_POST(g - g == 0.0f, "finite");
   OMX_POST(g <= 0.0f, "no-gain-added");
@@ -175,6 +189,31 @@ static inline float omx_gaincomp_gain_shifted(const struct omx_gaincomp_params *
   return omx_db_to_lin(omx_gaincomp_db_shifted(p, shift_db, omx_lin_to_db(level))) * p->makeup_lin;
 }
 #undef OMX_CONTRACT_STAGE
+
+/**
+ * @brief omx_gaincomp_gain_shifted() for a vectorised loop: the same float, with no branch.
+ *
+ * The line, 0 dB and the knee are all evaluated and one is selected, so a loop of calls has no control
+ * flow and the compiler can run it over several samples at once (omx_fastmath.h). Only for
+ * `shift_db != 0` (the caller takes omx_gaincomp_gain() for the centred knee) and in BELOW mode with the
+ * preconditions of omx_gaincomp_db_shifted(), which it does not check. The libm calls are the loop's,
+ * so with libmvec the value differs from omx_gaincomp_gain_shifted()'s by their ULP bounds only.
+ * @param p The parameters; BELOW mode.
+ * @param shift_db The knee centre's offset from the threshold, dB; not 0.
+ * @param level The detector level, linear, not negative; finite.
+ * @return The gain, in `[0, makeup_lin]`.
+ * @note RT-safe: no allocation, no state. Thread-safe: pure.
+ */
+static inline float omx_gaincomp_gain_shifted_lane(const struct omx_gaincomp_params *p, float shift_db, float level) {
+  const float level_db = omx_lin_to_db(level);
+  const float half = 0.5f * p->knee_db;
+  const float x = level_db - p->thresh_db;
+  const float xl = shift_db - half, xh = shift_db + half;
+  const float line = (p->ratio - 1.0f) * x, knee = omx_gaincomp_knee_shifted(p, xl, xh, x);
+  float g = x <= xl ? line : x >= xh ? 0.0f : knee;
+  g = g < p->range_db ? p->range_db : g;
+  return omx_db_to_lin(g) * p->makeup_lin;
+}
 
 #define OMX_CONTRACT_STAGE "gaincomp/db-fb"
 /**

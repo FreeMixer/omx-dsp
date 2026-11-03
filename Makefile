@@ -85,6 +85,23 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
 override CFLAGS += $(FPFLAGS)
+# libmvec, found by a build-time probe (tools/fastmath-probe.sh): the functions this toolchain can call
+# vectorised, each declared to the compiler by omx_fastmath.h under its OMX_FASTMATH_MVEC_<F> macro. Never
+# -ffast-math. FASTMATH=off keeps the libm; FASTMATH=auto (the default) takes what the probe finds.
+# CFLAGS_PLAIN is the flags without it: the golden digests are built with it, on the libm, so they read
+# the same on every glibc, with or without libmvec.
+FASTMATH ?= auto
+CFLAGS_PLAIN := $(CFLAGS)
+ifeq ($(FASTMATH),off)
+MVEC_FUNCS :=
+else
+MVEC_FUNCS := $(shell sh tools/fastmath-probe.sh "$(CC)")
+endif
+ifneq ($(MVEC_FUNCS),)
+MVEC_CFLAGS = -fopenmp-simd -fno-math-errno -fno-trapping-math $(foreach f,$(MVEC_FUNCS),-DOMX_FASTMATH_MVEC_$(shell echo $(f) | tr a-z A-Z)=1)
+MVEC_LIBS   = -lmvec
+override CFLAGS += $(MVEC_CFLAGS)
+endif
 # The limits come from FreeMixer/omx-contract: the installed omx-contract-devel / libomx-contract-dev
 # at or above the floor packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
 # (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
@@ -445,7 +462,7 @@ $(BUILD)/fx_%_math: test/fx/%_math.test.c $(FX_DEPS)
 # A golden TU is compiled with log10f replaced by the correctly rounded omx_log10f (test/support),
 # so its digest is exact on every glibc; production calls the libm's log10f.
 $(BUILD)/fx_%_golden: test/fx/%_golden.test.c $(FX_DEPS) $(SUPPORT_HEADERS)
-	$(CC) $(CFLAGS) $(INC) -Itest/fx $(GOLDEN_SUBST) -o $@ $< $(LIB) -lm
+	$(CC) $(CFLAGS_PLAIN) $(INC) -Itest/fx $(GOLDEN_SUBST) -o $@ $< $(LIB) -lm
 
 # An oracle that proves a face allocates nothing links with the allocators wrapped (FX_LDFLAGS_<k>).
 FX_NO_ALLOC_LDFLAGS = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
@@ -637,7 +654,7 @@ engine-kernels-identity:
 # Compiled with log10f replaced by the correctly rounded omx_log10f (test/support), as the FX goldens
 # are: the gain-reduction reading's log10f otherwise moves its digests on glibc 2.36 and 2.39.
 $(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) $(SUPPORT_HEADERS) | $(BUILD)
-	$(CC) $(CFLAGS) $(INC) $(GOLDEN_SUBST) -o $@ $< -lm
+	$(CC) $(CFLAGS_PLAIN) $(INC) $(GOLDEN_SUBST) -o $@ $< -lm
 
 test-mix: $(BUILD)/mix_golden $(LIB_CONTRACTS)
 	./$(BUILD)/mix_golden test/golden/mix.sha256
@@ -664,8 +681,45 @@ test:
 	$(MAKE) --no-print-directory test-parallel
 	@echo "omxdsp: make test green"
 
+# ---- libmvec (include/omxdsp/omx_fastmath.h) --------------------------------------------------------
+# fastmath          the oracle of tanhf, expf, log10f and powf over the library's range, and the check that every
+#                   hot loop (the drive's shaper, the dynamics gain curves) really calls the libmvec symbols
+# fastmath-diff     each kernel that uses them, rendered on the libm and on libmvec: the largest sample difference in dB
+# fastmath-sabotage the oracle goes red on a result moved by 5 ULP, the loop check on a header without the pragma,
+#                   the probe on a toolchain with no libmvec, no pragma or no vector symbol
+# fastmath-plain    the same oracle, the drive and a dynamics oracle again with FASTMATH=off: the libm path
+# Without libmvec in the build (the probe found nothing, or FASTMATH=off) each says so and passes.
+FM_DIFF_LIMIT_DBFS ?= -96
+
+$(BUILD)/fastmath: test/fx/fastmath.test.c include/omxdsp/omx_fastmath.h | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm $(MVEC_LIBS)
+
+$(BUILD)/fastmath_sabotage: test/fx/fastmath.test.c include/omxdsp/omx_fastmath.h | $(BUILD)
+	$(CC) $(CFLAGS) -DOMX_FM_ORACLE_SABOTAGE=1 $(INC) -o $@ $< -lm $(MVEC_LIBS)
+
+fastmath: $(BUILD)/fastmath
+	./$(BUILD)/fastmath
+	sh tools/fastmath-vec-check.sh "$(CC)" "$(INC) $(FPFLAGS)" $(MVEC_CFLAGS)
+
+fastmath-diff: $(LIB)
+	sh tools/fastmath-diff.sh "$(CC)" "$(CFLAGS_PLAIN)" $(LIB) $(FM_DIFF_LIMIT_DBFS) $(MVEC_CFLAGS)
+
+fastmath-sabotage: $(BUILD)/fastmath_sabotage
+	@if ./$(BUILD)/fastmath_sabotage > $(BUILD)/fastmath_sabotage.log 2>&1; then \
+	  echo "fastmath-sabotage: FAIL, results moved by 5 ULP left the oracle green"; exit 1; fi
+	@grep -q "FAIL tanhf error" $(BUILD)/fastmath_sabotage.log && grep -q "FAIL log10f error" $(BUILD)/fastmath_sabotage.log || \
+	  { echo "fastmath-sabotage: FAIL, red, but not on the error arms"; tail -3 $(BUILD)/fastmath_sabotage.log; exit 1; }
+	@echo "fastmath-sabotage: the oracle goes red on results moved by 5 ULP"
+	sh tools/fastmath-vec-check.sh --self-test "$(CC)" "$(INC) $(FPFLAGS)" $(MVEC_CFLAGS)
+	sh tools/fastmath-probe-selftest.sh "$(CC)"
+
+fastmath-plain:
+	$(MAKE) --no-print-directory FASTMATH=off BUILD=$(BUILD)/plain fastmath fx-run-kernel-drive fx-run-oracle-dyn_flat fx-run-kernel-dynamics
+
+.PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain
+
 .PHONY: test-parallel
-test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain
 
 # ---- install ------------------------------------------------------------------------------------
 
@@ -677,15 +731,15 @@ PC_SED = -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCLUDEDIR
 
 $(BUILD)/omxdsp.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp|' -e 's|@FLAVOUR@|release, contracts compiled out|' \
-	    -e 's|@CFLAGS@||' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
+	    -e 's|@CFLAGS@| $(MVEC_CFLAGS)|' -e 's|@LIBS@| $(MVEC_LIBS)|' $< | sed 's/ *$$//' > $@
 
 $(BUILD)/omxdsp-contracts.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-contracts|' -e 's|@FLAVOUR@|contracts compiled in|' \
-	    -e 's|@CFLAGS@| $(CONTRACTS_CFLAGS)|' -e 's|@LIBS@||' $< | sed 's/ *$$//' > $@
+	    -e 's|@CFLAGS@| $(CONTRACTS_CFLAGS) $(MVEC_CFLAGS)|' -e 's|@LIBS@| $(MVEC_LIBS)|' $< | sed 's/ *$$//' > $@
 
 $(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging/omx-dsp.spec | $(BUILD)
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-tsan|' -e 's|@FLAVOUR@|contracts compiled in, under ThreadSanitizer|' \
-	    -e 's|@CFLAGS@| $(TSAN_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS)|' $< | sed 's/ *$$//' > $@
+	    -e 's|@CFLAGS@| $(TSAN_CFLAGS) $(MVEC_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS) $(MVEC_LIBS)|' $< | sed 's/ *$$//' > $@
 
 install: $(LIBS_ALL) $(PC_ALL) $(EXPORTS)
 	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis $(DESTDIR)$(INCLUDEDIR)/omxdsp/mix $(DESTDIR)$(LIBDIR)/pkgconfig \
