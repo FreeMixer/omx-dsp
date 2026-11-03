@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.28.0
+Version: 0.29.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -90,6 +90,22 @@ library exists.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Tue Nov 03 2026 Pau Aliagas <linuxnow@gmail.com> - 0.29.0-1
+- New: the drive shaper and the dynamics gain curves run through glibc's
+  vector maths (libmvec: tanhf, expf, log10f, powf) where the compiler and the
+  library provide it, through an omp simd declaration of our own and without
+  -ffast-math (#269). On a Raspberry Pi 5 the shaper costs 10.2 ns/sample
+  instead of 32.4 and the drive stage 187 instead of 251; on x86 the drive at
+  4x costs 50.9 instead of 69.4. The difference from libm stays below -100 dBFS
+  (drive) and -120 dBFS (dynamics); no golden moves. FASTMATH=off keeps libm.
+- The gain loops vectorise with -fopenmp-simd -fno-math-errno alone, so
+  omxdsp.pc carries no -fno-trapping-math. The gate held fully open or closed
+  costs about 5 % more than 0.28.0 on x86 (5.65 against 5.27 ns/sample).
+- A vector tanhf may return a zero of the other sign; it is the same sample.
+- data: 16 items nobody read are retired, geq's modes read GEQ_MODES, and 43
+  items gain an implementation link or a stated reader.
+- ci: the heavy jobs run where vars.OMX_RUNNER says; make test may take 90 minutes.
+
 * Sun Nov 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.28.0-1
 - New faces, each with closed-form oracles at the nine rates: clipper, upward
   (an upward compressor), glue (a bus compressor), loudlevel (a leveler to a
