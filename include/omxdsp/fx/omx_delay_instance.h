@@ -108,9 +108,7 @@ typedef struct {
  * nothing.
  */
 static inline int omx_delay_instance_init(OmxDelayInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->state.ring_l = s->ring_l;
   s->state.ring_r = s->ring_r;
