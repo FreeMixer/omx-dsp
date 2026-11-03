@@ -32,6 +32,10 @@
 #   make definitions OMX_CONTRACT=<checkout>  include/omxdsp/omxdsp_definitions.h rendered from data/ by the
 #               checkout's `render --package omx-dsp`; make definitions-check holds the committed header equal
 #               to that render (tools/definitions-render.sh)
+#   make contract-proof OMX_CONTRACT=<checkout>  the round-trip against this library's v0.1.3 header and the kernel
+#               completeness over data/ and recipes/answers/, after the proof's own self-test (tools/contract-proof.mjs)
+#   make contract-tests OMX_CONTRACT=<checkout>  the declaration tests (test/contract/): each fact of data/ they hold,
+#               over this live data/ with omx-contract's reader and renderer
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
@@ -44,8 +48,8 @@
 #               for 1..62 bands, and every count EQ_BAND_COUNTS declares has its default bands
 #   make eq-defaults-table  test/golden/eq_default_bands.txt is the rule's JavaScript spelling over data/
 #               (tools/eq-defaults-golden.mjs, node)
-#   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
-#   make public-sources-messages  the same over the commit messages of origin/main..HEAD (RANGE=a..b to choose)
+#   make public-sources  no tracked file names a private repository, path or issue (FreeMixer/.github's
+#               private-refs-check, from a checkout of it: DOTGITHUB=<dir>)
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
@@ -84,6 +88,10 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # the same flag), so a kernel's output does not depend on the architecture's FMA or the consumer's
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
+# The flags this file adds are taken out of what it is given first. CFLAGS from the environment (an rpm or deb
+# build's set_build_flags) goes on to a sub-make with them already in it, so `make test`'s second make would read
+# libmvec in CFLAGS_PLAIN, and FASTMATH=off would not take it out.
+override CFLAGS := $(filter-out $(FPFLAGS) -fopenmp-simd -fno-math-errno -DOMX_FASTMATH_MVEC_%,$(CFLAGS))
 override CFLAGS += $(FPFLAGS)
 # libmvec, found by a build-time probe (tools/fastmath-probe.sh): the functions this toolchain can call
 # vectorised, each declared to the compiler by omx_fastmath.h under its OMX_FASTMATH_MVEC_<F> macro. Never
@@ -106,7 +114,7 @@ endif
 # at or above the floor packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
 # (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
 # directory as CONTRACT_INC.
-ifeq ($(filter version clean docs public-sources private-refs public-sources-messages exports copy-check deps deps-check,$(MAKECMDGOALS)),)
+ifeq ($(filter version clean docs public-sources private-refs exports copy-check deps deps-check,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
 $(error tools/contract-include.sh found no omx-contract: see its message above)
@@ -167,7 +175,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
+.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check contract-proof contract-tests test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -354,6 +362,8 @@ checks:
 	bash tools/contract-single-source.sh --self-test
 	bash tools/travel-grid-check.sh
 	bash tools/travel-grid-check.sh --self-test
+	bash tools/check-package-check.sh
+	bash tools/check-package-check.sh --self-test
 	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/clone-check.sh
 	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/clone-check.sh --self-test
 	bash tools/umbrella-check.sh
@@ -378,6 +388,16 @@ definitions definitions-check:
 	@test -n "$(OMX_CONTRACT)" || { echo "$@: name an omx-contract checkout: make $@ OMX_CONTRACT=<dir>" >&2; exit 2; }
 	bash tools/definitions-render.sh $(if $(filter definitions-check,$@),--check) $(OMX_CONTRACT) $(BUILD)/definitions
 
+contract-proof:
+	@test -n "$(OMX_CONTRACT)" || { echo "$@: name an omx-contract checkout: make $@ OMX_CONTRACT=<dir>" >&2; exit 2; }
+	@git rev-parse -q --verify 'v0.1.3^{commit}' >/dev/null || git fetch -q --depth 1 origin tag v0.1.3
+	node tools/contract-proof.mjs $(OMX_CONTRACT) --self-test
+	node tools/contract-proof.mjs $(OMX_CONTRACT)
+
+contract-tests:
+	@test -n "$(OMX_CONTRACT)" || { echo "$@: name an omx-contract checkout: make $@ OMX_CONTRACT=<dir>" >&2; exit 2; }
+	OMX_CONTRACT=$(abspath $(OMX_CONTRACT)) node --test --test-reporter=tap test/contract/*.test.mjs
+
 # The exports file a consumer's copy check reads, generated from the headers and the compiled unit.
 EXPORTS = $(BUILD)/omx-dsp-exports.json
 exports: $(EXPORTS)
@@ -391,15 +411,12 @@ copy-check: | $(BUILD)
 	TMPDIR="$(abspath $(BUILD))" bash tools/omx-dsp-copy-check.sh --self-test
 	TMPDIR="$(abspath $(BUILD))" bash tools/omx-dsp-copy-check.sh --self-test --sabotage
 
-# Public sources state public facts only: no pointer into a private repository (decided
-# 2026-10-13). The check, then its self-test.
-public-sources:
-	bash tools/public-sources-check.sh
-	bash tools/public-sources-check.sh --self-test
+# No tracked file points into a private repository, issue, branch or path, with no exemption. The engine and its
+# self-test are FreeMixer/.github's private-refs-check (CI runs it in that repository's public-sources-check
+# workflow, with the commit message check and no-local-copies); locally name a checkout of it:
+# make private-refs DOTGITHUB=<checkout>.
+public-sources: private-refs
 
-# No tracked file points into a private repository, issue, branch or path. The engine and its self-test are
-# FreeMixer/.github's private-refs-check (CI runs it as that action); locally name a checkout of it:
-# make private-refs DOTGITHUB=<checkout>. Exemptions, each with its reason: tools/private-refs-allow.txt.
 # make deps renders the floors of packaging/deps.txt with that checkout's deps-render, make deps-check refuses drift.
 DOTGITHUB ?=
 .PHONY: private-refs deps deps-check
@@ -413,11 +430,6 @@ deps:
 deps-check:
 	@test -n "$(DOTGITHUB)" || { echo "$@: name a checkout of FreeMixer/.github: make $@ DOTGITHUB=<dir>" >&2; exit 2; }
 	$(DOTGITHUB)/.github/actions/deps-render/render.sh --check .
-
-RANGE ?=
-.PHONY: public-sources-messages
-public-sources-messages:
-	bash tools/public-sources-check.sh --messages $(RANGE)
 
 # omx_log10f() (test/support) against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
 # where the libm's log10f is correctly rounded (glibc 2.43), so not part of make test.
@@ -442,7 +454,7 @@ FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremol
 # Oracles that read the contract ledger themselves build with contracts and threads.
 FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true dyneq_instance comp_key mbcomp_instance delay_color gate_key reverb_return doubler_instance tone_instance dyn_upward leveler_instance comp_release plosive_instance transient_readouts width_instance suboct_instance clipper_instance upward_instance glue_instance loudlevel_instance spring_instance balancer_instance $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
-FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true band_dyn_poly comp_key delay_color gate_key reverb_return dyn_upward comp_release transient_readouts
+FX_ORACLES = align_fdelay delay_taps dyn_flat gaincomp_fpflags geq_true band_dyn_poly comp_key delay_color gate_key reverb_return dyn_upward comp_release transient_readouts
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
@@ -525,7 +537,11 @@ FX_RUN_PERTURB  = $(addprefix fx-run-perturb-,$(notdir $(basename $(FX_PERTURB))
 FX_RUN_ALL      = $(FX_RUN_KERNELS) $(FX_RUN_MATHS) $(FX_RUN_INSTANCES) $(FX_RUN_ORACLES) $(FX_RUN_INSTGOLD) $(FX_RUN_ORAGOLD) $(FX_RUN_PERTURB)
 .PHONY: $(FX_RUN_ALL)
 
-test-fx: $(FX_RUN_ALL)
+# fx-oracles is test-fx without the perturbation scripts: what make check-package runs
+FX_RUN_ORACLES_ALL = $(filter-out $(FX_RUN_PERTURB),$(FX_RUN_ALL))
+fx-oracles: $(FX_RUN_ORACLES_ALL)
+
+test-fx: fx-oracles $(FX_RUN_PERTURB)
 
 $(FX_RUN_KERNELS): fx-run-kernel-%: $(BUILD)/fx_% $(BUILD)/fx_%_golden
 	@echo "./$(BUILD)/fx_$*"; ./$(BUILD)/fx_$*
@@ -600,8 +616,10 @@ ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*
 $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
 	$(CC) $(CFLAGS) $(INC) -Isrc -Itest/analysis -Itest/fx $(ANALYSIS_LDFLAGS_$*) -o $@ $< $(LIB) -lm
 
-test-analysis: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
+analysis-oracles: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
 	@set -e; for t in $(ANALYSIS_TESTS); do echo "./$(BUILD)/analysis_$$t"; ./$(BUILD)/analysis_$$t; done
+
+test-analysis: analysis-oracles
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/sabotage.sh $(BUILD)/analysis-sabotage
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/room-sabotage.sh $(BUILD)/room-sabotage
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/hrp-lv2-rates-sabotage.sh $(BUILD)/hrp-lv2-rates-sabotage
@@ -631,16 +649,20 @@ room-ts-golden: | $(BUILD)
 $(BUILD)/engine_kernels_golden: test/engine_kernels/golden.test.c test/fx/sha256.h $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
 
-test-engine-kernels: $(BUILD)/engine_kernels_golden
+engine-kernels-golden: $(BUILD)/engine_kernels_golden
 	./$(BUILD)/engine_kernels_golden test/golden/engine_kernels.sha256
+
+test-engine-kernels: engine-kernels-golden
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/engine_kernels/sabotage.sh $(BUILD)/engine-kernels-sabotage
 
 # The same digests through the engine's copies: needs a checkout of the private OpenMixer repository,
 # so it is a desk check, not part of make test and not run in CI (BUILDING.md, "The engine's copies").
+# The console checkout's package directory, where the identity recipes read the engine's native sources.
+CONSOLE_PACKAGES = $(OPENMIXER)/packages
 engine-kernels-identity:
 	@test -n "$(OPENMIXER)" || { echo "make engine-kernels-identity OPENMIXER=<openmixer checkout>"; exit 2; }
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh "$(CONSOLE_PACKAGES)/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh --self-test "$(CONSOLE_PACKAGES)/pipewire-native/src"
 
 # ---- the mix module -------------------------------------------------------------------------
 # The pan law, the strip and fold coefficients of G, a bus's out stage, the meters' measure half, one
@@ -656,15 +678,17 @@ engine-kernels-identity:
 $(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) $(SUPPORT_HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS_PLAIN) $(INC) $(GOLDEN_SUBST) -o $@ $< -lm
 
-test-mix: $(BUILD)/mix_golden $(LIB_CONTRACTS)
+mix-golden: $(BUILD)/mix_golden
 	./$(BUILD)/mix_golden test/golden/mix.sha256
+
+test-mix: mix-golden $(LIB_CONTRACTS)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/mix/sabotage.sh $(BUILD)/mix-sabotage $(LIB_CONTRACTS)
 
 # The same digests through the engine's copies: a desk check, as engine-kernels-identity is.
 mix-engine-identity:
 	@test -n "$(OPENMIXER)" || { echo "make mix-engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh "$(CONSOLE_PACKAGES)/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh --self-test "$(CONSOLE_PACKAGES)/pipewire-native/src"
 
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked
@@ -688,6 +712,9 @@ test:
 # fastmath-sabotage the oracle goes red on a result moved by 5 ULP, the loop check on a header without the pragma,
 #                   the probe on a toolchain with no libmvec, no pragma or no vector symbol
 # fastmath-plain    the same oracle, the drive and a dynamics oracle again with FASTMATH=off: the libm path
+# fastmath-partial  the flags of a libmvec with log10f and expf but no powf and no tanhf (aarch64 glibc before 2.40),
+#                   on any host: no loop that needs a missing function takes its lane, every render is the plain
+#                   libm build's bit for bit, and the loop check passes on that set
 # Without libmvec in the build (the probe found nothing, or FASTMATH=off) each says so and passes.
 FM_DIFF_LIMIT_DBFS ?= -96
 
@@ -716,10 +743,34 @@ fastmath-sabotage: $(BUILD)/fastmath_sabotage
 fastmath-plain:
 	$(MAKE) --no-print-directory FASTMATH=off BUILD=$(BUILD)/plain fastmath fx-run-kernel-drive fx-run-oracle-dyn_flat fx-run-kernel-dynamics
 
-.PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain
+FM_PARTIAL_CFLAGS = -fopenmp-simd -fno-math-errno -DOMX_FASTMATH_MVEC_LOG10F=1 -DOMX_FASTMATH_MVEC_EXPF=1
+$(BUILD)/fastmath_partial: test/fx/fastmath_partial.test.c test/fx/fastmath_partial_render.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS_PLAIN) $(FM_PARTIAL_CFLAGS) -DOMX_PARTIAL_SIDE=partial $(INC) -c -o $(BUILD)/fastmath_partial_p.o test/fx/fastmath_partial_render.c
+	$(CC) $(CFLAGS_PLAIN) -DOMX_PARTIAL_SIDE=plain $(INC) -c -o $(BUILD)/fastmath_partial_l.o test/fx/fastmath_partial_render.c
+	$(CC) $(CFLAGS_PLAIN) $(INC) -o $@ $< $(BUILD)/fastmath_partial_p.o $(BUILD)/fastmath_partial_l.o $(LIB) -lm $(MVEC_LIBS)
+
+fastmath-partial: $(BUILD)/fastmath_partial
+	./$(BUILD)/fastmath_partial
+	sh tools/fastmath-vec-check.sh "$(CC)" "$(INC) $(FPFLAGS)" $(FM_PARTIAL_CFLAGS)
+
+.PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
+
+# ---- the package build's check --------------------------------------------------------------------
+# What debian/rules and the RPM's %check run: the tests that prove the library just built, at every
+# declared rate (the suite, the negative arm, the consumer and thread arms, every oracle and golden
+# digest, the flavours and the libmvec oracles). The sabotage and perturbation arms, which prove the
+# tests rather than the library, and the source checks run in CI's make test on every pull request:
+# under make -j4 test the package build went past its 60-minute job on a 4-core runner.
+# tools/check-package-check.sh holds this list to make test's (part of make checks).
+CHECK_PACKAGE = lib suite negative consumer threads bandwidth-q-table eq-default-bands fx-oracles \
+                analysis-oracles engine-kernels-golden mix-golden flavours fastmath fastmath-diff fastmath-partial
+
+.PHONY: check-package fx-oracles analysis-oracles engine-kernels-golden mix-golden
+check-package: $(CHECK_PACKAGE)
+	@echo "omxdsp: make check-package green"
 
 .PHONY: test-parallel
-test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
 
 # ---- install ------------------------------------------------------------------------------------
 

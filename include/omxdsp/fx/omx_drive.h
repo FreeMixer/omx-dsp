@@ -328,14 +328,26 @@ static inline OMX_FM_ALWAYS float omx_drive_sample(int curve, float u, const str
 }
 #undef OMX_CONTRACT_STAGE
 
+#ifdef OMX_FASTMATH_MVEC_TANHF
+/** @brief 1 when the build declared libmvec's tanhf: the SOFT and EXCITER loop of omx_drive_shape_block() runs vectorised. */
+#define OMX_DRIVE_LANES 1
+/** @brief Before the tanhf loop: vectorise it (omx_fastmath.h's OMX_FM_SIMD). */
+#define OMX_DRIVE_TANH_SIMD OMX_FM_SIMD
+#else
+/** @brief 0 here: the build has no vector tanhf, and the SOFT and EXCITER loop is the scalar one. */
+#define OMX_DRIVE_LANES 0
+/** @brief Empty here: with tanhf scalar the loop cannot vectorise. */
+#define OMX_DRIVE_TANH_SIMD
+#endif
+
 #define OMX_CONTRACT_STAGE "drive/shape-block"
 /**
  * @brief The biased curve over a block, in place: `x[i] = omx_drive_sample(curve, drive * x[i], s)`.
  *
  * The curve switch is taken once, outside the loop, and each curve's loop is a straight line of
  * arithmetic with no per-sample state, so the compiler vectorises it (libmvec's tanhf for SOFT and
- * EXCITER, vector divides and square roots for TAPE and TUBE) when the build declared libmvec
- * (omx_fastmath.h). Without it the loop is the scalar one and the result is bit for bit what the
+ * EXCITER when the build declared it, OMX_DRIVE_LANES; vector divides and square roots for TAPE and TUBE when
+ * the build declared any libmvec function, omx_fastmath.h). Without it the loop is the scalar one and the result is bit for bit what the
  * per-sample call gives. With libmvec the tanhf of SOFT and EXCITER differs from the libm's by at
  * most OMX_FM_TANHF_MAX_ULP ULP, which `make fastmath-diff` states in dB at the output of the stage.
  * @param curve OMX_DRIVE_TAPE, OMX_DRIVE_TUBE, OMX_DRIVE_SOFT or OMX_DRIVE_EXCITER.
@@ -358,7 +370,7 @@ static inline void omx_drive_shape_block(int curve, const struct omx_drive_bias 
       for (uint32_t i = 0; i < n; i++) x[i] = omx_drive_sample(OMX_DRIVE_TUBE, drive * x[i], s);
       break;
     default: /* SOFT, EXCITER and anything else: omx_drive_shape's default arm, tanh */
-      OMX_FM_SIMD
+      OMX_DRIVE_TANH_SIMD
       for (uint32_t i = 0; i < n; i++) x[i] = omx_drive_sample(OMX_DRIVE_SOFT, drive * x[i], s);
       break;
   }
@@ -592,7 +604,7 @@ static inline void omx_drive_process(float *l, float *r, uint32_t n, const struc
    *  - mix is 0..1 (the ROW carries percent; the resolver divides), and at 0 the stage is identity
    *    DELAYED by its declared latency, which the battery and test/fx/drive.test.c both assert;
    *  - the curve is bounded, so a finite input gives a finite output whatever the drive. */
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
   /* R-056 finding, 2026-09-17 (rt_alloc.test.c's real-render corpus): the factor/mix/state
    * checks are about a stage that is about to RUN; resolve_fx_drive's own early return on
    * `!enabled` leaves os_factor/mix at whatever the struct held before, so checking them
@@ -648,7 +660,7 @@ static inline void omx_drive_process(float *l, float *r, uint32_t n, const struc
     }
     done += c;
   }
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
   OMX_POST(s->prev_gl - s->prev_gl == 0.0f && s->prev_gr - s->prev_gr == 0.0f,
            "auto-gain-state-finite");
 }

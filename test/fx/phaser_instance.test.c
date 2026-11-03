@@ -41,12 +41,6 @@ static struct omx_phaser kernel_atom(float sr, float rate_hz, float base_hz, flo
   return o;
 }
 
-/* Where a hostile word must land: every non-finite word at the default, else inside [lo, hi]. */
-static float land(float x, float lo, float hi, float def) {
-  if (x - x != 0.0f) return def;
-  return x < lo ? lo : x > hi ? hi : x;
-}
-
 static void arm_refused(void) {
   OmxPhaserInstance s;
   ok(omx_phaser_instance_init(&s, 0.0f) == 0, "A: rate 0 refused");

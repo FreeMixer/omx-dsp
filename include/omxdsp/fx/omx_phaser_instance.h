@@ -64,7 +64,6 @@ static inline int omx_phaser_instance_init(OmxPhaserInstance *s, float sr) {
   if (!(sr > 0.0f) || sr - sr != 0.0f || !((float)OMX_PHASER_F_TOP_HZ < 0.5f * sr)) return 0;
   s->sr = sr;
   omx_phaser_state_init(&s->state);
-  s->atom.enabled = 0;
   s->atom.stages = (int)OMX_PHASER_STAGES_RANGE_DEFAULT;
   s->ready = 1;
   return 1;
@@ -119,11 +118,7 @@ static inline void omx_phaser_instance_resolve(OmxPhaserInstance *s, int bypass,
 static inline void omx_phaser_instance_run(OmxPhaserInstance *s, const float *in_l,
                                            const float *in_r, float *out_l, float *out_r,
                                            uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready) return;
-  omx_phaser_process(out_l, out_r, n, &s->atom, &s->state, s->sr);
-  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
-           "bypass-identity");
+  OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, omx_phaser_process(out_l, out_r, n, &s->atom, &s->state, s->sr));
 }
 #undef OMX_CONTRACT_STAGE
 

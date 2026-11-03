@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.28.0
+Version: 0.29.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 3.1.0
+BuildRequires: omx-contract-devel >= 3.8.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -34,14 +34,14 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 3.1.0
+Requires: omx-contract-devel >= 3.8.0
 Requires: %{name}-contract = %{version}-%{release}
 
 %package contract
 Summary: omx-dsp's kernel and instance declarations, for programs that read them at run time
 BuildArch: noarch
 # the declarations live in omx-contract's contract directory and are read against its schema; a floor only
-Requires: omx-contract-data >= 3.1.0
+Requires: omx-contract-data >= 3.8.0
 
 %description contract
 omx-dsp's package of omx-contract's contract directory: the declarations of
@@ -69,7 +69,7 @@ library exists.
 %make_install PREFIX=%{_prefix} LIBDIR=%{_libdir} INCLUDEDIR=%{_includedir}
 
 %check
-%make_build test
+%make_build check-package
 
 %files devel
 %license LICENSE
@@ -90,6 +90,40 @@ library exists.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Tue Nov 03 2026 Pau Aliagas <linuxnow@gmail.com> - 0.29.0-1
+- New: the drive shaper and the dynamics gain curves run through glibc's
+  vector maths (libmvec: tanhf, expf, log10f, powf) where the compiler and the
+  library provide it, through an omp simd declaration of our own and without
+  -ffast-math (#269). On a Raspberry Pi 5 the shaper costs 10.2 ns/sample
+  instead of 32.4 and the drive stage 187 instead of 251; on x86 the drive at
+  4x costs 50.9 instead of 69.4. The difference from libm stays below -100 dBFS
+  (drive) and -120 dBFS (dynamics); no golden moves. FASTMATH=off keeps libm.
+- The gain loops vectorise with -fopenmp-simd -fno-math-errno alone, so
+  omxdsp.pc carries no -fno-trapping-math. The gate held fully open or closed
+  costs about 5 % more than 0.28.0 on x86 (5.65 against 5.27 ns/sample).
+- A vector tanhf may return a zero of the other sign; it is the same sample.
+- data: 16 items nobody read are retired, geq's modes read GEQ_MODES, and 43
+  items gain an implementation link or a stated reader.
+- ci: the heavy jobs run where vars.OMX_RUNNER says; make test may take 90 minutes.
+- The deb's and the RPM's check run make check-package: the tests that prove
+  the built library. The sabotage and perturbation arms run in make test, in
+  CI on every pull request; under make -j4 test the deb build went past its
+  60 minutes on a 4-core runner.
+- With a libmvec that lacks a function a loop needs (aarch64 glibc before 2.40),
+  that loop takes the plain path; the gate's knee lane raises no floating-point
+  exception; a package build no longer picks up the vector flags from the
+  environment (#272).
+- Requires omx-contract 3.8.0 or later.
+- The TypeScript package also exports the four twins the console used to copy
+  (clampEqQFor, matchedPair, biquadMagnitudeDb, magnitudeSumDb) and the oracle
+  that pins the twins (@openmixer/omx-dsp/oracle).
+- The round-trip and completeness proofs over omx-dsp's own data and answers
+  live here now (make contract-proof). The BS.1770 and EBU Tech 3342 loudness
+  constants are declared once and referenced; glue, dyneq and balancer bounds
+  refer to their declared values instead of repeating the numbers.
+- The instance tests share one harness and the clone baseline is gone; CI runs
+  FreeMixer/.github's shared checks.
+
 * Sun Nov 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.28.0-1
 - New faces, each with closed-form oracles at the nine rates: clipper, upward
   (an upward compressor), glue (a bus compressor), loudlevel (a leveler to a

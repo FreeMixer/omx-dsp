@@ -330,7 +330,7 @@ static inline void omx_fx_delay_process_color(float *l, float *r, uint32_t n, co
    * the CONTROL thread's clamp, checked here because here is where breaking it is audible. The
    * taps are inside the ring (the clamp below is the enforcement; this is its statement), and a
    * mix of 0 must leave the block bit-identical, which the battery asserts around the call. */
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
   OMX_PRE(p->feedback >= 0.0f && p->feedback < 1.0f, "feedback-strictly-below-unity");
   OMX_PRE(p->mix >= 0.0f && p->mix <= 1.0f, "mix-in-unit-range");
   OMX_PRE(p->tone >= 0.0f && p->tone <= 1.0f, "tone-in-unit-range");
@@ -455,7 +455,7 @@ static inline void omx_fx_delay_process_color(float *l, float *r, uint32_t n, co
     cs->lp_l = omx_flush(cs->lp_l);
     cs->lp_r = omx_flush(cs->lp_r);
   }
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
   OMX_POST(s->wpos < s->cap, "write-cursor-inside-the-ring");
   OMX_INVARIANT(s->damp_l - s->damp_l == 0.0f && s->damp_r - s->damp_r == 0.0f,
                 "damping-state-finite");

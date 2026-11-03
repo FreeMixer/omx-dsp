@@ -207,24 +207,11 @@ static inline void omx_chorus_process(float *l, float *r, uint32_t n, const stru
    * say — the `no-gain-added` law. The delays are
    * inside the line's own reach (the resolve's clamp is the enforcement half, stated here because
    * here is where a bad one would be read), and mix == 0 leaves the block bit-identical. */
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
-  OMX_PRE(p->mix >= 0.0f && p->mix <= 1.0f, "mix-in-unit-range");
   OMX_PRE(p->voices >= 1 && p->voices <= OMX_CHORUS_MAX_VOICES,
           "a-voice-count-is-inside-the-ensemble");
-  /* The chorus-only controls together, so the reach/mix PREs around them read as the flanger's. */
   OMX_PRE(p->spread >= 0.0f && p->spread <= OMX_CHORUS_SPREAD_MAX, "a-spread-is-inside-half-a-turn");
-  OMX_PRE(p->depth_samples >= 0.0f, "a-depth-is-not-negative");
-  OMX_PRE(p->lfo_inc >= 0.0f && p->lfo_inc < 1.0f, "an-increment-is-inside-one-turn");
-  OMX_PRE(!p->enabled || s->line_l.order == 0 ||
-              p->base_samples >= omx_fdelay_min_delay(s->line_l.order),
-          "the-shortest-voice-clears-the-kernels-reach");
-  OMX_PRE(!p->enabled || s->line_l.order == 0 ||
-              p->base_samples + p->depth_samples <=
-                  omx_fdelay_max_delay(s->line_l.cap, s->line_l.order),
-          "the-longest-voice-is-inside-the-ring");
   const float mix = omx_unit(p->mix);
-  if (!p->enabled || n == 0u || mix <= 0.0f) return;
-  if (s->line_l.order == 0 || s->line_r.order == 0) return; /* unarmed → announced passthrough */
+  OMX_FDELAY_SWEEP_ENTRY(p, &s->line_l, &s->line_r, l, r, n, mix);
 
   const int voices = p->voices < 1 ? 1
                      : p->voices > OMX_CHORUS_MAX_VOICES ? OMX_CHORUS_MAX_VOICES
@@ -274,8 +261,8 @@ static inline void omx_chorus_process(float *l, float *r, uint32_t n, const stru
     r[i] = dry * xr + per_voice * wr;
     omx_lfo_advance(&s->lfo);
   }
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
-  OMX_INVARIANT(s->lfo.phase >= 0.0f && s->lfo.phase < 1.0f, "the-oscillator-stays-in-its-turn");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
+  OMX_INVARIANT(omx_lfo_in_turn(&s->lfo), "the-oscillator-stays-in-its-turn");
 }
 #undef OMX_CONTRACT_STAGE
 

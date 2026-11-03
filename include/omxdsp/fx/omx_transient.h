@@ -125,7 +125,7 @@ static inline void omx_transient_resolve(struct omx_transient *t, int bypass, fl
 static inline void omx_transient_process(float *l, float *r, uint32_t n, const struct omx_transient *t,
                                          struct omx_transient_state *st) {
   if (!t->enabled) return;
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
 #ifdef OMX_CONTRACTS
   const float hi = fmaxf(0.0f, t->attack_db) + fmaxf(0.0f, t->sustain_db) + t->output_db;
   const float lo = fminf(0.0f, t->attack_db) + fminf(0.0f, t->sustain_db) + t->output_db;
@@ -156,7 +156,7 @@ static inline void omx_transient_process(float *l, float *r, uint32_t n, const s
     }
   }
   OMX_POST(inside, "gain-inside-the-declared-bound");
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
 #ifdef OMX_CONTRACTS
   int normal = 1;
   for (int s = 0; s < OMX_DYN_ENV_STAGES; s++)

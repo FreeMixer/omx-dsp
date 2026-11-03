@@ -34,12 +34,6 @@
 #define BLK 256u
 #define NBLK 12
 
-/* Where a hostile word must land: every non-finite word at the default, else inside [lo, hi]. */
-static float land(float x, float lo, float hi, float def) {
-  if (x - x != 0.0f) return def;
-  return x < lo ? lo : x > hi ? hi : x;
-}
-
 static int same_rotor(const struct omx_rotor *a, const struct omx_rotor *b) {
   return memcmp(a, b, sizeof *a) == 0;
 }

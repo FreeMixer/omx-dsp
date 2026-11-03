@@ -44,12 +44,12 @@
     {
       "name": "PITCH_KERNEL",
       "source": {
-        "path": "pitch-kernel.ts",
-        "export": "PITCH_KERNEL"
+        "origin": "imported as pitch-kernel.ts PITCH_KERNEL ({\"windowMs\":40,\"prefilterCeilingHz\":20000,\"prefilterQ\":0.7071067811865476}) at the console engine's 964a79835692; moved in omx-dsp 1366d77: the pitch pre-filter corner is also capped at prefilterNyquistFraction of Nyquist, so it stays off Nyquist at 32 kHz (#91)"
       },
       "value": {
         "windowMs": 40,
         "prefilterCeilingHz": 20000,
+        "prefilterNyquistFraction": 0.91,
         "prefilterQ": 0.7071067811865476
       },
       "doc": "PITCH_KERNEL, moved from openmixer.",

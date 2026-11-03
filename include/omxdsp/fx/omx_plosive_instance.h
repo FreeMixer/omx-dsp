@@ -99,9 +99,7 @@ static inline void omx_plosive_instance_resolve(OmxPlosiveInstance *s, int bypas
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
  * set. The tamer comes up at its declared defaults. Allocates nothing. */
 static inline int omx_plosive_instance_init(OmxPlosiveInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->ready = 1;
   s->pop_min = s->cons_min = 1.0f;
@@ -169,9 +167,8 @@ static inline void omx_plosive_instance_resolve(OmxPlosiveInstance *s, int bypas
 #define OMX_CONTRACT_STAGE "plosive/instance-run"
 static inline void omx_plosive_instance_run(OmxPlosiveInstance *s, const float *in_l, const float *in_r, float *out_l,
                                             float *out_r, uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready || !s->enabled) return;
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  if (!omx_instance_through_engaged(in_l, in_r, out_l, out_r, n, s && s->ready && s->enabled)) return;
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   float pmin = 1.0f, cmin = 1.0f;
   for (uint32_t i = 0; i < n; i++) {
     const float xl = out_l[i], xr = out_r[i];
@@ -200,7 +197,7 @@ static inline void omx_plosive_instance_run(OmxPlosiveInstance *s, const float *
   }
   s->pop_min = pmin;
   s->cons_min = cmin;
-  OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(out_l, out_r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

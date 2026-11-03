@@ -116,7 +116,7 @@ static inline void omx_width_design(struct omx_width *p, float w, int pseudo, ui
  */
 static inline void omx_width_process(float *l, float *r, uint32_t n, const struct omx_width *p, struct omx_width_state *st) {
   if (!p->active || n == 0u) return;
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
   const uint32_t mask = OMX_WIDTH_RING - 1u;
   for (uint32_t i = 0; i < n; i++) {
     float m = 0.5f * (l[i] + r[i]);
@@ -140,7 +140,7 @@ static inline void omx_width_process(float *l, float *r, uint32_t n, const struc
       st->pos = (st->pos + 1u) & mask;
     }
   }
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

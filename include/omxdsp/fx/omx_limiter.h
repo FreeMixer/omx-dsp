@@ -187,7 +187,7 @@ static inline void omx_limiter_process(float *l, float *r, uint32_t n, const str
   float pl[OMX_TRUEPEAK_CHUNK], pr[OMX_TRUEPEAK_CHUNK];
   float blk_gain = 1.0f, blk_peak = 0.0f;
   for (uint32_t done = 0; done < n;) {
-    const uint32_t k = n - done < OMX_TRUEPEAK_CHUNK ? n - done : OMX_TRUEPEAK_CHUNK;
+    const uint32_t k = omx_truepeak_chunk(n, done);
     omx_truepeak_block(&st->tp_l, l + done, k, pl);
     if (r) omx_truepeak_block(&st->tp_r, r + done, k, pr);
     for (uint32_t i = 0; i < k; i++) {

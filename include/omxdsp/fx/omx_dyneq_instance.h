@@ -271,7 +271,7 @@ static inline void omx_dyneq_instance_chunk(OmxDyneqInstance *s, float *l, float
     const float dry = 1.0f - s->mix;
     for (uint32_t j = 0; j < m; j++) omx_wetdry_mix(&l[j], &r[j], s->dry_l[j], s->dry_r[j], l[j], r[j], dry, s->mix);
   }
-  OMX_POST(omx_block_finite(l, m) && omx_block_finite(r, m), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, m), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 
@@ -284,7 +284,7 @@ static inline void omx_dyneq_instance_run(OmxDyneqInstance *s, const float *in_l
                                           float *out_r, uint32_t n) {
   if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled) return;
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   for (uint32_t o = 0; o < n; o += OMX_DYNEQ_INSTANCE_CHUNK) {
     const uint32_t m = n - o < OMX_DYNEQ_INSTANCE_CHUNK ? n - o : OMX_DYNEQ_INSTANCE_CHUNK;
     omx_dyneq_instance_chunk(s, out_l + o, out_r + o, m);
