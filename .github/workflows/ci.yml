@@ -184,7 +184,8 @@ jobs:
           echo "refused as it must be: $(grep -m1 'contract-include:' out.txt)"
 
   # data/ read back through omx-contract's reader (make contract-dir) and the committed definitions header held
-  # equal to its render (make definitions-check). Both need node and an omx-contract checkout, which no other job has.
+  # equal to its render (make definitions-check), and the round-trip and completeness proofs over data/ and recipes/answers/
+  # (make contract-proof). They need node and an omx-contract checkout, which no other job has.
   contract:
     name: data/ read back through omx-contract's reader, the committed header its render
     runs-on: ubuntu-latest
@@ -219,6 +220,9 @@ jobs:
 
       - name: make eq-defaults-table
         run: make eq-defaults-table
+
+      - name: make contract-proof
+        run: make contract-proof OMX_CONTRACT=/tmp/omx-contract
 
   # The libFuzzer harnesses of fuzz/ (clang, libFuzzer, ASan, UBSan, the library's contracts), each run for 60 s from
   # its seed corpus; red on any crash or broken contract, the crashing input uploaded. omx-contract's header is
