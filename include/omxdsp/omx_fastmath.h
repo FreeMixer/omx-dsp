@@ -32,11 +32,12 @@
  *
  * ## Error (float ULP of the exactly rounded result; the bound), valid range, specials
  *
- * Measured on x86-64, glibc 2.43: tanhf 1.03, expf 2.87, log10f 1.91, powf(10, x) 0.62 (the oracle prints
+ * Measured on x86-64, glibc 2.43: tanhf 1.03 (the libm's own tanhf on glibc 2.36: 2.10), expf 2.87, log10f 1.91,
+ * powf(10, x) 0.62 (the oracle prints
  * them); the bounds leave room for the aarch64 implementations.
  *
  *   function  max ULP  range the library uses it over
- *   tanhf     2        any finite float (the shaper's input, drive times a sample, up to ~1e4)
+ *   tanhf     3        any finite float (the shaper's input, drive times a sample, up to ~1e4)
  *   expf      3        [-87, 88.5] (normal results); below ~-104 the result is 0, above 88.72 it is +inf
  *   log10f    3        [OMX_LIN_TO_DB_FLOOR_LIN, 1e6], the argument omx_lin_to_db floors
  *   powf      3        the base 10 with an exponent in [-12, 4], the dB-to-linear law
@@ -49,6 +50,10 @@
 #define OMXDSP_FASTMATH_H
 
 #include <math.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdint.h>
+#include <string.h>
 
 #if defined(OMX_FASTMATH_MVEC_TANHF) || defined(OMX_FASTMATH_MVEC_EXPF) || defined(OMX_FASTMATH_MVEC_LOG10F) || \
     defined(OMX_FASTMATH_MVEC_POWF)
@@ -59,8 +64,13 @@
 #ifdef OMX_FASTMATH_MVEC
 /** @brief Asks the compiler to vectorise the loop that follows; empty without libmvec. */
 #define OMX_FM_SIMD _Pragma("omp simd")
+/** @brief On a function a vectorised loop calls: it must be inlined into the loop (GCC 12 leaves them as calls); empty without libmvec. */
+#define OMX_FM_ALWAYS __attribute__((always_inline))
 #else
+/** @brief Without libmvec in the build: empty, the loop is the scalar one. */
 #define OMX_FM_SIMD
+/** @brief Without libmvec in the build: empty. */
+#define OMX_FM_ALWAYS
 #endif
 
 #ifdef OMX_FASTMATH_MVEC_TANHF
@@ -80,8 +90,30 @@ extern float log10f(float);
 extern float powf(float, float);
 #endif
 
+/**
+ * @brief `cond ? a : b` for floats as a bit select, so a loop whose condition does not vary still vectorises.
+ *
+ * Some compilers (GCC 12) cannot vectorise a select of floats on a scalar condition that is the same for every
+ * sample, such as the gain computer's mode; the same select on integer bits they can. The result is bit for bit
+ * the operand `cond ? a : b` picks.
+ * @param cond Non-zero to take `a`.
+ * @param a The float taken when `cond` is non-zero.
+ * @param b The float taken otherwise.
+ * @return `a` or `b`, bit for bit.
+ * @note RT-safe: three integer operations. Thread-safe: pure.
+ */
+static inline float omx_fm_select(int cond, float a, float b) {
+  const uint32_t m = (uint32_t)0 - (uint32_t)(cond != 0);
+  uint32_t x, y;
+  memcpy(&x, &a, sizeof x);
+  memcpy(&y, &b, sizeof y);
+  x = (x & m) | (y & ~m);
+  memcpy(&a, &x, sizeof a);
+  return a;
+}
+
 /** @brief The largest error of a libmvec tanhf against the libm's, in float ULP. */
-#define OMX_FM_TANHF_MAX_ULP 2.0
+#define OMX_FM_TANHF_MAX_ULP 3.0
 /** @brief The largest error of a libmvec expf against the libm's, in float ULP. */
 #define OMX_FM_EXPF_MAX_ULP 3.0
 /** @brief The largest error of a libmvec log10f against the libm's, in float ULP. */

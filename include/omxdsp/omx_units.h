@@ -34,7 +34,7 @@ static inline double omx_round_half_up(double x) {
  * @return The linear amplitude: 0 dB is 1, −6 dB is about 0.501.
  * @note RT-safe: one `powf`, on the RT-safe allowlist. Thread-safe: pure.
  */
-static inline float omx_db_to_lin(float db) {
+static inline OMX_FM_ALWAYS float omx_db_to_lin(float db) {
   return powf(10.0f, db * 0.05f);
 }
 
@@ -45,7 +45,7 @@ static inline float omx_db_to_lin(float db) {
  * @note RT-safe: one `log10f`, on the RT-safe allowlist (a pure function of its argument: no allocation,
  *       lock or errno write on a finite positive input). Thread-safe: pure.
  */
-static inline float omx_lin_to_db(float lin) {
+static inline OMX_FM_ALWAYS float omx_lin_to_db(float lin) {
   const float floor_lin = OMX_LIN_TO_DB_FLOOR_LIN;
   return 20.0f * log10f(lin < floor_lin ? floor_lin : lin);
 }
