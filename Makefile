@@ -84,6 +84,10 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # the same flag), so a kernel's output does not depend on the architecture's FMA or the consumer's
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
+# The flags this file adds are taken out of what it is given first. CFLAGS from the environment (an rpm or deb
+# build's set_build_flags) goes on to a sub-make with them already in it, so `make test`'s second make would read
+# libmvec in CFLAGS_PLAIN, and FASTMATH=off would not take it out.
+override CFLAGS := $(filter-out $(FPFLAGS) -fopenmp-simd -fno-math-errno -DOMX_FASTMATH_MVEC_%,$(CFLAGS))
 override CFLAGS += $(FPFLAGS)
 # libmvec, found by a build-time probe (tools/fastmath-probe.sh): the functions this toolchain can call
 # vectorised, each declared to the compiler by omx_fastmath.h under its OMX_FASTMATH_MVEC_<F> macro. Never
