@@ -358,6 +358,8 @@ checks:
 	bash tools/contract-single-source.sh --self-test
 	bash tools/travel-grid-check.sh
 	bash tools/travel-grid-check.sh --self-test
+	bash tools/check-package-check.sh
+	bash tools/check-package-check.sh --self-test
 	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/clone-check.sh
 	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/clone-check.sh --self-test
 	bash tools/umbrella-check.sh
@@ -529,7 +531,11 @@ FX_RUN_PERTURB  = $(addprefix fx-run-perturb-,$(notdir $(basename $(FX_PERTURB))
 FX_RUN_ALL      = $(FX_RUN_KERNELS) $(FX_RUN_MATHS) $(FX_RUN_INSTANCES) $(FX_RUN_ORACLES) $(FX_RUN_INSTGOLD) $(FX_RUN_ORAGOLD) $(FX_RUN_PERTURB)
 .PHONY: $(FX_RUN_ALL)
 
-test-fx: $(FX_RUN_ALL)
+# fx-oracles is test-fx without the perturbation scripts: what make check-package runs
+FX_RUN_ORACLES_ALL = $(filter-out $(FX_RUN_PERTURB),$(FX_RUN_ALL))
+fx-oracles: $(FX_RUN_ORACLES_ALL)
+
+test-fx: fx-oracles $(FX_RUN_PERTURB)
 
 $(FX_RUN_KERNELS): fx-run-kernel-%: $(BUILD)/fx_% $(BUILD)/fx_%_golden
 	@echo "./$(BUILD)/fx_$*"; ./$(BUILD)/fx_$*
@@ -604,8 +610,10 @@ ANALYSIS_DEPS = $(LIB) $(HEADERS) $(ANALYSIS_HEADERS) $(wildcard test/analysis/*
 $(BUILD)/analysis_%: test/analysis/%.test.c $(ANALYSIS_DEPS)
 	$(CC) $(CFLAGS) $(INC) -Isrc -Itest/analysis -Itest/fx $(ANALYSIS_LDFLAGS_$*) -o $@ $< $(LIB) -lm
 
-test-analysis: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
+analysis-oracles: $(foreach t,$(ANALYSIS_TESTS),$(BUILD)/analysis_$(t))
 	@set -e; for t in $(ANALYSIS_TESTS); do echo "./$(BUILD)/analysis_$$t"; ./$(BUILD)/analysis_$$t; done
+
+test-analysis: analysis-oracles
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/sabotage.sh $(BUILD)/analysis-sabotage
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/room-sabotage.sh $(BUILD)/room-sabotage
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/hrp-lv2-rates-sabotage.sh $(BUILD)/hrp-lv2-rates-sabotage
@@ -635,8 +643,10 @@ room-ts-golden: | $(BUILD)
 $(BUILD)/engine_kernels_golden: test/engine_kernels/golden.test.c test/fx/sha256.h $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm
 
-test-engine-kernels: $(BUILD)/engine_kernels_golden
+engine-kernels-golden: $(BUILD)/engine_kernels_golden
 	./$(BUILD)/engine_kernels_golden test/golden/engine_kernels.sha256
+
+test-engine-kernels: engine-kernels-golden
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/engine_kernels/sabotage.sh $(BUILD)/engine-kernels-sabotage
 
 # The same digests through the engine's copies: needs a checkout of the private OpenMixer repository,
@@ -660,8 +670,10 @@ engine-kernels-identity:
 $(BUILD)/mix_golden: test/mix/golden.test.c test/fx/sha256.h $(HEADERS) $(MIX_HEADERS) $(SUPPORT_HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS_PLAIN) $(INC) $(GOLDEN_SUBST) -o $@ $< -lm
 
-test-mix: $(BUILD)/mix_golden $(LIB_CONTRACTS)
+mix-golden: $(BUILD)/mix_golden
 	./$(BUILD)/mix_golden test/golden/mix.sha256
+
+test-mix: mix-golden $(LIB_CONTRACTS)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/mix/sabotage.sh $(BUILD)/mix-sabotage $(LIB_CONTRACTS)
 
 # The same digests through the engine's copies: a desk check, as engine-kernels-identity is.
@@ -734,6 +746,20 @@ fastmath-partial: $(BUILD)/fastmath_partial
 	sh tools/fastmath-vec-check.sh "$(CC)" "$(INC) $(FPFLAGS)" $(FM_PARTIAL_CFLAGS)
 
 .PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
+
+# ---- the package build's check --------------------------------------------------------------------
+# What debian/rules and the RPM's %check run: the tests that prove the library just built, at every
+# declared rate (the suite, the negative arm, the consumer and thread arms, every oracle and golden
+# digest, the flavours and the libmvec oracles). The sabotage and perturbation arms, which prove the
+# tests rather than the library, and the source checks run in CI's make test on every pull request:
+# under make -j4 test the package build went past its 60-minute job on a 4-core runner.
+# tools/check-package-check.sh holds this list to make test's (part of make checks).
+CHECK_PACKAGE = lib suite negative consumer threads bandwidth-q-table eq-default-bands fx-oracles \
+                analysis-oracles engine-kernels-golden mix-golden flavours fastmath fastmath-diff fastmath-partial
+
+.PHONY: check-package fx-oracles analysis-oracles engine-kernels-golden mix-golden
+check-package: $(CHECK_PACKAGE)
+	@echo "omxdsp: make check-package green"
 
 .PHONY: test-parallel
 test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
