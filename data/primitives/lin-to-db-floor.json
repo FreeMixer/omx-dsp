@@ -5,6 +5,7 @@
   },
   "LIN_TO_DB_FLOOR": {
     "kind": "sheet",
+    "since": "3.0.0",
     "source": {
       "impl": "include/omxdsp/omx_units.h#omx_lin_to_db"
     },

@@ -1,0 +1,65 @@
+{
+  "kernel": "clipper",
+  "since": "3.0.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "347ae79908216c642f4eba57ace7f12ada08108d"
+  },
+  "items": [
+    {
+      "name": "CLIPPER_DRIVE_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_clipper_instance.h#dr"
+      },
+      "value": {
+        "min": 0,
+        "max": 24,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The gain before the clip, dB. 0 is no push: a signal under the ceiling goes through bit for bit."
+    },
+    {
+      "name": "CLIPPER_CEILING_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_clipper_instance.h#ce"
+      },
+      "value": {
+        "min": -24,
+        "max": 0,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The ceiling, dBFS: no sample leaves above it."
+    },
+    {
+      "name": "CLIPPER_SOFTNESS_PCT_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_clipper_instance.h#so"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "How far under the ceiling the bend starts, percent of CLIPPER_KNEE_SPAN of the ceiling. 0 is a hard clip. Above the knee a sample bends along a hyperbola that leaves the straight line at slope 1 and never reaches the ceiling."
+    },
+    {
+      "name": "CLIPPER_KNEE_SPAN",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/clipper.json at 347ae7990821, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_clipper_instance.h#omx_clipper_instance_resolve"
+      },
+      "value": 0.5,
+      "unit": "",
+      "doc": "The share of the ceiling the bend spans at a softness of 100 %: the knee sits at (1 - span x softness) x ceiling, half the ceiling at full softness, 6 dB under it."
+    }
+  ]
+}
