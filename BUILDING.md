@@ -8,6 +8,7 @@ Needs a C11 compiler, GNU make, binutils, awk, sed, grep and diffutils.
 |---|---|
 | `make` | `build/libomxdsp.a`, `build/libomxdsp-contracts.a` and `build/libomxdsp-tsan.a` |
 | `make test` | the whole suite: every primitive's and kernel's oracle at every declared rate with contracts on, the negative, perturbation and thread arms, the writable-data and doc checks, and the golden digests |
+| `make check-package` | what the deb's and the RPM's check run: the suite, the negative, consumer and thread arms, every oracle and golden digest, the flavours and the libmvec oracles; the sabotage and perturbation arms and the source checks run in `make test` (`tools/check-package-check.sh`, part of `make checks`, holds the two lists together) |
 | `make test-fx` | the effect kernels' oracles and golden digests alone |
 | `make consumer` | the stateful stages built the way a consumer builds them (release flags, `-Werror`, states on the stack that only their init or settle writes) and run |
 | `make test-analysis` | the feedback detector's, the RTA ring and spectrum's and HRP's oracles (the HRP render and live core among them) at the nine oracle rates (32 to 192 kHz), their no-allocation arm, golden digests and one sabotage per kernel; the room analysis, Farina sweep and alignment fit against closed forms at the nine rates and against core's TypeScript (the parity table), and one sabotage per kernel that both must catch; alone |
