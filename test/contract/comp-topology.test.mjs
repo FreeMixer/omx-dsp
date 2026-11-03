@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-// 2.5.0 (#40): the comp's detector topology is a control, detectorTopology (DETECTOR_TOPOLOGY: feedforward, feedback),
-// and the feedback loop's one-sample delay is a constant, DYN_FB_LOOP_DELAY_SAMPLES. omx-dsp's feedback compressor
-// (its defines kept under test/fixtures/dyn-topology/) defined both locally; its values
-// are the render's. The set is named for its control, so C spells omx-dsp's OMX_DYN_TOPOLOGY_* as OMX_DETECTOR_TOPOLOGY_*.
+// 2.5.0 (#40): the comp's detector topology is a control, detectorTopology (DETECTOR_TOPOLOGY: feedforward, feedback).
+// omx_dyn.h reads OMX_DETECTOR_TOPOLOGY_* from the render and takes a zeroed atom as feedforward, so feedforward is 0.
+// The loop delay DYN_FB_LOOP_DELAY_SAMPLES was retired in 153cb5a (no reader), and the arms over it with it; the frozen
+// copy of the salvage lane's local defines it was compared with (omx-dsp 91beb6d) is no longer reachable from any ref.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,39 +19,23 @@ const resolved = (dir = UNION) => resolveData(loadData(dir));
 const header = (dir) => renderC(resolved(dir))[0].text;
 const json = (dir) => JSON.parse(renderJson(resolved(dir), '0.0.0')[0].text);
 const ts = (dir) => renderTs(resolved(dir)).map((f) => f.text).join('\n');
-const dsp = new Map([...readFileSync(join(ROOT, 'test/fixtures/dyn-topology/omx_dyn_topology.h'), 'utf8')
-  .matchAll(/^#define (OMX_\w+) (\d+)u?$/gm)].map((m) => [m[1], Number(m[2])]));
-/** The value the c render gives a name: an enumerator's or a define's. */
-const cValue = (h, name) => {
-  const m = h.match(new RegExp(`^(?:#define ${name} |  ${name} = )(\\d+)u?,?$`, 'm'));
-  return m ? Number(m[1]) : undefined;
-};
-/** omx-dsp's names whose value the render does not give its contract spelling. */
-const disagree = (h) => [
-  ['OMX_DYN_TOPOLOGY_FEEDFORWARD', 'OMX_DETECTOR_TOPOLOGY_FEEDFORWARD'],
-  ['OMX_DYN_TOPOLOGY_FEEDBACK', 'OMX_DETECTOR_TOPOLOGY_FEEDBACK'],
-  ['OMX_DYN_FB_LOOP_DELAY_SAMPLES', 'OMX_DYN_FB_LOOP_DELAY_SAMPLES'],
-].filter(([d, c]) => dsp.get(d) !== cValue(h, c)).map(([d, c]) => `${d} ${dsp.get(d)}, ${c} ${cValue(h, c)}`);
-
-test('comp: detectorTopology is the last control, a choice of DETECTOR_TOPOLOGY that comes up feedforward', () => {
+// detectorTopology was the last control in 2.5.0; the key path, hold and ducker (c208f5f, FX-2) and releaseMode
+// (b5bfafe, FX-12) were appended after it.
+test('comp: detectorTopology is a choice of DETECTOR_TOPOLOGY that comes up feedforward, followed by the FX-2 and FX-12 controls', () => {
   const c = json().kernels.comp.controls;
-  assert.deepEqual(c.slice(-1), [{ name: 'detectorTopology', kind: 'choice', global: 'DETECTOR_TOPOLOGY' }]);
+  const at = c.findIndex((x) => x.name === 'detectorTopology');
+  assert.deepEqual(c[at], { name: 'detectorTopology', kind: 'choice', global: 'DETECTOR_TOPOLOGY' });
+  assert.deepEqual(c.slice(at + 1).map((x) => x.name), ['keySource', 'keyHpHz', 'keyLpHz', 'keyTiltDb', 'keyListen', 'holdMs', 'detectLink', 'duck', 'rangeDb', 'releaseMode']);
   assert.deepEqual(json().items.DETECTOR_TOPOLOGY.value, ['feedforward', 'feedback']);
   assert.equal(json().items.DETECTOR_TOPOLOGY.default, 'feedforward');
-  assert.equal(json().items.DYN_FB_LOOP_DELAY_SAMPLES.value, 1);
-  assert.equal(json().items.DYN_FB_LOOP_DELAY_SAMPLES.rel, 'data/kernels/comp.json');
 });
 
-test('every value omx-dsp\'s feedback compressor defined locally is the c render\'s', () => {
-  assert.equal(dsp.size, 3, 'the frozen omx-dsp definitions: two topologies and the loop delay');
-  assert.deepEqual(disagree(header()), []);
+test('the c render gives feedforward 0, as omx_dyn.h reads a zeroed atom, and the ts render the set', () => {
   const h = header();
   assert.match(h, /^enum omx_detector_topology \{\n {2}OMX_DETECTOR_TOPOLOGY_FEEDFORWARD = 0,\n {2}OMX_DETECTOR_TOPOLOGY_FEEDBACK = 1,\n\};$/m);
   assert.match(h, /^#define OMX_DETECTOR_TOPOLOGY_COUNT 2u$/m);
   assert.match(h, /^#define OMX_DETECTOR_TOPOLOGY_DEFAULT OMX_DETECTOR_TOPOLOGY_FEEDFORWARD$/m);
-  assert.match(h, /^#define OMX_DYN_FB_LOOP_DELAY_SAMPLES 1$/m);
   assert.match(ts(), /^export const DETECTOR_TOPOLOGY = \[\n {2}"feedforward",\n {2}"feedback"\n\];$/m);
-  assert.match(ts(), /^export const DYN_FB_LOOP_DELAY_SAMPLES = 1;$/m);
 });
 
 test('the C render keeps every 2.4.0 line, byte for byte and in order, and adds only the topology set and the loop delay', () => {
@@ -76,13 +60,9 @@ test('the C render keeps every 2.4.0 line, byte for byte and in order, and adds 
   ]);
 });
 
-test('perturbation: a moved loop delay or a reordered topology set disagrees with omx-dsp, and --check goes red', () => {
-  const delay = scratchData();
-  editData(delay, 'kernels/comp.json', (d, at) => { at('DYN_FB_LOOP_DELAY_SAMPLES').value = 2; });
-  assert.deepEqual(disagree(header(delay)), ['OMX_DYN_FB_LOOP_DELAY_SAMPLES 1, OMX_DYN_FB_LOOP_DELAY_SAMPLES 2']);
-  assert.equal(main(['render', '--target', 'c', '--out', `${RENDERS}/include`, '--check', '--data', delay]), 1);
+test('perturbation: a reordered topology set makes feedforward 1, and --check goes red', () => {
   const order = scratchData();
   editData(order, 'kernels/comp.json', (d, at) => { at('DETECTOR_TOPOLOGY').ids.reverse(); });
-  assert.deepEqual(disagree(header(order)), ['OMX_DYN_TOPOLOGY_FEEDFORWARD 0, OMX_DETECTOR_TOPOLOGY_FEEDFORWARD 1', 'OMX_DYN_TOPOLOGY_FEEDBACK 1, OMX_DETECTOR_TOPOLOGY_FEEDBACK 0']);
+  assert.match(header(order), /^ {2}OMX_DETECTOR_TOPOLOGY_FEEDFORWARD = 1,$/m);
   assert.equal(main(['render', '--target', 'c', '--out', `${RENDERS}/include`, '--check', '--data', order]), 1);
 });
