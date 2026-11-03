@@ -44,11 +44,11 @@
 /** @brief The integrated loudness's relative gate, LU below the absolute-gated mean. */
 #define OMX_LOUDNESS_RELATIVE_GATE_LU ((double)OMX_BS1770_RELATIVE_GATE_LU)
 /** @brief The loudness range's relative gate, LU below the absolute-gated mean (Tech 3342). */
-#define OMX_LOUDNESS_RANGE_GATE_LU (-20.0)
+#define OMX_LOUDNESS_RANGE_GATE_LU ((double)OMX_TECH3342_RANGE_GATE_LU)
 /** @brief The range's low percentile (Tech 3342). */
-#define OMX_LOUDNESS_RANGE_LOW 0.10
+#define OMX_LOUDNESS_RANGE_LOW OMX_TECH3342_RANGE_LOW_PERCENTILE_DOUBLE
 /** @brief The range's high percentile (Tech 3342). */
-#define OMX_LOUDNESS_RANGE_HIGH 0.95
+#define OMX_LOUDNESS_RANGE_HIGH OMX_TECH3342_RANGE_HIGH_PERCENTILE_DOUBLE
 /** @brief The sub-blocks per second: a sub-block is 10 ms, `rate / 100` samples. */
 #define OMX_LOUDNESS_SUBBLOCKS_PER_S 100u
 /** @brief The momentary window in sub-blocks: 400 ms. */
