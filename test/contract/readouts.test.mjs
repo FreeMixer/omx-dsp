@@ -3,8 +3,8 @@
 // The readouts these kernels declare: each stated once, its range by reference to the travel that bounds it where one
 // does, its rate by READOUT_RATE_HZ, and the controls that re-arm a kernel. (omx-contract held the four gain
 // reductions of 2.4.0 and the limiter's look-ahead over its 2.14.0 copy of this data.) The comp's key level and
-// effective attack came with its key path (c208f5f, FX-2); the clipper (347ae79) and the glue (716ec91) state their
-// display floors as numbers.
+// effective attack came with its key path (c208f5f, FX-2); the clipper (347ae79) states its
+// display floor as a number; the glue's is its threshold's minimum, by reference (owner ruling 2026-11-03).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadData, renderJson, resolveData } from './oc.mjs';
@@ -19,7 +19,7 @@ const WANT = {
     { name: 'effectiveAttackMs', unit: 'ms', min: { ref: 'COMP_LIMITS.attackMs.min' }, max: { ref: 'COMP_LIMITS.attackMs.max' }, scale: 'log', rateHz: rate }],
   deesser: [gr({ ref: 'DEESS_RANGE_RANGE.min' })],
   gate: [gr({ ref: 'GATE_LIMITS.rangeDb.min' })],
-  glue: [gr(-40)],
+  glue: [gr({ ref: 'GLUE_THRESHOLD_DB_RANGE.min' })],
   limiter: [gr({ ref: 'LIMITER_LIMITS.ceilingDb.min' })],
 };
 

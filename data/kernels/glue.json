@@ -141,7 +141,9 @@
       "name": "gainReductionDb",
       "doc": "The compressor's gain reduction, in dB with CLAP's sign: 0 while it reduces nothing, negative the deepest gain of the block, make-up included.",
       "unit": "dB",
-      "min": -40,
+      "min": {
+        "ref": "GLUE_THRESHOLD_DB_RANGE.min"
+      },
       "max": 0,
       "scale": "linear",
       "rateHz": {
