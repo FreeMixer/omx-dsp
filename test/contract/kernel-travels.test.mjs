@@ -37,23 +37,6 @@ const CONSUMER = {
   OUTPUT_DELAY_RANGE: ['data/kernels/idelay.json', { min: 0, max: 1000, step: 1, unit: 'ms' }],
 };
 
-/** The C lines the console engine's generated limits header carries for these items, byte for byte. */
-const CONSUMER_C = `#define OMX_DETECTOR_OVERSAMPLE_LATENCY_SAMPLES 72
-#define OMX_DIVERGENCE_RANGE_MAX 1
-#define OMX_DIVERGENCE_RANGE_MIN 0
-#define OMX_DIVERGENCE_RANGE_STEP 0
-#define OMX_HRP_HARMONIC_COUNT 12
-#define OMX_INPUT_ALIGN_DELAY_RANGE_MAX 100
-#define OMX_INPUT_ALIGN_DELAY_RANGE_MIN 0
-#define OMX_INPUT_ALIGN_DELAY_RANGE_STEP 0.0001f
-#define OMX_INPUT_ALIGN_DELAY_RANGE_STEP_DOUBLE 0.0001
-#define OMX_OSCILLATOR_FREQ_RANGE_MAX 20000
-#define OMX_OSCILLATOR_FREQ_RANGE_MIN 20
-#define OMX_OSCILLATOR_FREQ_RANGE_STEP 10
-#define OMX_OUTPUT_DELAY_RANGE_MAX 1000
-#define OMX_OUTPUT_DELAY_RANGE_MIN 0
-#define OMX_OUTPUT_DELAY_RANGE_STEP 1`.split('\n');
-
 test('each item is declared once, where it belongs, with the value the console engine uses', () => {
   const items = json().items;
   for (const [name, [rel, value]] of Object.entries(CONSUMER)) {
@@ -85,10 +68,16 @@ test('the kernels list their controls; align and idelay are kernels of one trave
   assert.deepEqual(k.idelay.controls, [{ name: 'outputDelay', kind: 'travel', global: 'OUTPUT_DELAY_RANGE' }]);
 });
 
-test('the C render carries the console engine\'s lines for these items, byte for byte', () => {
-  const lines = new Set(header().split('\n'));
-  assert.deepEqual(CONSUMER_C.filter((l) => !lines.has(l)), []);
-  assert.equal(CONSUMER_C.length, 15);
+test('the C render carries the console engine\'s values for these items', () => {
+  // the render's own numbers, read off its defines: the bytes are omx-contract's renderer's to hold, and this tree
+  // restates no define of the render (tools/contract-single-source.sh)
+  const defines = new Map([...header().matchAll(/^#define OMX_(\w+) (-?[0-9.eE+-]+)f?$/gm)].map((m) => [m[1], Number(m[2])]));
+  let n = 0;
+  for (const [name, [, value]] of Object.entries(CONSUMER)) {
+    const want = typeof value === 'object' ? Object.entries(value).filter(([k]) => k !== 'unit').map(([k, v]) => [`${name}_${k.toUpperCase()}`, v]) : [[name, value]];
+    for (const [macro, v] of want) { assert.equal(defines.get(macro), v, macro); n++; }
+  }
+  assert.equal(n, 14, 'every value the console engine uses is read off the render');
 });
 
 test('perturbation: move each value, the json and C renders follow and render --check goes red', () => {
