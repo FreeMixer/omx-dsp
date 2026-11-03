@@ -69,7 +69,7 @@ library exists.
 %make_install PREFIX=%{_prefix} LIBDIR=%{_libdir} INCLUDEDIR=%{_includedir}
 
 %check
-%make_build test
+%make_build check-package
 
 %files devel
 %license LICENSE
@@ -105,6 +105,10 @@ library exists.
 - data: 16 items nobody read are retired, geq's modes read GEQ_MODES, and 43
   items gain an implementation link or a stated reader.
 - ci: the heavy jobs run where vars.OMX_RUNNER says; make test may take 90 minutes.
+- The deb's and the RPM's check run make check-package: the tests that prove
+  the built library. The sabotage and perturbation arms run in make test, in
+  CI on every pull request; under make -j4 test the deb build went past its
+  60 minutes on a 4-core runner.
 
 * Sun Nov 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.28.0-1
 - New faces, each with closed-form oracles at the nine rates: clipper, upward
