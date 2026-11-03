@@ -10,8 +10,7 @@
     {
       "name": "COMP_LIMITS",
       "source": {
-        "path": "strip-dynamics-limits.ts",
-        "export": "COMP_LIMITS"
+        "origin": "imported as strip-dynamics-limits.ts COMP_LIMITS ({\"thresholdDb\":{\"min\":-60,\"max\":0,\"step\":1,\"unit\":\"dB\",\"default\":-18,\"defaultFrom\":\"desk\"},\"ratio\":{\"min\":1,\"max\":20,\"step\":0.5,\"unit\":\"\",\"default\":4,\"defaultFrom\":\"desk\"},\"kneeDb\":{\"min\":0,\"max\":24,\"step\":0.5,\"unit\":\"dB\",\"default\":6,\"defaultFrom\":\"desk\"},\"attackMs\":{\"min\":0.1,\"max\":100,\"step\":1,\"unit\":\"ms\",\"default\":5,\"defaultFrom\":\"desk\"},\"releaseMs\":{\"min\":5,\"max\":3000,\"step\":10,\"unit\":\"ms\",\"default\":200,\"defaultFrom\":\"desk\"},\"makeupDb\":{\"min\":0,\"max\":24,\"step\":0.5,\"unit\":\"dB\",\"default\":0,\"defaultFrom\":\"desk\"},\"mixPct\":{\"min\":0,\"max\":100,\"step\":5,\"unit\":\"%\",\"default\":100,\"defaultFrom\":\"desk\"}}) at the console engine's 964a79835692; moved in omx-dsp 09ff9da: a travel's step must reach its maximum and default from its minimum"
       },
       "value": {
         "thresholdDb": {
@@ -41,7 +40,7 @@
         "attackMs": {
           "min": 0.1,
           "max": 100,
-          "step": 1,
+          "step": 0.1,
           "unit": "ms",
           "default": 5,
           "defaultFrom": "desk"
@@ -49,7 +48,7 @@
         "releaseMs": {
           "min": 5,
           "max": 3000,
-          "step": 10,
+          "step": 5,
           "unit": "ms",
           "default": 200,
           "defaultFrom": "desk"
@@ -76,8 +75,7 @@
     {
       "name": "PROGRAM_RELEASE",
       "source": {
-        "path": "strip-dynamics-limits.ts",
-        "export": "PROGRAM_RELEASE"
+        "origin": "imported as strip-dynamics-limits.ts PROGRAM_RELEASE ({\"chargeMs\":1000,\"dischargeMs\":5000,\"profiles\":{\"opto\":{\"fastMs\":70,\"slowMinMs\":110,\"slowMaxMs\":1100,\"share\":0.5}}}) at the console engine's 964a79835692; moved in omx-dsp b5bfafe: the release mode became fixed, opto or auto, and auto took its own profile (FX-12, #188)"
       },
       "value": {
         "chargeMs": 1000,
@@ -87,6 +85,12 @@
             "fastMs": 70,
             "slowMinMs": 110,
             "slowMaxMs": 1100,
+            "share": 0.5
+          },
+          "auto": {
+            "fastMs": 100,
+            "slowMinMs": 300,
+            "slowMaxMs": 1200,
             "share": 0.5
           }
         }
@@ -146,16 +150,6 @@
       "default": "feedforward"
     },
     {
-      "name": "DYN_FB_LOOP_DELAY_SAMPLES",
-      "source": {
-        "origin": "omx-dsp 91beb6d (lane/salvage-ssl-bus-comp) include/omxdsp/omx_dyn.h:72 OMX_DYN_FB_LOOP_DELAY_SAMPLES 1u, :164 the _Static_assert that the loop state holds one sample per leg"
-      },
-      "value": 1,
-      "doc": "The feedback detector's loop delay, in samples: the output y[n] depends on the gain at n, so the detector can only have heard y[n - 1]. Not a latency: the audio is never delayed by it. omx-dsp's feedback state holds exactly this many output samples per leg.",
-      "since": "2.5.0",
-      "unit": ""
-    },
-    {
       "name": "DETECTOR_OVERSAMPLE_LATENCY_SAMPLES",
       "source": {
         "origin": "omx-dsp 0f23bed include/omxdsp/omx_oversampler.h:151 OMX_OVS_LATENCY_4X 72; the console engine's DETECTOR_OVERSAMPLE_LATENCY_SAMPLES"
@@ -164,6 +158,187 @@
       "doc": "What the 4x detector oversampling costs the strip it is engaged on, in samples: the causal linear-phase half-band's reach, by which the audio is delayed so the gain still lands on the sample it was computed from. A sample count, not a time: the same at every rate. omx-dsp's oversampler declares the same number as OMX_OVS_LATENCY_4X, and its comp and gate faces report it while 4x is engaged.",
       "unit": "",
       "since": "2.14.0"
+    },
+    {
+      "name": "COMP_KEY_SOURCES",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#key_src"
+      },
+      "value": [
+        "self",
+        "sidechain"
+      ],
+      "default": "self",
+      "labels": [
+        "Self",
+        "Sidechain"
+      ],
+      "doc": "Where the compressor's detector listens: its own input (self), or the key handed to its sidechain port (sidechain), in the order of the integer the key port carries; the gate's keySource ids. Which strip or bus feeds the sidechain is console routing. It comes up self."
+    },
+    {
+      "name": "COMP_KEY_HP_HZ_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#hp"
+      },
+      "value": {
+        "min": 0,
+        "max": 2000,
+        "step": 1,
+        "unit": "Hz",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The key filter's high-pass corner, Hz: the gate's key filter (one Butterworth section, in double), on what the detector hears and never on the audio. 0 is out, the come-up value, and the compressor is the one without it, bit for bit."
+    },
+    {
+      "name": "COMP_KEY_LP_HZ_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#lp"
+      },
+      "value": {
+        "min": 0,
+        "max": 20000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The key filter's low-pass corner, Hz, after the high-pass. 0 is out, the come-up value."
+    },
+    {
+      "name": "COMP_KEY_TILT_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#tilt_slope"
+      },
+      "value": {
+        "min": -6,
+        "max": 6,
+        "step": 0.5,
+        "unit": "dB/oct",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The key's tilt, in dB per octave at KEY_TILT_PIVOT_HZ: positive brightens what the detector hears, negative darkens it (omx_tilt, a first-order shelf pair about the pivot, after the key filter). 0 is flat, the come-up value, bit for bit."
+    },
+    {
+      "name": "COMP_KEY_LISTENS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#lis"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "While on, the output is what the detector hears, the key after its filter and tilt, folded as detectLink folds it: linked the two legs, mid the mid on both, side the side on both, max the mid on the left and the side on the right. The compressor keeps running underneath. It comes up off."
+    },
+    {
+      "name": "COMP_HOLD_MS_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#hold"
+      },
+      "value": {
+        "min": 0,
+        "max": 2000,
+        "step": 5,
+        "unit": "ms",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The hold, ms: the detector is frozen this long after its level last rose, so the reduction holds before the release runs. 0 is no hold, the come-up value."
+    },
+    {
+      "name": "COMP_DETECT_LINKS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#link_fold"
+      },
+      "value": [
+        "linked",
+        "mid",
+        "side",
+        "max"
+      ],
+      "default": "linked",
+      "labels": [
+        "Linked",
+        "Mid",
+        "Side",
+        "Max"
+      ],
+      "doc": "How the detector folds the key's two legs into one level, in the order of the integer the kernel reads: linked, the louder leg (the compressor's own detection, the come-up value); mid, the mid (L + R)/2; side, the side (L - R)/2; max, the louder of the mid and the side. One gain serves both legs whatever the fold."
+    },
+    {
+      "name": "COMP_DUCKS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#duck_on"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "The ducker: on, the reduction the key's level asks for is held to rangeDb, so the programme gain is max(rangeDb, the compressor's law at the key's level). It comes up off."
+    },
+    {
+      "name": "COMP_RANGE_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#duck_range"
+      },
+      "value": {
+        "min": -40,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -12,
+        "defaultFrom": "desk"
+      },
+      "doc": "The ducker's depth, dB: the deepest the programme goes while the key is above the threshold. 0 ducks nothing. Read only while duck is on."
+    },
+    {
+      "name": "COMP_RELEASE_MODES",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at b5bfafee3609, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#rel_mode"
+      },
+      "value": [
+        "fixed",
+        "opto",
+        "auto"
+      ],
+      "default": "fixed",
+      "labels": [
+        "Fixed",
+        "Opto",
+        "Auto"
+      ],
+      "doc": "How the compressor releases, in the order of the integer the kernel reads: `fixed`, the detector's release at releaseMs, the compressor that shipped bit for bit and the come-up value; `opto`, the program-dependent release of PROGRAM_RELEASE_PROFILES.opto (an LA-2A's two-stage recovery, slower the longer the cell was driven); `auto`, the same word with PROGRAM_RELEASE_PROFILES.auto (a bus compressor's AUTO position). In opto and auto the detector releases at its attack pole and releaseMs is inert, kept for when fixed returns (omx_env_program_release on the gain, after the gain computer)."
+    },
+    {
+      "name": "KEY_TILT_PIVOT_HZ",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/comp.json at c208f5f51395, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_comp_instance.h#OMX_COMP_INSTANCE_TILT_PIVOT_HZ"
+      },
+      "value": 1000,
+      "unit": "Hz",
+      "doc": "Where a key's tilt pivots, Hz: the frequency a tilt leaves at unity while it brightens or darkens what the detector hears. One pivot for every key that tilts."
     }
   ]
 }

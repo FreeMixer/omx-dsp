@@ -1,0 +1,177 @@
+{
+  "kernel": "suboct",
+  "since": "3.0.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "613aae1beced2cd5fb76d6e5ba1a6a8b25f407a9"
+  },
+  "items": [
+    {
+      "name": "SUBOCT_RANGES",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#range_row"
+      },
+      "value": [
+        "low",
+        "mid",
+        "high"
+      ],
+      "default": "low",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "doc": "The tracking range, in the order of the integer the kernel reads: low (a bass, 35 to 140 Hz), mid (70 to 280 Hz), high (140 to 560 Hz); each a row of SUBOCT_RANGE_LO_HZ, SUBOCT_RANGE_HI_HZ, SUBOCT_POST1_HZ and SUBOCT_POST2_HZ. Low comes up."
+    },
+    {
+      "name": "SUBOCT_OCT1_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#o1"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "The octave below, percent of the tracked band divided once (omx_divider) and low-passed at the range's post1."
+    },
+    {
+      "name": "SUBOCT_OCT2_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#o2"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "Two octaves below, percent: the first octave divided again and low-passed at the range's post2."
+    },
+    {
+      "name": "SUBOCT_DRY_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#dr"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "The input, percent. With both octaves at 0 and the dry at 100 the face is the input bit for bit, the divider still tracking."
+    },
+    {
+      "name": "SUBOCT_TRACK_GATE_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#gate_db"
+      },
+      "value": {
+        "min": -80,
+        "max": -20,
+        "step": 0.5,
+        "unit": "dBFS",
+        "default": -50,
+        "defaultFrom": "desk"
+      },
+      "doc": "The tracked band's level, dBFS of its peak envelope, under which the octaves fade out over SUBOCT_GATE_RAMP_MS and trackedHz reads 0."
+    },
+    {
+      "name": "SUBOCT_RANGE_LO_HZ",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_LO"
+      },
+      "value": [
+        35,
+        70,
+        140
+      ],
+      "unit": "Hz",
+      "doc": "Each range's lowest tracked fundamental, Hz; the tracking band's high-pass sits an octave under it."
+    },
+    {
+      "name": "SUBOCT_RANGE_HI_HZ",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_HI"
+      },
+      "value": [
+        140,
+        280,
+        560
+      ],
+      "unit": "Hz",
+      "doc": "Each range's highest tracked fundamental, Hz: the tracking band's low-pass."
+    },
+    {
+      "name": "SUBOCT_POST1_HZ",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_POST1"
+      },
+      "value": [
+        90,
+        180,
+        360
+      ],
+      "unit": "Hz",
+      "doc": "Each range's low-pass on the first octave, Hz, 24 dB per octave."
+    },
+    {
+      "name": "SUBOCT_POST2_HZ",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_POST2"
+      },
+      "value": [
+        45,
+        90,
+        180
+      ],
+      "unit": "Hz",
+      "doc": "Each range's low-pass on the second octave, Hz, 24 dB per octave."
+    },
+    {
+      "name": "SUBOCT_HYSTERESIS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#omx_suboct_arm_level"
+      },
+      "value": 0.25,
+      "unit": "",
+      "doc": "The arming threshold as a share of the tracked peak: a toggle needs a dip under -1/4 of the peak, which a fundamental-dominant note makes once a cycle and noise under half of it never makes."
+    },
+    {
+      "name": "SUBOCT_ENV_ATTACK_MS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_ENV"
+      },
+      "value": 1,
+      "unit": "ms",
+      "doc": "The tracked peak's attack, ms: within the first cycle of the highest tracked note."
+    },
+    {
+      "name": "SUBOCT_ENV_RELEASE_MS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#OMX_SUBOCT_INSTANCE_ENV"
+      },
+      "value": 100,
+      "unit": "ms",
+      "doc": "The tracked peak's release, ms: longer than the lowest tracked period, so the threshold does not sag between peaks."
+    },
+    {
+      "name": "SUBOCT_GATE_RAMP_MS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/suboct.json at 613aae1beced, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_suboct_instance.h#ramp_step"
+      },
+      "value": 5,
+      "unit": "ms",
+      "doc": "How long the octaves take to fade out under the gate, or in over it, ms."
+    }
+  ]
+}
