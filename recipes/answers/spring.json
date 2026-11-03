@@ -1,6 +1,6 @@
 {
   "kernel": "spring",
-  "since": "0.28.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "SPRING_DECAY_S_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#dc"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#dc"
       },
       "value": {
         "min": 0.5,
@@ -25,7 +25,7 @@
     {
       "name": "SPRING_LENGTH_MS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#ln"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#ln"
       },
       "value": {
         "min": 20,
@@ -40,7 +40,7 @@
     {
       "name": "SPRING_TENSION_PCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#tn"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#tn"
       },
       "value": {
         "min": 0,
@@ -55,7 +55,7 @@
     {
       "name": "SPRING_DAMP_HZ_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#dp"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#dp"
       },
       "value": {
         "min": 1000,
@@ -70,7 +70,7 @@
     {
       "name": "SPRING_MIX_PCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#mx"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#mx"
       },
       "value": {
         "min": 0,
@@ -85,7 +85,7 @@
     {
       "name": "SPRING_SECTIONS",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_chain_delay"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_chain_delay"
       },
       "value": 40,
       "unit": "",
@@ -94,7 +94,7 @@
     {
       "name": "SPRING_CHIRP_HZ",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#OMX_SPRING_INSTANCE_CHIRP"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#OMX_SPRING_INSTANCE_CHIRP"
       },
       "value": [
         1200,
@@ -106,7 +106,7 @@
     {
       "name": "SPRING_RIGHT_RATIO",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_instance_resolve"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_instance_resolve"
       },
       "value": 1.13,
       "unit": "",
@@ -115,7 +115,7 @@
     {
       "name": "SPRING_LOOP_MAX",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_instance_resolve"
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_instance_resolve"
       },
       "value": 0.97,
       "unit": "",

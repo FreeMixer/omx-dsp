@@ -1,6 +1,6 @@
 {
   "kernel": "plosive",
-  "since": "0.27.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "PLOSIVE_CONSONANT_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#cons_db"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#cons_db"
       },
       "value": {
         "min": 0,
@@ -25,7 +25,7 @@
     {
       "name": "PLOSIVE_SENSITIVITY_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#cons_s"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#cons_s"
       },
       "value": {
         "min": 0,
@@ -40,7 +40,7 @@
     {
       "name": "PLOSIVE_RECOVERY_MS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#cons_rec"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#cons_rec"
       },
       "value": {
         "min": 2,
@@ -55,7 +55,7 @@
     {
       "name": "PLOSIVE_BAND_HZ_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#band_hz"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#band_hz"
       },
       "value": {
         "min": 1000,
@@ -70,7 +70,7 @@
     {
       "name": "PLOSIVE_BAND_WIDTH_OCT_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#band_oct"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#band_oct"
       },
       "value": {
         "min": 0.5,
@@ -85,7 +85,7 @@
     {
       "name": "PLOSIVE_POP_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#pop_db"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#pop_db"
       },
       "value": {
         "min": 0,
@@ -100,7 +100,7 @@
     {
       "name": "PLOSIVE_POP_SENSITIVITY_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#pop_s"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#pop_s"
       },
       "value": {
         "min": 0,
@@ -115,7 +115,7 @@
     {
       "name": "PLOSIVE_POP_RECOVERY_MS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#pop_rec"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#pop_rec"
       },
       "value": {
         "min": 10,
@@ -130,7 +130,7 @@
     {
       "name": "PLOSIVE_POP_HZ_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#pop_hz"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#pop_hz"
       },
       "value": {
         "min": 60,
@@ -145,7 +145,7 @@
     {
       "name": "PLOSIVE_BAND_EDGE_FRACTION",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, implemented at include/omxdsp/fx/omx_plosive_instance.h#OMX_PLOSIVE_INSTANCE_EDGE"
+        "origin": "first declared in omx-dsp data/kernels/plosive.json at af15c3bccdb6, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_plosive_instance.h#OMX_PLOSIVE_INSTANCE_EDGE"
       },
       "value": 0.45,
       "unit": "",

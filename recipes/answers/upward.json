@@ -1,6 +1,6 @@
 {
   "kernel": "upward",
-  "since": "0.28.0",
+  "since": "3.0.0",
   "engine": {
     "repo": "omx-dsp",
     "ref": "main",
@@ -10,7 +10,7 @@
     {
       "name": "UPWARD_THRESHOLD_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, implemented at include/omxdsp/fx/omx_upward_instance.h#th"
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#th"
       },
       "value": {
         "min": -70,
@@ -25,7 +25,7 @@
     {
       "name": "UPWARD_RATIO_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, implemented at include/omxdsp/fx/omx_upward_instance.h#ra"
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#ra"
       },
       "value": {
         "min": 1,
@@ -40,7 +40,7 @@
     {
       "name": "UPWARD_RANGE_DB_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, implemented at include/omxdsp/fx/omx_upward_instance.h#rg"
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#rg"
       },
       "value": {
         "min": 0,
@@ -55,7 +55,7 @@
     {
       "name": "UPWARD_ATTACK_MS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, implemented at include/omxdsp/fx/omx_upward_instance.h#at"
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#at"
       },
       "value": {
         "min": 0.1,
@@ -70,7 +70,7 @@
     {
       "name": "UPWARD_RELEASE_MS_RANGE",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, implemented at include/omxdsp/fx/omx_upward_instance.h#rl"
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#rl"
       },
       "value": {
         "min": 5,
@@ -85,7 +85,7 @@
     {
       "name": "UPWARD_KNEE_DB",
       "source": {
-        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, implemented at include/omxdsp/fx/omx_upward_instance.h#omx_upward_instance_resolve"
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#omx_upward_instance_resolve"
       },
       "value": 6,
       "unit": "dB",
