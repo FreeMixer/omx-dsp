@@ -88,9 +88,9 @@ static inline int omx_fx_golden_main_sized(int argc, char **argv, const char *na
     for (int k = 0; k < (int)OMX_FX_GOLDEN_RATE_COUNT; k++) {
       size_t bytes = 0;
       bad += render(OMX_FX_GOLDEN_RATES[k], out, &bytes);
-      fwrite(out, 1, bytes, o);
+      if (fwrite(out, 1, bytes, o) != bytes) { fprintf(stderr, "fx/%s_golden: short write to %s\n", name, argv[2]); fclose(o); return 2; }
     }
-    fclose(o);
+    if (fclose(o) != 0) { fprintf(stderr, "fx/%s_golden: cannot close %s\n", name, argv[2]); return 2; }
     return bad == 0 ? 0 : 1;
   }
   if (!omx_fx_golden_log10f_is_substituted()) {

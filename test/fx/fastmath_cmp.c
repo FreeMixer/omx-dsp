@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   if (argc != 4 && argc != 5) return 2;
   size_t na = 0, nb = 0;
   float *a = slurp(argv[1], &na), *b = slurp(argv[2], &nb);
-  if (!a || !b || na != nb || na == 0) { fprintf(stderr, "fastmath_cmp: cannot read or sizes differ (%zu, %zu)\n", na, nb); return 2; }
+  if (!a || !b || na != nb || na == 0) { printf("fastmath_cmp: cannot read the dumps or their sizes differ (%zu, %zu floats)\n", na, nb); return 2; }
   double dmax = 0.0, peak = 0.0;
   for (size_t i = 0; i < na; i++) {
     if (a[i] != a[i] || b[i] != b[i] || fabsf(a[i]) > 1e30f || fabsf(b[i]) > 1e30f) { printf("not finite at %zu\n", i); return 1; }

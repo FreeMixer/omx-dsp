@@ -30,7 +30,8 @@ run() { # name source
   # shellcheck disable=SC2086
   $CC $PLAIN $MV -DOMX_FX_GOLDEN_DUMP_ONLY=1 $INC -o "$T/new_$name" "$src" $LIB -lm 2>"$T/e" || { cat "$T/e"; bad=1; return; }
   (cd "$HERE" && "$T/old_$name" --dump "$T/old_$name.raw" && "$T/new_$name" --dump "$T/new_$name.raw") || { echo "fastmath-diff: $name did not render"; bad=1; return; }
-  r="$("$T/cmp" "$T/old_$name.raw" "$T/new_$name.raw" "$LIMIT")" && ok=ok || ok=ABOVE-LIMIT
+  r="$("$T/cmp" "$T/old_$name.raw" "$T/new_$name.raw" "$LIMIT")" && ok=ok || ok="ABOVE-LIMIT or unreadable (cmp exit $?)"
+  rm -f "$T/old_$name.raw" "$T/new_$name.raw"
   printf 'fastmath-diff: %-22s max diff %s dBFS / reference peak / diff re peak (dB) [%s]\n' "$name" "$r" "$ok"
   [ "$ok" = ok ] || bad=1
 }
@@ -45,7 +46,7 @@ $CC $PLAIN -DOMX_FX_GOLDEN_DUMP_ONLY=1 $INC -o "$T/old_drive" "$HERE/test/fx/fas
 $CC $PLAIN $MV $INC -o "$T/new_drive" "$HERE/test/fx/fastmath_drive_render.c" $LIB -lm
 "$T/old_drive" --dump "$T/old_drive.raw"; "$T/new_drive" --dump "$T/new_drive.raw"
 # four curves, two factors, per rate: report the worst curve of each
-r="$("$T/cmp" "$T/old_drive.raw" "$T/new_drive.raw" "$LIMIT")" && ok=ok || ok=ABOVE-LIMIT
+r="$("$T/cmp" "$T/old_drive.raw" "$T/new_drive.raw" "$LIMIT")" && ok=ok || ok="ABOVE-LIMIT or unreadable (cmp exit $?)"
 printf 'fastmath-diff: %-22s max diff %s dBFS / reference peak / diff re peak (dB) [%s]\n' "drive (4 curves, 1x 4x)" "$r" "$ok"
 [ "$ok" = ok ] || bad=1
 [ "$bad" = 0 ] || exit 1
