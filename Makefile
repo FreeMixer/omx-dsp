@@ -84,6 +84,10 @@ CFLAGS  ?= -Wall -Wextra -Werror -O2
 # the same flag), so a kernel's output does not depend on the architecture's FMA or the consumer's
 # build flags: the engine and a plugin built at one version produce the same bits.
 FPFLAGS  = -ffp-contract=off
+# The flags this file adds are taken out of what it is given first. CFLAGS from the environment (an rpm or deb
+# build's set_build_flags) goes on to a sub-make with them already in it, so `make test`'s second make would read
+# libmvec in CFLAGS_PLAIN, and FASTMATH=off would not take it out.
+override CFLAGS := $(filter-out $(FPFLAGS) -fopenmp-simd -fno-math-errno -DOMX_FASTMATH_MVEC_%,$(CFLAGS))
 override CFLAGS += $(FPFLAGS)
 # libmvec, found by a build-time probe (tools/fastmath-probe.sh): the functions this toolchain can call
 # vectorised, each declared to the compiler by omx_fastmath.h under its OMX_FASTMATH_MVEC_<F> macro. Never
@@ -442,7 +446,7 @@ FX_KERNELS = delay geq pitch transient drive chorus flanger phaser reverb tremol
 # Oracles that read the contract ledger themselves build with contracts and threads.
 FX_CONTRACT_ORACLES = delay_taps geq pitch transient chorus flanger phaser tremolo rotor rotary transient_instance geq_instance eq_instance limiter dynamics_keyed dynamics gate gate_instance gate_knee gate_keyfilter comp_instance band_dyn dyn_controls trim_instance align_fdelay dynamics_feedback idelay loudness mbcomp geq_true dyneq_instance comp_key mbcomp_instance delay_color gate_key reverb_return doubler_instance tone_instance dyn_upward leveler_instance comp_release plosive_instance transient_readouts width_instance suboct_instance clipper_instance upward_instance glue_instance loudlevel_instance spring_instance balancer_instance $(addsuffix _instance,$(FX_INSTANCES))
 # Further oracles of a kernel in FX_KERNELS, each test/fx/<o>.test.c, built by the same rule.
-FX_ORACLES = align_fdelay delay_taps dyn_flat geq_true band_dyn_poly comp_key delay_color gate_key reverb_return dyn_upward comp_release transient_readouts
+FX_ORACLES = align_fdelay delay_taps dyn_flat gaincomp_fpflags geq_true band_dyn_poly comp_key delay_color gate_key reverb_return dyn_upward comp_release transient_readouts
 # The effects that carry a host-agnostic instance core, include/omxdsp/fx/omx_<k>_instance.h: each
 # adds test/fx/<k>_instance.test.c, its oracle at every declared rate, contracts compiled in.
 FX_INSTANCES = chorus flanger drive reverb tremolo phaser pitch rotary limiter deesser delay
@@ -688,6 +692,9 @@ test:
 # fastmath-sabotage the oracle goes red on a result moved by 5 ULP, the loop check on a header without the pragma,
 #                   the probe on a toolchain with no libmvec, no pragma or no vector symbol
 # fastmath-plain    the same oracle, the drive and a dynamics oracle again with FASTMATH=off: the libm path
+# fastmath-partial  the flags of a libmvec with log10f and expf but no powf and no tanhf (aarch64 glibc before 2.40),
+#                   on any host: no loop that needs a missing function takes its lane, every render is the plain
+#                   libm build's bit for bit, and the loop check passes on that set
 # Without libmvec in the build (the probe found nothing, or FASTMATH=off) each says so and passes.
 FM_DIFF_LIMIT_DBFS ?= -96
 
@@ -716,10 +723,20 @@ fastmath-sabotage: $(BUILD)/fastmath_sabotage
 fastmath-plain:
 	$(MAKE) --no-print-directory FASTMATH=off BUILD=$(BUILD)/plain fastmath fx-run-kernel-drive fx-run-oracle-dyn_flat fx-run-kernel-dynamics
 
-.PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain
+FM_PARTIAL_CFLAGS = -fopenmp-simd -fno-math-errno -DOMX_FASTMATH_MVEC_LOG10F=1 -DOMX_FASTMATH_MVEC_EXPF=1
+$(BUILD)/fastmath_partial: test/fx/fastmath_partial.test.c test/fx/fastmath_partial_render.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS_PLAIN) $(FM_PARTIAL_CFLAGS) -DOMX_PARTIAL_SIDE=partial $(INC) -c -o $(BUILD)/fastmath_partial_p.o test/fx/fastmath_partial_render.c
+	$(CC) $(CFLAGS_PLAIN) -DOMX_PARTIAL_SIDE=plain $(INC) -c -o $(BUILD)/fastmath_partial_l.o test/fx/fastmath_partial_render.c
+	$(CC) $(CFLAGS_PLAIN) $(INC) -o $@ $< $(BUILD)/fastmath_partial_p.o $(BUILD)/fastmath_partial_l.o $(LIB) -lm $(MVEC_LIBS)
+
+fastmath-partial: $(BUILD)/fastmath_partial
+	./$(BUILD)/fastmath_partial
+	sh tools/fastmath-vec-check.sh "$(CC)" "$(INC) $(FPFLAGS)" $(FM_PARTIAL_CFLAGS)
+
+.PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
 
 .PHONY: test-parallel
-test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
 
 # ---- install ------------------------------------------------------------------------------------
 
