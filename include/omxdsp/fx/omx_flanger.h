@@ -177,20 +177,8 @@ static inline void omx_flanger_process(float *l, float *r, uint32_t n, const str
    * about the CONTROL thread's travel, enforced by the clamp below and stated here because here
    * is where breaking it is audible. The output may exceed its input, by at most
    * `omx_flanger_gain_bound` (the `output-le-input-plus` law), and by nothing more. */
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
-  OMX_PRE(p->mix >= 0.0f && p->mix <= 1.0f, "mix-in-unit-range");
-  OMX_PRE(p->depth_samples >= 0.0f, "a-depth-is-not-negative");
-  OMX_PRE(p->lfo_inc >= 0.0f && p->lfo_inc < 1.0f, "an-increment-is-inside-one-turn");
-  OMX_PRE(!p->enabled || s->line_l.order == 0 ||
-              p->base_samples >= omx_fdelay_min_delay(s->line_l.order),
-          "the-shortest-delay-clears-the-kernels-reach");
-  OMX_PRE(!p->enabled || s->line_l.order == 0 ||
-              p->base_samples + p->depth_samples <=
-                  omx_fdelay_max_delay(s->line_l.cap, s->line_l.order),
-          "the-longest-delay-is-inside-the-ring");
   const float mix = omx_unit(p->mix);
-  if (!p->enabled || n == 0u || mix <= 0.0f) return;
-  if (s->line_l.order == 0 || s->line_r.order == 0) return; /* unarmed → announced passthrough */
+  OMX_FDELAY_SWEEP_ENTRY(p, &s->line_l, &s->line_r, l, r, n, mix);
 
   const float fb = omx_flanger_clamp_fb(p->feedback);
   const float dry = 1.0f - mix;
@@ -198,8 +186,8 @@ static inline void omx_flanger_process(float *l, float *r, uint32_t n, const str
   s->lfo.inc = p->lfo_inc; /* the speed is the atom's, the phase is the state's */
 
   for (uint32_t i = 0; i < n; i++) {
-    const float xl = l[i], xr = r[i];
     const float d = omx_flanger_delay(p, &s->lfo);
+    const float xl = l[i], xr = r[i];
     /* The per-sample door of the primitive, this time with the loop closed around it: both legs
      * share one geometry and one delay, so one split and one kernel serve both reads. */
     float wl, wr;
@@ -211,9 +199,9 @@ static inline void omx_flanger_process(float *l, float *r, uint32_t n, const str
   }
   s->fb_l = fl;
   s->fb_r = fr;
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
   OMX_INVARIANT(s->fb_l - s->fb_l == 0.0f && s->fb_r - s->fb_r == 0.0f, "feedback-state-finite");
-  OMX_INVARIANT(s->lfo.phase >= 0.0f && s->lfo.phase < 1.0f, "the-oscillator-stays-in-its-turn");
+  OMX_INVARIANT(omx_lfo_in_turn(&s->lfo), "the-oscillator-stays-in-its-turn");
 }
 #undef OMX_CONTRACT_STAGE
 

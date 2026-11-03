@@ -79,9 +79,7 @@ static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int
                                              float lp_hz, int key_listen, float key_tilt_db);
 
 static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!(sr > 0.0f)) return 0;
+  if (!omx_instance_bind_positive(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   omx_gate_init(&s->gate, sr);
   s->ready = 1;
@@ -196,7 +194,7 @@ static inline float omx_gate_instance_latency(const OmxGateInstance *s) {
  */
 static inline void omx_gate_instance_run(OmxGateInstance *s, const float *key, const float *in_l,
                                          const float *in_r, float *out_l, float *out_r, uint32_t n) {
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
+  if (!omx_instance_block_ok(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready) {
     omx_instance_copy(in_l, in_r, out_l, out_r, n);
     return;

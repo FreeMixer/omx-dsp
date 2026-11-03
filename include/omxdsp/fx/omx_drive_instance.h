@@ -222,12 +222,12 @@ static inline void omx_drive_instance_run(OmxDriveInstance *s, const float *in_l
                                           float *out_r, uint32_t n) {
   /* CONTRACT (omx_contract.h). Finite in, finite out, on both legs — the kernel's own law,
    * restated at the host boundary because the copy is this function's. */
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
-  OMX_PRE(omx_block_finite(in_l, n) && omx_block_finite(in_r, n), "finite-in");
+  if (!omx_instance_block_ok(in_l, in_r, out_l, out_r, n)) return;
+  OMX_PRE(omx_block_pair_finite(in_l, in_r, n), "finite-in");
   omx_instance_copy(in_l, in_r, out_l, out_r, n);
   if (!s || !s->ready) return;
   omx_drive_process(out_l, out_r, n, &s->atom, &s->state);
-  OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(out_l, out_r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

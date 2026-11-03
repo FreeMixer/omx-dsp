@@ -486,6 +486,33 @@ static inline uint32_t omx_eq_bank_design(int eq_on, const struct omx_eq_band *b
 }
 #undef OMX_CONTRACT_STAGE
 
+/**
+ * @brief The head filters' sections as bands at 0 dB: the high-pass, then the low-pass, each that is set
+ *        and on, as one band per omx_eq_butterworth_qs() section at its corner. The one walk of the head
+ *        filters the strip's design and the drawn curve share.
+ * @param hpf The high-pass, or NULL for none.
+ * @param lpf The low-pass, or NULL for none.
+ * @param out The sections, each with `on` set; room for OMX_EQ_PASS_MAX_SECTIONS.
+ * @return The sections written, at most OMX_EQ_PASS_MAX_SECTIONS.
+ * @note RT-safe and thread-safe on distinct output: copies, no libm.
+ */
+static inline uint32_t omx_eq_pass_sections(const struct omx_eq_pass *hpf, const struct omx_eq_pass *lpf,
+                                            struct omx_eq_band out[OMX_EQ_PASS_MAX_SECTIONS]) {
+  const struct omx_eq_pass *pf[2] = {hpf, lpf};
+  const enum omx_eq_kind kind[2] = {OMX_EQ_HIGHPASS, OMX_EQ_LOWPASS};
+  uint32_t n = 0;
+  for (int k = 0; k < 2; k++) {
+    if (!pf[k] || !pf[k]->on) continue;
+    double qs[2];
+    const uint32_t ns = omx_eq_butterworth_qs(pf[k]->slope_24, qs);
+    for (uint32_t s = 0; s < ns; s++) {
+      const struct omx_eq_band b = {kind[k], pf[k]->freq_hz, 0.0, qs[s], 1};
+      out[n++] = b;
+    }
+  }
+  return n;
+}
+
 #define OMX_CONTRACT_STAGE "eq-design/pass"
 /**
  * @brief The head filters as the sections the strip runs at its head, core's `passFilterCoeffs`:
@@ -506,16 +533,9 @@ static inline uint32_t omx_eq_pass_design(const struct omx_eq_pass *hpf,
                                           const struct omx_eq_pass *lpf, double sample_rate,
                                           double coeffs[OMX_EQ_PASS_MAX_SECTIONS][5]) {
   OMX_PRE(hpf && lpf && sample_rate > 0.0, "filters-and-positive-rate");
-  const struct omx_eq_pass *pf[2] = {hpf, lpf};
-  const enum omx_eq_kind kind[2] = {OMX_EQ_HIGHPASS, OMX_EQ_LOWPASS};
-  uint32_t n = 0;
-  for (int k = 0; k < 2; k++) {
-    if (!pf[k]->on) continue;
-    double qs[2];
-    const uint32_t ns = omx_eq_butterworth_qs(pf[k]->slope_24, qs);
-    for (uint32_t s = 0; s < ns; s++)
-      omx_eq_design(kind[k], pf[k]->freq_hz, qs[s], 0.0, sample_rate, coeffs[n++]);
-  }
+  struct omx_eq_band sec[OMX_EQ_PASS_MAX_SECTIONS];
+  const uint32_t n = omx_eq_pass_sections(hpf, lpf, sec);
+  for (uint32_t i = 0; i < n; i++) omx_eq_design(sec[i].kind, sec[i].freq_hz, sec[i].q, sec[i].gain_db, sample_rate, coeffs[i]);
   OMX_POST(n <= OMX_EQ_PASS_MAX_SECTIONS, "at-most-four-sections");
   return n;
 }

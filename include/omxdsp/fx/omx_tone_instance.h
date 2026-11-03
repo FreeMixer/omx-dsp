@@ -149,7 +149,7 @@ static inline void omx_tone_instance_run(OmxToneInstance *s, const float *in_l, 
                                          float *out_r, uint32_t n) {
   if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled || !(s->tilt_on || s->filter_on)) return;
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   float *legs[2] = {out_l, out_r};
   for (int c = 0; c < 2; c++) {
     float *x = legs[c];
@@ -158,7 +158,7 @@ static inline void omx_tone_instance_run(OmxToneInstance *s, const float *in_l, 
     if (s->filter_on)
       for (uint32_t i = 0; i < n; i++) x[i] = omx_biquad_d(x[i], s->fc, s->fs[c]);
   }
-  OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(out_l, out_r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

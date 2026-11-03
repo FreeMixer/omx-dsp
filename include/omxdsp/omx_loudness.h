@@ -283,7 +283,7 @@ static inline void omx_loudness_process(struct omx_loudness *s, const float *con
   for (uint32_t c = 0; c < s->channels; c++) {
     if (in[c] == NULL) continue;
     for (uint32_t done = 0; done < n;) {
-      const uint32_t k = n - done < OMX_TRUEPEAK_CHUNK ? n - done : OMX_TRUEPEAK_CHUNK;
+      const uint32_t k = omx_truepeak_chunk(n, done);
       const float p = omx_truepeak_block(&s->tp[c], in[c] + done, k, pk);
       if (p > s->peak) s->peak = p;
       done += k;

@@ -623,7 +623,7 @@ static inline void omx_reverb_process_return(float *l, float *r, uint32_t n, con
    *
    * The tail's decay (monotone RMS after the onset) and the denormal law are properties of a
    * SEQUENCE of blocks and belong to the contract battery and `rt_denormal.test.c`. */
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
   OMX_PRE(OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
   /* AND THE RATE MUST BE THE ONE THE LINES WERE CUT AT. The layout turns every length from ms
    * into samples once, on insert; the predelay, the mirror window and the gate's hold are turned
@@ -919,7 +919,7 @@ static inline void omx_reverb_process_return(float *l, float *r, uint32_t n, con
     s->rev_w = rev_w; s->rev_phase = rev_phase;
     s->gate_env = gate_env; s->gate_hold_left = gate_hold_left;
   }
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
   OMX_POST(s->gate_env >= 0.0f && s->gate_env <= 1.0f, "gate-envelope-in-unit-range");
 }
 #undef OMX_CONTRACT_STAGE

@@ -239,9 +239,7 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
  * @note No allocation; clears the whole instance. Thread-safe on distinct instances.
  */
 static inline int omx_comp_instance_init(OmxCompInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!(sr > 0.0f)) return 0;
+  if (!omx_instance_bind_positive(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   omx_dyn_state_init(&s->st, 1u);
   omx_tilt_design(&s->tilt, 1.0, OMX_COMP_INSTANCE_TILT_PIVOT_HZ, (double)sr);
@@ -287,11 +285,7 @@ static inline float omx_comp_instance_latency(const OmxCompInstance *s) {
 static inline void omx_comp_instance_run(OmxCompInstance *s, const float *in_l,
                                              const float *in_r, float *out_l, float *out_r,
                                              uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready) return;
-  omx_dynamics(out_l, out_r, n, &s->atom, &s->st);
-  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
-           "bypass-identity");
+  OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, omx_dynamics(out_l, out_r, n, &s->atom, &s->st));
 }
 #undef OMX_CONTRACT_STAGE
 
@@ -361,7 +355,7 @@ static inline void omx_comp_instance_key(OmxCompInstance *s, const float *kl, co
 static inline void omx_comp_instance_run_keyed(OmxCompInstance *s, const float *key_l, const float *key_r,
                                                const float *in_l, const float *in_r, float *out_l, float *out_r,
                                                uint32_t n) {
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
+  if (!omx_instance_block_ok(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->atom.enabled || !omx_comp_instance_keyed(s, key_l)) {
     omx_comp_instance_run(s, in_l, in_r, out_l, out_r, n);
     return;
