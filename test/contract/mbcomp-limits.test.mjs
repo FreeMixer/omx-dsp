@@ -3,7 +3,7 @@
 /**
  * The multiband compressor's limits (#62): the band floor and ceiling, the corner line as a fraction of the rate,
  * and the come-up corners for each band count. omx-dsp's omx_mbcomp.h staged them behind #ifndef until this
- * declaration (test/fixtures/omx-dsp-0f23bed/omx_mbcomp_staged.h, verbatim); the render defines every one of those
+ * declaration (include/omxdsp/fx/omx_mbcomp.h:49-81 at 0f23bed, read from that commit); the render defines every one of those
  * names with the value the kernel runs today, so dropping the staged block changes no sample. The corner line is
  * computed in double there, so its value is held against the _DOUBLE define. Moving any number turns this red.
  */
@@ -14,9 +14,10 @@ import { test } from 'node:test';
 import { main } from './oc.mjs';
 import { loadData, resolveData } from './oc.mjs';
 import { renderC } from './oc.mjs';
-import { DATA, RENDERS, ROOT, UNION, editData, scratchData } from './helpers.mjs';
+import { DATA, RENDERS, ROOT, UNION, atCommit, editData, scratchData } from './helpers.mjs';
 
-const staged = readFileSync(join(ROOT, 'test/fixtures/omx-dsp-0f23bed/omx_mbcomp_staged.h'), 'utf8');
+/** The block omx_mbcomp.h staged at 0f23bed, its lines 49-81, read from that commit. */
+const staged = atCommit('0f23bed', 'include/omxdsp/fx/omx_mbcomp.h').split('\n').slice(48, 81).join('\n');
 /** NAME -> the numbers its define carries, read as C reads them (`2u` is 2, `1000.0f` is 1000). */
 const numbers = (text) => new Map([...text.matchAll(/^#define (OMX_\w+) (.+)$/gm)].map((m) => [m[1], (m[2].match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number)]));
 const kernel = numbers(staged);
