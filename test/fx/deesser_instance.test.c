@@ -40,32 +40,8 @@
 #define NBLK 12
 #define NKNOBS 7
 
-/* ---- the allocation counter (linked with --wrap=malloc,calloc,realloc,free) ---------------- */
-
-void *__real_malloc(size_t n);
-void *__real_calloc(size_t n, size_t sz);
-void *__real_realloc(void *p, size_t n);
-void __real_free(void *p);
-
-static int g_counting = 0;
-static long g_allocs = 0;
-
-void *__wrap_malloc(size_t n) {
-  if (g_counting) g_allocs++;
-  return __real_malloc(n);
-}
-void *__wrap_calloc(size_t n, size_t sz) {
-  if (g_counting) g_allocs++;
-  return __real_calloc(n, sz);
-}
-void *__wrap_realloc(void *p, size_t n) {
-  if (g_counting) g_allocs++;
-  return __real_realloc(p, n);
-}
-void __wrap_free(void *p) {
-  if (g_counting) g_allocs++;
-  __real_free(p);
-}
+/* the allocation counter: fx_harness.h (linked with --wrap=malloc,calloc,realloc,free) */
+#include "fx_harness.h"
 
 /* The programme with a sibilant on top: 7 and 15 kHz tones gated on and off, so the detector moves. */
 static void voice(float *l, float *r, uint32_t n, uint32_t t0) {

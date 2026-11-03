@@ -83,9 +83,7 @@ static inline void omx_suboct_instance_resolve(OmxSuboctInstance *s, int bypass,
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
  * set. The sub-octaver comes up at its declared defaults. Allocates nothing. */
 static inline int omx_suboct_instance_init(OmxSuboctInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->ready = 1;
   s->rng = -1;
