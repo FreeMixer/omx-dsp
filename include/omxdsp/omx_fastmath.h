@@ -42,7 +42,8 @@
  *   log10f    3        [OMX_LIN_TO_DB_FLOOR_LIN, 1e6], the argument omx_lin_to_db floors
  *   powf      3        the base 10 with an exponent in [-12, 4], the dB-to-linear law
  *
- * NaN in gives NaN out, tanhf(+-inf) is +-1, expf(-inf) is 0, a denormal result is finite (zero or
+ * NaN in gives NaN out, tanhf(+-inf) is +-1, tanhf(+-0) is a zero of either sign (libmvec on aarch64 does not keep
+ * the sign of a zero: it is the same sample, and nothing divides by the shaper's output), expf(-inf) is 0, a denormal result is finite (zero or
  * denormal), and a finite argument in the range gives a finite result: the finite law the kernels'
  * contracts state holds through the vector path as through the libm.
  */
