@@ -26,6 +26,8 @@ Description: audio toolbox of the OpenMixer console, a real-time-safe C library
  (omxdsp-contracts, contracts compiled in) and libomxdsp-tsan.a (omxdsp-tsan,
  contracts and ThreadSanitizer). Programs link the library statically; no
  shared library exists.
+ .
+ Its documentation is on openmixer.org.
 
 Package: omx-dsp-contract
 Architecture: all
@@ -39,3 +41,5 @@ Description: omx-dsp's kernel and instance declarations, read at run time
  /usr/share/omx-contract/contract.d/3/omx-dsp. A program that reads them while
  it runs (a panel, the omx-contract command) needs this package, not the
  development one.
+ .
+ Its documentation is on openmixer.org.
