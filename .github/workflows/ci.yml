@@ -261,6 +261,9 @@ jobs:
       - name: make contract-proof
         run: make contract-proof OMX_CONTRACT=/tmp/omx-contract
 
+      - name: make contract-tests
+        run: make contract-tests OMX_CONTRACT=/tmp/omx-contract
+
   # The libFuzzer harnesses of fuzz/ (clang, libFuzzer, ASan, UBSan, the library's contracts), each run for 60 s from
   # its seed corpus; red on any crash or broken contract, the crashing input uploaded. omx-contract's header is
   # read from a checkout at OMX_CONTRACT_REF through OMX_CONTRACT_INC (no node and no install needed to fuzz).

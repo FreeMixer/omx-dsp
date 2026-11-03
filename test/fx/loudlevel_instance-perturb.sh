@@ -58,7 +58,7 @@ sabotage fill fx/omx_loudlevel_instance.h 's/  if (s->ticks >= full \&\& s->lufs
 pids+=($!)
 sabotage ramp fx/omx_loudlevel_instance.h 's|      const float g = s->gain_lin + s->ramp_step \* (float)(done + i);|      const float g = s->ramp_end + 0.0f * (float)done;|' F &
 pids+=($!)
-sabotage kweight omx_loudness.h 's|^#define OMX_LOUDNESS_OFFSET_LU (-0.691)|#define OMX_LOUDNESS_OFFSET_LU (-1.691)|' B &
+sabotage kweight omx_loudness.h 's|^#define OMX_LOUDNESS_OFFSET_LU OMX_BS1770_LOUDNESS_OFFSET_LU_DOUBLE$|#define OMX_LOUDNESS_OFFSET_LU (OMX_BS1770_LOUDNESS_OFFSET_LU_DOUBLE - 1.0)|' B &
 pids+=($!)
 sabotage window fx/omx_loudlevel_instance.h 's/const double ms = s->win == (int)OMX_LOUDLEVEL_WINDOWS_MOMENTARY ? /const double ms = 1 ? /' E &
 pids+=($!)

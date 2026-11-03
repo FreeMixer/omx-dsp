@@ -75,7 +75,9 @@
       "doc": "Band 1's gain now, dB.",
       "unit": "dB",
       "min": -12,
-      "max": 12,
+      "max": {
+        "ref": "BALANCER_RANGE_DB_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -86,7 +88,9 @@
       "doc": "Band 2's gain now, dB.",
       "unit": "dB",
       "min": -12,
-      "max": 12,
+      "max": {
+        "ref": "BALANCER_RANGE_DB_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -97,7 +101,9 @@
       "doc": "Band 3's gain now, dB.",
       "unit": "dB",
       "min": -12,
-      "max": 12,
+      "max": {
+        "ref": "BALANCER_RANGE_DB_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"
@@ -108,7 +114,9 @@
       "doc": "Band 4's gain now, dB.",
       "unit": "dB",
       "min": -12,
-      "max": 12,
+      "max": {
+        "ref": "BALANCER_RANGE_DB_RANGE.max"
+      },
       "scale": "linear",
       "rateHz": {
         "ref": "READOUT_RATE_HZ"

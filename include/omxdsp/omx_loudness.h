@@ -37,17 +37,18 @@
 /** @brief The most legs one state measures: 7.1. */
 #define OMX_LOUDNESS_MAX_CHANNELS 8u
 /** @brief BS.1770's loudness offset: `L = −0.691 + 10·log10(ms)`. */
-#define OMX_LOUDNESS_OFFSET_LU (-0.691)
-/** @brief The absolute gate, LUFS: a block at or below it is silence to the gated measures. */
-#define OMX_LOUDNESS_ABSOLUTE_GATE_LUFS (-70.0)
+#define OMX_LOUDNESS_OFFSET_LU OMX_BS1770_LOUDNESS_OFFSET_LU_DOUBLE
+/** @brief The absolute gate, LUFS: a block at or below it is silence to the gated measures (BS.1770-4's, declared
+ *  once as BS1770_ABSOLUTE_GATE_LUFS in data/primitives/loudness.json, as the offset, the relative gate and the bin). */
+#define OMX_LOUDNESS_ABSOLUTE_GATE_LUFS ((double)OMX_BS1770_ABSOLUTE_GATE_LUFS)
 /** @brief The integrated loudness's relative gate, LU below the absolute-gated mean. */
-#define OMX_LOUDNESS_RELATIVE_GATE_LU (-10.0)
+#define OMX_LOUDNESS_RELATIVE_GATE_LU ((double)OMX_BS1770_RELATIVE_GATE_LU)
 /** @brief The loudness range's relative gate, LU below the absolute-gated mean (Tech 3342). */
-#define OMX_LOUDNESS_RANGE_GATE_LU (-20.0)
+#define OMX_LOUDNESS_RANGE_GATE_LU ((double)OMX_TECH3342_RANGE_GATE_LU)
 /** @brief The range's low percentile (Tech 3342). */
-#define OMX_LOUDNESS_RANGE_LOW 0.10
+#define OMX_LOUDNESS_RANGE_LOW OMX_TECH3342_RANGE_LOW_PERCENTILE_DOUBLE
 /** @brief The range's high percentile (Tech 3342). */
-#define OMX_LOUDNESS_RANGE_HIGH 0.95
+#define OMX_LOUDNESS_RANGE_HIGH OMX_TECH3342_RANGE_HIGH_PERCENTILE_DOUBLE
 /** @brief The sub-blocks per second: a sub-block is 10 ms, `rate / 100` samples. */
 #define OMX_LOUDNESS_SUBBLOCKS_PER_S 100u
 /** @brief The momentary window in sub-blocks: 400 ms. */
@@ -57,7 +58,7 @@
 /** @brief The gating step in sub-blocks: 100 ms, a block every 75 % overlap. */
 #define OMX_LOUDNESS_STEP 10u
 /** @brief A histogram bin's width, LU. */
-#define OMX_LOUDNESS_BIN_LU 0.1
+#define OMX_LOUDNESS_BIN_LU OMX_LOUDNESS_HISTOGRAM_BIN_LU_DOUBLE
 /** @brief The histograms' bins: 0.1 LU from −70 LUFS to +30 LUFS; the top one also takes any louder block. */
 #define OMX_LOUDNESS_BINS 1000u
 /** @brief The reading of a measure that has nothing to read: no block above the gate, no signal. */
