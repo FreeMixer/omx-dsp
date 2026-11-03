@@ -129,6 +129,40 @@ jobs:
   # The sabotage of the range: omx-contract 2.6.0, which the channel still serves and which is below
   # the floor the spec declares, must stop the build at once with a message that names the
   # dependency, the floor and the version installed.
+  # The TypeScript twins against the kernels (ts/: npm test), on the library this tree builds; the publish workflow runs
+  # the same before it publishes, so a twin that disagrees is red here first.
+  twins:
+    name: The TypeScript twins agree with the kernels
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install the build tools
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf dpkg-dev
+      - uses: actions/checkout@v4
+      - name: Add the OpenMixer repository
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+      - name: Install the build dependencies from the OpenMixer channel
+        run: apt-get build-dep -y --no-install-recommends ./
+      - name: The library the twins are checked against
+        run: make -j"$(nproc)" lib
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm test
+        working-directory: ts
+        run: |
+          set -o pipefail
+          npm ci
+          npm test 2>&1 | tee /tmp/ts-test.log
+          grep -q 'linked against the tree' /tmp/ts-test.log
+
   contract-floor:
     name: below the omx-contract floor the build refuses (${{ matrix.image }})
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.OMX_RUNNER || 'ubuntu-latest' }}
