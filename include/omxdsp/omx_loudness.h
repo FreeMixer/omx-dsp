@@ -38,8 +38,9 @@
 #define OMX_LOUDNESS_MAX_CHANNELS 8u
 /** @brief BS.1770's loudness offset: `L = −0.691 + 10·log10(ms)`. */
 #define OMX_LOUDNESS_OFFSET_LU (-0.691)
-/** @brief The absolute gate, LUFS: a block at or below it is silence to the gated measures. */
-#define OMX_LOUDNESS_ABSOLUTE_GATE_LUFS (-70.0)
+/** @brief The absolute gate, LUFS: a block at or below it is silence to the gated measures (BS.1770-4's, declared
+ *  once as BS1770_ABSOLUTE_GATE_LUFS in data/primitives/). */
+#define OMX_LOUDNESS_ABSOLUTE_GATE_LUFS ((double)OMX_BS1770_ABSOLUTE_GATE_LUFS)
 /** @brief The integrated loudness's relative gate, LU below the absolute-gated mean. */
 #define OMX_LOUDNESS_RELATIVE_GATE_LU (-10.0)
 /** @brief The loudness range's relative gate, LU below the absolute-gated mean (Tech 3342). */
