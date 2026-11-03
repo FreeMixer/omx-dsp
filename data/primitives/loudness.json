@@ -1,0 +1,76 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "BS1770_ABSOLUTE_GATE_LUFS": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_ABSOLUTE_GATE_LUFS"
+    },
+    "doc": "The absolute gating threshold of ITU-R BS.1770-4, Annex 1 (as EBU R 128 adopts it): a 400 ms block at or below -70 LUFS is silence to the gated measures, and the loudness histogram starts at it. The one value the loudness core gates by, the leveler's gate travel starts at and its loudness readout floors at. LUFS is written dB here until omx-contract carries the unit (omx-contract#145).",
+    "unit": "dB",
+    "value": -70
+  },
+  "BS1770_LOUDNESS_OFFSET_LU": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_OFFSET_LU"
+    },
+    "doc": "The constant of ITU-R BS.1770-4's loudness of a measured block, Annex 1: L = -0.691 + 10 log10 of the weighted mean square of the K-weighted channels. LU is written dB here until omx-contract carries the unit (omx-contract#145).",
+    "unit": "dB",
+    "value": -0.691
+  },
+  "BS1770_RELATIVE_GATE_LU": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_RELATIVE_GATE_LU"
+    },
+    "doc": "The relative gating threshold of ITU-R BS.1770-4, Annex 1: the integrated loudness keeps the blocks above the absolute gate and no more than 10 LU below their mean. LU is written dB here until omx-contract carries the unit (omx-contract#145).",
+    "unit": "dB",
+    "value": -10
+  },
+  "LOUDNESS_HISTOGRAM_BIN_LU": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_BIN_LU"
+    },
+    "doc": "The width of a bin of the loudness core's block histograms, from BS1770_ABSOLUTE_GATE_LUFS up: this library's resolution, not a clause of BS.1770 or EBU Tech 3342, which state no histogram. LU is written dB here until omx-contract carries the unit (omx-contract#145).",
+    "unit": "dB",
+    "value": 0.1
+  },
+  "TECH3342_RANGE_GATE_LU": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_RANGE_GATE_LU"
+    },
+    "doc": "The loudness range's relative gate of EBU Tech 3342 v4.0 (November 2023), \"Loudness Range: A measure to supplement EBU R 128 loudness normalisation\": the short-term blocks it measures are those above the absolute gate and no more than 20 LU below their mean. LU is written dB here until omx-contract carries the unit (omx-contract#145).",
+    "unit": "dB",
+    "value": -20
+  },
+  "TECH3342_RANGE_LOW_PERCENTILE": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_RANGE_LOW"
+    },
+    "doc": "The low end of the loudness range of EBU Tech 3342 v4.0 (November 2023), \"Loudness Range: A measure to supplement EBU R 128 loudness normalisation\": the 10th percentile of the gated short-term loudness distribution, as a fraction.",
+    "unit": "",
+    "value": 0.1
+  },
+  "TECH3342_RANGE_HIGH_PERCENTILE": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_loudness.h#OMX_LOUDNESS_RANGE_HIGH"
+    },
+    "doc": "The high end of the loudness range of EBU Tech 3342 v4.0 (November 2023), \"Loudness Range: A measure to supplement EBU R 128 loudness normalisation\": the 95th percentile of the gated short-term loudness distribution, as a fraction.",
+    "unit": "",
+    "value": 0.95
+  }
+}
