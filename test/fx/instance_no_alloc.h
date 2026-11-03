@@ -10,32 +10,7 @@
 
 #include <stdlib.h>
 
-void *__real_malloc(size_t n);
-void *__real_calloc(size_t n, size_t sz);
-void *__real_realloc(void *p, size_t n);
-void __real_free(void *p);
-static int g_counting = 0;
-static long g_allocs = 0;
-void *__wrap_malloc(size_t n);
-void *__wrap_calloc(size_t n, size_t sz);
-void *__wrap_realloc(void *p, size_t n);
-void __wrap_free(void *p);
-void *__wrap_malloc(size_t n) {
-  if (g_counting) g_allocs++;
-  return __real_malloc(n);
-}
-void *__wrap_calloc(size_t n, size_t sz) {
-  if (g_counting) g_allocs++;
-  return __real_calloc(n, sz);
-}
-void *__wrap_realloc(void *p, size_t n) {
-  if (g_counting) g_allocs++;
-  return __real_realloc(p, n);
-}
-void __wrap_free(void *p) {
-  if (g_counting) g_allocs++;
-  __real_free(p);
-}
+#include "fx_harness.h"
 
 /* The ledger is drained after a resolve and a block where an arm makes many: at 32, 64 and 128 kHz each
  * pole made records an explained `rate-is-declared`, and the ledger keeps only OMX_CONTRACT_MAX of them. */

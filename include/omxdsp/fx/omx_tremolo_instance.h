@@ -63,7 +63,6 @@ static inline int omx_tremolo_instance_init(OmxTremoloInstance *s, float sr) {
   if (!(sr > 0.0f) || sr - sr != 0.0f || !((float)OMX_TREMOLO_RATE_RANGE_MAX * 2.0f < sr)) return 0;
   s->sr = sr;
   omx_tremolo_state_init(&s->state);
-  s->atom.enabled = 0;
   s->atom.mode = OMX_TREMOLO_INSTANCE_MODE_DEFAULT;
   s->ready = 1;
   return 1;
@@ -112,11 +111,7 @@ static inline void omx_tremolo_instance_resolve(OmxTremoloInstance *s, int bypas
 static inline void omx_tremolo_instance_run(OmxTremoloInstance *s, const float *in_l,
                                             const float *in_r, float *out_l, float *out_r,
                                             uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready) return;
-  omx_tremolo_process(out_l, out_r, n, &s->atom, &s->state);
-  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
-           "bypass-identity");
+  OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, omx_tremolo_process(out_l, out_r, n, &s->atom, &s->state));
 }
 #undef OMX_CONTRACT_STAGE
 

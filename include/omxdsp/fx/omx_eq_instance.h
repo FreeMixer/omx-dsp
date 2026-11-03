@@ -67,6 +67,7 @@
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/fx/omx_instance_io.h>
 #include <omxdsp/omx_param.h>
+#include <omxdsp/omx_port_int.h>
 
 /* The band count, a compile-time constant: OMX_EQ_INSTANCE_BANDS, one of the contract's
  * EQ_BAND_COUNTS variants (eq8, eq16, eq32), the eq8 one unless the build names another
@@ -383,18 +384,10 @@ static inline float omx_eq_lv2_word(const float *w, float dflt) { return w ? *w 
 /** A switch word: on above one half. */
 static inline int omx_eq_lv2_word_on(const float *w, int dflt) { return w ? (*w > 0.5f) : dflt; }
 
-/** An integer word (a slope, a band type): held inside [lo, hi], every non-finite word the declared
- * default, before it is rounded half away from zero (omx_port_int.h's `omx_port_int`, dsp-primitives
- * row 23). */
-#define OMX_CONTRACT_STAGE "port/int"
+/** An integer word (a slope, a band type): omx_port_int() of the word, its default when unconnected. */
 static inline int omx_eq_lv2_word_int(const float *w, int lo, int hi, int dflt) {
-  if (!w) return dflt;
-  const float c = omx_clamp_or(*w, (float)lo, (float)hi, (float)dflt);
-  const int i = (int)(c + (c < 0.0f ? -0.5f : 0.5f));
-  OMX_POST(i >= lo && i <= hi, "inside-the-travel");
-  return i;
+  return w ? omx_port_int(*w, lo, hi, dflt) : dflt;
 }
-#undef OMX_CONTRACT_STAGE
 
 /** eq_lv2.c's run() up to the cascade: every control word handed to the setters, which clamp and
  * redesign only what moved. No allocation, no lock, no I/O. */
@@ -451,9 +444,7 @@ typedef struct {
  * wire. Returns 1 when usable, 0 when not: a rate the console does not declare is refused and run()
  * is the identity. Allocates nothing. */
 static inline int omx_eq_instance_init(OmxEqInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   omx_eq_lv2_init(&s->leg[0], (double)sr);
   omx_eq_lv2_init(&s->leg[1], (double)sr);
@@ -514,7 +505,7 @@ static inline void omx_eq_instance_resolve(OmxEqInstance *s, int bypass, int hpf
  * identity. */
 static inline void omx_eq_instance_run(OmxEqInstance *s, const float *in_l, const float *in_r, float *out_l,
                                        float *out_r, uint32_t n) {
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return;
+  if (!omx_instance_block_ok(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready) {
     omx_instance_copy(in_l, in_r, out_l, out_r, n);
     return;

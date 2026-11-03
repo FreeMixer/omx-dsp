@@ -48,32 +48,8 @@
 #define BLK 256u
 #define NBLK 12
 
-/* ---- the allocation counter (linked with --wrap=malloc,calloc,realloc,free) ---------------- */
-
-void *__real_malloc(size_t n);
-void *__real_calloc(size_t n, size_t sz);
-void *__real_realloc(void *p, size_t n);
-void __real_free(void *p);
-
-static int g_counting = 0;
-static long g_allocs = 0;
-
-void *__wrap_malloc(size_t n) {
-  if (g_counting) g_allocs++;
-  return __real_malloc(n);
-}
-void *__wrap_calloc(size_t n, size_t sz) {
-  if (g_counting) g_allocs++;
-  return __real_calloc(n, sz);
-}
-void *__wrap_realloc(void *p, size_t n) {
-  if (g_counting) g_allocs++;
-  return __real_realloc(p, n);
-}
-void __wrap_free(void *p) {
-  if (g_counting) g_allocs++;
-  __real_free(p);
-}
+/* the allocation counter: fx_harness.h (linked with --wrap=malloc,calloc,realloc,free) */
+#include "fx_harness.h"
 
 /* The contract's controls, in their declared order. */
 typedef struct {
@@ -87,12 +63,6 @@ static void resolve(OmxDelayInstance *s, int bypass, const Knobs *k) {
 
 /* Heap-held: an instance carries its two 2 s rings. */
 static OmxDelayInstance *inst(void) { return calloc(1, sizeof(OmxDelayInstance)); }
-
-/* Where a hostile word must land: every non-finite word at the default, else inside [lo, hi]. */
-static float land(float x, float lo, float hi, float def) {
-  if (x - x != 0.0f) return def;
-  return x < lo ? lo : x > hi ? hi : x;
-}
 
 static void arm_refused(void) {
   OmxDelayInstance *s = inst();

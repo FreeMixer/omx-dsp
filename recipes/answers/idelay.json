@@ -1,0 +1,24 @@
+{
+  "kernel": "idelay",
+  "since": "2.14.0",
+  "engine": {
+    "repo": "the OpenMixer console engine",
+    "ref": "01a6730a2d58d229160e393a5e29cf244c4f7c9e",
+    "commit": "01a6730a2d58d229160e393a5e29cf244c4f7c9e"
+  },
+  "items": [
+    {
+      "name": "OUTPUT_DELAY_RANGE",
+      "source": {
+        "origin": "the console engine's per-destination output delay travel OUTPUT_DELAY_RANGE, whose max sizes the route delay ring omx-dsp's omx_idelay.h reads"
+      },
+      "value": {
+        "min": 0,
+        "max": 1000,
+        "step": 1,
+        "unit": "ms"
+      },
+      "doc": "The per-destination output delay travel, the whole-sample delay a route leg or a bus output is aligned with (omx-dsp's omx_idelay.h). max is the delay ring's ceiling: 1000 ms is the live-console norm and a distance ceiling, about 343 m of throw. A surface that offered more than the ring holds would draw travel the DSP clamps away."
+    }
+  ]
+}

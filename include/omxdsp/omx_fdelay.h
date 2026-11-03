@@ -350,6 +350,42 @@ static inline int omx_fdelay_fits_ring(const struct omx_fdelay *l, int enabled, 
 }
 
 /**
+ * @brief Whether a stage switched on reads no shorter than an order's kernel reach allows on `l`. An
+ *        unarmed line or a stage switched off reads nothing and holds.
+ * @param l The line.
+ * @param enabled The stage's switch.
+ * @param shortest The shortest delay the stage will read, samples.
+ * @return 1 when the read clears the kernel's reach.
+ * @note RT-safe and thread-safe: a read of the geometry.
+ */
+static inline int omx_fdelay_clears_reach(const struct omx_fdelay *l, int enabled, float shortest) {
+  return !enabled || l->order == 0 || shortest >= omx_fdelay_min_delay(l->order);
+}
+
+/**
+ * @brief The entry of every swept stage over a pair of lines: its preconditions, then the announced
+ *        passthrough. The preconditions are both legs finite, a mix in [0, 1], a depth that is not negative,
+ *        an increment inside one turn, and a sweep from `base_samples` to `base_samples + depth_samples`
+ *        inside the left line's reach and ring. The stage then returns, untouched, when it is switched off,
+ *        has no frames, has no wet share `mix` or has a line unarmed (omx_fdelay_pair_live()).
+ *
+ * `p` is the stage's atom (`enabled`, `mix`, `base_samples`, `depth_samples`, `lfo_inc`). Expands in the
+ * stage's process: each record carries the stage's own contract stage, and the return leaves the process.
+ */
+#define OMX_FDELAY_SWEEP_ENTRY(p, line_l, line_r, l, r, n, mix)                                            \
+  do {                                                                                                     \
+    OMX_PRE(omx_block_pair_finite((l), (r), (n)), "finite-in");                                            \
+    OMX_PRE((p)->mix >= 0.0f && (p)->mix <= 1.0f, "mix-in-unit-range");                                    \
+    OMX_PRE((p)->depth_samples >= 0.0f, "a-depth-is-not-negative");                                        \
+    OMX_PRE((p)->lfo_inc >= 0.0f && (p)->lfo_inc < 1.0f, "an-increment-is-inside-one-turn");               \
+    OMX_PRE(omx_fdelay_clears_reach((line_l), (p)->enabled, (p)->base_samples),                            \
+            "the-shortest-read-clears-the-kernels-reach");                                                 \
+    OMX_PRE(omx_fdelay_fits_ring((line_l), (p)->enabled, (p)->base_samples + (p)->depth_samples),          \
+            "the-longest-read-is-inside-the-ring");                                                        \
+    if (!omx_fdelay_pair_live((line_l), (line_r), (p)->enabled, (n), (mix))) return;                       \
+  } while (0)
+
+/**
  * @brief Read two lines written in lockstep at ONE delay: one split and one kernel serve both
  *        reads, bit-identical to two omx_fdelay_read() calls.
  * @param a The left line.

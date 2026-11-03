@@ -66,9 +66,7 @@ static inline void omx_mbcomp_instance_resolve(OmxMbcompInstance *s, int bypass,
                                                const int band_bypass[OMX_MBC_MAX_BANDS], float mix_pct, float output_db);
 
 static inline int omx_mbcomp_instance_init(OmxMbcompInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->ready = 1;
   float c_hz[OMX_MBC_MAX_XOVERS], c_thr[OMX_MBC_MAX_BANDS], c_rat[OMX_MBC_MAX_BANDS], c_att[OMX_MBC_MAX_BANDS],

@@ -48,7 +48,7 @@ sabotage stale fx/omx_transient.h 's|    st->sustain_gain_db = gs;|    (void)gs;
 pids+=($!)
 sabotage range omxdsp_definitions.h 's|^#define OMX_TRANSIENT_READOUT_ATTACK_GAIN_DB_MIN -24.0f$|#define OMX_TRANSIENT_READOUT_ATTACK_GAIN_DB_MIN -20.0f|' C &
 pids+=($!)
-sabotage rates fx/omx_transient_instance.h 's|  if (!omx_rate_is_oracle_full(sr)) return 0;|  if (!OMX_RATE_IS_DECLARED(sr)) return 0;|' B &
+sabotage rates fx/omx_transient_instance.h 's|  if (!omx_instance_bind(s, sizeof(\*s), sr)) return 0;|  if (!omx_instance_bind(s, sizeof(*s), sr) \|\| !OMX_RATE_IS_DECLARED(sr)) return 0;|' B &
 pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done

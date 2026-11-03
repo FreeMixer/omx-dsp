@@ -32,6 +32,21 @@ static inline void omx_instance_copy(const float *in_l, const float *in_r, float
 }
 
 /**
+ * @brief Whether a host block has something to run: every pointer set and `n` above 0.
+ * @param in_l The left input.
+ * @param in_r The right input.
+ * @param out_l The left output.
+ * @param out_r The right output.
+ * @param n The block length.
+ * @return 1 when the block can be run, else 0 (nothing may be touched).
+ * @note RT-safe and thread-safe: reads its arguments only.
+ */
+static inline int omx_instance_block_ok(const float *in_l, const float *in_r, const float *out_l, const float *out_r,
+                                        uint32_t n) {
+  return in_l && in_r && out_l && out_r && n != 0u;
+}
+
+/**
  * @brief The face's opening: refuse a block with nothing to run, else copy in to out.
  * @param in_l The left input.
  * @param in_r The right input.
@@ -43,9 +58,25 @@ static inline void omx_instance_copy(const float *in_l, const float *in_r, float
  */
 static inline int omx_instance_copy_through(const float *in_l, const float *in_r, float *out_l, float *out_r,
                                             uint32_t n) {
-  if (!in_l || !in_r || !out_l || !out_r || n == 0u) return 0;
+  if (!omx_instance_block_ok(in_l, in_r, out_l, out_r, n)) return 0;
   omx_instance_copy(in_l, in_r, out_l, out_r, n);
   return 1;
+}
+
+/**
+ * @brief The opening of a face whose kernel runs only while engaged: copy in to out, then whether to run.
+ * @param in_l The left input.
+ * @param in_r The right input.
+ * @param out_l The left output, may be `in_l`.
+ * @param out_r The right output, may be `in_r`.
+ * @param n The block length.
+ * @param engaged Whether the instance is ready and its kernel switched on.
+ * @return 1 when out holds in and the kernel is to run on it, else 0 (out holds in, or nothing was touched).
+ * @note RT-safe: omx_instance_copy_through(). Thread-safe on distinct buffers.
+ */
+static inline int omx_instance_through_engaged(const float *in_l, const float *in_r, float *out_l, float *out_r,
+                                               uint32_t n, int engaged) {
+  return omx_instance_copy_through(in_l, in_r, out_l, out_r, n) && engaged;
 }
 
 /**
@@ -76,5 +107,48 @@ static inline int omx_instance_bind(void *s, size_t size, float sr) {
   memset(s, 0, size);
   return omx_rate_is_oracle_full(sr);
 }
+
+/**
+ * @brief The face's bind for a kernel that takes any positive rate: zero its state and take the rate.
+ * @param s The instance.
+ * @param size The instance's size.
+ * @param sr The rate.
+ * @return 1 when usable, 0 when `s` is null or the rate is not positive (NaN included).
+ * @note CONTROL thread. Allocates nothing.
+ */
+static inline int omx_instance_bind_positive(void *s, size_t size, float sr) {
+  if (!s) return 0;
+  memset(s, 0, size);
+  return sr > 0.0f;
+}
+
+/**
+ * @brief Silence a face's two rings of `cap` samples each, before its kernel state is armed again over them.
+ * @param ring_l The left ring.
+ * @param ring_r The right ring.
+ * @param cap Samples in each ring.
+ * @note CONTROL thread. Two bounded memsets, no allocation.
+ */
+static inline void omx_instance_rings_clear(float *ring_l, float *ring_r, uint32_t cap) {
+  memset(ring_l, 0, (size_t)cap * sizeof(float));
+  memset(ring_r, 0, (size_t)cap * sizeof(float));
+}
+
+/**
+ * @brief The face's run over a kernel that processes in place: copy in to out, stop there when the instance
+ *        is not ready, else run `kernel_call` on out; a bypassed atom leaves out equal to in.
+ *
+ * Expands inside the face's run function, so it returns from it, and its postcondition is recorded under the
+ * face's own contract stage. `s` is the instance, with `ready` and `atom.enabled`; `kernel_call` is the
+ * kernel's call on `out_l` and `out_r`.
+ */
+#define OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, kernel_call)                                 \
+  do {                                                                                                         \
+    if (!omx_instance_copy_through((in_l), (in_r), (out_l), (out_r), (n))) return;                             \
+    if (!(s) || !(s)->ready) return;                                                                           \
+    kernel_call;                                                                                               \
+    OMX_POST((s)->atom.enabled || omx_instance_same_block((out_l), (out_r), (in_l), (in_r), (n)),             \
+             "bypass-identity");                                                                               \
+  } while (0)
 
 #endif /* OMX_INSTANCE_IO_H */

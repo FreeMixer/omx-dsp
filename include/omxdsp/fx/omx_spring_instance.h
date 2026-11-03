@@ -150,7 +150,7 @@ static inline void omx_spring_instance_run(OmxSpringInstance *s, const float *in
                                            float *out_r, uint32_t n) {
   if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
   if (!s || !s->ready || !s->enabled) return;
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   const float a = s->a, pole = s->pole, wet = s->wet, dry = s->dry;
   for (uint32_t i = 0u; i != n; ++i) {
     const float xl = out_l[i], xr = out_r[i];
@@ -158,7 +158,7 @@ static inline void omx_spring_instance_run(OmxSpringInstance *s, const float *in
     out_l[i] = dry * xl + wet * wl;
     out_r[i] = dry * xr + wet * wr;
   }
-  OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(out_l, out_r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

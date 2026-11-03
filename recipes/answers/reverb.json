@@ -238,6 +238,209 @@
       "doc": "The gated reverb's gate attack, ms: the time the gate takes to open on a hit.",
       "since": "1.3.0",
       "unit": "ms"
+    },
+    {
+      "name": "REVERB_EARLY_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#early_level"
+      },
+      "value": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -60,
+        "defaultFrom": "desk"
+      },
+      "doc": "The early reflections' level, dB: the declared tap set (REVERB_EARLY_TAP_MS, REVERB_EARLY_TAP_GAINS) read from the pre-delayed feed, even taps on the left, odd on the right, beside the tail. The travel's floor is off, no early reflections at all, and is the come-up value, so a fresh reverb is the one that shipped, bit for bit."
+    },
+    {
+      "name": "REVERB_TAIL_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#tail_level"
+      },
+      "value": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The tail's level, dB: the reverb network's output. 0 dB is the tail as it shipped, the come-up value; the travel's floor is off, the early reflections alone."
+    },
+    {
+      "name": "REVERB_EARLY_SIZE_PCT_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#early_size"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 50,
+        "defaultFrom": "desk"
+      },
+      "doc": "The early reflections' room, percent: every tap's time scaled from REVERB_EARLY_SIZE_MIN of the table at 0 % to REVERB_EARLY_SIZE_MAX at 100 %, linearly."
+    },
+    {
+      "name": "REVERB_DUCK_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#duck_depth"
+      },
+      "value": {
+        "min": -24,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The wet's ducking depth, dB, the delay's duck (omx_duck): the tail and its reflections pull down while the dry is loud. 0 ducks nothing, the come-up value, bit for bit."
+    },
+    {
+      "name": "REVERB_DUCK_THRESHOLD_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#duck_thr"
+      },
+      "value": {
+        "min": -60,
+        "max": 0,
+        "step": 1,
+        "unit": "dB",
+        "default": -30,
+        "defaultFrom": "desk"
+      },
+      "doc": "The dry level the ducking starts at, dBFS."
+    },
+    {
+      "name": "REVERB_DUCK_RELEASE_MS_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#duck_rel"
+      },
+      "value": {
+        "min": 20,
+        "max": 2000,
+        "step": 10,
+        "unit": "ms",
+        "default": 250,
+        "defaultFrom": "desk"
+      },
+      "doc": "How fast the wet comes back once the dry falls, ms; the attack is FX_DUCK_ATTACK_MS."
+    },
+    {
+      "name": "REVERB_WET_DEESSES",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#deess_on"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "The wet's de-esser: on, the de-esser kernel in split mode on the wet, at deessFreqHz and deessThresholdDb with the de-esser's own come-up width, ratio, range, attack and release, so an s does not splash the tail. It comes up off."
+    },
+    {
+      "name": "REVERB_DEESS_FREQ_HZ_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#deess_freq"
+      },
+      "value": {
+        "min": 2000,
+        "max": 16000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 7000,
+        "defaultFrom": "desk"
+      },
+      "doc": "The wet de-esser's band, Hz: the de-esser's frequency travel by reference."
+    },
+    {
+      "name": "REVERB_DEESS_THRESHOLD_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#deess_thr"
+      },
+      "value": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -30,
+        "defaultFrom": "desk"
+      },
+      "doc": "The wet de-esser's threshold, dB: the de-esser's threshold travel by reference."
+    },
+    {
+      "name": "REVERB_EARLY_TAP_MS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#OMX_REVERB_INSTANCE_TAP_MS"
+      },
+      "value": [
+        3.1,
+        5.3,
+        7.9,
+        10.7,
+        13.9,
+        17.3,
+        21.1,
+        25.3
+      ],
+      "unit": "ms",
+      "doc": "The early reflections' times, ms after the pre-delay, at a size scale of 1: eight taps, the even ones on the left, the odd on the right, none landing on another's sample at any oracle rate."
+    },
+    {
+      "name": "REVERB_EARLY_TAP_GAINS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#OMX_REVERB_INSTANCE_TAP_GAINS"
+      },
+      "value": [
+        0.84,
+        0.75,
+        0.67,
+        0.6,
+        0.53,
+        0.47,
+        0.42,
+        0.37
+      ],
+      "unit": "",
+      "doc": "The early reflections' gains, linear, one per REVERB_EARLY_TAP_MS entry, falling with the time."
+    },
+    {
+      "name": "REVERB_EARLY_SIZE_MIN",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#early_scale"
+      },
+      "value": 0.5,
+      "unit": "",
+      "doc": "The scale the early taps' times take at earlySizePct 0, a share of REVERB_EARLY_TAP_MS."
+    },
+    {
+      "name": "REVERB_EARLY_SIZE_MAX",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/reverb.json at d9655862d764, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_reverb_instance.h#early_scale"
+      },
+      "value": 1.5,
+      "unit": "",
+      "doc": "The scale the early taps' times take at earlySizePct 100, a share of REVERB_EARLY_TAP_MS; the early ring is sized for it."
     }
   ]
 }

@@ -84,6 +84,12 @@ static inline int all_zero(const float *a, uint32_t n) {
   return 1;
 }
 
+/** Where a hostile word must land: every non-finite word at the default, else inside [lo, hi]. */
+static inline float land(float x, float lo, float hi, float def) {
+  if (x - x != 0.0f) return def;
+  return x < lo ? lo : x > hi ? hi : x;
+}
+
 /** The knob values a foreign host may write to any control port. */
 static const float HOSTILE[] = {NAN, INFINITY, -INFINITY, 1e30f, -1e30f, -1.0f, 0.0f};
 #define HOSTILE_COUNT ((int)(sizeof(HOSTILE) / sizeof(HOSTILE[0])))

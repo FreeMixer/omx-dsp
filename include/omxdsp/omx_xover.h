@@ -183,7 +183,7 @@ static inline void omx_xover_process(const float *x, float *lo, float *hi, uint3
 #ifdef OMX_CONTRACTS
   OMX_POST(worst <= (double)OMX_XOVER_PARTITION_TOLERANCE * (peak > 1.0 ? peak : 1.0), "bands-partition-unity");
 #endif
-  OMX_POST(omx_block_finite(lo, n) && omx_block_finite(hi, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(lo, hi, n), "finite-out");
   OMX_INVARIANT(omx_block_finite_d(&s->lp[0][0], 4u) && omx_block_finite_d(&s->hp[0][0], 4u) &&
                     omx_block_finite_d(s->ref, 2u),
                 "state-finite");

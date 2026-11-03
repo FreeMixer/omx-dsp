@@ -38,7 +38,8 @@ if (cmd === 'design' && !process.execArgv.includes('--experimental-transform-typ
 const openmixer = resolve(openmixerArg);
 const contractTs = resolve(contractTsArg);
 register('./ts-golden-hooks.mjs', import.meta.url, { data: { openmixer, contractTs } });
-const eq = await import(pathToFileURL(`${openmixer}/packages/core/src/eq.ts`).href);
+const pkgs = `${openmixer}/packages`;
+const eq = await import(pathToFileURL(`${pkgs}/core/src/eq.ts`).href);
 const commit = execFileSync('git', ['-C', openmixer, 'rev-parse', 'HEAD']).toString().trim();
 
 /** The nine rates every oracle runs at, read from the contract render the tool is given
@@ -195,8 +196,8 @@ function eqStates() {
 }
 
 async function design() {
-  const geom = await import(pathToFileURL(`${openmixer}/packages/web-ui/app/utils/eqCurveGeom.ts`).href);
-  const catalog = await import(pathToFileURL(`${openmixer}/packages/catalog/src/eq.ts`).href);
+  const geom = await import(pathToFileURL(`${pkgs}/web-ui/app/utils/eqCurveGeom.ts`).href);
+  const catalog = await import(pathToFileURL(`${pkgs}/catalog/src/eq.ts`).href);
   const out = [];
   const arr = (name, type, xs, per = 6, dims = '') => {
     out.push(`static const ${type} ${name}[${Math.max(1, xs.length)}]${dims} = {`);

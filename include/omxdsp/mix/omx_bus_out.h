@@ -62,7 +62,7 @@ static inline void omx_bus_out_gains(int channels, float fader, int mute, float 
  */
 static inline void omx_bus_out_apply(float *restrict busL, float *restrict busR, uint32_t n,
                                      float tgtL, float tgtR, float *curL, float *curR) {
-  OMX_PRE(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-bus-in");
+  OMX_PRE(omx_block_pair_finite(busL, busR, n), "finite-bus-in");
   OMX_PRE(tgtL - tgtL == 0.0f && tgtR - tgtR == 0.0f, "finite-target");
   if (n == 0) return;
   const struct omx_ramp rl = omx_ramp_begin(curL, tgtL, n);
@@ -73,7 +73,7 @@ static inline void omx_bus_out_apply(float *restrict busL, float *restrict busR,
   }
   omx_ramp_end(rl, curL);
   omx_ramp_end(rr, curR);
-  OMX_POST(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-bus-out");
+  OMX_POST(omx_block_pair_finite(busL, busR, n), "finite-bus-out");
   OMX_POST(*curL - *curL == 0.0f && *curR - *curR == 0.0f, "ramp-self-heals-to-finite");
 }
 #undef OMX_CONTRACT_STAGE
@@ -104,14 +104,14 @@ static inline void omx_bus_out_run(float *busL, float *busR, uint32_t n, int cha
                                    float fader, int mute, float balance, float *curL,
                                    float *curR, float *peakL, float *peakR) {
   OMX_PRE(balance >= -1.0f && balance <= 1.0f, "balance-within-declared-range");
-  OMX_PRE(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-bus-in");
+  OMX_PRE(omx_block_pair_finite(busL, busR, n), "finite-bus-in");
   float tgtL, tgtR;
   omx_bus_out_gains(channels, fader, mute, balance, &tgtL, &tgtR);
   OMX_POST(tgtL >= -1e-6f && tgtL <= fader + 1e-6f && tgtR >= -1e-6f && tgtR <= fader + 1e-6f,
            "gain-in-range");
   omx_bus_out_apply(busL, busR, n, tgtL, tgtR, curL, curR);
   omx_meter_leg_peaks(busL, busR, n, 1.0f, 1.0f, peakL, peakR);
-  OMX_POST(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-bus-out");
+  OMX_POST(omx_block_pair_finite(busL, busR, n), "finite-bus-out");
 }
 #undef OMX_CONTRACT_STAGE
 

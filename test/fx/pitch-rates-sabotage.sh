@@ -56,7 +56,7 @@ run() { # $1 = name, $2 = header, $3 = oracle, $4 = link flags, $5 = sed express
 pids=()
 run declared omxdsp/fx/omx_pitch_instance.h pitch_instance \
   '-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free' \
-  's|  if (!omx_pitch_instance_rate_ok(sr)) return 0;|  if (!omx_rate_is_declared(sr)) return 0;|' \
+  's|  if (!omx_instance_bind(s, sizeof(\*s), sr)) return 0;|  if (!omx_instance_bind(s, sizeof(*s), sr) \|\| !omx_rate_is_declared(sr)) return 0;|' \
   '32000 Hz: A: the rate is accepted' '64000 Hz: A: the rate is accepted' \
   '128000 Hz: A: the rate is accepted' & pids+=($!)
 run nyquist omxdsp/fx/omx_pitch.h pitch_math '' \

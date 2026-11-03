@@ -69,11 +69,8 @@ typedef struct {
  * {@link omx_transient_instance_run} is then the identity: absence is a wire, not a crash.
  */
 static inline int omx_transient_instance_init(OmxTransientInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
-  s->atom.enabled = 0;
   omx_transient_state_init(&s->state);
   s->ready = 1;
   return 1;
@@ -142,11 +139,7 @@ static inline void omx_transient_instance_resolve(OmxTransientInstance *s, int b
 #define OMX_CONTRACT_STAGE "transient/instance-run"
 static inline void omx_transient_instance_run(OmxTransientInstance *s, const float *in_l, const float *in_r,
                                               float *out_l, float *out_r, uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready) return;
-  omx_transient_process(out_l, out_r, n, &s->atom, &s->state);
-  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
-           "bypass-identity");
+  OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, omx_transient_process(out_l, out_r, n, &s->atom, &s->state));
 }
 #undef OMX_CONTRACT_STAGE
 

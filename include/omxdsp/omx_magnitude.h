@@ -325,17 +325,10 @@ static inline uint32_t omx_eq_curve_bands(int eq_on, const struct omx_eq_band *b
         out[n] = bands[i];
         out[n++].on = 1;
       }
-  const struct omx_eq_pass *pf[2] = {hpf, lpf};
-  const enum omx_eq_kind kind[2] = {OMX_EQ_HIGHPASS, OMX_EQ_LOWPASS};
-  for (int k = 0; k < 2; k++) {
-    if (!pf[k] || !pf[k]->on || !(pf[k]->freq_hz > 0.0)) continue;
-    double qs[2];
-    const uint32_t ns = omx_eq_butterworth_qs(pf[k]->slope_24, qs);
-    for (uint32_t s = 0; s < ns; s++) {
-      const struct omx_eq_band b = {kind[k], pf[k]->freq_hz, 0.0, qs[s], 1};
-      out[n++] = b;
-    }
-  }
+  struct omx_eq_band sec[OMX_EQ_PASS_MAX_SECTIONS];
+  const uint32_t ns = omx_eq_pass_sections(hpf, lpf, sec);
+  for (uint32_t i = 0; i < ns; i++)
+    if (sec[i].freq_hz > 0.0) out[n++] = sec[i]; /* a corner that is not positive is not drawn */
   OMX_POST(n <= nbands + OMX_EQ_PASS_MAX_SECTIONS, "no-more-than-room");
   return n;
 }
