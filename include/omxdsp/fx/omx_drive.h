@@ -250,7 +250,7 @@ static inline int omx_drive_latency(const struct omx_drive *p) {
  * asserted a THD ordering and was wrong to.)
  */
 #define OMX_CONTRACT_STAGE "drive/shape"
-static inline float omx_drive_shape(int curve, float u) {
+static inline OMX_FM_ALWAYS float omx_drive_shape(int curve, float u) {
   float y;
   switch (curve) {
     case OMX_DRIVE_TAPE:
@@ -319,7 +319,7 @@ static inline struct omx_drive_bias omx_drive_bias_for(int curve, float w) {
  * for that case because there does not need to be — the arithmetic IS the identity.
  */
 #define OMX_CONTRACT_STAGE "drive/sample"
-static inline float omx_drive_sample(int curve, float u, const struct omx_drive_bias *s) {
+static inline OMX_FM_ALWAYS float omx_drive_sample(int curve, float u, const struct omx_drive_bias *s) {
   float y = (omx_drive_shape(curve, u + s->b) - s->off) * s->inv;
   /* R-056/laws: finite -- accepted 2026-09-17, the contracts proposals notes.
    * composition of finite omx_drive_shape outputs and a finite s->inv. */

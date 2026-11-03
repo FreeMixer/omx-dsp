@@ -32,7 +32,8 @@ fi
 $CC -O2 -S $ARGS "$@" -o "$T/v.s" "$HERE/test/fx/fastmath_vec.c"
 bad=0
 # the assembly of one function, from its label to its .size
-body() { awk -v f="$1" '$0 ~ "^"f":" {on=1} on {print} on && /\.size/ {exit}' "$T/v.s"; }
+# (and the compiler's outlined parts of it, `<name>.part.0` and the like)
+body() { awk -v f="$1" '$0 ~ "^"f"(\\.[A-Za-z0-9_.]+)?:" {on=1} on {print} on && /\.size/ {on=0}' "$T/v.s"; }
 need() { # function libm-name...
   fn="$1"; shift
   b="$(body "$fn")"

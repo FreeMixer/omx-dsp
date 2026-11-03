@@ -21,12 +21,15 @@ void vc_drive_tube(const struct omx_drive_bias *s, float d, float *x, uint32_t n
 }
 
 void vc_gain_centred(const struct omx_dyn *p, float *x, uint32_t n) {
+  const struct omx_gaincomp_params gc = p->gc;
   OMX_FM_SIMD
-  for (uint32_t i = 0; i < n; i++) x[i] = omx_gaincomp_gain(&p->gc, x[i]);
+  for (uint32_t i = 0; i < n; i++) x[i] = omx_gaincomp_gain(&gc, x[i]);
 }
 void vc_gain_shifted(const struct omx_dyn *p, float *x, uint32_t n) {
+  const struct omx_gaincomp_params gc = p->gc;
+  const float shift = p->knee_shift_db;
   OMX_FM_SIMD
-  for (uint32_t i = 0; i < n; i++) x[i] = omx_gaincomp_gain_shifted_lane(&p->gc, p->knee_shift_db, x[i]);
+  for (uint32_t i = 0; i < n; i++) x[i] = omx_gaincomp_gain_shifted_lane(&gc, shift, x[i]);
 }
 void vc_gain_flat(const struct omx_dyn_flat *f, const struct omx_dyn *p, float *x, uint32_t n) {
   omx_dyn_flat_gain_block(f, p, x, x, n);

@@ -52,7 +52,7 @@ struct omx_gaincomp_params {
  * @post `finite`.
  * @note RT-safe: arithmetic and selects, no call, no branch. Thread-safe: pure.
  */
-static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float level_db) {
+static inline OMX_FM_ALWAYS float omx_gaincomp_db(const struct omx_gaincomp_params *p, float level_db) {
   OMX_PRE(p->ratio >= (p->mode == OMX_DYN_BELOW ? OMX_GATE_RATIO_MIN : OMX_COMP_RATIO_MIN), "ratio-at-least-one");
   OMX_PRE(p->knee_db >= OMX_COMP_KNEE_DB_MIN, "knee-not-negative");
   OMX_PRE(p->mode != OMX_DYN_BELOW || p->range_db <= OMX_GATE_RANGE_DB_MAX, "range-is-an-attenuation");
@@ -77,7 +77,7 @@ static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float l
   float gu = ((soft & (-x < half)) != 0) ? ku : slope * -x;
   gu = -x <= -half ? 0.0f : -gu;
   gu = gu > p->range_db ? p->range_db : gu;
-  const float g = p->mode == OMX_DYN_BELOW ? gb : p->mode == OMX_DYN_UPWARD ? gu : ga;
+  const float g = omx_fm_select(p->mode == OMX_DYN_BELOW, gb, omx_fm_select(p->mode == OMX_DYN_UPWARD, gu, ga));
   OMX_POST(g - g == 0.0f, "finite");
   return g;
 }
@@ -94,7 +94,7 @@ static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float l
  * @note RT-safe: `log10f` and `powf` through omx_lin_to_db() and omx_db_to_lin(), both on the
  *       RT-safe allowlist. Thread-safe: pure.
  */
-static inline float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float level) {
+static inline OMX_FM_ALWAYS float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float level) {
   OMX_PRE(p->makeup_lin > 0.0f, "makeup-positive");
   const float g = omx_db_to_lin(omx_gaincomp_db(p, omx_lin_to_db(level))) * p->makeup_lin;
   OMX_POST(g >= 0.0f && (g <= p->makeup_lin || p->range_db > 0.0f), "no-gain-added");
@@ -117,7 +117,7 @@ static inline float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float
  * @return The gain, dB, before the range floor.
  * @note RT-safe: arithmetic and one sqrtf. Thread-safe: pure.
  */
-static inline float omx_gaincomp_knee_shifted(const struct omx_gaincomp_params *p, float xl, float xh, float x) {
+static inline OMX_FM_ALWAYS float omx_gaincomp_knee_shifted(const struct omx_gaincomp_params *p, float xl, float xh, float x) {
   const float a = xl + xh, b = -2.0f * xl, d = x - xl;
   float disc = b * b + 4.0f * a * d;
   disc = disc > 0.0f ? disc : 0.0f;
@@ -204,7 +204,7 @@ static inline float omx_gaincomp_gain_shifted(const struct omx_gaincomp_params *
  * @return The gain, in `[0, makeup_lin]`.
  * @note RT-safe: no allocation, no state. Thread-safe: pure.
  */
-static inline float omx_gaincomp_gain_shifted_lane(const struct omx_gaincomp_params *p, float shift_db, float level) {
+static inline OMX_FM_ALWAYS float omx_gaincomp_gain_shifted_lane(const struct omx_gaincomp_params *p, float shift_db, float level) {
   const float level_db = omx_lin_to_db(level);
   const float half = 0.5f * p->knee_db;
   const float x = level_db - p->thresh_db;
