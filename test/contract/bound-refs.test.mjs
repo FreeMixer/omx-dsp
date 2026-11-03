@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-// A kernel file refers to a value it declares, never repeats its number (owner ruling 2026-11-03): a readout's range
+// A kernel file refers to a value it declares, never repeats its number, and a header reads a declared value from the
+// render, never restates it (owner ruling 2026-11-03): a readout's range
 // bound written as a number equal to a bound of one of the kernel's own travels in the same unit, or a travel's min
 // or max written as a number equal to one of the kernel's own scalars in the same unit, is the declared value
 // written twice. The comp's gain reduction is the model: its floor is { "ref": "COMP_LIMITS.thresholdDb.min" }.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { controlGlobal, loadData } from './oc.mjs';
-import { UNION } from './helpers.mjs';
+import { HERE, UNION } from './helpers.mjs';
 
 /** The numbers a kernel file writes where one of its own declared values stands: `<file> <where> = <value> = <name>`. */
 export function repeatedBounds(files) {
@@ -49,4 +52,43 @@ test('the check names a readout floor and a travel bound written as a number, an
   doc.readouts[0].min = { ref: 'X_THRESHOLD_DB_RANGE.min' };
   doc.controls[1].travel.max = { ref: 'X_CEILING_DB' };
   assert.deepEqual(repeatedBounds([{ rel: 'data/kernels/x.json', doc }]), [], 'a reference is no repeat, and a number in another unit is none');
+});
+
+/** The numbers a declaration holds (a scalar's value, a sheet's or a travel's numeric leaves), references aside. */
+const numbers = (v) => (typeof v === 'number' ? [v] : v && typeof v === 'object' && !('ref' in v) && !('derive' in v) ? Object.values(v).flatMap(numbers) : []);
+
+/**
+ * The C defines that restate a declared value: a declaration whose `source.impl` names `<header>#<MACRO>` says that
+ * macro is its implementation, and a `#define <MACRO>` there written as the declaration's own number is the value
+ * written twice; the macro reads the render instead. `read(path)` gives a header's text.
+ */
+export function repeatedDefines(files, read) {
+  const out = [];
+  const visit = (rel, o, name) => {
+    if (!o || typeof o !== 'object') return;
+    const impl = o.source?.impl;
+    if (typeof impl === 'string' && impl.includes('#')) {
+      const [header, macro] = impl.split('#');
+      const m = new RegExp(`^#define ${macro}\\s+\\(?\\s*(-?[0-9.eE+-]+?)[fFuU]?\\s*\\)?\\s*$`, 'm').exec(read(header));
+      if (m && [...numbers(o.value), ...numbers(o.travel)].includes(Number(m[1]))) out.push(`${header}: #define ${macro} ${m[1]} is ${name} (${rel})`);
+    }
+    for (const [k, v] of Object.entries(o)) if (k !== 'source') visit(rel, v, /^[A-Z][A-Z0-9_]*$/.test(k) ? k : name);
+  };
+  for (const f of files) visit(f.rel, f.doc, '');
+  return out;
+}
+
+const readHere = (p) => { try { return readFileSync(join(HERE, p), 'utf8'); } catch { return ''; } };
+const ownFiles = () => loadData(UNION).files.filter((f) => f.rel.startsWith('data/kernels/') || f.rel.startsWith('data/primitives/'));
+
+test('no header restates as a literal the value of a declaration it implements', () => {
+  assert.deepEqual(repeatedDefines(ownFiles(), readHere), []);
+});
+
+test('the check names a define written as its declaration\'s number, and passes one that reads the render', () => {
+  const doc = { X_GATE_LU: { kind: 'scalar', unit: 'dB', value: -10, source: { impl: 'x.h#OMX_X_GATE_LU' } } };
+  const files = [{ rel: 'data/primitives/x.json', doc }];
+  assert.deepEqual(repeatedDefines(files, () => '#define OMX_X_GATE_LU (-10.0)\n'), ['x.h: #define OMX_X_GATE_LU -10.0 is X_GATE_LU (data/primitives/x.json)']);
+  assert.deepEqual(repeatedDefines(files, () => '#define OMX_X_GATE_LU ((double)OMX_X_GATE_LU_RENDERED)\n'), []);
+  assert.deepEqual(repeatedDefines(files, () => '#define OMX_X_GATE_LU (-20.0)\n'), [], 'another number is no repeat');
 });
