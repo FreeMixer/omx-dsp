@@ -48,8 +48,8 @@
 #               for 1..62 bands, and every count EQ_BAND_COUNTS declares has its default bands
 #   make eq-defaults-table  test/golden/eq_default_bands.txt is the rule's JavaScript spelling over data/
 #               (tools/eq-defaults-golden.mjs, node)
-#   make public-sources  no tracked file names a private repository, path or issue (tools/public-sources-check.sh)
-#   make public-sources-messages  the same over the commit messages of origin/main..HEAD (RANGE=a..b to choose)
+#   make public-sources  no tracked file names a private repository, path or issue (FreeMixer/.github's
+#               private-refs-check, from a checkout of it: DOTGITHUB=<dir>)
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
@@ -110,7 +110,7 @@ endif
 # at or above the floor packaging/omx-dsp.spec declares, found by pkg-config in tools/contract-include.sh
 # (nothing is downloaded); this tree commits no copy of them. Every sub-script that compiles gets the
 # directory as CONTRACT_INC.
-ifeq ($(filter version clean docs public-sources private-refs public-sources-messages exports copy-check deps deps-check,$(MAKECMDGOALS)),)
+ifeq ($(filter version clean docs public-sources private-refs exports copy-check deps deps-check,$(MAKECMDGOALS)),)
 CONTRACT_INC := $(shell sh tools/contract-include.sh)
 ifeq ($(CONTRACT_INC),)
 $(error tools/contract-include.sh found no omx-contract: see its message above)
@@ -405,15 +405,12 @@ copy-check: | $(BUILD)
 	TMPDIR="$(abspath $(BUILD))" bash tools/omx-dsp-copy-check.sh --self-test
 	TMPDIR="$(abspath $(BUILD))" bash tools/omx-dsp-copy-check.sh --self-test --sabotage
 
-# Public sources state public facts only: no pointer into a private repository (decided
-# 2026-10-13). The check, then its self-test.
-public-sources:
-	bash tools/public-sources-check.sh
-	bash tools/public-sources-check.sh --self-test
+# No tracked file points into a private repository, issue, branch or path, with no exemption. The engine and its
+# self-test are FreeMixer/.github's private-refs-check (CI runs it in that repository's public-sources-check
+# workflow, with the commit message check and no-local-copies); locally name a checkout of it:
+# make private-refs DOTGITHUB=<checkout>.
+public-sources: private-refs
 
-# No tracked file points into a private repository, issue, branch or path. The engine and its self-test are
-# FreeMixer/.github's private-refs-check (CI runs it as that action); locally name a checkout of it:
-# make private-refs DOTGITHUB=<checkout>. Exemptions, each with its reason: tools/private-refs-allow.txt.
 # make deps renders the floors of packaging/deps.txt with that checkout's deps-render, make deps-check refuses drift.
 DOTGITHUB ?=
 .PHONY: private-refs deps deps-check
@@ -427,11 +424,6 @@ deps:
 deps-check:
 	@test -n "$(DOTGITHUB)" || { echo "$@: name a checkout of FreeMixer/.github: make $@ DOTGITHUB=<dir>" >&2; exit 2; }
 	$(DOTGITHUB)/.github/actions/deps-render/render.sh --check .
-
-RANGE ?=
-.PHONY: public-sources-messages
-public-sources-messages:
-	bash tools/public-sources-check.sh --messages $(RANGE)
 
 # omx_log10f() (test/support) against the libm's log10f on all 2^31 non-negative floats: proof of correct rounding
 # where the libm's log10f is correctly rounded (glibc 2.43), so not part of make test.
@@ -651,10 +643,12 @@ test-engine-kernels: $(BUILD)/engine_kernels_golden
 
 # The same digests through the engine's copies: needs a checkout of the private OpenMixer repository,
 # so it is a desk check, not part of make test and not run in CI (BUILDING.md, "The engine's copies").
+# The console checkout's package directory, where the identity recipes read the engine's native sources.
+CONSOLE_PACKAGES = $(OPENMIXER)/packages
 engine-kernels-identity:
 	@test -n "$(OPENMIXER)" || { echo "make engine-kernels-identity OPENMIXER=<openmixer checkout>"; exit 2; }
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh "$(CONSOLE_PACKAGES)/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/engine-kernels-identity.sh --self-test "$(CONSOLE_PACKAGES)/pipewire-native/src"
 
 # ---- the mix module -------------------------------------------------------------------------
 # The pan law, the strip and fold coefficients of G, a bus's out stage, the meters' measure half, one
@@ -677,8 +671,8 @@ test-mix: $(BUILD)/mix_golden $(LIB_CONTRACTS)
 # The same digests through the engine's copies: a desk check, as engine-kernels-identity is.
 mix-engine-identity:
 	@test -n "$(OPENMIXER)" || { echo "make mix-engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh "$(OPENMIXER)/packages/pipewire-native/src"
-	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh --self-test "$(OPENMIXER)/packages/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh "$(CONSOLE_PACKAGES)/pipewire-native/src"
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/mix-engine-identity.sh --self-test "$(CONSOLE_PACKAGES)/pipewire-native/src"
 
 # Each archive carries its flavour (its symbols say so), and the contracts consumer reads a
 # violation raised inside the compiled unit only when linked against the contracts archive: linked

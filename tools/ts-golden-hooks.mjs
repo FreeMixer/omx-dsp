@@ -16,10 +16,11 @@ const CORE_FACADE = 'omx-golden:core';
 const VUE_STUB = 'omx-golden:vue';
 
 export async function initialize(data) {
-  const src = `${data.openmixer}/packages/core/src`;
+  const pkgs = `${data.openmixer}/packages`;
+  const src = `${pkgs}/core/src`;
   map = {
     '@openmixer/omx-contract': pathToFileURL(`${data.contractTs}/omx-contract.js`).href,
-    '@freemixer/declarations': pathToFileURL(`${data.openmixer}/packages/declarations/src/index.ts`).href,
+    '@freemixer/declarations': pathToFileURL(`${pkgs}/declarations/src/index.ts`).href,
     '@freemixer/core/eq': pathToFileURL(`${src}/eq.ts`).href,
     '@freemixer/core': CORE_FACADE,
     vue: VUE_STUB,
