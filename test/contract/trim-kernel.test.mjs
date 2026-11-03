@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 // 2.3.0: the input trim is a kernel, `trim`, with the one control `trimDb`, so omx-dsp's trim face takes it by name
-// (face-conformance) and reads its travel from the C render as OMX_TRIM_RANGE_*. TRIM_TRAVELS, the table omx-strip's
-// declaration reads, is that control's aggregate: the same value as 1.2.0's primitives.json table, now one home.
+// (face-conformance) and reads its travel from the C render as OMX_TRIM_RANGE_*. TRIM_TRAVELS, that control's aggregate,
+// was retired in 153cb5a: nothing read it.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,13 +17,6 @@ const json = (dir = UNION) => JSON.parse(renderJson(resolveData(loadData(dir)), 
 
 test('trim: one control, trimDb, a travel whose item is TRIM_RANGE', () => {
   assert.deepEqual(json().kernels.trim.controls, [{ name: 'trimDb', kind: 'travel', global: 'TRIM_RANGE' }]);
-});
-
-test('trim: TRIM_TRAVELS keeps the 2.2.0 value, its one field the control\'s travel', () => {
-  const items = json().items;
-  const was = { min: -24, max: 24, step: 0.1, unit: 'dB', default: 0, defaultFrom: 'desk' };
-  assert.deepEqual(items.TRIM_TRAVELS.value, { trimDb: was });
-  assert.deepEqual(items.TRIM_RANGE.value, was);
 });
 
 test('trim: the C render keeps every 2.2.0 line, byte for byte and in order, and adds only OMX_TRIM_RANGE_*', () => {
@@ -46,9 +39,8 @@ test('trim: the C render keeps every 2.2.0 line, byte for byte and in order, and
   ]);
 });
 
-test('trim: a moved come-up value moves the C define and the table that reads the control (perturbation)', () => {
+test('trim: a moved come-up value moves the C define (perturbation; TRIM_TRAVELS, the table that read it, was retired in 153cb5a)', () => {
   const moved = scratchData();
   editData(moved, 'kernels/trim.json', (d, at) => { at('TRIM_RANGE').travel.default = -6; });
   assert.match(header(moved), /^#define OMX_TRIM_RANGE_DEFAULT -6$/m);
-  assert.equal(json(moved).items.TRIM_TRAVELS.value.trimDb.default, -6);
 });

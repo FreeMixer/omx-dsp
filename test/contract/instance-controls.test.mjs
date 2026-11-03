@@ -35,9 +35,12 @@ test('the 2.2.0 C render keeps every 2.1.0 line, byte for byte and in order, and
   assert.equal(defines(now).length - defines(old).length, 37, 'the 9 new sets: 20 enumerators, 9 counts, 8 defaults, and nothing else');
 });
 
-test('delay: pingpong is a switch whose come-up value is FX_DELAY_PINGPONG_DEFAULT (#22)', () => {
+// FX_DELAY_PINGPONG_DEFAULT was retired in 153cb5a (no reader): pingpong comes up off by its set's own default. The
+// read taps took a factor each (1a875b7), and sync, division, mode and the wet duck were appended (0e2683a, FX-4).
+test('delay: pingpong is a switch that comes up off (#22), the taps and the FX-4 controls after it', () => {
   assert.deepEqual(controls('delay').map((c) => c.name), ['fxDelayTime', 'fxDelayFeedback', 'tone', 'mix', 'pingpong',
-    'fxDelayTaps', 'tap0Gain', 'tap0Pan', 'tap1Gain', 'tap1Pan', 'tap2Gain', 'tap2Pan', 'tap3Gain', 'tap3Pan']);
+    'fxDelayTaps', 'tap0Gain', 'tap0Pan', 'tap1Factor', 'tap1Gain', 'tap1Pan', 'tap2Factor', 'tap2Gain', 'tap2Pan',
+    'tap3Factor', 'tap3Gain', 'tap3Pan', 'sync', 'division', 'mode', 'duckDb', 'duckThresholdDb', 'duckReleaseMs']);
   assert.deepEqual(json().items.DELAY_PINGPONGS.value, ['off', 'on']);
   assert.equal(json().items.DELAY_PINGPONGS.default, 'off');
   assert.match(header(), /^#define OMX_DELAY_PINGPONGS_DEFAULT OMX_DELAY_PINGPONGS_OFF$/m);
@@ -91,7 +94,6 @@ test('comp: the detector lookups hold when the declaration is reordered (#42)', 
 
 // One perturbation per new control: move its come-up value, every render that spells it follows.
 const moves = [
-  ['delay', 'FX_DELAY_PINGPONG_DEFAULT', (it) => { it.value = true; }, 'DELAY_PINGPONGS', 'on'],
   ['drive', 'DRIVE_AUTO_GAINS', (it) => { it.default = 'off'; }, 'DRIVE_AUTO_GAINS', 'off'],
   ['drive', 'DRIVE_STEREO_LINKS', (it) => { it.default = 'off'; }, 'DRIVE_STEREO_LINKS', 'off'],
   ['drive', 'DRIVE_HF_ROLLOFFS', (it) => { it.default = '16000'; }, 'DRIVE_HF_ROLLOFFS', '16000'],
@@ -109,12 +111,11 @@ for (const [k, at, move, set, want] of moves) {
     const C = `OMX_${set}_${String(want).toUpperCase()}`;
     assert.match(header(dir), new RegExp(`^#define OMX_${set}_DEFAULT ${C}$`, 'm'));
     assert.equal(json(dir).items[set].default, want);
-    if (at === 'FX_DELAY_PINGPONG_DEFAULT') assert.match(ts(dir), /^export const FX_DELAY_PINGPONG_DEFAULT = true;$/m); // the ts render carries no set default; the scalar it reads is the home
     assert.equal(main(['render', '--target', 'c', '--out', `${RENDERS}/include`, '--check', '--data', dir]), 1);
   });
 }
 
-test('validate refuses a use of no declared item, a count that counts nothing, an of without its when, and a boolean default of a three-id set', () => {
+test('validate refuses a use of no declared item, a count that counts nothing and an of without its when', () => {
   const eq = 'data/kernels/eq.json';
   const ctl = (d, n) => d[eq].controls.find((c) => c.name === n);
   assert.ok(problems(texts((d) => { ctl(d, 'lpfSlope').global = 'NO_SLOPES'; })).some((p) => /lpfSlope: uses NO_SLOPES, which no other control/.test(p)));
@@ -123,6 +124,4 @@ test('validate refuses a use of no declared item, a count that counts nothing, a
   assert.ok(problems(texts((d) => { delete ctl(d, 'notchQ').when; })).some((p) => /notchQ: when must be/.test(p)));
   assert.ok(problems(texts((d) => { ctl(d, 'notchQ').when.is = 'shelf'; })).some((p) => /when\.is "shelf" is not an id of bandType/.test(p)));
   assert.ok(problems(texts((d) => { ctl(d, 'notchQ').of = 'bandType'; })).some((p) => /of "bandType" names no other control of its kind/.test(p)));
-  assert.ok(problems(texts((d) => { d['data/kernels/drive.json'].controls.find((c) => c.name === 'hfRolloff').default = { ref: 'FX_DELAY_PINGPONG_DEFAULT' }; }))
-    .some((p) => /a boolean default needs a two-id switch/.test(p)));
 });
