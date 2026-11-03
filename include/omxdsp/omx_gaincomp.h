@@ -162,7 +162,7 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_gain_lane(const struct omx_gainco
  * no division by a vanishing leading coefficient (the centred knee's is 0). The discriminant is
  * `(xh - xl)^2` at `x = xh` and moves linearly to `(2 xl)^2` at `x = xl`, so it is not negative on the
  * knee; the clamp only absorbs rounding. Meaningful for `xl < x < xh`; outside it the value is
- * arbitrary (possibly not finite) and the caller selects the line or 0 dB instead.
+ * arbitrary (computed with no division by zero) and the caller selects the line or 0 dB instead.
  * @param p The parameters; BELOW mode.
  * @param xl The knee's lower edge, dB from the threshold.
  * @param xh The knee's upper edge, dB from the threshold.
@@ -174,7 +174,12 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_knee_shifted(const struct omx_gai
   const float a = xl + xh, b = -2.0f * xl, d = x - xl;
   float disc = b * b + 4.0f * a * d;
   disc = disc > 0.0f ? disc : 0.0f;
-  const float u = 2.0f * d / (b + sqrtf(disc));
+  /* Inside the knee the denominator is positive (b > 0, or b == 0 with d > 0). Outside it, where the branch-free
+   * lane still evaluates this, it is 0 at a shift of +knee/2 (xl == 0) for every x <= 0: 1 there raises no
+   * FE_DIVBYZERO and no FE_INVALID, and the value is selected away as before. */
+  float den = b + sqrtf(disc);
+  den = den > 0.0f ? den : 1.0f;
+  const float u = 2.0f * d / den;
   const float w = 1.0f - u;
   return w * w * (p->ratio - 1.0f) * xl;
 }
