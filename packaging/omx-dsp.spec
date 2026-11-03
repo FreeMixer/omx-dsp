@@ -30,6 +30,7 @@ system while audio is running. The console and the omx plugins are built from
 this same code, so an effect sounds the same on the desk and in your DAW, sample
 for sample. Link it into your own plugin, effect or audio tool and start from
 parts that are already tested against exact results at every sample rate.
+Its documentation is on openmixer.org.
 
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
@@ -49,6 +50,7 @@ its kernels and instance faces (their controls, units and readouts) under
 /usr/share/omx-contract/contract.d/3/omx-dsp. A program that reads them while
 it runs (a panel, the omx-contract command) needs this package, not the
 development one.
+Its documentation is on openmixer.org.
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -57,6 +59,7 @@ pkg-config file: libomxdsp.a (omxdsp), libomxdsp-contracts.a
 (omxdsp-contracts, contracts compiled in) and libomxdsp-tsan.a (omxdsp-tsan,
 contracts and ThreadSanitizer). Programs link the library statically; no shared
 library exists.
+Its documentation is on openmixer.org.
 
 %prep
 %autosetup
@@ -73,7 +76,6 @@ library exists.
 
 %files devel
 %license LICENSE
-%doc README.md BUILDING.md
 %{_includedir}/omxdsp/
 %{_libdir}/libomxdsp.a
 %{_libdir}/libomxdsp-contracts.a
