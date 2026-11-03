@@ -451,9 +451,7 @@ typedef struct {
  * wire. Returns 1 when usable, 0 when not: a rate the console does not declare is refused and run()
  * is the identity. Allocates nothing. */
 static inline int omx_eq_instance_init(OmxEqInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   omx_eq_lv2_init(&s->leg[0], (double)sr);
   omx_eq_lv2_init(&s->leg[1], (double)sr);

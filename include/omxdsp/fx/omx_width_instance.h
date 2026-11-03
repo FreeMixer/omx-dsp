@@ -48,9 +48,7 @@ static inline void omx_width_instance_resolve(OmxWidthInstance *s, int bypass, f
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
  * set. The face comes up at its declared defaults, the identity. Allocates nothing. */
 static inline int omx_width_instance_init(OmxWidthInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
   s->ready = 1;
   omx_width_instance_resolve(s, 0, (float)OMX_WIDTH_WIDTH_PCT_RANGE_DEFAULT, (int)OMX_WIDTH_PSEUDOS_DEFAULT,

@@ -70,9 +70,7 @@ typedef struct {
  * clear and run() is the identity): the rate must be a declared one. Allocates nothing.
  */
 static inline int omx_deesser_instance_init(OmxDeesserInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   omx_deess_state_init(&s->state);
   s->sr = sr;
   s->atom.enabled = 0;

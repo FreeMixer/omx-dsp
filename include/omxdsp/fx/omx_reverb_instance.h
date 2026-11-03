@@ -89,9 +89,7 @@ typedef struct {
  * Allocates nothing.
  */
 static inline int omx_reverb_instance_init(OmxReverbInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   omx_reverb_state_layout(&s->state, s->pool, OMX_REVERB_POOL_FLOATS, sr);
   if (s->state._exhausted || s->state._pool == NULL) return 0;
   s->sr = sr;

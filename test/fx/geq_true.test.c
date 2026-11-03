@@ -31,30 +31,8 @@
 #define SEEDS 50
 #define AUDIO_PASSES 4u
 
-void *__real_malloc(size_t n);
-void *__real_calloc(size_t n, size_t sz);
-void *__real_realloc(void *p, size_t n);
-void __real_free(void *p);
-
-static int g_counting = 0;
-static long g_allocs = 0;
-
-void *__wrap_malloc(size_t n) {
-  if (g_counting) g_allocs++;
-  return __real_malloc(n);
-}
-void *__wrap_calloc(size_t n, size_t sz) {
-  if (g_counting) g_allocs++;
-  return __real_calloc(n, sz);
-}
-void *__wrap_realloc(void *p, size_t n) {
-  if (g_counting) g_allocs++;
-  return __real_realloc(p, n);
-}
-void __wrap_free(void *p) {
-  if (g_counting) g_allocs++;
-  __real_free(p);
-}
+/* the allocation counter: fx_harness.h (linked with --wrap=malloc,calloc,realloc,free) */
+#include "fx_harness.h"
 
 static float in_l[N], in_r[N], out_l[N], out_r[N], ref_l[N], ref_r[N];
 static const double centres[] = OMX_GEQ_INSTANCE_CENTRES_HZ;
