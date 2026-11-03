@@ -19,8 +19,12 @@ const json = (dir) => JSON.parse(renderJson(resolved(dir), '0.0.0')[0].text);
 
 const CONSOLE = { min: 0, max: 20000, step: 1, unit: 'Hz' };
 
-test('gate: hpHz and lpHz are the last controls, the fields of GATE_KEY_LIMITS, with the console\'s travel', () => {
-  assert.deepEqual(json().kernels.gate.controls.slice(-2), [
+// hpHz and lpHz were the last controls in 2.7.0; key listen and key tilt (5d7e9c6, FX-5) came after them.
+test('gate: hpHz and lpHz are the fields of GATE_KEY_LIMITS with the console\'s travel, followed by the FX-5 key controls', () => {
+  const c = json().kernels.gate.controls;
+  const at = c.findIndex((x) => x.name === 'hpHz');
+  assert.deepEqual(c.slice(at + 2).map((x) => x.name), ['keyListen', 'keyTiltDb']);
+  assert.deepEqual(c.slice(at, at + 2), [
     { name: 'hpHz', kind: 'travel', global: 'GATE_KEY_LIMITS', table: 'GATE_KEY_LIMITS' },
     { name: 'lpHz', kind: 'travel', global: 'GATE_KEY_LIMITS', table: 'GATE_KEY_LIMITS' },
   ]);
