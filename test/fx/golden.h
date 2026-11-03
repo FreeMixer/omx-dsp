@@ -33,14 +33,22 @@
 /* A golden build replaces log10f with the correctly rounded omx_log10f (test/support/log10f_subst.h,
  * `-include`d by the Makefile): a build without it would record or compare digests that move with
  * the glibc. */
-#ifndef OMXDSP_LOG10F_SUBSTITUTED
+#if !defined(OMXDSP_LOG10F_SUBSTITUTED) && !defined(OMX_FX_GOLDEN_DUMP_ONLY)
 #error "a golden TU must be compiled with -include test/support/log10f_subst.h"
 #endif
 
+/* A TU compiled with OMX_FX_GOLDEN_DUMP_ONLY (tools/fastmath-diff.sh) answers `--dump FILE` only: it writes
+ * the raw output at every rate, for the comparison of a libmvec build with the libm one. It records and
+ * compares no digest, because its log10f is not the correctly rounded one the digests were made with. */
+
 /** 1 when `log10f` in this translation unit is omx_log10f, the function the digests were recorded with. */
 static inline int omx_fx_golden_log10f_is_substituted(void) {
+#ifdef OMXDSP_LOG10F_SUBSTITUTED
   float (*f)(float) = log10f;
   return f == omx_log10f;
+#else
+  return 0;
+#endif
 }
 
 /** Frames each digest covers; `render` writes 2 * OMX_FX_GOLDEN_FRAMES interleaved floats. */
@@ -73,6 +81,18 @@ typedef int (*omx_fx_golden_render_sized_fn)(float sr, float *out, size_t *bytes
 static inline int omx_fx_golden_main_sized(int argc, char **argv, const char *name,
                                            omx_fx_golden_render_sized_fn render, float *out) {
   omx_fx_require_rate_floor();
+  if (argc > 2 && strcmp(argv[1], "--dump") == 0) {
+    FILE *o = fopen(argv[2], "wb");
+    if (!o) { fprintf(stderr, "fx/%s_golden: cannot write %s\n", name, argv[2]); return 2; }
+    int bad = 0;
+    for (int k = 0; k < (int)OMX_FX_GOLDEN_RATE_COUNT; k++) {
+      size_t bytes = 0;
+      bad += render(OMX_FX_GOLDEN_RATES[k], out, &bytes);
+      if (fwrite(out, 1, bytes, o) != bytes) { fprintf(stderr, "fx/%s_golden: short write to %s\n", name, argv[2]); fclose(o); return 2; }
+    }
+    if (fclose(o) != 0) { fprintf(stderr, "fx/%s_golden: cannot close %s\n", name, argv[2]); return 2; }
+    return bad == 0 ? 0 : 1;
+  }
   if (!omx_fx_golden_log10f_is_substituted()) {
     fprintf(stderr, "fx/%s_golden: log10f is the libm's, not omx_log10f: the digests would move with the glibc\n", name);
     return 2;

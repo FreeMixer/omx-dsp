@@ -17,6 +17,7 @@
 
 #include "omx_contract.h"
 #include <omxdsp/omxdsp_definitions.h>
+#include "omx_fastmath.h"
 #include "omx_units.h"
 
 /** @brief Gain-computer mode: act on the signal ABOVE the threshold (comp / limiter). */
@@ -38,20 +39,29 @@ struct omx_gaincomp_params {
 };
 
 #undef OMX_CONTRACT_STAGE
+/**
+ * @brief `c ? a : b` inside omx_gaincomp_db_sel(): the `?:` itself when `lanes` is 0, omx_fm_select() when it is 1.
+ *
+ * Under the trapping-math default the compiler may not speculate float arithmetic, so a `?:` whose arm is used
+ * nowhere else gets that arm moved into a branch, and a loop over the function then does not vectorise. The
+ * select of integer bits uses both arms in the open. It is the same float either way; a per-sample caller keeps
+ * the `?:`, which skips the knee's work outside the knee.
+ */
+#define OMX_GC_SEL(lanes, c, a, b) ((lanes) ? omx_fm_select((c), (a), (b)) : ((c) ? (a) : (b)))
+
 #define OMX_CONTRACT_STAGE "gaincomp/db"
 /**
- * @brief The static gain, dB (at most 0 before make-up, but in UPWARD mode, where it is at most
- *        `range_db`), at detector level `level_db`.
+ * @brief omx_gaincomp_db() and omx_gaincomp_db_lane(): one body, its selects spelt by `lanes`.
  * @param p The parameters.
  * @param level_db The detector level, dB; finite.
- * @return The gain, dB.
- * @pre `ratio-at-least-one` (`OMX_COMP_RATIO_MIN` in ABOVE, `OMX_GATE_RATIO_MIN` in BELOW),
- *      `knee-not-negative` (`OMX_COMP_KNEE_DB_MIN`), `range-is-an-attenuation`
- *      (`OMX_GATE_RANGE_DB_MAX`, BELOW only), `range-is-a-boost` (UPWARD only), `finite-in`.
- * @post `finite`.
- * @note RT-safe: arithmetic and selects, no call, no branch. Thread-safe: pure.
+ * @param lanes 0 for the per-sample function, 1 for the branch-free lane; a constant at every call.
+ * @return The gain, dB: the same float for either `lanes`.
+ * @pre omx_gaincomp_db()'s.
+ * @post omx_gaincomp_db()'s.
+ * @note RT-safe: arithmetic and selects, no call. Thread-safe: pure.
  */
-static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float level_db) {
+static inline OMX_FM_ALWAYS float omx_gaincomp_db_sel(const struct omx_gaincomp_params *p, float level_db,
+                                                      const int lanes) {
   OMX_PRE(p->ratio >= (p->mode == OMX_DYN_BELOW ? OMX_GATE_RATIO_MIN : OMX_COMP_RATIO_MIN), "ratio-at-least-one");
   OMX_PRE(p->knee_db >= OMX_COMP_KNEE_DB_MIN, "knee-not-negative");
   OMX_PRE(p->mode != OMX_DYN_BELOW || p->range_db <= OMX_GATE_RANGE_DB_MAX, "range-is-an-attenuation");
@@ -62,23 +72,52 @@ static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float l
   const int soft = p->knee_db > 0.0f;
   const float eb = x - half;
   const float kb = (1.0f - p->ratio) * eb * eb / (2.0f * p->knee_db);
-  float gb = ((soft & (x > -half)) != 0) ? kb : (p->ratio - 1.0f) * x;
-  gb = x >= half ? 0.0f : gb;
-  gb = gb < p->range_db ? p->range_db : gb;
+  float gb = OMX_GC_SEL(lanes, (soft & (x > -half)) != 0, kb, (p->ratio - 1.0f) * x);
+  gb = OMX_GC_SEL(lanes, x >= half, 0.0f, gb);
+  gb = OMX_GC_SEL(lanes, gb < p->range_db, p->range_db, gb);
   const float slope = (1.0f / p->ratio) - 1.0f;
   const float ea = x + half;
   const float ka = slope * ea * ea / (2.0f * p->knee_db);
-  float ga = ((soft & (x < half)) != 0) ? ka : slope * x;
-  ga = x <= -half ? 0.0f : ga;
+  float ga = OMX_GC_SEL(lanes, (soft & (x < half)) != 0, ka, slope * x);
+  ga = OMX_GC_SEL(lanes, x <= -half, 0.0f, ga);
   /* UPWARD: ABOVE's curve at the mirrored level `-x`, negated, then capped at the boost. */
   const float eu = half - x;
   const float ku = slope * eu * eu / (2.0f * p->knee_db);
-  float gu = ((soft & (-x < half)) != 0) ? ku : slope * -x;
-  gu = -x <= -half ? 0.0f : -gu;
-  gu = gu > p->range_db ? p->range_db : gu;
-  const float g = p->mode == OMX_DYN_BELOW ? gb : p->mode == OMX_DYN_UPWARD ? gu : ga;
+  float gu = OMX_GC_SEL(lanes, (soft & (-x < half)) != 0, ku, slope * -x);
+  gu = OMX_GC_SEL(lanes, -x <= -half, 0.0f, -gu);
+  gu = OMX_GC_SEL(lanes, gu > p->range_db, p->range_db, gu);
+  const float g = OMX_GC_SEL(lanes, p->mode == OMX_DYN_BELOW, gb, OMX_GC_SEL(lanes, p->mode == OMX_DYN_UPWARD, gu, ga));
   OMX_POST(g - g == 0.0f, "finite");
   return g;
+}
+
+/**
+ * @brief The static gain, dB (at most 0 before make-up, but in UPWARD mode, where it is at most
+ *        `range_db`), at detector level `level_db`.
+ * @param p The parameters.
+ * @param level_db The detector level, dB; finite.
+ * @return The gain, dB.
+ * @pre `ratio-at-least-one` (`OMX_COMP_RATIO_MIN` in ABOVE, `OMX_GATE_RATIO_MIN` in BELOW),
+ *      `knee-not-negative` (`OMX_COMP_KNEE_DB_MIN`), `range-is-an-attenuation`
+ *      (`OMX_GATE_RANGE_DB_MAX`, BELOW only), `range-is-a-boost` (UPWARD only), `finite-in`.
+ * @post `finite`.
+ * @note RT-safe: arithmetic and selects, no call. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_gaincomp_db(const struct omx_gaincomp_params *p, float level_db) {
+  return omx_gaincomp_db_sel(p, level_db, 0);
+}
+
+/**
+ * @brief omx_gaincomp_db() for a vectorised loop: the same float, every select one of bits (omx_fastmath.h).
+ * @param p The parameters.
+ * @param level_db The detector level, dB; finite.
+ * @return The gain, dB.
+ * @pre omx_gaincomp_db()'s.
+ * @post omx_gaincomp_db()'s.
+ * @note RT-safe: arithmetic and selects, no call, no branch. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_gaincomp_db_lane(const struct omx_gaincomp_params *p, float level_db) {
+  return omx_gaincomp_db_sel(p, level_db, 1);
 }
 #undef OMX_CONTRACT_STAGE
 
@@ -93,13 +132,52 @@ static inline float omx_gaincomp_db(const struct omx_gaincomp_params *p, float l
  * @note RT-safe: `log10f` and `powf` through omx_lin_to_db() and omx_db_to_lin(), both on the
  *       RT-safe allowlist. Thread-safe: pure.
  */
-static inline float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float level) {
+static inline OMX_FM_ALWAYS float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float level) {
   OMX_PRE(p->makeup_lin > 0.0f, "makeup-positive");
   const float g = omx_db_to_lin(omx_gaincomp_db(p, omx_lin_to_db(level))) * p->makeup_lin;
   OMX_POST(g >= 0.0f && (g <= p->makeup_lin || p->range_db > 0.0f), "no-gain-added");
   return g;
 }
 #undef OMX_CONTRACT_STAGE
+
+/**
+ * @brief omx_gaincomp_gain() for a vectorised loop: the same float, through omx_gaincomp_db_lane().
+ *
+ * With libmvec the log10f and powf are the loop's vector calls, so the value differs from
+ * omx_gaincomp_gain()'s by their ULP bounds only. It checks no contract (a contract note in a lane would be a
+ * call per sample): the loops take it only where contracts are compiled out (OMX_DYN_LANES).
+ * @param p The parameters.
+ * @param level The detector level, linear, not negative; finite.
+ * @return The gain, in `[0, makeup_lin]`.
+ * @note RT-safe: no allocation, no state. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_gaincomp_gain_lane(const struct omx_gaincomp_params *p, float level) {
+  return omx_db_to_lin(omx_gaincomp_db_lane(p, omx_lin_to_db_lane(level))) * p->makeup_lin;
+}
+
+/**
+ * @brief The gate's off-centre knee: the quadratic Bezier between the expander's line and 0 dB, at `x`.
+ *
+ * The root in [0, 1] of `(xl + xh) u^2 - 2 xl u + (xl - x) = 0`, in the form with no cancellation and
+ * no division by a vanishing leading coefficient (the centred knee's is 0). The discriminant is
+ * `(xh - xl)^2` at `x = xh` and moves linearly to `(2 xl)^2` at `x = xl`, so it is not negative on the
+ * knee; the clamp only absorbs rounding. Meaningful for `xl < x < xh`; outside it the value is
+ * arbitrary (possibly not finite) and the caller selects the line or 0 dB instead.
+ * @param p The parameters; BELOW mode.
+ * @param xl The knee's lower edge, dB from the threshold.
+ * @param xh The knee's upper edge, dB from the threshold.
+ * @param x The level, dB from the threshold.
+ * @return The gain, dB, before the range floor.
+ * @note RT-safe: arithmetic and one sqrtf. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_gaincomp_knee_shifted(const struct omx_gaincomp_params *p, float xl, float xh, float x) {
+  const float a = xl + xh, b = -2.0f * xl, d = x - xl;
+  float disc = b * b + 4.0f * a * d;
+  disc = disc > 0.0f ? disc : 0.0f;
+  const float u = 2.0f * d / (b + sqrtf(disc));
+  const float w = 1.0f - u;
+  return w * w * (p->ratio - 1.0f) * xl;
+}
 
 #define OMX_CONTRACT_STAGE "gaincomp/db-shifted"
 /**
@@ -139,18 +217,7 @@ static inline float omx_gaincomp_db_shifted(const struct omx_gaincomp_params *p,
   float g;
   if (x <= xl) g = (p->ratio - 1.0f) * x;
   else if (x >= xh) g = 0.0f;
-  else {
-    /* The root in [0, 1] of (xl + xh) u^2 - 2 xl u + (xl - x) = 0, in the form with no
-     * cancellation and no division by a vanishing leading coefficient (the centred knee's is 0).
-     * The discriminant is (xh - xl)^2 at x = xh and moves linearly to (2 xl)^2 at x = xl, so it
-     * is not negative on the knee; the clamp only absorbs rounding. */
-    const float a = xl + xh, b = -2.0f * xl, d = x - xl;
-    float disc = b * b + 4.0f * a * d;
-    disc = disc > 0.0f ? disc : 0.0f;
-    const float u = 2.0f * d / (b + sqrtf(disc));
-    const float w = 1.0f - u;
-    g = w * w * (p->ratio - 1.0f) * xl;
-  }
+  else g = omx_gaincomp_knee_shifted(p, xl, xh, x);
   g = g < p->range_db ? p->range_db : g;
   OMX_POST(g - g == 0.0f, "finite");
   OMX_POST(g <= 0.0f, "no-gain-added");
@@ -175,6 +242,31 @@ static inline float omx_gaincomp_gain_shifted(const struct omx_gaincomp_params *
   return omx_db_to_lin(omx_gaincomp_db_shifted(p, shift_db, omx_lin_to_db(level))) * p->makeup_lin;
 }
 #undef OMX_CONTRACT_STAGE
+
+/**
+ * @brief omx_gaincomp_gain_shifted() for a vectorised loop: the same float, with no branch.
+ *
+ * The line, 0 dB and the knee are all evaluated and one is selected, so a loop of calls has no control
+ * flow and the compiler can run it over several samples at once (omx_fastmath.h). Only for
+ * `shift_db != 0` (the caller takes omx_gaincomp_gain() for the centred knee) and in BELOW mode with the
+ * preconditions of omx_gaincomp_db_shifted(), which it does not check. The libm calls are the loop's,
+ * so with libmvec the value differs from omx_gaincomp_gain_shifted()'s by their ULP bounds only.
+ * @param p The parameters; BELOW mode.
+ * @param shift_db The knee centre's offset from the threshold, dB; not 0.
+ * @param level The detector level, linear, not negative; finite.
+ * @return The gain, in `[0, makeup_lin]`.
+ * @note RT-safe: no allocation, no state. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_gaincomp_gain_shifted_lane(const struct omx_gaincomp_params *p, float shift_db, float level) {
+  const float level_db = omx_lin_to_db_lane(level);
+  const float half = 0.5f * p->knee_db;
+  const float x = level_db - p->thresh_db;
+  const float xl = shift_db - half, xh = shift_db + half;
+  const float line = (p->ratio - 1.0f) * x, knee = omx_gaincomp_knee_shifted(p, xl, xh, x);
+  float g = omx_fm_select(x <= xl, line, omx_fm_select(x >= xh, 0.0f, knee));
+  g = omx_fm_select(g < p->range_db, p->range_db, g);
+  return omx_db_to_lin(g) * p->makeup_lin;
+}
 
 #define OMX_CONTRACT_STAGE "gaincomp/db-fb"
 /**

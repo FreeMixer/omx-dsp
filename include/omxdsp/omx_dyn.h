@@ -24,9 +24,29 @@
 
 #include "omx_contract.h"
 #include "omx_envelope.h"
+#include "omx_fastmath.h"
 #include "omx_gaincomp.h"
 #include "omx_lookahead.h"
 #include "omx_oversampler.h"
+
+#if defined(OMX_FASTMATH_MVEC) && !defined(OMX_CONTRACTS)
+/**
+ * @brief 1 when the loops over the gain computer take the branch-free lanes and run vectorised: the build
+ *        declared libmvec and contracts are compiled out (a contract note in a lane would be a call per sample).
+ */
+#define OMX_DYN_LANES 1
+/** @brief The off-centre knee's gain in a loop: the branch-free lane of omx_gaincomp.h. */
+#define OMX_DYN_GAIN_SHIFTED omx_gaincomp_gain_shifted_lane
+/** @brief The centred knee's gain in a loop: the branch-free lane of omx_gaincomp.h. */
+#define OMX_DYN_GAIN omx_gaincomp_gain_lane
+#else
+/** @brief 0 here: the loops over the gain computer call the per-sample functions. */
+#define OMX_DYN_LANES 0
+/** @brief The off-centre knee's gain in a loop: the branching function, which skips the knee's work outside it. */
+#define OMX_DYN_GAIN_SHIFTED omx_gaincomp_gain_shifted
+/** @brief The centred knee's gain in a loop: the per-sample function, which skips the knee's work outside it. */
+#define OMX_DYN_GAIN omx_gaincomp_gain
+#endif
 
 /*
  * DETECTOR OVERSAMPLING — the contract's `detectorOversampling`, resolved into the RT atom.
@@ -514,10 +534,60 @@ static inline void omx_dyn_flat_bounds(const struct omx_dyn *p, struct omx_dyn_f
  * @return The gain.
  * @note RT-safe: two compares, and the gain computer only between the bounds. Thread-safe: pure.
  */
-static inline float omx_dyn_flat_gain(const struct omx_dyn_flat *f, const struct omx_dyn *p, float level) {
+static inline OMX_FM_ALWAYS float omx_dyn_flat_gain(const struct omx_dyn_flat *f, const struct omx_dyn *p, float level) {
   if (level <= f->lo) return f->g_floor;
   if (level >= f->hi) return f->g_open;
   return omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, level);
+}
+
+/**
+ * @brief omx_dyn_flat_gain() over a block: `out[i] = omx_dyn_flat_gain(f, p, in[i])`; `out` may be `in`.
+ *
+ * A block whose levels all lie past a bound (the common case: a gate fully open or fully shut)
+ * takes the two constants and calls nothing. A block with a level between the bounds runs the gain
+ * computer over every sample as one vectorised loop (omx_fastmath.h), the constants selected per
+ * sample. The loop has no state. Without libmvec it is the scalar loop, bit for bit the
+ * per-sample call; with it, log10f and powf differ from the libm's by at most OMX_FM_LOG10F_MAX_ULP
+ * and OMX_FM_POWF_MAX_ULP ULP, which `make fastmath-diff` states in dB at the output of the kernel.
+ * @param f The bounds, from omx_dyn_flat_bounds().
+ * @param p The atom; BELOW mode.
+ * @param in The detector levels, linear.
+ * @param out The gains, `n` samples.
+ * @param n Samples.
+ * @note RT-safe: no allocation, no state. Thread-safe on distinct blocks.
+ */
+static inline void omx_dyn_flat_gain_block(const struct omx_dyn_flat *f, const struct omx_dyn *p, const float *in,
+                                           float *out, uint32_t n) {
+  /* quiet compares (islessequal, not <=): the same answer, NaN included, and no FP exception for the compiler
+   * to keep, so it runs these two loops as selects rather than branches under the trapping-math default */
+  const float flo = f->lo, fhi = f->hi;
+  int inside = 0;
+  for (uint32_t i = 0; i < n; i++) inside |= !islessequal(in[i], flo) & !isgreaterequal(in[i], fhi);
+  if (!inside) {
+    const float g_floor = f->g_floor, g_open = f->g_open;
+    for (uint32_t i = 0; i < n; i++) out[i] = islessequal(in[i], flo) ? g_floor : g_open;
+    return;
+  }
+#if OMX_DYN_LANES
+  const float lo = f->lo, hi = f->hi, g_floor = f->g_floor, g_open = f->g_open;
+  const float shift = p->knee_shift_db;
+  const struct omx_gaincomp_params gc = p->gc;
+  if (shift == 0.0f) {
+    OMX_FM_SIMD
+    for (uint32_t i = 0; i < n; i++) {
+      const float v = in[i], g = omx_gaincomp_gain_lane(&gc, v);
+      out[i] = omx_fm_select(v <= lo, g_floor, omx_fm_select(v >= hi, g_open, g));
+    }
+  } else {
+    OMX_FM_SIMD
+    for (uint32_t i = 0; i < n; i++) {
+      const float v = in[i], g = omx_gaincomp_gain_shifted_lane(&gc, shift, v);
+      out[i] = omx_fm_select(v <= lo, g_floor, omx_fm_select(v >= hi, g_open, g));
+    }
+  }
+#else
+  for (uint32_t i = 0; i < n; i++) out[i] = omx_dyn_flat_gain(f, p, in[i]);
+#endif
 }
 
 #undef OMX_CONTRACT_STAGE
@@ -767,17 +837,22 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         if (hold_above) omx_dyn_hold_chain(st, &ep, ac, rc, lev, m, hold);
         else
           for (uint32_t i = 0; i < m; i++) lev[i] = omx_env_step(&st->env, &ep, lev[i], ac, rc);
-        if (flat && p->knee_shift_db == 0.0f) /* the centred knee hoisted, as below */
-          for (uint32_t i = 0; i < m; i++)
-            gain[i] = lev[i] <= fl.lo ? fl.g_floor : lev[i] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, lev[i]);
-        else if (flat)
-          for (uint32_t i = 0; i < m; i++) gain[i] = omx_dyn_flat_gain(&fl, p, lev[i]);
+        if (flat) /* the centred knee is omx_gaincomp_gain itself: omx_dyn_flat_gain, bit for bit */
+          omx_dyn_flat_gain_block(&fl, p, lev, gain, m);
         else if (prog)
           for (uint32_t i = 0; i < m; i++) gain[i] = omx_dyn_program_gain(p, &st->prs, &p->prp[0], lev[i]);
-        else if (p->knee_shift_db == 0.0f)
-          for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain(&p->gc, lev[i]);
-        else
-          for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, lev[i]);
+        else {
+          /* the parameters by value: a store into the block cannot then alias what the loop reads */
+          const struct omx_gaincomp_params gcl = p->gc;
+          const float shl = p->knee_shift_db;
+          if (shl == 0.0f) {
+            OMX_FM_SIMD
+            for (uint32_t i = 0; i < m; i++) gain[i] = OMX_DYN_GAIN(&gcl, lev[i]);
+          } else {
+            OMX_FM_SIMD
+            for (uint32_t i = 0; i < m; i++) gain[i] = OMX_DYN_GAIN_SHIFTED(&gcl, shl, lev[i]);
+          }
+        }
       }
     } else {
       /* THE 4× CONTROL PATH. The audio is NOT resampled — only the signal the detector looks
@@ -808,17 +883,21 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
         if (hold_above) omx_dyn_hold_chain(st, &ep, ac, rc, g4, mf, hold);
         else
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_env_step(&st->env, &ep, g4[k], ac, rc);
-        if (flat && p->knee_shift_db == 0.0f)
-          for (uint32_t k = 0; k < mf; k++)
-            g4[k] = g4[k] <= fl.lo ? fl.g_floor : g4[k] >= fl.hi ? fl.g_open : omx_gaincomp_gain(&p->gc, g4[k]);
-        else if (flat)
-          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_dyn_flat_gain(&fl, p, g4[k]);
+        if (flat) omx_dyn_flat_gain_block(&fl, p, g4, g4, mf);
         else if (prog)
           for (uint32_t k = 0; k < mf; k++) g4[k] = omx_dyn_program_gain(p, &st->prs, &p->prp[1], g4[k]);
-        else if (p->knee_shift_db == 0.0f)
-          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain(&p->gc, g4[k]);
-        else
-          for (uint32_t k = 0; k < mf; k++) g4[k] = omx_gaincomp_gain_shifted(&p->gc, p->knee_shift_db, g4[k]);
+        else {
+          /* the parameters by value: a store into the block cannot then alias what the loop reads */
+          const struct omx_gaincomp_params gcl = p->gc;
+          const float shl = p->knee_shift_db;
+          if (shl == 0.0f) {
+            OMX_FM_SIMD
+            for (uint32_t k = 0; k < mf; k++) g4[k] = OMX_DYN_GAIN(&gcl, g4[k]);
+          } else {
+            OMX_FM_SIMD
+            for (uint32_t k = 0; k < mf; k++) g4[k] = OMX_DYN_GAIN_SHIFTED(&gcl, shl, g4[k]);
+          }
+        }
       }
       omx_oversampler_down(&st->ovs_a, g4, m, gain);
       /* D-1, 2026-09-17 (the dynamics math review notes, measured by

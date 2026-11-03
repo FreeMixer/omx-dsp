@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "omx_fastmath.h"
 #include "omx_contract.h"
 #include "omxdsp_definitions.h"
 
@@ -33,7 +34,7 @@ static inline double omx_round_half_up(double x) {
  * @return The linear amplitude: 0 dB is 1, −6 dB is about 0.501.
  * @note RT-safe: one `powf`, on the RT-safe allowlist. Thread-safe: pure.
  */
-static inline float omx_db_to_lin(float db) {
+static inline OMX_FM_ALWAYS float omx_db_to_lin(float db) {
   return powf(10.0f, db * 0.05f);
 }
 
@@ -44,9 +45,24 @@ static inline float omx_db_to_lin(float db) {
  * @note RT-safe: one `log10f`, on the RT-safe allowlist (a pure function of its argument: no allocation,
  *       lock or errno write on a finite positive input). Thread-safe: pure.
  */
-static inline float omx_lin_to_db(float lin) {
+static inline OMX_FM_ALWAYS float omx_lin_to_db(float lin) {
   const float floor_lin = OMX_LIN_TO_DB_FLOOR_LIN;
   return 20.0f * log10f(lin < floor_lin ? floor_lin : lin);
+}
+
+/**
+ * @brief omx_lin_to_db() for a vectorised loop: the same float, the floor taken by omx_fm_select().
+ *
+ * A compiler may split the `?:` of omx_lin_to_db() into a branch that folds log10f of the floor to a
+ * constant and calls log10f on the other side only (GCC 12 does); the call then sits under a condition and
+ * the loop does not vectorise. The select of bits leaves one unconditional call.
+ * @param lin Amplitude, linear; values below OMX_LIN_TO_DB_FLOOR_LIN (1e-9) read as the floor.
+ * @return omx_lin_to_db(lin).
+ * @note RT-safe: one `log10f`. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_lin_to_db_lane(float lin) {
+  const float floor_lin = OMX_LIN_TO_DB_FLOOR_LIN;
+  return 20.0f * log10f(omx_fm_select(lin < floor_lin, floor_lin, lin));
 }
 
 /**

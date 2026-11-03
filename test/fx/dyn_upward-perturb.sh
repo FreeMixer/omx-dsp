@@ -46,7 +46,7 @@ sabotage clip omx_dyn.h 's|const float ceil_lin = p->gc.mode == OMX_DYN_UPWARD ?
 pids+=($!)
 sabotage slope omx_gaincomp.h 's|const float ku = slope \* eu \* eu|const float ku = (1.0f - p->ratio) * eu * eu|' A &
 pids+=($!)
-sabotage cap omx_gaincomp.h 's|gu = gu > p->range_db ? p->range_db : gu;|gu = gu;|' A &
+sabotage cap omx_gaincomp.h 's|gu = OMX_GC_SEL(lanes, gu > p->range_db, p->range_db, gu);|gu = gu;|' A &
 pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done

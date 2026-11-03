@@ -105,7 +105,10 @@ static void cell(const char *setting, float sr, uint32_t n, uint32_t blocks) {
     } else if (!strcmp(setting, "shape")) {
       for (uint32_t i = 0; i < n * 4u; i++) up[i] = 0.25f * l[i % n] * (float)(i & 3u);
       t0 = now_ns();
-      for (uint32_t i = 0; i < n * 4u; i++) up[i] = omx_drive_shape(OMX_DRIVE_SOFT, up[i]);
+      { /* the stage's own shaper loop, at character -1 (no bias): what libmvec vectorises */
+        const struct omx_drive_bias nobias = {0.0f, 0.0f, 1.0f};
+        omx_drive_shape_block(OMX_DRIVE_SOFT, &nobias, 1.0f, up, n * 4u);
+      }
       memcpy(l, up, n * sizeof l[0]);
     } else {
       omx_drive_process(l, r, n, &p, st);
