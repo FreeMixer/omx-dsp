@@ -131,7 +131,7 @@ static inline void omx_rotary_resolve(struct omx_rotary *p, const struct omx_rot
 static inline void omx_rotary_process(float *l, float *r, uint32_t n, const struct omx_rotary *p,
                                       struct omx_rotary_state *s) {
   if (!p->enabled || n == 0u) return;
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
   if (p->mix <= 0.0f) {
     float d = 0.0f, a = 0.0f;
     for (uint32_t i = 0; i < n; i++) {

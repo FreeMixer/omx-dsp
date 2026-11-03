@@ -76,10 +76,8 @@ static inline int omx_flanger_instance_init(OmxFlangerInstance *s, float sr) {
   if (cap > OMX_FLANGER_CAP) return 0;
   s->sr = sr;
   s->cap = cap;
-  if (omx_flanger_state_init(&s->state, s->ring_l, s->ring_r, cap) != OMX_FDELAY_OK) return 0;
-  s->atom.enabled = 0;
-  s->ready = 1;
-  return 1;
+  s->ready = omx_flanger_state_init(&s->state, s->ring_l, s->ring_r, cap) == OMX_FDELAY_OK;
+  return s->ready;
 }
 
 /** Clear the rings and restart the oscillator — the re-enable recipe. A bounded memset over the
@@ -87,8 +85,7 @@ static inline int omx_flanger_instance_init(OmxFlangerInstance *s, float sr) {
 #define OMX_CONTRACT_STAGE "flanger/instance-clear"
 static inline void omx_flanger_instance_clear(OmxFlangerInstance *s) {
   if (!s || !s->ready) return;
-  memset(s->ring_l, 0, (size_t)s->cap * sizeof(float));
-  memset(s->ring_r, 0, (size_t)s->cap * sizeof(float));
+  omx_instance_rings_clear(s->ring_l, s->ring_r, s->cap);
   (void)omx_flanger_state_init(&s->state, s->ring_l, s->ring_r, s->cap);
   OMX_POST(s->ring_l[0] == 0.0f && s->ring_r[s->cap - 1u] == 0.0f && s->state.lfo.phase == 0.0f &&
                s->state.fb_l == 0.0f && s->state.fb_r == 0.0f,
@@ -145,11 +142,7 @@ static inline void omx_flanger_instance_resolve(OmxFlangerInstance *s, int bypas
 static inline void omx_flanger_instance_run(OmxFlangerInstance *s, const float *in_l,
                                            const float *in_r, float *out_l, float *out_r,
                                            uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready) return;
-  omx_flanger_process(out_l, out_r, n, &s->atom, &s->state);
-  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
-           "bypass-identity");
+  OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, omx_flanger_process(out_l, out_r, n, &s->atom, &s->state));
 }
 #undef OMX_CONTRACT_STAGE
 

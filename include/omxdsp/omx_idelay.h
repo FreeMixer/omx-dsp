@@ -160,7 +160,7 @@ OMXDSP_STATE_LAYOUT(idelay_pair, struct omx_idelay_pair)
  */
 static inline void omx_idelay_pair_apply(float *l, float *r, uint32_t n, struct omx_idelay_pair *d,
                                          uint32_t tgt_l, uint32_t tgt_r) {
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
   OMX_PRE(d == NULL || d->cap == 0u || (tgt_l < d->cap && tgt_r < d->cap),
           "both-targets-inside-the-shared-ring");
   if (n == 0 || d == NULL) return;

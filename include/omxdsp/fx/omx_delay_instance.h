@@ -113,7 +113,6 @@ static inline int omx_delay_instance_init(OmxDelayInstance *s, float sr) {
   s->state.ring_l = s->ring_l;
   s->state.ring_r = s->ring_r;
   s->state.cap = (uint32_t)OMX_FXDELAY_CAP;
-  s->atom.enabled = 0;
   s->bpm = OMX_DELAY_INSTANCE_TEMPO_FALLBACK;
   omx_lfo_start(&s->cstate.wow);
   s->ready = 1;
@@ -248,11 +247,7 @@ static inline void omx_delay_instance_resolve(OmxDelayInstance *s, int bypass, f
 #define OMX_CONTRACT_STAGE "fx-delay/instance-run"
 static inline void omx_delay_instance_run(OmxDelayInstance *s, const float *in_l, const float *in_r, float *out_l,
                                           float *out_r, uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready) return;
-  omx_fx_delay_process_color(out_l, out_r, n, &s->atom, &s->taps, &s->color, &s->cstate, &s->state, s->sr);
-  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
-           "bypass-identity");
+  OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, omx_fx_delay_process_color(out_l, out_r, n, &s->atom, &s->taps, &s->color, &s->cstate, &s->state, s->sr));
 }
 #undef OMX_CONTRACT_STAGE
 

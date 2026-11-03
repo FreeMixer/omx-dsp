@@ -106,7 +106,7 @@ static inline void omx_clipper_instance_run(OmxClipperInstance *s, const float *
     if (s) s->gr_db = 0.0f;
     return;
   }
-  OMX_PRE(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(out_l, out_r, n), "finite-in");
   const float g = s->drive_lin, c = s->ceiling_lin, a = s->knee_lin;
   float over = 0.0f, kept = 0.0f;
   for (uint32_t i = 0; i < n; i++) {
@@ -119,7 +119,7 @@ static inline void omx_clipper_instance_run(OmxClipperInstance *s, const float *
     out_r[i] = yr;
   }
   s->gr_db = over > 0.0f && kept < over ? omx_lin_to_db(kept / over) : 0.0f;
-  OMX_POST(omx_block_finite(out_l, n) && omx_block_finite(out_r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(out_l, out_r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

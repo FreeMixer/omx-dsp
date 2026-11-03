@@ -246,11 +246,7 @@ static inline void omx_reverb_instance_resolve(OmxReverbInstance *s, int bypass,
 static inline void omx_reverb_instance_run(OmxReverbInstance *s, const float *in_l,
                                            const float *in_r, float *out_l, float *out_r,
                                            uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready) return;
-  omx_reverb_process_return(out_l, out_r, n, &s->atom, &s->ret, &s->rstate, &s->state, s->sr);
-  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
-           "bypass-identity");
+  OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, omx_reverb_process_return(out_l, out_r, n, &s->atom, &s->ret, &s->rstate, &s->state, s->sr));
 }
 #undef OMX_CONTRACT_STAGE
 

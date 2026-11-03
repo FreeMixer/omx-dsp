@@ -49,6 +49,18 @@ static inline uint32_t omx_truepeak_delay(void) { return OMX_OVS_UP_DELAY + OMX_
 
 #define OMX_CONTRACT_STAGE "truepeak/block"
 /**
+ * @brief The frames the next chunk of a block takes: what is left of `n` after `done`, at most
+ *        OMX_TRUEPEAK_CHUNK.
+ * @param n Frames in the block.
+ * @param done Frames already taken, at most `n`.
+ * @return Frames, in [0, OMX_TRUEPEAK_CHUNK].
+ * @note RT-safe and thread-safe: arithmetic.
+ */
+static inline uint32_t omx_truepeak_chunk(uint32_t n, uint32_t done) {
+  return n - done < OMX_TRUEPEAK_CHUNK ? n - done : OMX_TRUEPEAK_CHUNK;
+}
+
+/**
  * @brief Read `n` frames: `peak[i]` = the largest `|image|` of frame `i`'s four ×4 images.
  * @param t The detector.
  * @param in `n` base-rate frames; finite.
@@ -68,7 +80,7 @@ static inline float omx_truepeak_block(struct omx_truepeak *t, const float *in, 
   int above = 1;
 #endif
   for (uint32_t done = 0; done < n;) {
-    const uint32_t k = n - done < OMX_TRUEPEAK_CHUNK ? n - done : OMX_TRUEPEAK_CHUNK;
+    const uint32_t k = omx_truepeak_chunk(n, done);
     omx_oversampler_up(&t->ovs, in + done, k, up);
     for (uint32_t i = 0; i < k; i++) {
       const float *f = up + OMX_TRUEPEAK_FACTOR * i;

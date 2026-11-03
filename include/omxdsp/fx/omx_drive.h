@@ -592,7 +592,7 @@ static inline void omx_drive_process(float *l, float *r, uint32_t n, const struc
    *  - mix is 0..1 (the ROW carries percent; the resolver divides), and at 0 the stage is identity
    *    DELAYED by its declared latency, which the battery and test/fx/drive.test.c both assert;
    *  - the curve is bounded, so a finite input gives a finite output whatever the drive. */
-  OMX_PRE(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(l, r, n), "finite-in");
   /* R-056 finding, 2026-09-17 (rt_alloc.test.c's real-render corpus): the factor/mix/state
    * checks are about a stage that is about to RUN; resolve_fx_drive's own early return on
    * `!enabled` leaves os_factor/mix at whatever the struct held before, so checking them
@@ -648,7 +648,7 @@ static inline void omx_drive_process(float *l, float *r, uint32_t n, const struc
     }
     done += c;
   }
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
   OMX_POST(s->prev_gl - s->prev_gl == 0.0f && s->prev_gr - s->prev_gr == 0.0f,
            "auto-gain-state-finite");
 }
