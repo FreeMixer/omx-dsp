@@ -688,6 +688,9 @@ test:
 # fastmath-sabotage the oracle goes red on a result moved by 5 ULP, the loop check on a header without the pragma,
 #                   the probe on a toolchain with no libmvec, no pragma or no vector symbol
 # fastmath-plain    the same oracle, the drive and a dynamics oracle again with FASTMATH=off: the libm path
+# fastmath-partial  the flags of a libmvec with log10f and expf but no powf and no tanhf (aarch64 glibc before 2.40),
+#                   on any host: no loop that needs a missing function takes its lane, every render is the plain
+#                   libm build's bit for bit, and the loop check passes on that set
 # Without libmvec in the build (the probe found nothing, or FASTMATH=off) each says so and passes.
 FM_DIFF_LIMIT_DBFS ?= -96
 
@@ -716,10 +719,20 @@ fastmath-sabotage: $(BUILD)/fastmath_sabotage
 fastmath-plain:
 	$(MAKE) --no-print-directory FASTMATH=off BUILD=$(BUILD)/plain fastmath fx-run-kernel-drive fx-run-oracle-dyn_flat fx-run-kernel-dynamics
 
-.PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain
+FM_PARTIAL_CFLAGS = -fopenmp-simd -fno-math-errno -DOMX_FASTMATH_MVEC_LOG10F=1 -DOMX_FASTMATH_MVEC_EXPF=1
+$(BUILD)/fastmath_partial: test/fx/fastmath_partial.test.c test/fx/fastmath_partial_render.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS_PLAIN) $(FM_PARTIAL_CFLAGS) -DOMX_PARTIAL_SIDE=partial $(INC) -c -o $(BUILD)/fastmath_partial_p.o test/fx/fastmath_partial_render.c
+	$(CC) $(CFLAGS_PLAIN) -DOMX_PARTIAL_SIDE=plain $(INC) -c -o $(BUILD)/fastmath_partial_l.o test/fx/fastmath_partial_render.c
+	$(CC) $(CFLAGS_PLAIN) $(INC) -o $@ $< $(BUILD)/fastmath_partial_p.o $(BUILD)/fastmath_partial_l.o $(LIB) -lm $(MVEC_LIBS)
+
+fastmath-partial: $(BUILD)/fastmath_partial
+	./$(BUILD)/fastmath_partial
+	sh tools/fastmath-vec-check.sh "$(CC)" "$(INC) $(FPFLAGS)" $(FM_PARTIAL_CFLAGS)
+
+.PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
 
 .PHONY: test-parallel
-test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
 
 # ---- install ------------------------------------------------------------------------------------
 
