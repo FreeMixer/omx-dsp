@@ -35,6 +35,7 @@ const PIN_HEADER = 'include/omxdsp/omx_contract_limits.h';
 export const MOVED_AFTER_PIN = new Map([
   ['OMX_INPUT_ALIGN_DELAY_RANGE_STEP', 'the input alignment step went from 0.01 ms to 0.0001 ms when the alignment line became a fractional read'],
   ['OMX_INPUT_ALIGN_DELAY_RANGE_STEP_DOUBLE', 'the same step, as a double'],
+  ['OMX_EQ_NOTCH_Q_RANGE_STEP', '09ff9da: 1 to 0.1, as a travel\'s step must reach its maximum and default from its minimum, and 0.3 + n never lands on 116'],
 ]);
 
 /** The units a first-release item gained after v0.1.3 (a sheet's new field), each with the reason. */
