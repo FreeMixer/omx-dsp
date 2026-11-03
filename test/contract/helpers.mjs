@@ -5,6 +5,7 @@
  * union a consumer installs), its renders, and the helpers that perturb a scratch copy of it. Moved from omx-contract's
  * test/helpers.mjs with the tests, reading this tree instead of a 2.14.0 copy of it.
  */
+import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -17,6 +18,9 @@ export const ROOT = OC;
 export const DATA = join(OC, 'data');
 /** This library's checkout. */
 export const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+
+/** A file of this library at a commit of its own history (the CI checkout holds the whole history). */
+export const atCommit = (rev, path) => execFileSync('git', ['-C', HERE, 'show', `${rev}:${path}`], { encoding: 'utf8', maxBuffer: 1 << 26 });
 
 const scratch = [];
 process.on('exit', () => { for (const d of scratch) rmSync(d, { recursive: true, force: true }); });
