@@ -167,16 +167,16 @@ export function roundTrip({ dataDir = join(HERE, 'data'), answersDir = join(HERE
 
 /**
  * Every unit READS_PIN's code read, but the c.alias spellings ALIAS_REMOVAL took out, is in the render of `dataDir`
- * with READS_PIN's text, or named in `moved` (its value moved since, with the reason).
+ * with READS_PIN's text, or is named in `moved` (its value moved since) or `dropped` (no longer carried), with the reason.
  */
-export function readsCheck({ dataDir = join(HERE, 'data'), moved = MOVED_AFTER_PIN } = {}) {
+export function readsCheck({ dataDir = join(HERE, 'data'), moved = MOVED_AFTER_PIN, dropped = DROPPED_AFTER_PIN } = {}) {
   const { header, read } = pin(READS_PIN);
   const aliases = new Set([...git('show', ALIAS_REMOVAL, '--', 'include/omxdsp/omxdsp_definitions.h').matchAll(/^-#define (OMX_\w+)/gm)].map((m) => m[1]));
   const checked = read.filter((k) => !aliases.has(k));
   const texts = { ...textsUnder(join(resolve(OC), 'data')), ...textsUnder(dataDir) };
   const ours = new Map(units(renderC(resolveData(loadData(null, texts))).find((f) => f.path === 'omxcontract/omx_contract_limits.h').text).map((u) => [u.key, text(u)]));
   const theirs = new Map(units(header).map((u) => [u.key, text(u)]));
-  const missing = checked.filter((k) => !ours.has(k));
+  const missing = checked.filter((k) => !ours.has(k) && !dropped.has(k));
   const differing = checked.filter((k) => ours.has(k) && ours.get(k) !== theirs.get(k) && !moved.has(k));
   return { ok: !missing.length && !differing.length && aliases.size > 0, read: read.length, aliases: read.length - checked.length, missing, differing };
 }
