@@ -1,0 +1,108 @@
+{
+  "kernel": "width",
+  "since": "0.27.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "93c137eed0ffe50642d28f26a5566c3b01f9f67f"
+  },
+  "items": [
+    {
+      "name": "WIDTH_WIDTH_PCT_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#wpct"
+      },
+      "value": {
+        "min": 0,
+        "max": 200,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "The stereo width, percent: the side (L - R)/2 times widthPct/100 over the mid (L + R)/2. 0 is mono, 100 the input bit for bit (the come-up value), 200 the side doubled."
+    },
+    {
+      "name": "WIDTH_PSEUDOS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#pmode"
+      },
+      "value": [
+        "off",
+        "comb",
+        "haas"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "Comb",
+        "Haas"
+      ],
+      "doc": "A pseudo-stereo for a mono source, in the order of the integer the kernel reads: off; comb, the complementary comb L = M + g M[n - d], R = M - g M[n - d] with g WIDTH_COMB_GAIN, whose mono sum is the mid exactly; haas, the right leg delayed by pseudoMs. Off comes up."
+    },
+    {
+      "name": "WIDTH_PSEUDO_MS_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#pms"
+      },
+      "value": {
+        "min": 0,
+        "max": 30,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 12,
+        "defaultFrom": "desk"
+      },
+      "doc": "The pseudo-stereo's delay d, ms, rounded to the nearest sample."
+    },
+    {
+      "name": "WIDTH_BASS_MONOS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#bmode"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "Whether the low end is summed to mono: on splits the side with a Linkwitz-Riley crossover at bassMonoHz (omx_xover, LR4) and keeps its high band only, the mid through the crossover's all-pass so the bands stay in phase. Off comes up."
+    },
+    {
+      "name": "WIDTH_BASS_MONO_HZ_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/fx/omx_width_instance.h#bhz"
+      },
+      "value": {
+        "min": 20,
+        "max": 300,
+        "step": 1,
+        "unit": "Hz",
+        "default": 120,
+        "defaultFrom": "desk"
+      },
+      "doc": "Where the low end goes mono, Hz: the crossover's corner."
+    },
+    {
+      "name": "WIDTH_COMB_GAIN",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/omx_width.h#omx_width_process"
+      },
+      "value": 0.5,
+      "unit": "",
+      "doc": "The complementary comb's gain g: its legs ripple between 1 - g and 1 + g, 0.5 a +3.5 / -6 dB comb, the mono sum unmoved."
+    },
+    {
+      "name": "WIDTH_MAX_DELAY_MS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/width.json at 93c137eed0ff, implemented at include/omxdsp/omx_width.h#omx_width_delay"
+      },
+      "value": 30,
+      "unit": "ms",
+      "doc": "The longest pseudo-stereo delay, ms: pseudoMs' top, the delay omx_width_delay holds to, the ring sized for it at 192 kHz."
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "kernel": "tone",
+  "since": "0.27.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "cab623a707533b2906f4aa116858ef5956d8dc6f"
+  },
+  "items": [
+    {
+      "name": "TONE_TILT_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#span_db"
+      },
+      "value": {
+        "min": -6,
+        "max": 6,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The tilt's span, dB: one first-order complementary shelf pair about pivotHz (omx_tilt, a = 10^(tiltDb/40)), -tiltDb/2 at DC, +tiltDb/2 at Nyquist and 0 dB at the pivot. Positive brightens, negative darkens; +6 is a +-3 dB pair, about 2 dB per octave at the pivot. 0 is flat, the come-up value, bit for bit. A wider reach is a wider travel here, never a second section."
+    },
+    {
+      "name": "TONE_PIVOT_HZ_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#pivot_hz"
+      },
+      "value": {
+        "min": 200,
+        "max": 5000,
+        "step": 10,
+        "unit": "Hz",
+        "default": 1000,
+        "defaultFrom": "desk"
+      },
+      "doc": "The tilt's pivot, Hz: the frequency the tilt leaves at 0 dB, at every rate (the section is prewarped there)."
+    },
+    {
+      "name": "TONE_FILTER_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#filter"
+      },
+      "value": {
+        "min": -100,
+        "max": 100,
+        "step": 1,
+        "unit": "",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The DJ filter: below 0 a low-pass whose corner falls from TONE_FILTER_HIGH_HZ toward TONE_FILTER_LOW_HZ at -100, above 0 a high-pass whose corner rises from TONE_FILTER_LOW_HZ toward TONE_FILTER_HIGH_HZ at +100, on a log map; the EQ's own low-pass and high-pass sections. 0 is open, the come-up value, bit for bit."
+    },
+    {
+      "name": "TONE_RESONANCE_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#q"
+      },
+      "value": {
+        "min": 0.5,
+        "max": 4,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.71,
+        "defaultFrom": "desk"
+      },
+      "doc": "The DJ filter's resonance, its section's Q: the magnitude at the corner. It comes up at 0.71, the Butterworth's 1/sqrt(2) on the step."
+    },
+    {
+      "name": "TONE_FILTER_LOW_HZ",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#OMX_TONE_INSTANCE_LOW_HZ"
+      },
+      "value": 20,
+      "unit": "Hz",
+      "doc": "The DJ filter's low end: the low-pass's corner at -100, and the high-pass's as the word leaves 0."
+    },
+    {
+      "name": "TONE_FILTER_HIGH_HZ",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/tone.json at cab623a70753, implemented at include/omxdsp/fx/omx_tone_instance.h#OMX_TONE_INSTANCE_HIGH_HZ"
+      },
+      "value": 20000,
+      "unit": "Hz",
+      "doc": "The DJ filter's high end: the high-pass's corner at +100, and the low-pass's as the word leaves 0; held at 0.999 of Nyquist where the rate is lower."
+    }
+  ]
+}

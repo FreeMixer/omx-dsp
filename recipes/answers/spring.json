@@ -1,0 +1,125 @@
+{
+  "kernel": "spring",
+  "since": "0.28.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "994c5d26e17e0018417fc84d67f33fa3846efd1c"
+  },
+  "items": [
+    {
+      "name": "SPRING_DECAY_S_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#dc"
+      },
+      "value": {
+        "min": 0.5,
+        "max": 8,
+        "step": 0.1,
+        "unit": "s",
+        "default": 2,
+        "defaultFrom": "desk"
+      },
+      "doc": "The time the tail takes to fall 60 dB, seconds."
+    },
+    {
+      "name": "SPRING_LENGTH_MS_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#ln"
+      },
+      "value": {
+        "min": 20,
+        "max": 60,
+        "step": 1,
+        "unit": "ms",
+        "default": 35,
+        "defaultFrom": "desk"
+      },
+      "doc": "The spring's delay, ms: the time of one trip along it, the first return."
+    },
+    {
+      "name": "SPRING_TENSION_PCT_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#tn"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 50,
+        "defaultFrom": "desk"
+      },
+      "doc": "How hard the spring is drawn, percent: it sets the dispersion's corner from SPRING_CHIRP_HZ, and with it the drip of the low notes arriving after the high ones."
+    },
+    {
+      "name": "SPRING_DAMP_HZ_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#dp"
+      },
+      "value": {
+        "min": 1000,
+        "max": 10000,
+        "step": 100,
+        "unit": "Hz",
+        "default": 4000,
+        "defaultFrom": "desk"
+      },
+      "doc": "The loop's low-pass corner, Hz: the tail darkens as it falls."
+    },
+    {
+      "name": "SPRING_MIX_PCT_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#mx"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The wet against the dry, percent. It comes up at 0, the input bit for bit."
+    },
+    {
+      "name": "SPRING_SECTIONS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_chain_delay"
+      },
+      "value": 40,
+      "unit": "",
+      "doc": "The first-order all-pass sections in the loop: enough of them and the low notes come later, the sound of a spring."
+    },
+    {
+      "name": "SPRING_CHIRP_HZ",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#OMX_SPRING_INSTANCE_CHIRP"
+      },
+      "value": [
+        1200,
+        3600
+      ],
+      "unit": "Hz",
+      "doc": "The all-pass sections' corner at a tension of 0 and of 100 %, Hz, moved linearly between."
+    },
+    {
+      "name": "SPRING_RIGHT_RATIO",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_instance_resolve"
+      },
+      "value": 1.13,
+      "unit": "",
+      "doc": "The right spring's length against the left's: two springs of different lengths, as a tank carries, so the legs decorrelate."
+    },
+    {
+      "name": "SPRING_LOOP_MAX",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/spring.json at 994c5d26e17e, implemented at include/omxdsp/fx/omx_spring_instance.h#omx_spring_instance_resolve"
+      },
+      "value": 0.97,
+      "unit": "",
+      "doc": "The loop gain's ceiling: the tail always decays."
+    }
+  ]
+}
