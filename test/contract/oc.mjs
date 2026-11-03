@@ -12,7 +12,7 @@ export const OC = process.env.OMX_CONTRACT ? resolve(process.env.OMX_CONTRACT) :
 if (!OC || !existsSync(join(OC, 'lib/data.mjs'))) throw new Error('OMX_CONTRACT names no omx-contract checkout (make contract-proof OMX_CONTRACT=<dir>)');
 const oc = (p) => import(pathToFileURL(join(OC, p)).href);
 
-export const { loadData, resolveData, packageVersion, controlGlobal, isKernelFile, isUse } = await oc('lib/data.mjs');
+export const { loadData, resolveData, packageVersion, controlGlobal, isKernelFile, isUse, lagrangeReadL1 } = await oc('lib/data.mjs');
 export const { validateData } = await oc('lib/validate.mjs');
 export const { renderC } = await oc('render/c.mjs');
 export const { renderJson } = await oc('render/json.mjs');
