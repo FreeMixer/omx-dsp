@@ -1,7 +1,7 @@
 {
   "name": "@openmixer/omx-dsp",
   "version": "0.29.0",
-  "description": "The TypeScript twins of omx-dsp kernels, each pinned to its C kernel by an agreement test",
+  "description": "The TypeScript twins of omx-dsp kernels, each pinned to its C kernel by an agreement test, and the oracle that pins them",
   "type": "module",
   "license": "GPL-3.0-or-later",
   "author": "Pau Aliagas <linuxnow@gmail.com>",
@@ -16,11 +16,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./oracle": {
+      "types": "./oracle/ts-twin-oracle.d.mts",
+      "import": "./oracle/ts-twin-oracle.mjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist/",
-    "src/"
+    "src/",
+    "oracle/"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

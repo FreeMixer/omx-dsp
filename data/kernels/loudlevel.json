@@ -60,7 +60,9 @@
       },
       "doc": "Under this the gain holds: a pause is not a quiet passage, and the leveler must not ride up the room between sentences.",
       "travel": {
-        "min": -70,
+        "min": {
+          "ref": "BS1770_ABSOLUTE_GATE_LUFS"
+        },
         "max": -30,
         "step": 1,
         "unit": "dB",
@@ -91,7 +93,9 @@
       "name": "loudnessLufs",
       "doc": "The loudness the detector reads now, LUFS, before the gain.",
       "unit": "dB",
-      "min": -70,
+      "min": {
+        "ref": "BS1770_ABSOLUTE_GATE_LUFS"
+      },
       "max": 0,
       "scale": "linear",
       "rateHz": {

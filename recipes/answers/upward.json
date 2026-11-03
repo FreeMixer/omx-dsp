@@ -1,0 +1,95 @@
+{
+  "kernel": "upward",
+  "since": "3.0.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "440990b1a7c89f15cf5ed8ec18f32e0b0b6a7865"
+  },
+  "items": [
+    {
+      "name": "UPWARD_THRESHOLD_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#th"
+      },
+      "value": {
+        "min": -70,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -40,
+        "defaultFrom": "desk"
+      },
+      "doc": "The level, dBFS, under which the face starts to lift."
+    },
+    {
+      "name": "UPWARD_RATIO_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#ra"
+      },
+      "value": {
+        "min": 1,
+        "max": 10,
+        "step": 0.1,
+        "unit": "",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "doc": "The upward ratio: the lift is (1 - 1/ratio) of the distance under the threshold. 1 lifts nothing and is the input, bit for bit, the come-up value."
+    },
+    {
+      "name": "UPWARD_RANGE_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#rg"
+      },
+      "value": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 6,
+        "defaultFrom": "desk"
+      },
+      "doc": "The largest lift, dB: a signal far under the threshold, the room's noise included, rises by this and no more."
+    },
+    {
+      "name": "UPWARD_ATTACK_MS_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#at"
+      },
+      "value": {
+        "min": 0.1,
+        "max": 100,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 5,
+        "defaultFrom": "desk"
+      },
+      "doc": "How fast the detector follows a rise, ms; a rise takes the lift away."
+    },
+    {
+      "name": "UPWARD_RELEASE_MS_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#rl"
+      },
+      "value": {
+        "min": 5,
+        "max": 3000,
+        "step": 5,
+        "unit": "ms",
+        "default": 200,
+        "defaultFrom": "desk"
+      },
+      "doc": "How fast the detector follows a fall, ms; a fall brings the lift in."
+    },
+    {
+      "name": "UPWARD_KNEE_DB",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/upward.json at 440990b1a7c8, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_upward_instance.h#omx_upward_instance_resolve"
+      },
+      "value": 6,
+      "unit": "dB",
+      "doc": "The face's knee, dB, across the threshold: the lift eases in rather than starting on a corner."
+    }
+  ]
+}

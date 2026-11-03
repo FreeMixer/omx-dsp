@@ -101,7 +101,7 @@ static inline void omx_route_fold_gain(const float *inL, const float *inR, float
 static inline void omx_route_fold_fill(float *busL, float *busR, uint32_t n, float tgt, float *curL,
                                        float *curR) {
   if (n == 0) return;
-  OMX_PRE(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-in");
+  OMX_PRE(omx_block_pair_finite(busL, busR, n), "finite-in");
   float cl = *curL, cr = *curR;
   float stepL = (tgt - cl) / (float)n;
   float stepR = (tgt - cr) / (float)n;
@@ -116,7 +116,7 @@ static inline void omx_route_fold_fill(float *busL, float *busR, uint32_t n, flo
   }
   *curL = tgt;
   *curR = tgt;
-  OMX_POST(omx_block_finite(busL, n) && omx_block_finite(busR, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(busL, busR, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

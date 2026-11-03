@@ -75,16 +75,13 @@ static inline uint32_t omx_limiter_instance_cap_for(float sr) { return omx_limit
  * at the declared default look-ahead. Allocates nothing.
  */
 static inline int omx_limiter_instance_init(OmxLimiterInstance *s, float sr) {
-  if (!s) return 0;
-  memset(s, 0, sizeof(*s));
-  if (!omx_rate_is_oracle_full(sr)) return 0;
+  if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   const uint32_t cap = omx_limiter_instance_cap_for(sr);
   if (cap > OMX_LIMITER_INSTANCE_CAP || omx_limiter_mem_floats(cap) > 4u * OMX_LIMITER_INSTANCE_CAP) return 0;
   s->sr = sr;
   s->cap = cap;
   s->lookahead_ms = OMX_LIMITER_LOOKAHEAD_MS_DEFAULT;
   omx_limiter_init(&s->state, s->lookahead_ms, sr, s->mem, s->idx, cap);
-  s->atom.enabled = 0;
   s->atom.ceiling_db = OMX_LIMITER_CEILING_DB_DEFAULT;
   s->atom.release_ms = OMX_LIMITER_RELEASE_MS_DEFAULT;
   s->ready = 1;
@@ -132,11 +129,7 @@ static inline void omx_limiter_instance_resolve(OmxLimiterInstance *s, int bypas
 #define OMX_CONTRACT_STAGE "limiter/instance-run"
 static inline void omx_limiter_instance_run(OmxLimiterInstance *s, const float *in_l, const float *in_r,
                                             float *out_l, float *out_r, uint32_t n) {
-  if (!omx_instance_copy_through(in_l, in_r, out_l, out_r, n)) return;
-  if (!s || !s->ready) return;
-  omx_limiter_process(out_l, out_r, n, &s->atom, &s->state);
-  OMX_POST(s->atom.enabled || omx_instance_same_block(out_l, out_r, in_l, in_r, n),
-           "bypass-identity");
+  OMX_INSTANCE_RUN_IN_PLACE(s, in_l, in_r, out_l, out_r, n, omx_limiter_process(out_l, out_r, n, &s->atom, &s->state));
 }
 #undef OMX_CONTRACT_STAGE
 

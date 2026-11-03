@@ -229,7 +229,7 @@ static inline int omx_block_pair_finite(const float *l, const float *r, uint32_t
  * @note RT-safe and thread-safe: a read-only pass.
  */
 static inline int omx_lane_finite(const float *l, const float *r, uint32_t n) {
-  return omx_block_finite(l, n) && omx_block_finite(r, n);
+  return omx_block_pair_finite(l, r, n);
 }
 
 /**

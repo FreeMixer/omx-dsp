@@ -1,0 +1,87 @@
+{
+  "kernel": "loudlevel",
+  "since": "3.0.0",
+  "engine": {
+    "repo": "omx-dsp",
+    "ref": "main",
+    "commit": "24e17bd49832b4c686d00ea0e3dda79217cb1cca"
+  },
+  "items": [
+    {
+      "name": "LOUDLEVEL_TARGET_LUFS_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#tg"
+      },
+      "value": {
+        "min": -40,
+        "max": -6,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -23,
+        "defaultFrom": "desk"
+      },
+      "doc": "The loudness the face holds the signal at, LUFS (BS.1770, K-weighted)."
+    },
+    {
+      "name": "LOUDLEVEL_RANGE_DB_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#rg"
+      },
+      "value": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The most the face moves the signal, dB, either way. It comes up at 0, the input bit for bit: nothing moves until it is given room."
+    },
+    {
+      "name": "LOUDLEVEL_SPEED_DB_PER_S_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#sp"
+      },
+      "value": {
+        "min": 0.1,
+        "max": 6,
+        "step": 0.1,
+        "unit": "dB",
+        "default": 1,
+        "defaultFrom": "desk"
+      },
+      "doc": "How fast the gain walks, dB per second. A slow walk is a hand on a fader; a fast one reads as compression."
+    },
+    {
+      "name": "LOUDLEVEL_GATE_LUFS_RANGE",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#gt"
+      },
+      "value": {
+        "min": -70,
+        "max": -30,
+        "step": 1,
+        "unit": "dB",
+        "default": -50,
+        "defaultFrom": "desk"
+      },
+      "doc": "Under this the gain holds: a pause is not a quiet passage, and the leveler must not ride up the room between sentences."
+    },
+    {
+      "name": "LOUDLEVEL_WINDOWS",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/loudlevel.json at 24e17bd49832, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_loudlevel_instance.h#wn"
+      },
+      "value": [
+        "momentary",
+        "short"
+      ],
+      "default": "short",
+      "labels": [
+        "Momentary",
+        "Short-term"
+      ],
+      "doc": "What the loudness is measured over, in the order of the integer the kernel reads: momentary, 400 ms; short, 3 s."
+    }
+  ]
+}

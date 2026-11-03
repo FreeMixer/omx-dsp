@@ -19,25 +19,9 @@ permissions:
 env:
   # omx-contract's reader, render and install script, which data/ is read back through and the definitions header
   # rendered by, from this release tag: the floor packaging/deps.txt declares
-  OMX_CONTRACT_REF: v3.1.0
+  OMX_CONTRACT_REF: v3.8.0
 
 jobs:
-  # A commit message is published like a file. A pull request's own commits must name no private
-  # repository, path or issue; what is already on main is not read.
-  commit-messages:
-    name: commit messages name nothing private
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Scan origin/main..head
-        id: handback-commit-messages
-        run: make public-sources-messages RANGE=origin/${{ github.event.pull_request.base.ref }}..HEAD
-
   test:
     name: make test (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.OMX_RUNNER || 'ubuntu-latest' }}
@@ -104,15 +88,6 @@ jobs:
         id: handback-spdx
         run: tools/spdx-check.sh
 
-      - name: No source points into a private repository
-        id: handback-public-sources
-        run: make public-sources
-
-      # FreeMixer/.github's one engine, at the commit that added it; the exemptions are tools/private-refs-allow.txt
-      - name: No tracked file names a private repository, issue, branch or path
-        id: handback-private-refs
-        uses: FreeMixer/.github/.github/actions/private-refs-check@b11c009e05baf221a38c72ba419917807ef82b01
-
       # packaging/deps.txt is the one place a floor is written: the spec, debian/control and OMX_CONTRACT_REF follow it
       - name: The dependency floors are the ones packaging/deps.txt declares
         id: handback-deps
@@ -129,6 +104,40 @@ jobs:
   # The sabotage of the range: omx-contract 2.6.0, which the channel still serves and which is below
   # the floor the spec declares, must stop the build at once with a message that names the
   # dependency, the floor and the version installed.
+  # The TypeScript twins against the kernels (ts/: npm test), on the library this tree builds; the publish workflow runs
+  # the same before it publishes, so a twin that disagrees is red here first.
+  twins:
+    name: The TypeScript twins agree with the kernels
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install the build tools
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf dpkg-dev
+      - uses: actions/checkout@v4
+      - name: Add the OpenMixer repository
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+      - name: Install the build dependencies from the OpenMixer channel
+        run: apt-get build-dep -y --no-install-recommends ./
+      - name: The library the twins are checked against
+        run: make -j"$(nproc)" lib
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm test
+        working-directory: ts
+        run: |
+          set -o pipefail
+          npm ci
+          npm test 2>&1 | tee /tmp/ts-test.log
+          grep -q 'linked against the tree' /tmp/ts-test.log
+
   contract-floor:
     name: below the omx-contract floor the build refuses (${{ matrix.image }})
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.OMX_RUNNER || 'ubuntu-latest' }}
@@ -184,13 +193,17 @@ jobs:
           echo "refused as it must be: $(grep -m1 'contract-include:' out.txt)"
 
   # data/ read back through omx-contract's reader (make contract-dir) and the committed definitions header held
-  # equal to its render (make definitions-check). Both need node and an omx-contract checkout, which no other job has.
+  # equal to its render (make definitions-check), and the round-trip and completeness proofs over data/ and recipes/answers/
+  # (make contract-proof). They need node and an omx-contract checkout, which no other job has.
   contract:
     name: data/ read back through omx-contract's reader, the committed header its render
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          # the proofs read this library's own history: v0.1.3's header, 4108494's reads, e2a13a0's removed aliases
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -219,6 +232,12 @@ jobs:
 
       - name: make eq-defaults-table
         run: make eq-defaults-table
+
+      - name: make contract-proof
+        run: make contract-proof OMX_CONTRACT=/tmp/omx-contract
+
+      - name: make contract-tests
+        run: make contract-tests OMX_CONTRACT=/tmp/omx-contract
 
   # The libFuzzer harnesses of fuzz/ (clang, libFuzzer, ASan, UBSan, the library's contracts), each run for 60 s from
   # its seed corpus; red on any crash or broken contract, the crashing input uploaded. omx-contract's header is
@@ -412,18 +431,7 @@ jobs:
       publish: false
       arm: false  # arm64/aarch64 build at release only
 
-  # A commit message is published like a file. A pull request's own commits must carry no
-  # attribution line (the commit-message-check action of FreeMixer/.github); what is already on the base is not read.
-  commit-message-check:
-    name: commit messages pass the message check
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: FreeMixer/.github/.github/actions/commit-message-check@main
-        with:
-          base-ref: ${{ github.event.pull_request.base.ref }}
+  # the checks every FreeMixer repository runs on what it publishes: commit messages, private references, and no
+  # local copy of either (FreeMixer/.github's public-sources-check)
+  public-sources:
+    uses: FreeMixer/.github/.github/workflows/public-sources-check.yml@v1

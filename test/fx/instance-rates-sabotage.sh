@@ -4,8 +4,8 @@
 #
 # instance-rates-sabotage.sh <dir> <archive> — the instance oracles at the nine oracle rates are not blind
 # to the declared-only gate (FreeMixer/omx-dsp#179). Each sabotage builds one face's oracle against a
-# SABOTAGED COPY of the headers placed ahead of the real include directory, with the face's init put
-# back to omx_rate_is_declared(sr); the build must go red on the init arm at 32 kHz (the first of the
+# SABOTAGED COPY of the headers placed ahead of the real include directory, with the face's init also
+# gated on omx_rate_is_declared(sr); the build must go red on the init arm at 32 kHz (the first of the
 # three rates outside the declaration), never on a compiler error. The deesser has a second sabotage:
 # its detector band's Nyquist cap removed, which must go red on the stable-band arm at 32 kHz. The tree
 # is never edited; a sed that matches nothing is a failure, not a skip. The real oracles, run by
@@ -50,7 +50,7 @@ run() { # $1 = name, $2 = header, $3 = oracle, $4 = link flags, $5 = sed express
   echo "instance-rates-sabotage: $name — $(grep -c '^FAIL ' "$log") checks of $oracle fail, as they must"
 }
 
-GATE='s|  if (!omx_rate_is_oracle_full(sr)) return 0;|  if (!omx_rate_is_declared(sr)) return 0;|'
+GATE='s|  if (!omx_instance_bind(s, sizeof(\*s), sr)) return 0;|  if (!omx_instance_bind(s, sizeof(*s), sr) \|\| !omx_rate_is_declared(sr)) return 0;|'
 pids=()
 for k in drive rotary reverb chorus deesser delay flanger limiter; do
   ld=$WRAP; [ "$k" = rotary ] && ld=''

@@ -7,3 +7,21 @@ export const RTA_TARGET_BIN_HZ = 5.9;
 
 /** The largest RTA FFT the native ring holds — generated into `omx_contract_limits.h` as `OMX_RTA_FFT_SIZE_MAX`. @see data/kernels/rta.json */
 export const RTA_FFT_SIZE_MAX = 32768;
+
+/** Where the low-pass section hands its poles over from the matched pair to the prewarped bilinear pair, as fractions of Nyquist, and how that band moves with Q. At `qHi` (1/sqrt(2), the 12 dB Butterworth) the band runs from `loAtHiQ` to `hiAtHiQ`; at `qLo` (0.5412, the low-Q half of the 24 dB Butterworth) and below, from `loAtLoQ` to `hiAtLoQ`; between the two it moves linearly. Above `qHi` the prototype peaks, and the band's end moves down to `hiAtPeakQ` by `qPeak`, held above it. Below the band the low-pass is the matched design unchanged. @see data/kernels/eq.json */
+export const LOWPASS_HANDOVER = {
+  qHi: 0.7071067811865476,
+  qLo: 0.541196100146197,
+  qPeak: 0.9,
+  loAtHiQ: 0.6,
+  hiAtHiQ: 0.85,
+  loAtLoQ: 0.8,
+  hiAtLoQ: 0.9,
+  hiAtPeakQ: 0.8,
+} as const;
+
+/** The Q (resonance) extent of a parametric band. @see data/kernels/eq.json */
+export const EQ_Q_RANGE = { min: 0.3, max: 8 } as const;
+
+/** The Q extent of a NOTCH band. Wider than EQ_Q_RANGE on purpose (#116, operator decision): an ultra-narrow surgical cut is the notch shape's whole point — the FBS ring-out pool plants dbx-AFS-style ring killers at Q ≈ 116 (~1/80 octave), inaudible on program yet fatal to a single ringing frequency. Gain-carrying shapes stay bounded at EQ_Q_RANGE — a Q-116 bell is a resonator, not an EQ move. @see data/kernels/eq.json */
+export const EQ_NOTCH_Q_RANGE = { min: 0.3, max: 116 } as const;

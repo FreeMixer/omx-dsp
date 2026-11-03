@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 3.1.0
+BuildRequires: omx-contract-devel >= 3.8.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -34,14 +34,14 @@ parts that are already tested against exact results at every sample rate.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 3.1.0
+Requires: omx-contract-devel >= 3.8.0
 Requires: %{name}-contract = %{version}-%{release}
 
 %package contract
 Summary: omx-dsp's kernel and instance declarations, for programs that read them at run time
 BuildArch: noarch
 # the declarations live in omx-contract's contract directory and are read against its schema; a floor only
-Requires: omx-contract-data >= 3.1.0
+Requires: omx-contract-data >= 3.8.0
 
 %description contract
 omx-dsp's package of omx-contract's contract directory: the declarations of
@@ -109,6 +109,20 @@ library exists.
   the built library. The sabotage and perturbation arms run in make test, in
   CI on every pull request; under make -j4 test the deb build went past its
   60 minutes on a 4-core runner.
+- With a libmvec that lacks a function a loop needs (aarch64 glibc before 2.40),
+  that loop takes the plain path; the gate's knee lane raises no floating-point
+  exception; a package build no longer picks up the vector flags from the
+  environment (#272).
+- Requires omx-contract 3.8.0 or later.
+- The TypeScript package also exports the four twins the console used to copy
+  (clampEqQFor, matchedPair, biquadMagnitudeDb, magnitudeSumDb) and the oracle
+  that pins the twins (@openmixer/omx-dsp/oracle).
+- The round-trip and completeness proofs over omx-dsp's own data and answers
+  live here now (make contract-proof). The BS.1770 and EBU Tech 3342 loudness
+  constants are declared once and referenced; glue, dyneq and balancer bounds
+  refer to their declared values instead of repeating the numbers.
+- The instance tests share one harness and the clone baseline is gone; CI runs
+  FreeMixer/.github's shared checks.
 
 * Sun Nov 01 2026 Pau Aliagas <linuxnow@gmail.com> - 0.28.0-1
 - New faces, each with closed-form oracles at the nine rates: clipper, upward

@@ -264,7 +264,7 @@ static inline void omx_mbcomp_process(float *l, float *r, uint32_t n, const stru
     }
     done += c;
   }
-  OMX_POST(omx_block_finite(l, n) && omx_block_finite(r, n), "finite-out");
+  OMX_POST(omx_block_pair_finite(l, r, n), "finite-out");
 }
 #undef OMX_CONTRACT_STAGE
 

@@ -12,7 +12,7 @@
  * one token, names stay as written. A region is a maximal run of at least MIN_TOKENS tokens that two
  * files share. A run that is half literals or more is a table, and a run of fewer than MIN_STATEMENTS
  * statements is a signature (every instance face opens on the same parameter list); neither is counted.
- * tools/clone-check.sh holds this output to tools/clone-baseline.txt.
+ * tools/clone-check.sh is red on any line of this output.
  */
 #include <stdint.h>
 #include <stdio.h>

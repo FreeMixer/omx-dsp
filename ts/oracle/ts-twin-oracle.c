@@ -16,7 +16,7 @@
  * Each kernel's argument layout is the comment above its handler. Float kernels are called with the
  * inputs narrowed to float and answer the float widened back, exactly as the engine calls them.
  *
- * It links the installed omx-dsp (tools/omxdsp.sh), never a copy of any maths of its own: a number
+ * It links omx-dsp (ts-twin-oracle.mjs says which build), never a copy of any maths of its own: a number
  * here that the library does not produce is a bug in this file.
  */
 #include <math.h>
@@ -33,6 +33,7 @@
 #include <omxdsp/fx/omx_eq_instance.h>
 #include <omxdsp/mix/omx_pan_law.h>
 #include <omxdsp/omx_balance_law.h>
+#include <omxdsp/omx_contract.h>
 #include <omxdsp/omx_dyn.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_magnitude.h>
@@ -333,9 +334,19 @@ static void list_kernels(void) {
   for (size_t i = 0; i < sizeof TABLE / sizeof TABLE[0]; i++) printf("%s\n", TABLE[i].name);
 }
 
+/* The rates a rate-dependent twin is checked at: the contract's full oracle grid, as the library was built with it. */
+static void list_rates(void) {
+  static const float rates[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
+  for (uint32_t i = 0; i < OMX_ORACLE_FULL_RATES_COUNT; i++) printf("%.17g\n", (double)rates[i]);
+}
+
 int main(int argc, char **argv) {
   if (argc > 1 && strcmp(argv[1], "--list") == 0) {
     list_kernels();
+    return 0;
+  }
+  if (argc > 1 && strcmp(argv[1], "--rates") == 0) {
+    list_rates();
     return 0;
   }
   static char line[1 << 20];
