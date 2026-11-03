@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+/**
+ * @file omx_fastmath.h
+ * @brief The vector math library calls the per-sample kernels make: tanhf, expf, log10f, powf.
+ *
+ * glibc ships SIMD versions of these functions in libmvec (`_ZGVbN4v_tanhf` and the like on
+ * x86-64, `_ZGVnN4v_tanhf` on aarch64) and the compiler calls them from a vectorised loop when the
+ * function is declared `#pragma omp declare simd`. glibc's own <math.h> makes those declarations only
+ * under `__FAST_MATH__`, which this library never uses (`-ffast-math` sets flush-to-zero in the
+ * process at load); this header makes the same declarations, for the functions the build found in
+ * the libmvec it links, and nothing else.
+ *
+ * ## How a build turns it on
+ *
+ * The compile flags carry, per function the build-time probe (tools/fastmath-probe.sh) found
+ * declared AND exported by the installed libmvec, `-DOMX_FASTMATH_MVEC_TANHF=1` (`_EXPF`, `_LOG10F`,
+ * `_POWF`), plus `-fopenmp-simd -fno-math-errno`, and the link carries `-lmvec`. omxdsp.pc says so to a
+ * consumer. Without those macros this header declares nothing, OMX_FM_SIMD is empty and the kernels
+ * call the libm exactly as before: a system without libmvec (Debian 12 on arm64, glibc older than
+ * 2.40 for tanhf and powf on aarch64, older than 2.35 on x86-64) builds and runs the plain path, and
+ * so does a consumer that ignores the flags. `-fopenmp-simd` only reads the `omp simd` pragmas; it
+ * links no OpenMP runtime. `-fno-math-errno` and `-fno-trapping-math` let the compiler treat the four functions as pure
+ * and speculate their arithmetic (neither enables an exception; the library never reads the FP flags), so a loop over them vectorises.
+ *
+ * ## What it is not
+ *
+ * Not `-ffast-math`, and not a second implementation: the vector functions are libmvec's, the scalar
+ * ones the libm's. A kernel's output through the vector path is NOT bit-identical to the scalar one.
+ * The difference is bounded by the table below, held by test/fx/fastmath.test.c, and the audio
+ * difference of every kernel that uses it by `make fastmath-diff`.
+ *
+ * ## Error (float ULP of the exactly rounded result; the bound), valid range, specials
+ *
+ * Measured on x86-64, glibc 2.43: tanhf 1.03, expf 2.87, log10f 1.91, powf(10, x) 0.62 (the oracle prints
+ * them); the bounds leave room for the aarch64 implementations.
+ *
+ *   function  max ULP  range the library uses it over
+ *   tanhf     2        any finite float (the shaper's input, drive times a sample, up to ~1e4)
+ *   expf      3        [-87, 88.5] (normal results); below ~-104 the result is 0, above 88.72 it is +inf
+ *   log10f    3        [OMX_LIN_TO_DB_FLOOR_LIN, 1e6], the argument omx_lin_to_db floors
+ *   powf      3        the base 10 with an exponent in [-12, 4], the dB-to-linear law
+ *
+ * NaN in gives NaN out, tanhf(+-inf) is +-1, expf(-inf) is 0, a denormal result is finite (zero or
+ * denormal), and a finite argument in the range gives a finite result: the finite law the kernels'
+ * contracts state holds through the vector path as through the libm.
+ */
+#ifndef OMXDSP_FASTMATH_H
+#define OMXDSP_FASTMATH_H
+
+#include <math.h>
+
+#if defined(OMX_FASTMATH_MVEC_TANHF) || defined(OMX_FASTMATH_MVEC_EXPF) || defined(OMX_FASTMATH_MVEC_LOG10F) || \
+    defined(OMX_FASTMATH_MVEC_POWF)
+/** @brief 1 when the build declared at least one libmvec function to the compiler. */
+#define OMX_FASTMATH_MVEC 1
+#endif
+
+#ifdef OMX_FASTMATH_MVEC
+/** @brief Asks the compiler to vectorise the loop that follows; empty without libmvec. */
+#define OMX_FM_SIMD _Pragma("omp simd")
+#else
+#define OMX_FM_SIMD
+#endif
+
+#ifdef OMX_FASTMATH_MVEC_TANHF
+#pragma omp declare simd notinbranch
+extern float tanhf(float);
+#endif
+#ifdef OMX_FASTMATH_MVEC_EXPF
+#pragma omp declare simd notinbranch
+extern float expf(float);
+#endif
+#ifdef OMX_FASTMATH_MVEC_LOG10F
+#pragma omp declare simd notinbranch
+extern float log10f(float);
+#endif
+#ifdef OMX_FASTMATH_MVEC_POWF
+#pragma omp declare simd notinbranch
+extern float powf(float, float);
+#endif
+
+/** @brief The largest error of a libmvec tanhf against the libm's, in float ULP. */
+#define OMX_FM_TANHF_MAX_ULP 2.0
+/** @brief The largest error of a libmvec expf against the libm's, in float ULP. */
+#define OMX_FM_EXPF_MAX_ULP 3.0
+/** @brief The largest error of a libmvec log10f against the libm's, in float ULP. */
+#define OMX_FM_LOG10F_MAX_ULP 3.0
+/** @brief The largest error of a libmvec powf against the libm's, in float ULP. */
+#define OMX_FM_POWF_MAX_ULP 3.0
+
+/**
+ * @brief Which of the four functions this translation unit calls through libmvec.
+ * @return A bit set: 1 tanhf, 2 expf, 4 log10f, 8 powf; 0 when every call is the libm's.
+ * @note RT-safe: a constant. Thread-safe: pure.
+ */
+static inline int omx_fastmath_enabled(void) {
+  return 0
+#ifdef OMX_FASTMATH_MVEC_TANHF
+         | 1
+#endif
+#ifdef OMX_FASTMATH_MVEC_EXPF
+         | 2
+#endif
+#ifdef OMX_FASTMATH_MVEC_LOG10F
+         | 4
+#endif
+#ifdef OMX_FASTMATH_MVEC_POWF
+         | 8
+#endif
+      ;
+}
+
+#endif /* OMXDSP_FASTMATH_H */

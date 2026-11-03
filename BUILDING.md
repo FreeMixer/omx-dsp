@@ -102,6 +102,42 @@ every glibc since 2.28 and returned the same bits for equal arguments on 2.36, 2
 kernel that adds a per-sample libm call adds it to the RT-safe allowlist named in its `@note`, and
 checks that the goldens agree across glibc versions, or uses a libm-free word.
 
+## libmvec
+
+The drive's shaper (`omx_drive_shape_block`) and the dynamics gain curves (the loops of
+`omx_dynamics_keyed` and `omx_dyn_flat_gain_block`) are stateless per sample, so their `tanhf`,
+`log10f` and `powf` run four samples at a time through glibc's libmvec. Measured on a Pi 5 (glibc
+2.41, gcc 14, 256-sample blocks), libm against libmvec in ns per sample: tanhf 9.34 to 2.52,
+log10f 8.08 to 1.87, expf 6.22 to 1.80, powf 11.74 to 7.22. `include/omxdsp/omx_fastmath.h` makes the
+`#pragma omp declare simd notinbranch` declarations, because glibc's own `<math.h>` makes them only under
+`__FAST_MATH__`, which this library never uses (`-ffast-math` sets flush-to-zero at load).
+
+The build decides, per function, by compiling and linking a probe (`tools/fastmath-probe.sh`): a function
+counts only when the compiler turns a loop over it into a call of its `_ZGV` symbol and the program links with
+`-lm -lmvec`. The Makefile then adds `-fopenmp-simd -fno-math-errno -fno-trapping-math` and
+`-DOMX_FASTMATH_MVEC_<F>=1` for each function found, and `-lmvec` to the link; `omxdsp.pc` carries the same in its
+`Cflags` and `Libs`, so a consumer that links the static library takes libmvec on exactly the targets where the
+library was built with it (`pkg-config --cflags --libs omxdsp`). Where libmvec is absent (Debian 12 on arm64;
+glibc older than 2.35 on x86-64; glibc older than 2.40 for `tanhf` and `powf` on aarch64) the probe finds nothing, the
+flags are empty and every kernel calls the libm as before. `make FASTMATH=off` forces that path. `-fopenmp-simd`
+links no OpenMP runtime; the two other flags let the compiler treat the four functions as pure and speculate their
+arithmetic, and neither enables an exception.
+
+The output through libmvec is not bit-identical to the libm's. Held by:
+
+- `make fastmath`: the oracle (`test/fx/fastmath.test.c`), each function against the double-precision libm over
+  the range the library uses, with its specials, and a check (`tools/fastmath-vec-check.sh`) that every loop
+  above really calls the vector symbols;
+- `make fastmath-diff`: every kernel that uses them rendered on the libm and on libmvec at every declared rate,
+  the largest sample difference in dB re full scale, failing above `FM_DIFF_LIMIT_DBFS` (-96);
+- `make fastmath-sabotage`: the oracle red on a result moved by 5 ULP, the loop check red on a header without
+  the pragma, the probe empty for a toolchain with no libmvec, no pragma or no vector symbol;
+- `make fastmath-plain`: the oracle, the drive and the dynamics again with `FASTMATH=off`.
+
+The golden digests stay on the libm: their translation units are built with the flags before the libmvec ones
+(`CFLAGS_PLAIN`), and the stage's contracts build (`-DOMX_CONTRACTS`) keeps its per-sample calls, so a digest or a
+contract ledger does not depend on the glibc's libmvec.
+
 ## Rates outside the declaration
 
 The console declares six rates (`OMX_DECLARED_RATES`), and the kernels' contracts refuse any other

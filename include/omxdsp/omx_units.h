@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "omx_fastmath.h"
 #include "omx_contract.h"
 #include "omxdsp_definitions.h"
 

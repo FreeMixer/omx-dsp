@@ -89,7 +89,7 @@ static void arm_xover(void) {
     }
     /* a three-band LR4 tree at rest: band 1 = AP(f2)·LP(f1), band 2 = LP(f2)·HP(f1), band 3 =
      * HP(f2)·HP(f1); Σ|B_k| = 1 and |Σ B_k| = 1, and in time Σ bands = AP(f2)·AP(f1) */
-    struct omx_xover x1, x2;
+    struct omx_xover x1 = {0}, x2 = {0}; /* designed in an && chain: the second is unset if the first design refuses */
     ok(omx_xover_design(&x1, 4u, 200.0, sr) == OMX_XOVER_OK && omx_xover_design(&x2, 4u, 2000.0, sr) == OMX_XOVER_OK,
        "the tree's two corners design", 0.0, 0.0);
     for (int k = 0; k < 10; k++) {
