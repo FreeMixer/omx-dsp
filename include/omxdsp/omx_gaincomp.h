@@ -70,19 +70,22 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_db_sel(const struct omx_gaincomp_
   const float x = level_db - p->thresh_db;
   const float half = 0.5f * p->knee_db;
   const int soft = p->knee_db > 0.0f;
+  /* The knee's denominator, 1 at a hard knee: every knee arm is selected away there, and a division by 0 would
+   * still raise FE_DIVBYZERO (and FE_INVALID at x == +-half) where both arms are evaluated. */
+  const float k2 = omx_fm_select(soft, 2.0f * p->knee_db, 1.0f);
   const float eb = x - half;
-  const float kb = (1.0f - p->ratio) * eb * eb / (2.0f * p->knee_db);
+  const float kb = (1.0f - p->ratio) * eb * eb / k2;
   float gb = OMX_GC_SEL(lanes, (soft & (x > -half)) != 0, kb, (p->ratio - 1.0f) * x);
   gb = OMX_GC_SEL(lanes, x >= half, 0.0f, gb);
   gb = OMX_GC_SEL(lanes, gb < p->range_db, p->range_db, gb);
   const float slope = (1.0f / p->ratio) - 1.0f;
   const float ea = x + half;
-  const float ka = slope * ea * ea / (2.0f * p->knee_db);
+  const float ka = slope * ea * ea / k2;
   float ga = OMX_GC_SEL(lanes, (soft & (x < half)) != 0, ka, slope * x);
   ga = OMX_GC_SEL(lanes, x <= -half, 0.0f, ga);
   /* UPWARD: ABOVE's curve at the mirrored level `-x`, negated, then capped at the boost. */
   const float eu = half - x;
-  const float ku = slope * eu * eu / (2.0f * p->knee_db);
+  const float ku = slope * eu * eu / k2;
   float gu = OMX_GC_SEL(lanes, (soft & (-x < half)) != 0, ku, slope * -x);
   gu = OMX_GC_SEL(lanes, -x <= -half, 0.0f, -gu);
   gu = OMX_GC_SEL(lanes, gu > p->range_db, p->range_db, gu);
@@ -172,13 +175,16 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_gain_lane(const struct omx_gainco
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_knee_shifted(const struct omx_gaincomp_params *p, float xl, float xh, float x) {
   const float a = xl + xh, b = -2.0f * xl, d = x - xl;
-  float disc = b * b + 4.0f * a * d;
-  disc = disc > 0.0f ? disc : 0.0f;
-  /* Inside the knee the denominator is positive (b > 0, or b == 0 with d > 0). Outside it, where the branch-free
-   * lane still evaluates this, it is 0 at a shift of +knee/2 (xl == 0) for every x <= 0: 1 there raises no
-   * FE_DIVBYZERO and no FE_INVALID, and the value is selected away as before. */
-  float den = b + sqrtf(disc);
-  den = den > 0.0f ? den : 1.0f;
+  /* Both clamps are selects of bits (omx_fm_select), not `?:`: a compiler may vectorise `c ? v : 0` before a sqrtf
+   * as the square root of the unclamped value and a select after it (GCC 13 does), and outside the knee, where
+   * the branch-free lane still evaluates this, the discriminant is negative: FE_INVALID. */
+  const float disc0 = b * b + 4.0f * a * d;
+  const float disc = omx_fm_select(disc0 > 0.0f, disc0, 0.0f);
+  /* Inside the knee the denominator is positive (b > 0, or b == 0 with d > 0). Outside it, it is 0 at a shift of
+   * +knee/2 (xl == 0) for every x <= 0: 1 there raises no FE_DIVBYZERO and no FE_INVALID, and the value is
+   * selected away as before. */
+  const float den0 = b + sqrtf(disc);
+  const float den = omx_fm_select(den0 > 0.0f, den0, 1.0f);
   const float u = 2.0f * d / den;
   const float w = 1.0f - u;
   return w * w * (p->ratio - 1.0f) * xl;
