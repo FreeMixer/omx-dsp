@@ -32,6 +32,8 @@
 #   make definitions OMX_CONTRACT=<checkout>  include/omxdsp/omxdsp_definitions.h rendered from data/ by the
 #               checkout's `render --package omx-dsp`; make definitions-check holds the committed header equal
 #               to that render (tools/definitions-render.sh)
+#   make contract-proof OMX_CONTRACT=<checkout>  the round-trip against this library's v0.1.3 header and the kernel
+#               completeness over data/ and recipes/answers/, after the proof's own self-test (tools/contract-proof.mjs)
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
@@ -167,7 +169,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
+.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check contract-proof test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -377,6 +379,12 @@ contract-dir:
 definitions definitions-check:
 	@test -n "$(OMX_CONTRACT)" || { echo "$@: name an omx-contract checkout: make $@ OMX_CONTRACT=<dir>" >&2; exit 2; }
 	bash tools/definitions-render.sh $(if $(filter definitions-check,$@),--check) $(OMX_CONTRACT) $(BUILD)/definitions
+
+contract-proof:
+	@test -n "$(OMX_CONTRACT)" || { echo "$@: name an omx-contract checkout: make $@ OMX_CONTRACT=<dir>" >&2; exit 2; }
+	@git rev-parse -q --verify 'v0.1.3^{commit}' >/dev/null || git fetch -q --depth 1 origin tag v0.1.3
+	node tools/contract-proof.mjs $(OMX_CONTRACT) --self-test
+	node tools/contract-proof.mjs $(OMX_CONTRACT)
 
 # The exports file a consumer's copy check reads, generated from the headers and the compiled unit.
 EXPORTS = $(BUILD)/omx-dsp-exports.json
