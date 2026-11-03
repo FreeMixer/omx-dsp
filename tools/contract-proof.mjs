@@ -38,7 +38,15 @@ export const MOVED_AFTER_PIN = new Map([
 ]);
 
 /** The units a first-release item gained after v0.1.3 (a sheet's new field), each with the reason. */
-export const ADDED_AFTER_PIN = new Map();
+export const ADDED_AFTER_PIN = new Map([
+  ['OMX_PITCH_PREFILTER_NYQUIST_FRACTION', '1366d77: the pitch pre-filter corner is also capped at this fraction of Nyquist, so it stays off Nyquist at 32 kHz'],
+  ['OMX_PITCH_PREFILTER_NYQUIST_FRACTION_DOUBLE', 'the same fraction, as a double'],
+  ['OMX_PROGRAM_RELEASE_PROFILES_AUTO_FAST_MS', 'b5bfafe: the release mode became fixed, opto or auto, and auto took its own profile'],
+  ['OMX_PROGRAM_RELEASE_PROFILES_AUTO_SLOW_MIN_MS', 'the same profile'],
+  ['OMX_PROGRAM_RELEASE_PROFILES_AUTO_SLOW_MAX_MS', 'the same profile'],
+  ['OMX_PROGRAM_RELEASE_PROFILES_AUTO_SHARE', 'the same profile'],
+  ['OMX_PROGRAM_RELEASE_PROFILES_AUTO_SHARE_DOUBLE', 'the same profile, as a double'],
+]);
 
 /**
  * The release line `since` is read in: omx-contract's, frozen at the move. An item first shipped before the definitions

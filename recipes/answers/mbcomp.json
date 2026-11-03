@@ -39,7 +39,9 @@
       "source": {
         "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:68 #define OMX_MBC_CROSSOVER_DEFAULTS_2_INIT { 1000.0f }, row 2 of OMX_MBC_COME_UP_HZ, read through omx_mbcomp_come_up_hz"
       },
-      "value": [1000],
+      "value": [
+        1000
+      ],
       "doc": "The come-up crossover corners of a 2-band multiband stage, Hz, ascending: one split at 1 kHz.",
       "unit": "Hz"
     },
@@ -48,7 +50,10 @@
       "source": {
         "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:72 #define OMX_MBC_CROSSOVER_DEFAULTS_3_INIT { 200.0f, 2000.0f }, row 3 of OMX_MBC_COME_UP_HZ, read through omx_mbcomp_come_up_hz"
       },
-      "value": [200, 2000],
+      "value": [
+        200,
+        2000
+      ],
       "doc": "The come-up crossover corners of a 3-band multiband stage, Hz, ascending: body, presence, air.",
       "unit": "Hz"
     },
@@ -57,7 +62,11 @@
       "source": {
         "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:76 #define OMX_MBC_CROSSOVER_DEFAULTS_4_INIT { 150.0f, 800.0f, 5000.0f }, row 4 of OMX_MBC_COME_UP_HZ, read through omx_mbcomp_come_up_hz"
       },
-      "value": [150, 800, 5000],
+      "value": [
+        150,
+        800,
+        5000
+      ],
       "doc": "The come-up crossover corners of a 4-band multiband stage, Hz, ascending.",
       "unit": "Hz"
     },
@@ -66,9 +75,200 @@
       "source": {
         "origin": "omx-dsp 0f23bed include/omxdsp/fx/omx_mbcomp.h:80 #define OMX_MBC_CROSSOVER_DEFAULTS_5_INIT { 100.0f, 400.0f, 1600.0f, 6400.0f }, row 5 of OMX_MBC_COME_UP_HZ, read through omx_mbcomp_come_up_hz"
       },
-      "value": [100, 400, 1600, 6400],
+      "value": [
+        100,
+        400,
+        1600,
+        6400
+      ],
       "doc": "The come-up crossover corners of a 5-band multiband stage, Hz, ascending: two octaves apart.",
       "unit": "Hz"
+    },
+    {
+      "name": "MBCOMP_BANDS_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#nbf"
+      },
+      "value": {
+        "min": 2,
+        "max": 5,
+        "step": 1,
+        "unit": "",
+        "default": 3,
+        "defaultFrom": "desk"
+      },
+      "doc": "How many bands the stage splits into, MBC_MIN_BANDS to MBC_MAX_BANDS, one crossover fewer. Three, body, presence and air, comes up."
+    },
+    {
+      "name": "MBCOMP_XOVER_HZ_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#corner"
+      },
+      "value": {
+        "min": 40,
+        "max": 16000,
+        "step": 1,
+        "unit": "Hz"
+      },
+      "doc": "Crossover n's corner, Hz, ascending: the first bands - 1 are in use. A corner at or below the one before it is moved just above it, and a non-finite corner is the come-up corner of the band count (MBC_CROSSOVER_DEFAULTS_<bands>), which is also where a fresh stage starts. A corner at or above MBC_CORNER_MAX_FRACTION of the rate is designed at that line."
+    },
+    {
+      "name": "MBCOMP_THRESHOLD_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#thr"
+      },
+      "value": {
+        "min": -60,
+        "max": 0,
+        "step": 0.5,
+        "unit": "dB",
+        "default": -20,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band's threshold, dB of the band's own RMS level."
+    },
+    {
+      "name": "MBCOMP_RATIO_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#rat"
+      },
+      "value": {
+        "min": 1,
+        "max": 20,
+        "step": 0.1,
+        "unit": "",
+        "default": 2,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band's ratio; a hard knee."
+    },
+    {
+      "name": "MBCOMP_ATTACK_MS_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#att"
+      },
+      "value": {
+        "min": 0.1,
+        "max": 200,
+        "step": 0.1,
+        "unit": "ms",
+        "default": 10,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band detector's attack, ms. Below DETECTOR_OVERSAMPLE_AUTO_MS the whole stage takes the 4x control path, every band at one tap."
+    },
+    {
+      "name": "MBCOMP_RELEASE_MS_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#rel"
+      },
+      "value": {
+        "min": 10,
+        "max": 2000,
+        "step": 1,
+        "unit": "ms",
+        "default": 150,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band detector's release, ms."
+    },
+    {
+      "name": "MBCOMP_MAKEUP_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#mk"
+      },
+      "value": {
+        "min": 0,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The band's make-up, dB."
+    },
+    {
+      "name": "MBCOMP_SOLOS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#so"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "The band's solo: while any band is soloed, only the soloed bands reach the sum. It comes up off."
+    },
+    {
+      "name": "MBCOMP_BAND_BYPASSES",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#band_off"
+      },
+      "value": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "labels": [
+        "Off",
+        "On"
+      ],
+      "doc": "The band's bypass: on, the band's compressor is the unity one and the band passes at the gain of the tree at rest. Named bandBypass so it is not the face's own bypass. It comes up off."
+    },
+    {
+      "name": "MBCOMP_MIX_PCT_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#mix_share"
+      },
+      "value": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "default": 100,
+        "defaultFrom": "desk"
+      },
+      "doc": "The share of the compressed bands, percent: each band blends its own input, so the dry signal is the tree at rest and the blend is in phase. 100 is the compressed sum, 0 the tree at rest."
+    },
+    {
+      "name": "MBCOMP_OUTPUT_DB_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp_instance.h#out_db"
+      },
+      "value": {
+        "min": -24,
+        "max": 24,
+        "step": 0.5,
+        "unit": "dB",
+        "default": 0,
+        "defaultFrom": "desk"
+      },
+      "doc": "The stage's output gain, dB, after the sum; 0 dB touches no sample."
+    },
+    {
+      "name": "MBC_MAX_XOVERS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/mbcomp.json at 1634edd682d0, shipped in omx-dsp 0.27.0; implemented at include/omxdsp/fx/omx_mbcomp.h#OMX_MBC_COME_UP_HZ"
+      },
+      "value": 4,
+      "unit": "",
+      "doc": "The crossovers of a full tree, one fewer than MBC_MAX_BANDS: the count of the corner control and the capacity of each leg's crossover state."
     }
   ]
 }
