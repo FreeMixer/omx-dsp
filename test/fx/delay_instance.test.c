@@ -64,12 +64,6 @@ static void resolve(OmxDelayInstance *s, int bypass, const Knobs *k) {
 /* Heap-held: an instance carries its two 2 s rings. */
 static OmxDelayInstance *inst(void) { return calloc(1, sizeof(OmxDelayInstance)); }
 
-/* Where a hostile word must land: every non-finite word at the default, else inside [lo, hi]. */
-static float land(float x, float lo, float hi, float def) {
-  if (x - x != 0.0f) return def;
-  return x < lo ? lo : x > hi ? hi : x;
-}
-
 static void arm_refused(void) {
   OmxDelayInstance *s = inst();
   ok(omx_delay_instance_init(s, 0.0f) == 0, "A: rate 0 refused");

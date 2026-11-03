@@ -108,11 +108,6 @@ static const float DEF[NKNOBS] = {OMX_DEESS_FREQ_RANGE_DEFAULT,  OMX_DEESS_WIDTH
                                   OMX_DEESS_RANGE_RANGE_DEFAULT,  OMX_DEESS_ATTACK_RANGE_DEFAULT,
                                   OMX_DEESS_RELEASE_RANGE_DEFAULT};
 
-static float land(float x, float lo, float hi, float def) {
-  if (x - x != 0.0f) return def;
-  return x < lo ? lo : x > hi ? hi : x;
-}
-
 static int same_atom(const struct omx_deess *a, const struct omx_deess *b) {
   return a->enabled == b->enabled && a->mode == b->mode && a->dyn.enabled == b->dyn.enabled &&
          a->dyn.gc.mode == b->dyn.gc.mode && a->dyn.detect == b->dyn.detect &&

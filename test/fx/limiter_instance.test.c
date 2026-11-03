@@ -38,12 +38,6 @@
 #define BLK 256u
 #define NBLK 12
 
-/* Where a hostile word must land: every non-finite word at the default, else inside [lo, hi]. */
-static float land(float x, float lo, float hi, float def) {
-  if (x - x != 0.0f) return def;
-  return x < lo ? lo : x > hi ? hi : x;
-}
-
 /* the allocation counter: fx_harness.h (linked with --wrap=malloc,calloc,realloc,free) */
 #include "fx_harness.h"
 

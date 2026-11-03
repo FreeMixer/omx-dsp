@@ -170,12 +170,6 @@ static void arm_is_the_kernel(void) {
   drain_violations("C: no contract broken");
 }
 
-/* Where a hostile word must land: every non-finite word at the default, else inside [lo, hi]. */
-static float land(float x, float lo, float hi, float def) {
-  if (x - x != 0.0f) return def;
-  return x < lo ? lo : x > hi ? hi : x;
-}
-
 static void arm_clamps(void) {
   static const float LO[5] = {(float)OMX_DRIVE_AMOUNT_RANGE_MIN, (float)OMX_DRIVE_CHARACTER_RANGE_MIN,
                               (float)OMX_DRIVE_BAND_FREQ_RANGE_MIN, (float)OMX_DRIVE_MIX_RANGE_MIN,
