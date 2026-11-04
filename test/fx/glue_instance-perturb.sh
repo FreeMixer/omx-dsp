@@ -16,6 +16,7 @@
 #   fbhp — the key corner reaches the slot in feedback (keyed, so the loop silently runs feed-forward): arm B I;
 #   bound — omx_dyn.h's loop loses its attack bound (a large step overshoots the equilibrium): arm H;
 #   floor — omx_dyn.h's loop loses its attack floor (R - 1)/R: arm G H;
+#   relbound — omx_dyn.h's loop lets its envelope fall below the applied reduction under a program release: arm H;
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… glue_instance-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -71,7 +72,9 @@ sabotage bound omx_dyn.h 's/st->fb_env = omx_flush(step < cap ? step : cap);/st-
 pids+=($!)
 sabotage floor omx_dyn.h 's/const float pole = attack_pole > floor_pole ? attack_pole : floor_pole;/const float pole = attack_pole + 0.0f * floor_pole;/' G H &
 pids+=($!)
+sabotage relbound omx_dyn.h 's/        if (grp < gr) {/        if (0 \&\& grp < gr) {/' H &
+pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || exit 1
-echo "glue_instance-perturb: the oracle sees all 11 sabotages"
+echo "glue_instance-perturb: the oracle sees all 12 sabotages"
