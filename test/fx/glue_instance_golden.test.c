@@ -27,7 +27,7 @@ static void render(float sr, float *out) {
   for (int o = 0; o < OMX_FX_GOLDEN_FRAMES; o += BLOCK) {
     const float u = (float)o / (float)OMX_FX_GOLDEN_FRAMES;
     omx_glue_instance_resolve(&w, 0, -40.0f + 34.0f * u, 3 * o / OMX_FX_GOLDEN_FRAMES, (o / BLOCK / 64) % 6, (o / BLOCK / 64) % 5, 2.0f, 120.0f, 100.0f,
-                           (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+                           (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
     for (int i = 0; i < BLOCK; i++) omx_fx_golden_stimulus(o + i, &lcg, &l[i], &r[i]);
     omx_glue_instance_run(&w, l, r, ol, orr, BLOCK);
     for (int i = 0; i < BLOCK; i++) { out[2 * (o + i)] = ol[i]; out[2 * (o + i) + 1] = orr[i]; }

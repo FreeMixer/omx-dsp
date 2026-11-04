@@ -62,11 +62,11 @@ static void arm_identity(void) {
   const uint32_t n = 4096u;
   stimulus(g_l, g_r, n, 0x6123u, 512u);
   omx_glue_instance_init(&g_g, g_sr);
-  omx_glue_instance_resolve(&g_g, 1, -30.0f, 2, 0, 0, 6.0f, 100.0f, 100.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+  omx_glue_instance_resolve(&g_g, 1, -30.0f, 2, 0, 0, 6.0f, 100.0f, 100.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   grun(&g_g, g_l, g_r, g_ol, g_or, n);
   drain();
   ok(memcmp(g_ol, g_l, n * sizeof(float)) == 0 && memcmp(g_or, g_r, n * sizeof(float)) == 0, "a bypass is the input, bit for bit", 1, 0);
-  omx_glue_instance_resolve(&g_g, 0, -30.0f, 2, 0, 0, 0.0f, 0.0f, 0.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+  omx_glue_instance_resolve(&g_g, 0, -30.0f, 2, 0, 0, 0.0f, 0.0f, 0.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   grun(&g_g, g_l, g_r, g_ol, g_or, n);
   drain();
   ok(memcmp(g_ol, g_l, n * sizeof(float)) == 0 && memcmp(g_or, g_r, n * sizeof(float)) == 0, "a mix of 0 is the dry bus, bit for bit", 1, 0);
@@ -130,14 +130,14 @@ static void arm_law(void) {
       const float x = (float)pow(10.0, LS[k] / 20.0);
       for (uint32_t i = 0; i < n; i++) g_l[i] = g_r[i] = x;
       omx_glue_instance_init(&g_g, g_sr);
-      omx_glue_instance_resolve(&g_g, 0, -20.0f, ra, 2, 0, 3.0f, 0.0f, 100.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+      omx_glue_instance_resolve(&g_g, 0, -20.0f, ra, 2, 0, 3.0f, 0.0f, 100.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
       grun(&g_g, g_l, g_r, g_ol, g_or, n);
       drain();
       const double got = 20.0 * log10((double)g_ol[n - 1u] / (double)x), want = law(-20.0, RATIOS[ra], LS[k]) + 3.0;
       ok(fabs(got - want) < 1e-3, "the settled gain is the closed form plus the make-up (1e-3 dB)", got, want);
       /* the readout is the slot's, make-up included: at a make-up of 0 it reads the reduction */
       omx_glue_instance_init(&g_g, g_sr);
-      omx_glue_instance_resolve(&g_g, 0, -20.0f, ra, 2, 0, 0.0f, 0.0f, 100.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+      omx_glue_instance_resolve(&g_g, 0, -20.0f, ra, 2, 0, 0.0f, 0.0f, 100.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
       grun(&g_g, g_l, g_r, g_ol, g_or, n);
       grun(&g_g, g_l, g_r, g_ol, g_or, 64u);
       drain();
@@ -159,8 +159,8 @@ static double pull(double hz, float hp, int tp) {
 
 static void arm_key(void) {
   g_arm = "D";
-  const double lo_off = pull(40.0, 0.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD), lo_on = pull(40.0, 200.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD),
-               hi_off = pull(4000.0, 0.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD), hi_on = pull(4000.0, 200.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+  const double lo_off = pull(40.0, 0.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD), lo_on = pull(40.0, 200.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD),
+               hi_off = pull(4000.0, 0.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD), hi_on = pull(4000.0, 200.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   /* the detector hears the 40 Hz sine 28 dB down, (40/200)^2; on the 4:1 slope the reduction falls by 3/4 of that */
   ok(fabs((lo_on - lo_off) - 0.75 * 28.0) < 1.0, "a corner at 200 Hz keeps a 40 Hz sine off the detector", lo_on - lo_off, 21.0);
   ok(fabs(hi_on - hi_off) < 0.1, "a 4 kHz sine pulls as it did", hi_on - hi_off, 0.1);
@@ -222,8 +222,8 @@ static void arm_static(void) {
   static const double LS[] = {-40.0, -22.0, -21.0, -20.0, -19.0, -18.0, -12.0, -6.0, 0.0};
   for (int ra = 0; ra < 3; ra++)
     for (int k = 0; k < 9; k++) {
-      const double ff = settled(ra, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD, LS[k]);
-      const double fb = settled(ra, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDBACK, LS[k]);
+      const double ff = settled(ra, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD, LS[k]);
+      const double fb = settled(ra, (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK, LS[k]);
       const double want_ff = law(-20.0, RATIOS[ra], LS[k]), want_fb = law_fb(-20.0, RATIOS[ra], LS[k]);
       ok(fabs(ff - want_ff) < 1e-3, "feed-forward settles on its closed form (1e-3 dB)", ff, want_ff);
       ok(fabs(fb - want_fb) < 1e-3, "feedback settles on the solution of y = x + g_fb(y) (1e-3 dB)", fb, want_fb);
@@ -258,7 +258,7 @@ static void arm_timing(void) {
   const double p = exp(-1.0 / (10.0 * 1e-3 * (double)g_sr)), q = pow(p, 4.0);
   for (int ra = 0; ra < 3; ra++) {
     const double r = RATIOS[ra], rho = p - (1.0 - p) * (r - 1.0);
-    const double fb = step_area(ra, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDBACK), ff = step_area(ra, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+    const double fb = step_area(ra, (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK), ff = step_area(ra, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
     const double want_fb = 1.0 / (1.0 - rho), want_ff = 4.0 * q / (1.0 - q);
     ok(fabs(fb / want_fb - 1.0) < 0.05, "feedback: the step settles on ONE pole p - (1 - p)(R - 1) (area, 5 %)", fb, want_fb);
     ok(fabs(ff / want_ff - 1.0) < 0.05, "feed-forward: the step settles through the four-pole cascade (area, 5 %)", ff, want_ff);
@@ -271,13 +271,13 @@ static void arm_timing(void) {
   for (int ra = 0; ra < 3; ra++)
     for (int at = 0; at < 6; at++) {
       omx_glue_instance_init(&g_g, g_sr);
-      omx_glue_instance_resolve(&g_g, 0, -20.0f, ra, at, 0, 0.0f, 0.0f, 100.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDBACK);
+      omx_glue_instance_resolve(&g_g, 0, -20.0f, ra, at, 0, 0.0f, 0.0f, 100.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK);
       drain();
       const double r = RATIOS[ra], pd = exp(-1.0 / ((double)ATTACKS[at] * 1e-3 * (double)g_sr)), fl = (r - 1.0) / r;
       const double want = pd >= fl ? (double)ATTACKS[at] : -1000.0 / ((double)g_sr * log(fl));
       ok(fabs(omx_glue_instance_effective_attack_ms(&g_g) - want) < 1e-4, "effectiveAttackMs is the detent or the loop's floor (1e-4 ms)",
          omx_glue_instance_effective_attack_ms(&g_g), want);
-      omx_glue_instance_resolve(&g_g, 0, -20.0f, ra, at, 0, 0.0f, 0.0f, 100.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+      omx_glue_instance_resolve(&g_g, 0, -20.0f, ra, at, 0, 0.0f, 0.0f, 100.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
       ok(omx_glue_instance_effective_attack_ms(&g_g) == ATTACKS[at], "feed-forward runs the detent", omx_glue_instance_effective_attack_ms(&g_g), ATTACKS[at]);
     }
   clean();
@@ -301,7 +301,7 @@ static void arm_stable(void) {
     for (int at = 0; at < 6; at++)
       for (int rl = 0; rl < 5; rl++) {
         omx_glue_instance_init(&g_g, g_sr);
-        omx_glue_instance_resolve(&g_g, 0, -30.0f, ra, at, rl, 0.0f, 0.0f, 100.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDBACK);
+        omx_glue_instance_resolve(&g_g, 0, -30.0f, ra, at, rl, 0.0f, 0.0f, 100.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK);
         grun(&g_g, g_l, g_r, g_ol, g_or, n);
         drain();
         double depth = 0.0, ext = 0.0, prev = 0.0, dprev = 0.0;
@@ -338,8 +338,8 @@ static void arm_stable(void) {
 /* keyHpHz in feedback: the loop hears the full band, so a corner is inert there, and stays live in feed-forward. */
 static void arm_fb_key(void) {
   g_arm = "I";
-  const double fb_off = pull(40.0, 0.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDBACK), fb_on = pull(40.0, 200.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDBACK);
-  const double ff_on = pull(40.0, 200.0f, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD);
+  const double fb_off = pull(40.0, 0.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK), fb_on = pull(40.0, 200.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK);
+  const double ff_on = pull(40.0, 200.0f, (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD);
   ok(fb_on == fb_off, "feedback: a corner does not reach the loop's detector", fb_on - fb_off, 0.0);
   ok(ff_on - fb_on > 10.0, "feed-forward: the same corner keeps the 40 Hz sine off the detector", ff_on - fb_on, 10.0);
   clean();

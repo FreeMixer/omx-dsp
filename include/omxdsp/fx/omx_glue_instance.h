@@ -9,8 +9,8 @@
  * keyHpHz is the slot's key filter on its own legs. mixPct is the slot's parallel mix. A bypass is the
  * identity; a mix of 0 is the dry bus, bit for bit.
  *
- * detectorTopology (appended last, default feedforward, so an older session resolves to the glue it saved)
- * picks where the slot's detector listens: `feedforward` hears the bus; `feedback` runs omx_dyn.h's loop, the
+ * detectorTopology (appended last, default feedforward, so an older session resolves to the glue it saved; the comp
+ * slot's own DETECTOR_TOPOLOGY, which glue.json uses, not a copy) picks where the slot's detector listens: `feedforward` hears the bus; `feedback` runs omx_dyn.h's loop, the
  * detector hearing the slot's own pre-make-up output one sample late through ONE stage whose attack pole is
  * floored at (R - 1)/R (omx_dyn_fb_attack_pole), the VCA bus compressor's character (ssl-bus-compressor
  * §1-§4). The loop hears the full band: a key filter makes the slot keyed and a keyed slot detects
@@ -37,10 +37,6 @@ static const float OMX_GLUE_INSTANCE_RELEASES[OMX_GLUE_RELEASE_MS_COUNT] = OMX_G
 _Static_assert(OMX_GLUE_RATIO_VALUES_COUNT == OMX_GLUE_RATIOS_COUNT && OMX_GLUE_ATTACK_MS_COUNT == OMX_GLUE_ATTACKS_COUNT &&
                    OMX_GLUE_RELEASE_MS_COUNT + 1u == OMX_GLUE_RELEASES_COUNT,
                "one value per detent, the release's last being auto");
-_Static_assert((int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDFORWARD == (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD &&
-                   (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDBACK == (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK &&
-                   OMX_GLUE_DETECTOR_TOPOLOGIES_COUNT == OMX_DETECTOR_TOPOLOGY_COUNT,
-               "the glue's topology is the comp slot's DETECTOR_TOPOLOGY, index for index");
 
 typedef struct {
   OmxCompInstance comp;
@@ -60,7 +56,7 @@ static inline int omx_glue_instance_init(OmxGlueInstance *s, float sr) {
   omx_glue_instance_resolve(s, 0, (float)OMX_GLUE_THRESHOLD_DB_RANGE_DEFAULT, (int)OMX_GLUE_RATIOS_DEFAULT,
                             (int)OMX_GLUE_ATTACKS_DEFAULT, (int)OMX_GLUE_RELEASES_DEFAULT,
                             (float)OMX_GLUE_MAKEUP_DB_RANGE_DEFAULT, (float)OMX_GLUE_KEY_HP_HZ_RANGE_DEFAULT,
-                            (float)OMX_GLUE_MIX_PCT_RANGE_DEFAULT, (int)OMX_GLUE_DETECTOR_TOPOLOGIES_DEFAULT);
+                            (float)OMX_GLUE_MIX_PCT_RANGE_DEFAULT, (int)OMX_DETECTOR_TOPOLOGY_DEFAULT);
   return 1;
 }
 
@@ -84,8 +80,8 @@ static inline void omx_glue_instance_resolve(OmxGlueInstance *s, int bypass, flo
                                 (float)OMX_GLUE_KEY_HP_HZ_RANGE_DEFAULT);
   const float mx = omx_clamp_or(mix_pct, (float)OMX_GLUE_MIX_PCT_RANGE_MIN, (float)OMX_GLUE_MIX_PCT_RANGE_MAX,
                                 (float)OMX_GLUE_MIX_PCT_RANGE_DEFAULT);
-  const int tp = detector_topology == (int)OMX_GLUE_DETECTOR_TOPOLOGIES_FEEDBACK ? (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK
-                                                                                : (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD;
+  const int tp = detector_topology == (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK ? (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK
+                                                                          : (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD;
   const int is_auto = rl == (int)OMX_GLUE_RELEASES_AUTO;
   /* The fixed release's value stays where it was last set while auto runs: the slot ignores it there. */
   const float rel_ms = is_auto ? OMX_GLUE_INSTANCE_RELEASES[0] : OMX_GLUE_INSTANCE_RELEASES[rl];
