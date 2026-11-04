@@ -23,14 +23,12 @@ void vc_drive_tube(const struct omx_drive_bias *s, float d, float *x, uint32_t n
 /* the dynamics kernel's own spelling: its pragma and its gain function, the lanes only where omx_dyn.h takes them */
 void vc_gain_centred(const struct omx_dyn *p, float *x, uint32_t n) {
   const struct omx_gaincomp_params gc = p->gc;
-  OMX_DYN_SIMD
-  for (uint32_t i = 0; i < n; i++) x[i] = OMX_DYN_GAIN(&gc, x[i]);
+  OMX_DYN_MAP(x, x, n, v, OMX_DYN_GAIN(&gc, v));
 }
 void vc_gain_shifted(const struct omx_dyn *p, float *x, uint32_t n) {
   const struct omx_gaincomp_params gc = p->gc;
   const float shift = p->knee_shift_db;
-  OMX_DYN_SIMD
-  for (uint32_t i = 0; i < n; i++) x[i] = OMX_DYN_GAIN_SHIFTED(&gc, shift, x[i]);
+  OMX_DYN_MAP(x, x, n, v, OMX_DYN_GAIN_SHIFTED(&gc, shift, v));
 }
 void vc_gain_flat(const struct omx_dyn_flat *f, const struct omx_dyn *p, float *x, uint32_t n) {
   omx_dyn_flat_gain_block(f, p, x, x, n);

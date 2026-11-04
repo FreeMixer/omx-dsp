@@ -117,6 +117,57 @@ static inline OMX_FM_ALWAYS float omx_fm_select(int cond, float a, float b) {
   return a;
 }
 
+/** @brief The samples a tile of OMX_FM_MAP() holds: a multiple of every libmvec vector width (4, 8, 16 floats). */
+#define OMX_FM_TILE 16u
+
+/** @brief OMX_FM_MAP() as the plain loop, for a loop that takes no lane (a function it calls is not in libmvec). */
+#define OMX_FM_MAP_PLAIN(out, in, n, v, expr)                                                                     \
+  do {                                                                                                            \
+    const float *const omx_fm_in_ = (in);                                                                         \
+    float *const omx_fm_out_ = (out);                                                                             \
+    const uint32_t omx_fm_n_ = (n);                                                                               \
+    for (uint32_t omx_fm_j_ = 0; omx_fm_j_ < omx_fm_n_; omx_fm_j_++) {                                            \
+      const float v = omx_fm_in_[omx_fm_j_];                                                                      \
+      omx_fm_out_[omx_fm_j_] = (expr);                                                                            \
+    }                                                                                                             \
+  } while (0)
+
+#ifdef OMX_FASTMATH_MVEC
+/**
+ * @brief `out[i] = expr`, `v` bound to `in[i]`, over `n` samples, every sample through the SAME call whatever `n` is.
+ *
+ * A vectorised loop over a run-time `n` has a remainder (and may have an alignment peel) that the compiler runs as
+ * the scalar loop, on the libm: a sample there gets the libm's bits and the same sample inside the vector body gets
+ * libmvec's, so a kernel's output would depend on where the caller's block ends. This walks the block in tiles of
+ * OMX_FM_TILE samples copied into an aligned local array, the last tile padded with its own last sample, and runs
+ * the expression over the whole tile as a loop of constant trip count, which the compiler vectorises with no
+ * remainder and no peel. The block size is then not observable (test/fx/fastmath_blocks.test.c). Without libmvec
+ * it is the plain loop. `out` may be `in`. The expression must be pure in `v`: no state, one sample in, one out.
+ * @note RT-safe: no allocation, one tile on the stack. Thread-safe on distinct blocks.
+ */
+#define OMX_FM_MAP(out, in, n, v, expr)                                                                           \
+  do {                                                                                                            \
+    const float *const omx_fm_in_ = (in);                                                                         \
+    float *const omx_fm_out_ = (out);                                                                             \
+    const uint32_t omx_fm_n_ = (n);                                                                               \
+    for (uint32_t omx_fm_o_ = 0; omx_fm_o_ < omx_fm_n_; omx_fm_o_ += OMX_FM_TILE) {                               \
+      const uint32_t omx_fm_k_ = omx_fm_n_ - omx_fm_o_ < OMX_FM_TILE ? omx_fm_n_ - omx_fm_o_ : OMX_FM_TILE;       \
+      float omx_fm_t_[OMX_FM_TILE] __attribute__((aligned(64)));                                                  \
+      memcpy(omx_fm_t_, omx_fm_in_ + omx_fm_o_, omx_fm_k_ * sizeof(float));                                       \
+      for (uint32_t omx_fm_j_ = omx_fm_k_; omx_fm_j_ < OMX_FM_TILE; omx_fm_j_++)                                  \
+        omx_fm_t_[omx_fm_j_] = omx_fm_t_[omx_fm_k_ - 1u];                                                         \
+      OMX_FM_SIMD for (uint32_t omx_fm_j_ = 0; omx_fm_j_ < OMX_FM_TILE; omx_fm_j_++) {                            \
+        const float v = omx_fm_t_[omx_fm_j_];                                                                     \
+        omx_fm_t_[omx_fm_j_] = (expr);                                                                            \
+      }                                                                                                           \
+      memcpy(omx_fm_out_ + omx_fm_o_, omx_fm_t_, omx_fm_k_ * sizeof(float));                                      \
+    }                                                                                                             \
+  } while (0)
+#else
+/** @brief Without libmvec in the build: the plain loop. */
+#define OMX_FM_MAP OMX_FM_MAP_PLAIN
+#endif
+
 /** @brief The largest error of a libmvec tanhf against the libm's, in float ULP. */
 #define OMX_FM_TANHF_MAX_ULP 3.0
 /** @brief The largest error of a libmvec expf against the libm's, in float ULP. */
