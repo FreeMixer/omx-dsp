@@ -335,6 +335,51 @@ static void o8_no_denormal_state(float sr) {
   check(ok, "O8 every feedback state word is 0 or normal after 2 s of silence", sr);
 }
 
+/* O12 — a LARGE step never takes the loop past its equilibrium. L4's floor holds the small-signal
+ * pole non-negative, but a step from silence puts the whole uncompressed sample on the detector
+ * one sample late: unbounded, the first attack step lands the envelope above the level the loop
+ * settles at, the output-domain characteristic multiplies that by R - 1, and the slot drops tens
+ * of dB under its static curve and climbs back at the RELEASE pole (measured before the bound:
+ * 10:1, 0.1 ms, 30 dB over at 48 kHz reached -180 dB and was still 35 dB under the curve 0.3 s
+ * later). Over ratios {2, 4, 10, 20}, attacks {0.1, 1, 10} ms, 10 and 30 dB over a -30 dB
+ * threshold, peak and RMS, hard knee and 6 dB: the gain from cold never goes deeper than the
+ * static curve's (the implicit solution) by more than 0.05 dB, and has settled on it within
+ * 0.01 dB after 0.25 s. */
+static void o12_large_step_never_passes_equilibrium(float sr) {
+  static const float RS[] = {2.0f, 4.0f, 10.0f, 20.0f}, AS[] = {0.1f, 1.0f, 10.0f}, OV[] = {10.0f, 30.0f}, KN[] = {0.0f, 6.0f};
+  const uint32_t n = (uint32_t)(0.25f * sr);
+  float *tr = malloc(n * sizeof *tr);
+  double worst_dip = 0.0, worst_settle = 0.0;
+  for (int ri = 0; ri < 4; ri++)
+    for (int ai = 0; ai < 3; ai++)
+      for (int oi = 0; oi < 2; oi++)
+        for (int ki = 0; ki < 2; ki++)
+          for (int rms = 0; rms < 2; rms++) {
+            struct omx_dyn p = fb_comp(sr, -30.0f, RS[ri], KN[ki], AS[ai], 100.0f);
+            if (rms) p.detect = OMX_DETECT_RMS;
+            struct omx_dyn_state st;
+            omx_dyn_state_init(&st, 1u);
+            float g;
+            const double xdb = -30.0 + OV[oi];
+            run_dc(&p, &st, (float)pow(10.0, xdb / 20.0), n, &g, tr);
+            /* the static curve: y solves y = x + g_fb(y), by bisection */
+            double lo = xdb - 200.0, hi = xdb;
+            for (int k = 0; k < 200; k++) {
+              const double y = 0.5 * (lo + hi);
+              if (y - (xdb + gfb(y + 30.0, RS[ri], KN[ki])) > 0.0) hi = y; else lo = y;
+            }
+            const double geq = 0.5 * (lo + hi) - xdb;
+            for (uint32_t i = 0; i < n; i++)
+              if (geq - tr[i] > worst_dip) worst_dip = geq - tr[i];
+            if (fabs(tr[n - 1] - geq) > worst_settle) worst_settle = fabs(tr[n - 1] - geq);
+          }
+  free(tr);
+  printf("  O12 @ %6.0f Hz: deepest dip under the static curve %.4f dB, worst settle error %.4f dB\n", (double)sr, worst_dip,
+         worst_settle);
+  check(worst_dip <= 0.05, "O12 a step from silence never goes deeper than the loop's equilibrium (0.05 dB)", sr);
+  check(worst_settle <= 0.01, "O12 a step from silence has settled on the static curve after 0.25 s (0.01 dB)", sr);
+}
+
 /* O10 — the aliasing L5 costs, measured and pinned (±1 dB), one figure per declared rate. */
 static void fft(double *re, double *im, uint32_t n) {
   for (uint32_t i = 1, j = 0; i < n; i++) {
@@ -439,6 +484,7 @@ int main(void) {
     o7_zero_latency(sr);
     o8_no_denormal_state(sr);
     o11_entry_seeds_the_previous_output(sr);
+    o12_large_step_never_passes_equilibrium(sr);
     const double al = o10_worst_alias_dbc(sr);
     printf("  O10 @ %6.0f Hz: worst aliased product %.2f dBc (pinned %.2f)\n", (double)sr, al, O10_PINNED_DBC[k]);
     check(fabs(al - O10_PINNED_DBC[k]) <= 1.0, "O10 the worst aliased product stays at its pinned figure +-1 dB", sr);

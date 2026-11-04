@@ -305,4 +305,38 @@ static inline float omx_gaincomp_db_fb(const struct omx_gaincomp_params *p, floa
 }
 #undef OMX_CONTRACT_STAGE
 
+#define OMX_CONTRACT_STAGE "gaincomp/fb-settled"
+/**
+ * @brief Where the feedback loop settles for a HELD input level: the output level, dB, solving
+ *        `y = x + omx_gaincomp_db_fb(y)` in closed form (bus compressor design §4 L2).
+ *
+ * Below the knee's reach `y = x`; past it (`x − T ≥ R·W/2`) `y − T = (x − T)/R`, the feed-forward
+ * curve at the same ratio; inside it `v = y − T + W/2` solves `a·v² + v − (x − T + W/2) = 0` with
+ * `a = (R − 1)/(2W)`, taken as `v = 2q/(1 + √(1 + 4aq))` so the knee's foot (q → 0) loses nothing to
+ * cancellation. Continuous at both edges. The loop's attack is bounded by it (omx_dynamics_keyed):
+ * a step can bring the envelope TO the level the held input settles at, never past it.
+ * @param p The slot's gain-computer parameters (`thresh_db`, `ratio`, `knee_db` are read).
+ * @param x_db The input level, dB, in the detector's measure; finite.
+ * @return The settled output level, dB: at most `x_db`.
+ * @pre `ratio-at-least-one`, `finite-in`.
+ * @post `no-gain-added`.
+ * @note RT-safe: at most one sqrtf. Thread-safe: pure.
+ */
+static inline float omx_gaincomp_fb_settled_db(const struct omx_gaincomp_params *p, float x_db) {
+  OMX_PRE(p->ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
+  OMX_PRE(x_db - x_db == 0.0f, "finite-in");
+  const float r = p->ratio, w = p->knee_db, s = x_db - p->thresh_db, hw = 0.5f * w;
+  float y;
+  if (s <= -hw) y = x_db;
+  else if (s >= hw * r) y = p->thresh_db + s / r;
+  else {
+    const float a = (r - 1.0f) / (2.0f * w), q = s + hw;
+    y = p->thresh_db + 2.0f * q / (1.0f + sqrtf(1.0f + 4.0f * a * q)) - hw;
+  }
+  y = y < x_db ? y : x_db;
+  OMX_POST(y <= x_db, "no-gain-added");
+  return y;
+}
+#undef OMX_CONTRACT_STAGE
+
 #endif /* OMX_GAINCOMP_H */
