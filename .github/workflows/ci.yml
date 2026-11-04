@@ -55,6 +55,9 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: The checkout is a git directory this job may read
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       # The build dependencies, omx-contract among them, from what the packaging declares: no version
       # is named here.
       # the channel serves Debian; an Ubuntu takes its trixie index (omx-contract is Architecture: all)
@@ -84,9 +87,9 @@ jobs:
           # the test containers carry no node: the twins' version is read as text
           grep -q "^  \"version\": \"$v\",\$" ts/package.json
 
-      - name: Every source file carries its SPDX line
+      - name: Every file a comment can be written in opens with its licence
         id: handback-spdx
-        run: tools/spdx-check.sh
+        uses: FreeMixer/.github/.github/actions/spdx-check@c67b6d0e09fd9f7cf9a8dd24ff41ea30d99f893c
 
       # packaging/deps.txt is the one place a floor is written: the spec, debian/control and OMX_CONTRACT_REF follow it
       - name: The dependency floors are the ones packaging/deps.txt declares
@@ -121,6 +124,9 @@ jobs:
           apt-get update -qq
           apt-get install -y --no-install-recommends build-essential gawk diffutils git ca-certificates curl pkgconf dpkg-dev
       - uses: actions/checkout@v4
+
+      - name: The checkout is a git directory this job may read
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Add the OpenMixer repository
         uses: FreeMixer/.github/.github/actions/add-openmixer@v1
       - name: Install the build dependencies from the OpenMixer channel
@@ -178,6 +184,9 @@ jobs:
           test "$(pkg-config --modversion omx-contract)" = "$OLD"
 
       - uses: actions/checkout@v4
+
+      - name: The checkout is a git directory this job may read
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: make lib fails, naming omx-contract, the floor and ${{ env.OLD }}
         run: |
@@ -316,6 +325,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: The checkout is a git directory this job may read
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: FreeMixer/.github/.github/actions/build-rpm@v1
 
       - name: Check the file list
@@ -392,6 +404,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: The checkout is a git directory this job may read
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Take omx-contract from the OpenMixer channel
         uses: FreeMixer/.github/.github/actions/add-openmixer@v1

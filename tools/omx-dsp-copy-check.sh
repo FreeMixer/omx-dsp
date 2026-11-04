@@ -649,7 +649,8 @@ check() {
   case "$allow" in ''|/*) ;; *) allow="$PWD/$allow" ;; esac
   [ -n "$allow" ] && [ ! -f "$allow" ] && allow=""
   while IFS= read -r f; do [ -n "$f" ] && files+=("$f"); done < <(sources "$root")
-  if [ "${#files[@]}" -eq 0 ]; then echo "$ME: no C or TypeScript sources in scope under $root"; return 0; fi
+  # reading nothing is not a clean tree: the caller named the wrong root, or git could not read it
+  if [ "${#files[@]}" -eq 0 ]; then echo "$ME: no C or TypeScript sources in scope under $root, so nothing was read" >&2; return 1; fi
   out="$(cd "$root" && "$AWK" -v mode=check -v exports="$exports" -v allow="$allow" -v sabotage="${OMX_COPY_CHECK_SABOTAGE:-}" "$PROG" "${files[@]}")" || rc=$?
   [ "$rc" = 0 ] || die "the scan failed: $out"
   printf '%s\n' "$out" | "$AWK" -F'\t' -v me="$ME" -v enforce="$enforce" -v allowf="${allow:-none}" '

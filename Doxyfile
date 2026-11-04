@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # libomxdsp API reference.
 # Build-time only: `make docs`; never a runtime dependency of the console.
 PROJECT_NAME           = libomxdsp
