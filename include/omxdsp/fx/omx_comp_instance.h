@@ -58,7 +58,8 @@
  * The release that carries it is a minor version bump.
  *
  * HOLD AND DUCK. holdMs reaches the kernel's hold (omx_dyn.hold_frames, ABOVE mode: the detector
- * frozen after it last rose). duck holds the reduction to rangeDb (omx_dyn.floor_db), so the
+ * frozen after it last rose). duck holds the reduction to rangeDb (omx_dyn.floor_db, through the one floor
+ * word omx_gaincomp_floor the de-esser holds its range with), so the
  * programme gain is `max(rangeDb, the law at the key's level)`; a range of 0 dB ducks nothing.
  *
  * LATENCY IS PUBLISHED: OMX_OVS_LATENCY_4X while the 4x control path is engaged (the kernel's

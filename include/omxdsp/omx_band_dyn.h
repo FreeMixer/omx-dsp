@@ -162,7 +162,7 @@ static inline float omx_band_dyn_offset_db(const struct omx_gaincomp_params *gc,
   const float span = -fabsf(gc->range_db);
   c.range_db = span;
   float gr = omx_gaincomp_db(&c, omx_lin_to_db_poly(level));
-  gr = gr < span ? span : gr;
+  gr = omx_gaincomp_floor(gr, span);
   gr = gr > 0.0f ? 0.0f : gr;
   const float d = gc->range_db > 0.0f ? -gr : gr;
   OMX_POST(d >= fminf(0.0f, gc->range_db) && d <= fmaxf(0.0f, gc->range_db), "offset-within-range");
