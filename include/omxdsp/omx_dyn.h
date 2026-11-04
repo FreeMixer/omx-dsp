@@ -409,15 +409,15 @@ static inline void omx_dyn_hold_chain(struct omx_dyn_state *st, const struct omx
 }
 
 /**
- * @brief The floor folded into the gain: `max(floor, g)`, the floor carrying the make-up as the
- *        gain does.
+ * @brief The floor folded into the gain: omx_gaincomp_floor(), `max(floor, g)`, the floor carrying the
+ *        make-up as the gain does.
  * @param gain The chunk's gains, floored in place.
  * @param m Samples.
  * @param floor_lin The floor, linear, make-up included.
  * @note RT-safe: one compare per sample. Thread-safe on distinct buffers.
  */
 static inline void omx_dyn_floor_gain(float *gain, uint32_t m, float floor_lin) {
-  for (uint32_t i = 0; i < m; i++) gain[i] = gain[i] < floor_lin ? floor_lin : gain[i];
+  for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_floor(gain[i], floor_lin);
 }
 
 /**
