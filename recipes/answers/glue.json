@@ -132,6 +132,22 @@
       "doc": "The compressed bus against the dry one, percent: below 100 is parallel compression."
     },
     {
+      "name": "GLUE_DETECTOR_TOPOLOGIES",
+      "source": {
+        "origin": "the SSL-character bus compressor design (openmixer docs/design/specs/2026-09-26-ssl-bus-compressor.md §2, §3a): the comp row's detectorTopology on the glue face, appended last with feedforward the default so a saved glue is unchanged; index for index comp's DETECTOR_TOPOLOGY; implemented at include/omxdsp/fx/omx_glue_instance.h#tp"
+      },
+      "value": [
+        "feedforward",
+        "feedback"
+      ],
+      "default": "feedforward",
+      "labels": [
+        "Feedforward",
+        "Feedback"
+      ],
+      "doc": "Where the detector listens, appended so every earlier control keeps its place: `feedforward` (the default, the glue every session saved before this control existed) hears the bus, `feedback` hears the compressor's own output one sample late through one envelope stage, the loop of a VCA bus compressor whose reduction shapes what its detector hears (comp's DETECTOR_TOPOLOGY, index for index: the face asserts it). In `feedback` the attack pole is floored at (R - 1)/R so the loop cannot ring, and keyHpHz does not reach the detector: the loop hears the full-band output."
+    },
+    {
       "name": "GLUE_KNEE_DB",
       "source": {
         "origin": "first declared in omx-dsp data/kernels/glue.json at 716ec91f7dc6, shipped in omx-dsp 0.28.0; implemented at include/omxdsp/fx/omx_glue_instance.h#omx_glue_instance_resolve"
