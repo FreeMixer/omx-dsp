@@ -338,7 +338,7 @@
       "source": {
         "impl": "include/omxdsp/fx/omx_delay_instance.h#sync_tempo"
       },
-      "doc": "Where the delay time comes from: free, the time control in ms; tempo, the division at the host's tempo, 60000 / BPM x the division's beats. It comes up free, so a fresh delay is the one that shipped.",
+      "doc": "Where the delay time comes from: free, the time control in ms; tempo, the division at the host's tempo, 60000 / BPM x the division's beats. While the host hands no tempo (no transport, or one without a tempo), a delay at tempo keeps the time control, exactly as free, and says so (omx_delay_instance_synced reads 0). It comes up free, so a fresh delay is the one that shipped.",
       "ids": [
         "free",
         "tempo"
@@ -355,7 +355,7 @@
       "source": {
         "impl": "include/omxdsp/fx/omx_delay_instance.h#division_beats"
       },
-      "doc": "The note value the time follows while sync is tempo: 1/1 to 1/16, each straight, dotted (x 3/2) and triplet (x 2/3), in beats of a quarter note (DELAY_DIVISION_BEATS, in this order). It comes up a quarter.",
+      "doc": "The note value the time follows while sync is tempo: 1/1 to 1/32, each straight, dotted (x 3/2) and triplet (x 2/3), in beats of a quarter note (DELAY_DIVISION_BEATS, in this order; the 1/32 three appended last, so every earlier id keeps its number). It comes up a quarter.",
       "ids": [
         "whole",
         "wholeDotted",
@@ -371,7 +371,10 @@
         "eighthTriplet",
         "sixteenth",
         "sixteenthDotted",
-        "sixteenthTriplet"
+        "sixteenthTriplet",
+        "thirtySecond",
+        "thirtySecondDotted",
+        "thirtySecondTriplet"
       ],
       "default": "quarter",
       "labels": [
@@ -389,7 +392,10 @@
         "1/8 triplet",
         "1/16",
         "1/16 dotted",
-        "1/16 triplet"
+        "1/16 triplet",
+        "1/32",
+        "1/32 dotted",
+        "1/32 triplet"
       ]
     },
     {
@@ -516,7 +522,7 @@
       "source": {
         "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_DIVISION_BEATS"
       },
-      "doc": "The beats each division of the delay lasts, in the order of its ids: whole, half, quarter, eighth, sixteenth, each straight, dotted (x 3/2) and triplet (x 2/3). A quarter note is one beat.",
+      "doc": "The beats each division of the delay lasts, in the order of its ids: whole, half, quarter, eighth, sixteenth, thirty-second, each straight, dotted (x 3/2) and triplet (x 2/3). A quarter note is one beat.",
       "unit": "",
       "values": [
         4,
@@ -533,17 +539,11 @@
         0.3333333333333333,
         0.25,
         0.375,
-        0.16666666666666666
+        0.16666666666666666,
+        0.125,
+        0.1875,
+        0.08333333333333333
       ]
-    },
-    "DELAY_TEMPO_FALLBACK_BPM": {
-      "kind": "scalar",
-      "source": {
-        "impl": "include/omxdsp/fx/omx_delay_instance.h#OMX_DELAY_INSTANCE_TEMPO_FALLBACK"
-      },
-      "doc": "The tempo a synced delay reads until its host hands it one, BPM.",
-      "unit": "",
-      "value": 120
     },
     "FX_DUCK_ATTACK_MS": {
       "kind": "scalar",
