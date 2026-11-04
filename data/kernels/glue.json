@@ -109,7 +109,7 @@
       "source": {
         "impl": "include/omxdsp/fx/omx_glue_instance.h#hp"
       },
-      "doc": "The detector's high-pass corner, Hz: 0 is out; a corner keeps the low end from pumping the whole bus.",
+      "doc": "The detector's high-pass corner, Hz: 0 is out; a corner keeps the low end from pumping the whole bus. In the feedback detectorTopology the corner is inert: the loop hears the full band, a keyed slot being feed-forward.",
       "travel": {
         "min": 0,
         "max": 500,
@@ -138,20 +138,10 @@
     {
       "name": "detectorTopology",
       "kind": "choice",
-      "global": "GLUE_DETECTOR_TOPOLOGIES",
+      "global": "DETECTOR_TOPOLOGY",
       "source": {
         "impl": "include/omxdsp/fx/omx_glue_instance.h#tp"
-      },
-      "doc": "Where the detector listens, appended so every earlier control keeps its place: `feedforward` (the default, the glue every session saved before this control existed) hears the bus, `feedback` hears the compressor's own output one sample late through one envelope stage, the loop of a VCA bus compressor whose reduction shapes what its detector hears (comp's DETECTOR_TOPOLOGY, index for index: the face asserts it). In `feedback` the attack pole is floored at (R - 1)/R so the loop cannot ring, and keyHpHz does not reach the detector: the loop hears the full-band output.",
-      "ids": [
-        "feedforward",
-        "feedback"
-      ],
-      "default": "feedforward",
-      "labels": [
-        "Feedforward",
-        "Feedback"
-      ]
+      }
     }
   ],
   "readouts": [
