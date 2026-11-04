@@ -157,8 +157,8 @@ FX_STD(tremolo, OmxTremoloInstance,
        { float r = F(), d = F(), m = F(); int mode = I(); omx_tremolo_instance_resolve(s, bypass, r, d, m, mode); })
 FX_STD(trim, OmxTrimInstance, { omx_trim_instance_resolve(s, bypass, F()); })
 FX_STD(glue, OmxGlueInstance,
-       { float t = F(); int r = I(), a = I(), l = I(); float m = F(), h = F(), x = F();
-         omx_glue_instance_resolve(s, bypass, t, r, a, l, m, h, x); })
+       { float t = F(); int r = I(), a = I(), l = I(); float m = F(), h = F(), x = F(); int tp = I();
+         omx_glue_instance_resolve(s, bypass, t, r, a, l, m, h, x, tp); })
 FX_STD(loudlevel, OmxLoudlevelInstance,
        { float t = F(), r = F(), v = F(), g = F(); int w = I(); omx_loudlevel_instance_resolve(s, bypass, t, r, v, g, w); })
 FX_STD(spring, OmxSpringInstance,

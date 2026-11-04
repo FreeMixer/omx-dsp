@@ -114,7 +114,7 @@
         "default": 0,
         "defaultFrom": "desk"
       },
-      "doc": "The detector's high-pass corner, Hz: 0 is out; a corner keeps the low end from pumping the whole bus."
+      "doc": "The detector's high-pass corner, Hz: 0 is out; a corner keeps the low end from pumping the whole bus. In the feedback detectorTopology the corner is inert: the loop hears the full band, a keyed slot being feed-forward."
     },
     {
       "name": "GLUE_MIX_PCT_RANGE",

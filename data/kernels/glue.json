@@ -109,7 +109,7 @@
       "source": {
         "impl": "include/omxdsp/fx/omx_glue_instance.h#hp"
       },
-      "doc": "The detector's high-pass corner, Hz: 0 is out; a corner keeps the low end from pumping the whole bus.",
+      "doc": "The detector's high-pass corner, Hz: 0 is out; a corner keeps the low end from pumping the whole bus. In the feedback detectorTopology the corner is inert: the loop hears the full band, a keyed slot being feed-forward.",
       "travel": {
         "min": 0,
         "max": 500,
@@ -133,6 +133,14 @@
         "unit": "%",
         "default": 100,
         "defaultFrom": "desk"
+      }
+    },
+    {
+      "name": "detectorTopology",
+      "kind": "choice",
+      "global": "DETECTOR_TOPOLOGY",
+      "source": {
+        "impl": "include/omxdsp/fx/omx_glue_instance.h#tp"
       }
     }
   ],
