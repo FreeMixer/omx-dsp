@@ -326,7 +326,7 @@ jobs:
             | sed 's,/usr/lib64/,/usr/lib*/,' | grep -v '^/usr/include/omxdsp/' | sort > files.txt
           printf '%s\n' '/usr/lib*/libomxdsp.a' '/usr/lib*/libomxdsp-contracts.a' '/usr/lib*/libomxdsp-tsan.a' \
             '/usr/lib*/pkgconfig/omxdsp.pc' '/usr/lib*/pkgconfig/omxdsp-contracts.pc' '/usr/lib*/pkgconfig/omxdsp-tsan.pc' \
-            /usr/share/doc/omx-dsp-devel/BUILDING.md /usr/share/doc/omx-dsp-devel/README.md \
+            /usr/share/doc/omx-dsp-devel/README.md \
             /usr/share/licenses/omx-dsp-devel/LICENSE /usr/bin/omx-dsp-copy-check \
             /usr/share/man/man1/omx-dsp-copy-check.1.gz /usr/share/omxdsp/omx-dsp-exports.json /usr/share/omxdsp/hrp_peaking_corpus.h | sort > expected.txt
           diff -u expected.txt files.txt

@@ -76,6 +76,7 @@ Its documentation is on openmixer.org.
 
 %files devel
 %license LICENSE
+%doc README.md
 %{_includedir}/omxdsp/
 %{_libdir}/libomxdsp.a
 %{_libdir}/libomxdsp-contracts.a
@@ -89,6 +90,7 @@ Its documentation is on openmixer.org.
 
 %files contract
 %license LICENSE
+%doc README.md
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
