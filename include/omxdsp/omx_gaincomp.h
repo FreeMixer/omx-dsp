@@ -34,9 +34,28 @@ struct omx_gaincomp_params {
   float ratio;      /**< The ratio, at least the mode's declared minimum. */
   float knee_db;    /**< The knee width, dB, not negative; 0 is a hard knee. */
   float range_db;   /**< BELOW: the attenuation floor, dB, at most 0. UPWARD: the largest boost, dB,
-                     *   at least 0. Ignored in ABOVE. */
+                     *   at least 0. Ignored in ABOVE: an ABOVE floor is the caller's, through
+                     *   omx_gaincomp_floor(), so no compressor is clamped by a word it never set. */
   float makeup_lin; /**< The make-up, linear amplitude, positive; 1 is none. */
 };
+
+/**
+ * @brief THE FLOOR of an ABOVE gain: `max(floor, g)`, the one word every floored reduction goes through.
+ *
+ * The comp's duck (omx_dynamics_keyed, `omx_dyn.floor_db`), the de-esser and the band-dyn band
+ * (omx_band_dyn_offset_db, `range_db`) and the wet ducker (omx_duck_gain_db, `depth_db`) all hold their
+ * reduction here, so a reduction cannot be floored two ways. It is not inside omx_gaincomp_db(): `range_db`
+ * is ignored in ABOVE mode, and flooring every compressor at a word it never set would clamp it.
+ *
+ * Either domain, both arguments in the same one: dB, or linear amplitude (the floor's own dB through
+ * omx_db_to_lin(), make-up included as the gain carries it). The map is monotone, so the floor is the
+ * same either way. A floor of -INFINITY in dB, or 0 in linear, is no floor: `g` itself, bit for bit.
+ * @param g The gain.
+ * @param floor The floor, in `g`'s domain.
+ * @return `floor` where `g` is below it, else `g` (a NaN `g` stays NaN).
+ * @note RT-safe: one compare and one select, no call, so a loop of it vectorises. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_gaincomp_floor(float g, float floor) { return g < floor ? floor : g; }
 
 #undef OMX_CONTRACT_STAGE
 /**

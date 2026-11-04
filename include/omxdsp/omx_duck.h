@@ -26,6 +26,7 @@
 
 #include "omx_contract.h"
 #include "omx_denormal.h"
+#include "omx_gaincomp.h"
 #include "omx_units.h"
 
 /** @brief A ducker's resolved controls. */
@@ -54,7 +55,7 @@ struct omx_duck_state {
 static inline float omx_duck_gain_db(const struct omx_duck *d, float level) {
   float g = d->thresh_db - omx_lin_to_db_poly(level);
   g = g > 0.0f ? 0.0f : g;
-  g = g < d->depth_db ? d->depth_db : g;
+  g = omx_gaincomp_floor(g, d->depth_db);
   OMX_POST(g <= 0.0f && g >= d->depth_db, "gain-within-depth");
   return g;
 }
