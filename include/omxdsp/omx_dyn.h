@@ -37,8 +37,8 @@
  *        lanes, which evaluate every arm, would only be slower than the per-sample functions.
  */
 #define OMX_DYN_LANES 1
-/** @brief Before a loop over the gain computer: vectorise it (omx_fastmath.h's OMX_FM_SIMD). */
-#define OMX_DYN_SIMD OMX_FM_SIMD
+/** @brief A loop over the gain computer: omx_fastmath.h's tiled OMX_FM_MAP, every sample through libmvec. */
+#define OMX_DYN_MAP OMX_FM_MAP
 /** @brief The off-centre knee's gain in a loop: the branch-free lane of omx_gaincomp.h. */
 #define OMX_DYN_GAIN_SHIFTED omx_gaincomp_gain_shifted_lane
 /** @brief The centred knee's gain in a loop: the branch-free lane of omx_gaincomp.h. */
@@ -46,8 +46,8 @@
 #else
 /** @brief 0 here: the loops over the gain computer call the per-sample functions. */
 #define OMX_DYN_LANES 0
-/** @brief Empty here: the loops over the gain computer are the scalar ones. */
-#define OMX_DYN_SIMD
+/** @brief A loop over the gain computer: the plain loop here. */
+#define OMX_DYN_MAP OMX_FM_MAP_PLAIN
 /** @brief The off-centre knee's gain in a loop: the branching function, which skips the knee's work outside it. */
 #define OMX_DYN_GAIN_SHIFTED omx_gaincomp_gain_shifted
 /** @brief The centred knee's gain in a loop: the per-sample function, which skips the knee's work outside it. */
@@ -578,19 +578,13 @@ static inline void omx_dyn_flat_gain_block(const struct omx_dyn_flat *f, const s
   const float lo = f->lo, hi = f->hi, g_floor = f->g_floor, g_open = f->g_open;
   const float shift = p->knee_shift_db;
   const struct omx_gaincomp_params gc = p->gc;
-  if (shift == 0.0f) {
-    OMX_DYN_SIMD
-    for (uint32_t i = 0; i < n; i++) {
-      const float v = in[i], g = omx_gaincomp_gain_lane(&gc, v);
-      out[i] = omx_fm_select(v <= lo, g_floor, omx_fm_select(v >= hi, g_open, g));
-    }
-  } else {
-    OMX_DYN_SIMD
-    for (uint32_t i = 0; i < n; i++) {
-      const float v = in[i], g = omx_gaincomp_gain_shifted_lane(&gc, shift, v);
-      out[i] = omx_fm_select(v <= lo, g_floor, omx_fm_select(v >= hi, g_open, g));
-    }
-  }
+  if (shift == 0.0f)
+    OMX_DYN_MAP(out, in, n, v,
+                omx_fm_select(v <= lo, g_floor, omx_fm_select(v >= hi, g_open, omx_gaincomp_gain_lane(&gc, v))));
+  else
+    OMX_DYN_MAP(out, in, n, v,
+                omx_fm_select(v <= lo, g_floor,
+                              omx_fm_select(v >= hi, g_open, omx_gaincomp_gain_shifted_lane(&gc, shift, v))));
 #else
   for (uint32_t i = 0; i < n; i++) out[i] = omx_dyn_flat_gain(f, p, in[i]);
 #endif
@@ -851,13 +845,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
           /* the parameters by value: a store into the block cannot then alias what the loop reads */
           const struct omx_gaincomp_params gcl = p->gc;
           const float shl = p->knee_shift_db;
-          if (shl == 0.0f) {
-            OMX_DYN_SIMD
-            for (uint32_t i = 0; i < m; i++) gain[i] = OMX_DYN_GAIN(&gcl, lev[i]);
-          } else {
-            OMX_DYN_SIMD
-            for (uint32_t i = 0; i < m; i++) gain[i] = OMX_DYN_GAIN_SHIFTED(&gcl, shl, lev[i]);
-          }
+          if (shl == 0.0f) OMX_DYN_MAP(gain, lev, m, v, OMX_DYN_GAIN(&gcl, v));
+          else OMX_DYN_MAP(gain, lev, m, v, OMX_DYN_GAIN_SHIFTED(&gcl, shl, v));
         }
       }
     } else {
@@ -896,13 +885,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
           /* the parameters by value: a store into the block cannot then alias what the loop reads */
           const struct omx_gaincomp_params gcl = p->gc;
           const float shl = p->knee_shift_db;
-          if (shl == 0.0f) {
-            OMX_DYN_SIMD
-            for (uint32_t k = 0; k < mf; k++) g4[k] = OMX_DYN_GAIN(&gcl, g4[k]);
-          } else {
-            OMX_DYN_SIMD
-            for (uint32_t k = 0; k < mf; k++) g4[k] = OMX_DYN_GAIN_SHIFTED(&gcl, shl, g4[k]);
-          }
+          if (shl == 0.0f) OMX_DYN_MAP(g4, g4, mf, v, OMX_DYN_GAIN(&gcl, v));
+          else OMX_DYN_MAP(g4, g4, mf, v, OMX_DYN_GAIN_SHIFTED(&gcl, shl, v));
         }
       }
       omx_oversampler_down(&st->ovs_a, g4, m, gain);

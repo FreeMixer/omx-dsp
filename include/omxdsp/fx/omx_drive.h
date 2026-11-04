@@ -331,13 +331,13 @@ static inline OMX_FM_ALWAYS float omx_drive_sample(int curve, float u, const str
 #ifdef OMX_FASTMATH_MVEC_TANHF
 /** @brief 1 when the build declared libmvec's tanhf: the SOFT and EXCITER loop of omx_drive_shape_block() runs vectorised. */
 #define OMX_DRIVE_LANES 1
-/** @brief Before the tanhf loop: vectorise it (omx_fastmath.h's OMX_FM_SIMD). */
-#define OMX_DRIVE_TANH_SIMD OMX_FM_SIMD
+/** @brief The tanhf loop: omx_fastmath.h's tiled OMX_FM_MAP, every sample through libmvec. */
+#define OMX_DRIVE_TANH_MAP OMX_FM_MAP
 #else
 /** @brief 0 here: the build has no vector tanhf, and the SOFT and EXCITER loop is the scalar one. */
 #define OMX_DRIVE_LANES 0
-/** @brief Empty here: with tanhf scalar the loop cannot vectorise. */
-#define OMX_DRIVE_TANH_SIMD
+/** @brief With tanhf scalar the loop cannot vectorise: the plain loop. */
+#define OMX_DRIVE_TANH_MAP OMX_FM_MAP_PLAIN
 #endif
 
 #define OMX_CONTRACT_STAGE "drive/shape-block"
@@ -370,8 +370,7 @@ static inline void omx_drive_shape_block(int curve, const struct omx_drive_bias 
       for (uint32_t i = 0; i < n; i++) x[i] = omx_drive_sample(OMX_DRIVE_TUBE, drive * x[i], s);
       break;
     default: /* SOFT, EXCITER and anything else: omx_drive_shape's default arm, tanh */
-      OMX_DRIVE_TANH_SIMD
-      for (uint32_t i = 0; i < n; i++) x[i] = omx_drive_sample(OMX_DRIVE_SOFT, drive * x[i], s);
+      OMX_DRIVE_TANH_MAP(x, x, n, v, omx_drive_sample(OMX_DRIVE_SOFT, drive * v, s));
       break;
   }
   OMX_POST(omx_block_finite(x, n), "finite-out");

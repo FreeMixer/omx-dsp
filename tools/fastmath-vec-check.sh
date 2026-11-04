@@ -8,7 +8,8 @@
 #       compiles test/fx/fastmath_vec.c to assembly with the libmvec flags the build derived and requires
 #       every loop to call the _ZGV vector symbol of each libm function it makes, and no scalar call
 #   tools/fastmath-vec-check.sh --self-test CC INCFLAGS MVECFLAGS...
-#       the same over a copy of the header with its `omp simd` pragma taken out, which must be refused
+#       the same over a copy of the header whose OMX_FM_MAP is a plain `omp simd` loop over the caller's n (a
+#       remainder on the libm), which must be refused
 #
 # With no libmvec function among the flags it says so and passes: the libm path has nothing to vectorise.
 set -eu
@@ -25,7 +26,13 @@ trap 'rm -rf "$T"' EXIT
 ARGS="-I$HERE/include $INC"
 if [ "$SELF" = 1 ]; then
   mkdir -p "$T/inc"; cp -r "$HERE/include/omxdsp" "$T/inc/"
-  sed -i 's|#define OMX_FM_SIMD _Pragma("omp simd")|#define OMX_FM_SIMD|' "$T/inc/omxdsp/omx_fastmath.h"
+  # the loop as 0.29.0 spelt it: `omp simd` over the caller's n, whose remainder the compiler runs on the libm
+  sed -i -e 's|^#define OMX_FM_MAP(out, in, n, v, expr) |#define OMX_FM_MAP_TILED(out, in, n, v, expr) |' \
+    -e 's|^#endif /\* OMXDSP_FASTMATH_H \*/|#ifdef OMX_FASTMATH_MVEC\
+#define OMX_FM_MAP(o, i, n, v, e) do { OMX_FM_SIMD for (uint32_t j_ = 0; j_ < (n); j_++) { const float v = (i)[j_]; (o)[j_] = (e); } } while (0)\
+#endif\
+&|' "$T/inc/omxdsp/omx_fastmath.h"
+  grep -q '^#define OMX_FM_MAP_TILED' "$T/inc/omxdsp/omx_fastmath.h" || { echo "fastmath-vec-check: self-test could not plant the remainder loop"; exit 1; }
   ARGS="-I$T/inc $INC"
 fi
 # shellcheck disable=SC2086
@@ -42,6 +49,10 @@ need() { # function libm-name...
     U="$(echo "$f" | tr a-z A-Z)"
     if ! echo " $MVECFLAGS " | grep -q "OMX_FASTMATH_MVEC_$U=1"; then continue; fi
     echo "$b" | grep -Eq "_ZGV[A-Za-z0-9]+_$f" || { echo "fastmath-vec-check: $fn calls no vector $f"; bad=1; }
+    # and no scalar one: a remainder or peel loop on the libm makes a sample's bits depend on where the block ends
+    if echo "$b" | grep -Eq "^[[:space:]]+(call|jmp|bl|b)[[:space:]]+$f(@PLT)?[[:space:]]*$"; then
+      echo "fastmath-vec-check: $fn also calls the scalar $f (a remainder loop on the libm)"; bad=1
+    fi
   done
 }
 has() { echo " $MVECFLAGS " | grep -q "OMX_FASTMATH_MVEC_$(echo "$1" | tr a-z A-Z)=1"; }
@@ -61,8 +72,8 @@ for fn in vc_gain_centred vc_gain_shifted vc_gain_flat; do
   if has log10f && has powf; then need "$fn" log10f powf; else none "$fn" log10f powf; fi
 done
 if [ "$SELF" = 1 ]; then
-  if [ "$bad" = 1 ]; then echo "fastmath-vec-check: self-test: a header without the pragma is refused"; exit 0; fi
-  echo "fastmath-vec-check: self-test FAILED: a header with no pragma was passed"; exit 1
+  if [ "$bad" = 1 ]; then echo "fastmath-vec-check: self-test: a loop with a libm remainder is refused"; exit 0; fi
+  echo "fastmath-vec-check: self-test FAILED: a loop with a libm remainder was passed"; exit 1
 fi
 [ "$bad" = 0 ] || exit 1
 echo "fastmath-vec-check: every loop calls the libmvec symbols of its functions, and a loop missing one calls none"
