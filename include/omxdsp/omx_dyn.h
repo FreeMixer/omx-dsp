@@ -232,6 +232,8 @@ struct omx_dyn_state {
   float fb_env;                    /**< the feedback loop's ONE envelope stage, detector domain */
   float fb_yl;                     /**< the loop's last pre-make-up output, leg L: y[n-1] */
   float fb_yr;                     /**< the loop's last pre-make-up output, leg R: y[n-1] */
+  float fb_xh;                     /**< the loop's held INPUT level, detector domain: up at once, down at the
+                                    *   release pole; the equilibrium it settles at bounds the attack */
   int fb_ran;                      /**< the last block ran the feedback loop */
   struct omx_env_program_release prs; /**< the program release's state; zeroed while it does not run */
 };
@@ -812,7 +814,29 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
       for (uint32_t i = 0; i < m; i++) {
         const float hl = st->fb_yl, hr = st->fb_yr;
         const float d = rms ? fmaxf(hl * hl, hr * hr) : fmaxf(fabsf(hl), fabsf(hr));
-        const float e = omx_onepole_flush(&st->fb_env, d, d > st->fb_env ? fb_pa : fb_pr);
+        const float xin = rms ? fmaxf(xl[i] * xl[i], xr[i] * xr[i]) : fmaxf(fabsf(xl[i]), fabsf(xr[i]));
+        st->fb_xh = omx_flush(fmaxf(xin, fb_pr * st->fb_xh));
+        float e;
+        if (d > st->fb_env) {
+          /* THE ATTACK'S BOUND (§4 L4, large signal): the floor keeps the small-signal pole
+           * non-negative, but on a large step the detector hears a whole uncompressed sample one
+           * sample late, and one attack step can carry the envelope past the level the loop
+           * settles at for this input; the output-domain characteristic then multiplies the excess
+           * by R - 1 and the slot falls tens of dB under its curve, climbing back at the RELEASE
+           * pole. So an attack step goes at most to the equilibrium of the HELD input (fb_xh,
+           * through omx_gaincomp_fb_settled_db), never past it and never backwards. The input is
+           * held, not read sample by sample, so on programme the bound sits at the peaks' equilibrium,
+           * above the envelope, and puts no audio-rate edge on the gain (O10). A small step
+           * approaches from below and the bound does not bind (O4 unchanged). */
+          const float xh = st->fb_xh;
+          const float yeq = omx_db_to_lin(omx_gaincomp_fb_settled_db(&p->gc, omx_lin_to_db(rms ? sqrtf(xh) : xh)));
+          const float cap = fmaxf(st->fb_env, rms ? yeq * yeq : yeq);
+          const float step = omx_onepole(&st->fb_env, d, fb_pa);
+          st->fb_env = omx_flush(step < cap ? step : cap);
+          e = st->fb_env;
+        } else {
+          e = omx_onepole_flush(&st->fb_env, d, fb_pr);
+        }
         const float gr = omx_gaincomp_db_fb(&p->gc, omx_lin_to_db(rms ? sqrtf(e) : e));
         const float g = omx_db_to_lin(prog ? omx_env_program_release(&st->prs, &p->prp[0], gr) : gr);
         st->fb_yl = omx_flush(xl[i] * g);
