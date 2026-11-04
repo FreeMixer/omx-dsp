@@ -42,6 +42,10 @@ need() { # function libm-name...
     U="$(echo "$f" | tr a-z A-Z)"
     if ! echo " $MVECFLAGS " | grep -q "OMX_FASTMATH_MVEC_$U=1"; then continue; fi
     echo "$b" | grep -Eq "_ZGV[A-Za-z0-9]+_$f" || { echo "fastmath-vec-check: $fn calls no vector $f"; bad=1; }
+    # and no scalar one: a remainder or peel loop on the libm makes a sample's bits depend on where the block ends
+    if echo "$b" | grep -Eq "^[[:space:]]+(call|jmp|bl|b)[[:space:]]+$f(@PLT)?[[:space:]]*$"; then
+      echo "fastmath-vec-check: $fn also calls the scalar $f (a remainder loop on the libm)"; bad=1
+    fi
   done
 }
 has() { echo " $MVECFLAGS " | grep -q "OMX_FASTMATH_MVEC_$(echo "$1" | tr a-z A-Z)=1"; }
