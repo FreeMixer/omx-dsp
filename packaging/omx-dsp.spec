@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.29.0
+Version: 0.30.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 3.8.0
+BuildRequires: omx-contract-devel >= 3.9.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -35,14 +35,14 @@ Its documentation is on openmixer.org.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 3.8.0
+Requires: omx-contract-devel >= 3.9.0
 Requires: %{name}-contract = %{version}-%{release}
 
 %package contract
 Summary: omx-dsp's kernel and instance declarations, for programs that read them at run time
 BuildArch: noarch
 # the declarations live in omx-contract's contract directory and are read against its schema; a floor only
-Requires: omx-contract-data >= 3.8.0
+Requires: omx-contract-data >= 3.9.0
 
 %description contract
 omx-dsp's package of omx-contract's contract directory: the declarations of
@@ -94,6 +94,21 @@ Its documentation is on openmixer.org.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Wed Nov 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.30.0-1
+- glue: detectorTopology, default feedforward, takes comp's DETECTOR_TOPOLOGY;
+  keyHpHz has no effect in feedback (#279)
+- dynamics: the feedback loop's attack is bounded by the held input's
+  equilibrium; a program release in the loop recovers one way; only the
+  dynamics_feedback golden moves (#279)
+- fastmath: the libmvec loops run in tiles of 16, so the bits no longer depend
+  on the block size; OMX_DYN_SIMD and OMX_DRIVE_TANH_SIMD are removed (#280)
+- delay: 1/32 divisions appended; with no host tempo a synced delay keeps its
+  time; omx_delay_instance_synced(); DELAY_TEMPO_FALLBACK_BPM retired (#277)
+- gaincomp: omx_gaincomp_floor(), the one floor of an ABOVE reduction (#278)
+- The packages install their licence and a short README and no other markdown;
+  the Debian lists carry their licence lines (#281)
+- Requires omx-contract 3.9.0 or later
+
 * Tue Nov 03 2026 Pau Aliagas <linuxnow@gmail.com> - 0.29.0-1
 - New: the drive shaper and the dynamics gain curves run through glibc's
   vector maths (libmvec: tanhf, expf, log10f, powf) where the compiler and the
