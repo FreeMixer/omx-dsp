@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
 # travel-grid-check.sh — every declared travel can be stepped from its minimum onto its maximum and its
-# default, and every choice names its ids or uses a set another control of its kernel declares.
+# default, and every choice names its ids or uses a set another control declares, of its kernel or another's.
 #
 #   tools/travel-grid-check.sh [dir]        the check, over data/kernels of this tree (or dir)
 #   tools/travel-grid-check.sh --self-test  a step off the grid, a default off the grid and a choice
@@ -13,14 +13,19 @@
 # control cannot reach. A value spelled as a reference to another declaration is read where it is declared
 # and skipped here. A control with `of` is another control's travel and has no ids to name. A choice with a
 # `global` and no ids is a use: it takes the ids of the control that declares that set (omx-contract's reader
-# serves them under the use), so one control of the kernel has to hold them.
+# serves them under the use), so one control of some kernel has to hold them (glue's detectorTopology takes comp's
+# DETECTOR_TOPOLOGY: one declaration, no copy).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 
 scan() {
-  local f rc=0
+  local f rc=0 held_all
+  # every set a choice declares under a global, over all the kernels: a use may take another kernel's
+  held_all=" $(awk '/^    \{/ { ids = 0; gl = "" } /^      "ids": / { ids = 1 }
+    /^      "global": "/ { gl = $0; sub(/^ *"global": "/, "", gl); sub(/".*/, "", gl) }
+    /^    \}/ { if (ids && gl != "") printf "%s ", gl }' "$1"/*.json) "
   for f in "$1"/*.json; do
-    awk -v file="$(basename "$f")" '
+    awk -v file="$(basename "$f")" -v held_all="$held_all" '
       function num(s) { sub(/^[^:]*: */, "", s); sub(/,? *$/, "", s); return s }
       function isnum(s) { return s ~ /^-?[0-9.]+([eE][-+]?[0-9]+)?$/ }
       function grid(what, v) {
@@ -49,7 +54,7 @@ scan() {
         if (isnum(mn) && isnum(st) && st + 0 > 0) { n++; grid("max", mx); grid("default", df) }
       }
       END {
-        for (g in used) if (!(g in held)) { printf "travel-grid: %s %s: uses %s, which no control of this kernel holds\n", file, used[g], g; bad = 1 }
+        for (g in used) if (!(g in held) && index(held_all, " " g " ") == 0) { printf "travel-grid: %s %s: uses %s, which no control of any kernel holds\n", file, used[g], g; bad = 1 }
         printf "%d\n", n > "/dev/stderr"; exit bad
       }
     ' "$f" 2>>"$2" || rc=1
@@ -79,8 +84,9 @@ if [ "${1:-}" = --self-test ]; then
   red "a step that misses the maximum" comp.json '/"name": "releaseMs"/,/"defaultFrom"/s/"step": 5,/"step": 7,/' 'comp.json releaseMs: max'
   red "a default off the grid" comp.json '/"name": "attackMs"/,/"defaultFrom"/s/"default": 5,/"default": 5.05,/' 'comp.json attackMs: default 5.05'
   red "a use whose set no control holds" eq.json '/"name": "hpfSlope"/,/"default"/{/"ids": \[/,/\],/d}' 'uses FILTER_SLOPES, which no control'
+  red "another kernel's set gone from under a use" comp.json '/"name": "detectorTopology"/,/"default"/{/"ids": \[/,/\],/d}' 'glue.json detectorTopology: uses DETECTOR_TOPOLOGY, which no control'
   red "a choice with no ids" eq.json '/"name": "lpfSlope"/,/"global"/{/"global"/d}' 'eq.json lpfSlope: a choice with no ids'
-  echo "travel-grid: self-test: all 4 sabotages named"
+  echo "travel-grid: self-test: all 5 sabotages named"
   exit 0
 fi
 

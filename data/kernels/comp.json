@@ -144,7 +144,11 @@
         "feedforward",
         "feedback"
       ],
-      "default": "feedforward"
+      "default": "feedforward",
+      "labels": [
+        "Feedforward",
+        "Feedback"
+      ]
     },
     {
       "name": "keySource",

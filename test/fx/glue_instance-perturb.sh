@@ -12,6 +12,11 @@
 #   auto — the last detent is not the program release: arm B;
 #   hp — the corner never reaches the detector: arm B D;
 #   mix — the mix never reaches the slot: arm A B;
+#   topology — feedback never reaches the slot: arm B F G I;
+#   fbhp — the key corner reaches the slot in feedback (keyed, so the loop silently runs feed-forward): arm B I;
+#   bound — omx_dyn.h's loop loses its attack bound (a large step overshoots the equilibrium): arm H;
+#   floor — omx_dyn.h's loop loses its attack floor (R - 1)/R: arm G H;
+#   relbound — omx_dyn.h's loop lets its envelope fall below the applied reduction under a program release: arm H;
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… glue_instance-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -55,11 +60,21 @@ sabotage release omxdsp_definitions.h 's|^#define OMX_GLUE_RELEASE_MS_INIT { 100
 pids+=($!)
 sabotage auto fx/omx_glue_instance.h 's/is_auto ? (int)OMX_COMP_RELEASE_MODES_AUTO : /0 ? (int)OMX_COMP_RELEASE_MODES_AUTO : /' B &
 pids+=($!)
-sabotage hp fx/omx_glue_instance.h 's/(int)OMX_COMP_KEY_SOURCES_SELF, hp, 0.0f/(int)OMX_COMP_KEY_SOURCES_SELF, 0.0f * hp, 0.0f/' B D &
+sabotage hp fx/omx_glue_instance.h 's/(int)OMX_COMP_KEY_SOURCES_SELF, key_hp, 0.0f/(int)OMX_COMP_KEY_SOURCES_SELF, 0.0f * key_hp, 0.0f/' B D &
 pids+=($!)
 sabotage mix fx/omx_glue_instance.h 's/rel_ms, mk, mx, (int)/rel_ms, mk, 100.0f + 0.0f * mx, (int)/' A B &
+pids+=($!)
+sabotage topology fx/omx_glue_instance.h 's/? (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK$/? (int)OMX_DETECTOR_TOPOLOGY_FEEDFORWARD/' B F G I &
+pids+=($!)
+sabotage fbhp fx/omx_glue_instance.h 's/const float key_hp = tp == (int)OMX_DETECTOR_TOPOLOGY_FEEDBACK ? 0.0f : hp;/const float key_hp = hp;/' B I &
+pids+=($!)
+sabotage bound omx_dyn.h 's/st->fb_env = omx_flush(step < cap ? step : cap);/st->fb_env = omx_flush(step + 0.0f * cap);/' H &
+pids+=($!)
+sabotage floor omx_dyn.h 's/const float pole = attack_pole > floor_pole ? attack_pole : floor_pole;/const float pole = attack_pole + 0.0f * floor_pole;/' G H &
+pids+=($!)
+sabotage relbound omx_dyn.h 's/        if (grp < gr) {/        if (0 \&\& grp < gr) {/' H &
 pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || exit 1
-echo "glue_instance-perturb: the oracle sees all 7 sabotages"
+echo "glue_instance-perturb: the oracle sees all 12 sabotages"
