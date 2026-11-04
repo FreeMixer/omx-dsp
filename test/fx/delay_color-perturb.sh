@@ -9,8 +9,10 @@
 #   analoglp  — DELAY_ANALOG_LP_HZ moved from 3000 to 3500 Hz: arm E;
 #   wowhz     — DELAY_TAPE_WOW_HZ moved from 0.4 to 0.5 Hz: arm D;
 #   wowms     — DELAY_TAPE_WOW_MS moved from 0.3 to 0.4 ms: arm D;
-#   fallback  — DELAY_TEMPO_FALLBACK_BPM moved from 120 to 100: arm B;
+#   notempo   — at tempo with no tempo handed, the synced time is used anyway: arm B;
+#   invent    — a withdrawn tempo reads as an invented 120 BPM instead of none: arms B and G;
 #   beats     — DELAY_DIVISION_BEATS' dotted eighth moved from 0.75 to 0.8 beats: arm B;
+#   beats32   — DELAY_DIVISION_BEATS' dotted thirty-second moved from 0.1875 to 0.2 beats: arm B;
 #   attack    — FX_DUCK_ATTACK_MS moved from 5 to 6 ms: arm F;
 #   loop      — tape's loop low pass never runs: arm C;
 #   wow       — the wow never moves the head: arm D;
@@ -58,9 +60,13 @@ sabotage wowhz omxdsp_definitions.h 's|^#define OMX_DELAY_TAPE_WOW_HZ 0.4f$|#def
 pids+=($!)
 sabotage wowms omxdsp_definitions.h 's|^#define OMX_DELAY_TAPE_WOW_MS 0.3f$|#define OMX_DELAY_TAPE_WOW_MS 0.4f|' D &
 pids+=($!)
-sabotage fallback omxdsp_definitions.h 's|^#define OMX_DELAY_TEMPO_FALLBACK_BPM 120$|#define OMX_DELAY_TEMPO_FALLBACK_BPM 100|' B &
+sabotage notempo fx/omx_delay_instance.h 's|sync == OMX_DELAY_SYNCS_TEMPO \&\& s->bpm > 0.0f ? 1 : 0;|sync == OMX_DELAY_SYNCS_TEMPO ? 1 : 0;|' B &
+pids+=($!)
+sabotage invent fx/omx_delay_instance.h 's|bpm - bpm == 0.0f ? bpm : 0.0f;|bpm - bpm == 0.0f ? bpm : 120.0f;|' B G &
 pids+=($!)
 sabotage beats omxdsp_definitions.h 's|0.5f, 0.75f, 0.3333333333333333f|0.5f, 0.8f, 0.3333333333333333f|' B &
+pids+=($!)
+sabotage beats32 omxdsp_definitions.h 's|0.125f, 0.1875f, 0.08333333333333333f|0.125f, 0.2f, 0.08333333333333333f|' B &
 pids+=($!)
 sabotage attack omxdsp_definitions.h 's|^#define OMX_FX_DUCK_ATTACK_MS 5$|#define OMX_FX_DUCK_ATTACK_MS 6|' F &
 pids+=($!)
@@ -75,4 +81,4 @@ pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "delay_color-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "delay_color-perturb: the delay colour oracle sees all eleven sabotages"
+echo "delay_color-perturb: the delay colour oracle sees all thirteen sabotages"
