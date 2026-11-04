@@ -118,7 +118,7 @@ for (const [k, at, move, set, want] of moves) {
 test('validate refuses a use of no declared item, a count that counts nothing and an of without its when', () => {
   const eq = 'data/kernels/eq.json';
   const ctl = (d, n) => d[eq].controls.find((c) => c.name === n);
-  assert.ok(problems(texts((d) => { ctl(d, 'lpfSlope').global = 'NO_SLOPES'; })).some((p) => /lpfSlope: uses NO_SLOPES, which no other control/.test(p)));
+  assert.ok(problems(texts((d) => { ctl(d, 'lpfSlope').global = 'NO_SLOPES'; })).some((p) => /uses NO_SLOPES, which no control of any kernel declares/.test(p)));
   assert.ok(problems(texts((d) => { ctl(d, 'lpfSlope').kind = 'travel'; })).some((p) => /a travel that uses FILTER_SLOPES, which is a choice/.test(p)));
   assert.ok(problems(texts((d) => { ctl(d, 'freq').count = 'EQ_FREQ_RANGE'; })).some((p) => /^count: eq\.freq: count EQ_FREQ_RANGE is neither/.test(p)));
   assert.ok(problems(texts((d) => { delete ctl(d, 'notchQ').when; })).some((p) => /notchQ: when must be/.test(p)));
