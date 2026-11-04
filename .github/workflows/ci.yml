@@ -19,7 +19,7 @@ permissions:
 env:
   # omx-contract's reader, render and install script, which data/ is read back through and the definitions header
   # rendered by, from this release tag: the floor packaging/deps.txt declares
-  OMX_CONTRACT_REF: v3.8.0
+  OMX_CONTRACT_REF: v3.9.0
 
 jobs:
   test:
