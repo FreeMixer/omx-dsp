@@ -380,6 +380,54 @@ static void o12_large_step_never_passes_equilibrium(float sr) {
   check(worst_settle <= 0.01, "O12 a step from silence has settled on the static curve after 0.25 s (0.01 dB)", sr);
 }
 
+/* O13 — with a program release (auto, opto) the feedback loop recovers ONE way. The release word holds the applied
+ * gain deeper than the detector's own reduction; unbound, the loop's envelope then follows an output quieter than
+ * the gain it computes, releases below the level the applied gain stands for, and when the word lets the gain up the
+ * detector hears more than its envelope and attacks again (measured before the bound: 0.256 dB of re-attack at 4:1,
+ * 10 and 30 ms, every rate). Over ratios {2, 4, 10}, attacks {0.1, 1, 10, 30} ms, auto and opto, peak and RMS, DC
+ * 30 dB over a -30 dB threshold for 0.3 s, then 20 dB down: through the release the gain never goes deeper again by
+ * more than 1e-4 dB (float rounding on a settled envelope). */
+static void o13_program_release_recovers_one_way(float sr) {
+  static const float RS[] = {2.0f, 4.0f, 10.0f}, AS[] = {0.1f, 1.0f, 10.0f, 30.0f};
+  const uint32_t ph = (uint32_t)(0.3f * sr);
+  float *tr = malloc(2u * ph * sizeof *tr);
+  double worst = 0.0;
+  for (int ri = 0; ri < 3; ri++)
+    for (int ai = 0; ai < 4; ai++)
+      for (int mode = 1; mode <= 2; mode++)
+        for (int rms = 0; rms < 2; rms++) {
+          struct omx_dyn p = fb_comp(sr, -30.0f, RS[ri], 0.0f, AS[ai], 100.0f);
+          if (rms) p.detect = OMX_DETECT_RMS;
+          p.release_mode = mode == 1 ? OMX_COMP_RELEASE_MODES_AUTO : OMX_COMP_RELEASE_MODES_OPTO;
+          for (unsigned k = 0; k < 2; k++) {
+            if (mode == 1) omx_env_program_release_auto(&p.prp[k], sr, k ? 4u : 1u);
+            else omx_env_program_release_opto(&p.prp[k], sr, k ? 4u : 1u);
+            g_unexplained += omx_fx_drain_ledger(sr); /* each init makes poles: drained before the ledger fills */
+          }
+          struct omx_dyn_state st;
+          omx_dyn_state_init(&st, 1u);
+          /* in blocks of 16, the ledger drained after each: the release word makes its slow pole every sample,
+           * and at 32, 64 and 128 kHz each records `rate-is-declared`, which the rate explains */
+          float buf[16];
+          for (uint32_t o = 0; o < 2u * ph; o += 16u) {
+            const uint32_t m = 2u * ph - o < 16u ? 2u * ph - o : 16u;
+            for (uint32_t i = 0; i < m; i++) buf[i] = o + i < ph ? 1.0f : 0.1f;
+            omx_dynamics(buf, NULL, m, &p, &st);
+            g_unexplained += omx_fx_drain_ledger(sr);
+            for (uint32_t i = 0; i < m; i++)
+              if (o + i >= ph) tr[o + i - ph] = 20.0f * log10f(buf[i] / 0.1f);
+          }
+          double top = tr[0];
+          for (uint32_t i = 1; i < ph; i++) {
+            if (tr[i] > top) top = tr[i];
+            if (top - tr[i] > worst) worst = top - tr[i];
+          }
+        }
+  free(tr);
+  printf("  O13 @ %6.0f Hz: deepest re-attack through a program release %.5f dB\n", (double)sr, worst);
+  check(worst <= 1e-4, "O13 a program release recovers one way: no re-attack deeper than 1e-4 dB", sr);
+}
+
 /* O10 — the aliasing L5 costs, measured and pinned (±1 dB), one figure per declared rate. */
 static void fft(double *re, double *im, uint32_t n) {
   for (uint32_t i = 1, j = 0; i < n; i++) {
@@ -485,6 +533,7 @@ int main(void) {
     o8_no_denormal_state(sr);
     o11_entry_seeds_the_previous_output(sr);
     o12_large_step_never_passes_equilibrium(sr);
+    o13_program_release_recovers_one_way(sr);
     const double al = o10_worst_alias_dbc(sr);
     printf("  O10 @ %6.0f Hz: worst aliased product %.2f dBc (pinned %.2f)\n", (double)sr, al, O10_PINNED_DBC[k]);
     check(fabs(al - O10_PINNED_DBC[k]) <= 1.0, "O10 the worst aliased product stays at its pinned figure +-1 dB", sr);

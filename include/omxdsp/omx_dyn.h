@@ -838,7 +838,19 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
           e = omx_onepole_flush(&st->fb_env, d, fb_pr);
         }
         const float gr = omx_gaincomp_db_fb(&p->gc, omx_lin_to_db(rms ? sqrtf(e) : e));
-        const float g = omx_db_to_lin(prog ? omx_env_program_release(&st->prs, &p->prp[0], gr) : gr);
+        const float grp = prog ? omx_env_program_release(&st->prs, &p->prp[0], gr) : gr;
+        if (grp < gr) {
+          /* THE PROGRAM RELEASE INSIDE THE LOOP: the word holds the applied gain deeper than the detector's own
+           * reduction, so the output, and with it what the detector hears, is quieter than the envelope stands for.
+           * Left alone the envelope releases below the level the APPLIED gain stands for and, when the word lets the
+           * gain up, the detector hears more than its envelope and attacks again (0.68 dB of re-attack measured,
+           * O13). So the envelope never falls below the level at which the characteristic answers the applied
+           * reduction: the release is the word's alone and recovers one way. */
+          const float lv = omx_db_to_lin(omx_gaincomp_fb_level_of_db(&p->gc, grp));
+          const float floor_env = rms ? lv * lv : lv;
+          if (st->fb_env < floor_env) st->fb_env = omx_flush(floor_env);
+        }
+        const float g = omx_db_to_lin(grp);
         st->fb_yl = omx_flush(xl[i] * g);
         st->fb_yr = omx_flush(xr[i] * g);
         gain[i] = g * p->gc.makeup_lin;

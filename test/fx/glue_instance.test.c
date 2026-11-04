@@ -16,7 +16,7 @@
 //   G  a small step settles on ONE pole p - (1 - p)(R - 1) in feedback and through the four-pole cascade
 //      feed-forward (area, 5 %), the loop dividing the time by the ratio (L3); effectiveAttackMs is the
 //      floor of L4 where the detent is faster (1e-4 ms);
-//   H  every ratio x attack x release in feedback: the gain moves one way per step, never rings (L4);
+//   H  every ratio x attack x release in feedback, auto included: the gain moves one way per phase, never rings;
 //   I  in feedback the key corner is inert (the loop hears the full band), feed-forward it is live.
 #define OMX_CONTRACT_STORAGE 1
 #include <omxdsp/fx/omx_glue_instance.h>
@@ -285,17 +285,13 @@ static void arm_timing(void) {
 
 /* L4, every detent at this rate: DC 30 dB over the threshold from cold, then 20 dB down (still 10 over). The loop
  * never rings: the gain never alternates sample to sample (a negative loop pole's chatter) and leaves no finite value
- * (a divergent one). With a fixed release it moves ONE way per phase, down through the attack and up through the
- * release (1e-4 dB of float rounding on a settled envelope). The auto release is program-dependent: the gain is
- * slowed while the loop's own detector releases at the fastest detent, so as the gain comes back the detector can
- * re-attack once; that excursion is measured, printed and pinned (AUTO_REVERSAL_DB), not hidden. */
-/* measured 0.2561 .. 0.2567 dB over the nine rates (4:1 and 10:1 at 10 and 30 ms), pinned with headroom of 0.04 */
-#define AUTO_REVERSAL_DB 0.30
+ * (a divergent one). It moves ONE way per phase, down through the attack and up through the release, with the fixed
+ * releases and with auto alike (1e-4 dB of float rounding on a settled envelope): the program release inside the loop
+ * keeps the detector's envelope at the level the applied gain stands for, so the gain never re-attacks. */
 static void arm_stable(void) {
   g_arm = "H";
   const uint32_t ph = (uint32_t)(0.3f * g_sr), n = 2u * ph;
   const float hi = 1.0f, lo = 0.1f;
-  double auto_worst = 0.0;
   for (uint32_t i = 0; i < n; i++) g_l[i] = g_r[i] = i < ph ? hi : lo;
   for (int ra = 0; ra < 3; ra++)
     for (int at = 0; at < 6; at++)
@@ -322,16 +318,10 @@ static void arm_stable(void) {
         }
         const int cell = ra * 100 + at * 10 + rl;
         ok(nonfinite == 0u, "the feedback loop never diverges (non-finite samples; the cell is ra.at.rl)", nonfinite, cell);
-        /* none with a fixed release; the auto release's one re-attack is two turning points */
-        const uint32_t flips = rl == (int)OMX_GLUE_RELEASES_AUTO ? 2u : 0u;
-        ok(chatter <= flips, "the feedback loop never rings: the gain does not alternate (direction flips; the cell)", chatter, cell);
-        if (rl == (int)OMX_GLUE_RELEASES_AUTO) {
-          auto_worst = fmax(auto_worst, depth);
-          ok(depth <= AUTO_REVERSAL_DB, "auto release: one re-attack, within its pinned depth (dB)", depth, AUTO_REVERSAL_DB);
-        } else
-          ok(depth <= 1e-4, "a fixed release moves one way per phase (dB against the direction; the cell)", depth, cell);
+        ok(chatter == 0u, "the feedback loop never rings: the gain does not alternate (direction flips; the cell)", chatter, cell);
+        ok(depth <= 1e-4, "the gain moves one way per phase, fixed and auto releases alike (dB against the direction; the cell)",
+           depth, cell);
       }
-  printf("  H @ %6.0f Hz: the auto release's deepest re-attack %.4f dB (pinned at most %.2f)\n", (double)g_sr, auto_worst, AUTO_REVERSAL_DB);
   clean();
 }
 
