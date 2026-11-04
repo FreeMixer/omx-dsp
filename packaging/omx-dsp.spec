@@ -16,6 +16,7 @@ BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
 BuildRequires: omx-contract-devel >= 3.9.0
+BuildRequires: omx-contract-devel < 4
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -36,6 +37,7 @@ Its documentation is on openmixer.org.
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
 Requires: omx-contract-devel >= 3.9.0
+Requires: omx-contract-devel < 4
 Requires: %{name}-contract = %{version}-%{release}
 
 %package contract
@@ -43,6 +45,7 @@ Summary: omx-dsp's kernel and instance declarations, for programs that read them
 BuildArch: noarch
 # the declarations live in omx-contract's contract directory and are read against its schema; a floor only
 Requires: omx-contract-data >= 3.9.0
+Requires: omx-contract-data < 4
 
 %description contract
 omx-dsp's package of omx-contract's contract directory: the declarations of
@@ -107,7 +110,7 @@ Its documentation is on openmixer.org.
 - gaincomp: omx_gaincomp_floor(), the one floor of an ABOVE reduction (#278)
 - The packages install their licence and a short README and no other markdown;
   the Debian lists carry their licence lines (#281)
-- Requires omx-contract 3.9.0 or later
+- Requires omx-contract 3.9.0 or later and before 4
 
 * Tue Nov 03 2026 Pau Aliagas <linuxnow@gmail.com> - 0.29.0-1
 - New: the drive shaper and the dynamics gain curves run through glibc's
