@@ -3,7 +3,7 @@
 // The readouts these kernels declare: each stated once, its range by reference to the travel that bounds it where one
 // does, its rate by READOUT_RATE_HZ, and the controls that re-arm a kernel. (omx-contract held the four gain
 // reductions of 2.4.0 and the limiter's look-ahead over its 2.14.0 copy of this data.) The comp's key level and
-// effective attack came with its key path (c208f5f, FX-2); the clipper (347ae79) states its
+// effective attack came with its key path (c208f5f, FX-2); the clipper (dc3c8f1) states its
 // display floor as a number; the glue's is its threshold's minimum, by reference (owner ruling 2026-11-03).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

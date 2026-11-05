@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 // 2.3.0: the input trim is a kernel, `trim`, with the one control `trimDb`, so omx-dsp's trim face takes it by name
 // (face-conformance) and reads its travel from the C render as OMX_TRIM_RANGE_*. TRIM_TRAVELS, that control's aggregate,
-// was retired in 153cb5a: nothing read it.
+// was retired in dfbc289: nothing read it.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,7 +39,7 @@ test('trim: the C render keeps every 2.2.0 line, byte for byte and in order, and
   ]);
 });
 
-test('trim: a moved come-up value moves the C define (perturbation; TRIM_TRAVELS, the table that read it, was retired in 153cb5a)', () => {
+test('trim: a moved come-up value moves the C define (perturbation; TRIM_TRAVELS, the table that read it, was retired in dfbc289)', () => {
   const moved = scratchData();
   editData(moved, 'kernels/trim.json', (d, at) => { at('TRIM_RANGE').travel.default = -6; });
   assert.match(header(moved), /^#define OMX_TRIM_RANGE_DEFAULT -6$/m);

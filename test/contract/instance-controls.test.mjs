@@ -35,8 +35,8 @@ test('the 2.2.0 C render keeps every 2.1.0 line, byte for byte and in order, and
   assert.equal(defines(now).length - defines(old).length, 37, 'the 9 new sets: 20 enumerators, 9 counts, 8 defaults, and nothing else');
 });
 
-// FX_DELAY_PINGPONG_DEFAULT was retired in 153cb5a (no reader): pingpong comes up off by its set's own default. The
-// read taps took a factor each (1a875b7), and sync, division, mode and the wet duck were appended (0e2683a, FX-4).
+// FX_DELAY_PINGPONG_DEFAULT was retired in dfbc289 (no reader): pingpong comes up off by its set's own default. The
+// read taps took a factor each (9ed07d1), and sync, division, mode and the wet duck were appended (0e2683a, FX-4).
 test('delay: pingpong is a switch that comes up off (#22), the taps and the FX-4 controls after it', () => {
   assert.deepEqual(controls('delay').map((c) => c.name), ['fxDelayTime', 'fxDelayFeedback', 'tone', 'mix', 'pingpong',
     'fxDelayTaps', 'tap0Gain', 'tap0Pan', 'tap1Factor', 'tap1Gain', 'tap1Pan', 'tap2Factor', 'tap2Gain', 'tap2Pan',
