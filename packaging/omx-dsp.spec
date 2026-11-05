@@ -110,6 +110,8 @@ Its documentation is on openmixer.org.
 - gaincomp: omx_gaincomp_floor(), the one floor of an ABOVE reduction (#278)
 - The packages install their licence and a short README and no other markdown;
   the Debian lists carry their licence lines (#281)
+- The source checks no longer pass over an empty scope in a container; SPDX
+  lines are checked by the shared check (#286)
 - Requires omx-contract 3.9.0 or later and before 4
 
 * Tue Nov 03 2026 Pau Aliagas <linuxnow@gmail.com> - 0.29.0-1
