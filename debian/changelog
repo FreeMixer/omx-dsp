@@ -25,6 +25,8 @@ omx-dsp (0.30.0) unstable; urgency=medium
   * The packages install their licence and a short README and no other
     markdown; their descriptions point to openmixer.org. The Debian .docs and
     .install lists carry their licence lines (#281).
+  * The source checks no longer pass over an empty scope in a container; SPDX
+    lines are checked by the shared check (#286).
   * Requires omx-contract 3.9.0 or later, for glue's use of comp's item, and
     before 4.
 
