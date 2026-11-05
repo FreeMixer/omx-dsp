@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.29.0
+Version: 0.30.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -15,7 +15,8 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 3.8.0
+BuildRequires: omx-contract-devel >= 3.9.0
+BuildRequires: omx-contract-devel < 4
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -30,18 +31,21 @@ system while audio is running. The console and the omx plugins are built from
 this same code, so an effect sounds the same on the desk and in your DAW, sample
 for sample. Link it into your own plugin, effect or audio tool and start from
 parts that are already tested against exact results at every sample rate.
+Its documentation is on openmixer.org.
 
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 3.8.0
+Requires: omx-contract-devel >= 3.9.0
+Requires: omx-contract-devel < 4
 Requires: %{name}-contract = %{version}-%{release}
 
 %package contract
 Summary: omx-dsp's kernel and instance declarations, for programs that read them at run time
 BuildArch: noarch
 # the declarations live in omx-contract's contract directory and are read against its schema; a floor only
-Requires: omx-contract-data >= 3.8.0
+Requires: omx-contract-data >= 3.9.0
+Requires: omx-contract-data < 4
 
 %description contract
 omx-dsp's package of omx-contract's contract directory: the declarations of
@@ -49,6 +53,7 @@ its kernels and instance faces (their controls, units and readouts) under
 /usr/share/omx-contract/contract.d/3/omx-dsp. A program that reads them while
 it runs (a panel, the omx-contract command) needs this package, not the
 development one.
+Its documentation is on openmixer.org.
 
 %description devel
 Everything you need to build against libomxdsp: the headers under
@@ -57,6 +62,7 @@ pkg-config file: libomxdsp.a (omxdsp), libomxdsp-contracts.a
 (omxdsp-contracts, contracts compiled in) and libomxdsp-tsan.a (omxdsp-tsan,
 contracts and ThreadSanitizer). Programs link the library statically; no shared
 library exists.
+Its documentation is on openmixer.org.
 
 %prep
 %autosetup
@@ -73,7 +79,7 @@ library exists.
 
 %files devel
 %license LICENSE
-%doc README.md BUILDING.md
+%doc README.md
 %{_includedir}/omxdsp/
 %{_libdir}/libomxdsp.a
 %{_libdir}/libomxdsp-contracts.a
@@ -87,9 +93,27 @@ library exists.
 
 %files contract
 %license LICENSE
+%doc README.md
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Wed Nov 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.30.0-1
+- glue: detectorTopology, default feedforward, takes comp's DETECTOR_TOPOLOGY;
+  keyHpHz has no effect in feedback (#279)
+- dynamics: the feedback loop's attack is bounded by the held input's
+  equilibrium; a program release in the loop recovers one way; only the
+  dynamics_feedback golden moves (#279)
+- fastmath: the libmvec loops run in tiles of 16, so the bits no longer depend
+  on the block size; OMX_DYN_SIMD and OMX_DRIVE_TANH_SIMD are removed (#280)
+- delay: 1/32 divisions appended; with no host tempo a synced delay keeps its
+  time; omx_delay_instance_synced(); DELAY_TEMPO_FALLBACK_BPM retired (#277)
+- gaincomp: omx_gaincomp_floor(), the one floor of an ABOVE reduction (#278)
+- The packages install their licence and a short README and no other markdown;
+  the Debian lists carry their licence lines (#281)
+- The source checks no longer pass over an empty scope in a container; SPDX
+  lines are checked by the shared check (#286)
+- Requires omx-contract 3.9.0 or later and before 4
+
 * Tue Nov 03 2026 Pau Aliagas <linuxnow@gmail.com> - 0.29.0-1
 - New: the drive shaper and the dynamics gain curves run through glibc's
   vector maths (libmvec: tanhf, expf, log10f, powf) where the compiler and the

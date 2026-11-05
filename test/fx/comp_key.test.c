@@ -19,7 +19,10 @@
 //   F  mid and side: a pure side signal gives no reduction in mid (the input bit for bit) and the full
 //      law in side; max reads the louder of the two;
 //   G  duck: the programme's gain is `max(rangeDb, -(K - T)(1 - 1/R))` within 0.05 dB, and a 0 dB range
-//      ducks nothing (the input bit for bit);
+//      ducks nothing (the input bit for bit); the ducker preset's values (ratio 20, range -12 dB, attack
+//      1 ms, release 300 ms) under a key 30 dB over the threshold hold the programme at -12.0 dB within
+//      0.001 dB, where the law alone asks -28.5; with duck off (the default) the same range word floors
+//      nothing: the law's -28.5 dB within 0.05 dB, and the bytes of any other range word;
 //   H  hostile control words are clamped into their declared travels and the choices read their
 //      defaults, the ledger is clean, and init, resolve and run_keyed allocate nothing.
 #define OMX_CONTRACT_STORAGE 1
@@ -367,6 +370,40 @@ static void arm_duck(void) {
   resolve(&z, -30.0f, 4.0f, 0.0f, 20.0f, 400.0f, k);
   run(&z, g_kl, g_kr, g_pl, g_pr, g_ol, g_or, n);
   ok(memcmp(g_ol, g_pl, n * sizeof(float)) == 0, "duck with a 0 dB range ducks nothing, the input bit for bit", 0, 0);
+  /* The ducker preset (ducker spec §3 item 4): a key 30 dB over the threshold (0 dBFS RMS against -30) asks
+   * -(30)(1 - 1/20) = -28.5 dB; the floor (omx_gaincomp_floor) holds the programme at the range. */
+  const double k0 = sqrt(2.0);
+  for (uint32_t i = 0; i < n; i++) {
+    g_kl[i] = g_kr[i] = (float)(k0 * sin(2.0 * M_PI * 1000.0 * i / g_sr));
+    g_pl[i] = g_pr[i] = (float)(0.01 * sin(2.0 * M_PI * 250.0 * i / g_sr));
+  }
+  const uint32_t skip = n / 2u;
+  static OmxCompInstance d;
+  omx_comp_instance_init(&d, g_sr);
+  k = IDLE;
+  k.src = (int)OMX_COMP_KEY_SOURCES_SIDECHAIN;
+  k.duck = (int)OMX_COMP_DUCKS_ON;
+  k.range = -12.0f;
+  resolve(&d, -30.0f, 20.0f, 0.0f, 1.0f, 300.0f, k);
+  run(&d, g_kl, g_kr, g_pl, g_pr, g_ol, g_or, n);
+  const double floored = db(tone_mag(g_ol + skip, n - skip, 250.0, g_sr) / 0.01);
+  ok(fabs(floored - -12.0) <= 0.001, "duck: ratio 20, range -12, a key 30 dB over: the gain floors at -12.0 dB (0.001 dB)",
+     floored, -12.0);
+  /* Duck off, the come-up value: the range word is read by nothing, so the slot is the compressor that shipped. */
+  static OmxCompInstance u, v;
+  omx_comp_instance_init(&u, g_sr);
+  omx_comp_instance_init(&v, g_sr);
+  k.duck = (int)OMX_COMP_DUCKS_OFF;
+  k.range = -12.0f;
+  resolve(&u, -30.0f, 20.0f, 0.0f, 50.0f, 50.0f, k);
+  run(&u, g_kl, g_kr, g_pl, g_pr, g_ol, g_or, n);
+  const double law = db(tone_mag(g_ol + skip, n - skip, 250.0, g_sr) / 0.01);
+  ok(fabs(law - -28.5) <= 0.05, "duck off: the range floors nothing, the law's -28.5 dB (0.05 dB)", law, -28.5);
+  k.range = (float)OMX_COMP_RANGE_DB_RANGE_MIN;
+  resolve(&v, -30.0f, 20.0f, 0.0f, 50.0f, 50.0f, k);
+  run(&v, g_kl, g_kr, g_pl, g_pr, g_rl, g_rr, n);
+  ok(memcmp(g_ol, g_rl, n * sizeof(float)) == 0, "duck off: the range word moves no byte (-12 against the travel's minimum)",
+     0, 0);
   clean();
 }
 

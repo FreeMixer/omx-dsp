@@ -20,7 +20,8 @@
  *      reading as the declared default: a foreign host's port is not the console's codec.
  *      Then the sync and the division (at tempo, the time is omx_bpm_division_ms of the host's tempo,
  *      {@link omx_delay_instance_set_tempo}, and the division's DELAY_DIVISION_BEATS, held to the
- *      time travel's top), the mode (digital, tape, analog: the kernel's colour, its loop low pass
+ *      time travel's top; while the host hands no tempo, the time control, and
+ *      {@link omx_delay_instance_synced} says so), the mode (digital, tape, analog: the kernel's colour, its loop low pass
  *      at DELAY_TAPE_LP_HZ or DELAY_ANALOG_LP_HZ, tape's wow at DELAY_TAPE_WOW_HZ, DELAY_TAPE_WOW_MS
  *      deep) and the wet duck (depth, threshold, release; attack FX_DUCK_ATTACK_MS).
  *   3. IN -> OUT. The kernel works IN PLACE on the two legs; run() copies in to out where they
@@ -74,8 +75,6 @@ _Static_assert(OMX_DELAY_DIVISION_BEATS_COUNT == OMX_DELAY_DIVISIONS_COUNT, "one
 _Static_assert((int)OMX_DELAY_MODES_DIGITAL == (int)OMX_FX_DELAY_DIGITAL && (int)OMX_DELAY_MODES_TAPE == (int)OMX_FX_DELAY_TAPE &&
                    (int)OMX_DELAY_MODES_ANALOG == (int)OMX_FX_DELAY_ANALOG,
                "the mode's ids are the kernel's colours, in order");
-/** The tempo a synced delay reads until the host hands one, BPM: DELAY_TEMPO_FALLBACK_BPM. */
-#define OMX_DELAY_INSTANCE_TEMPO_FALLBACK ((float)OMX_DELAY_TEMPO_FALLBACK_BPM)
 /** The colour's declared constants: FX_DUCK_ATTACK_MS, DELAY_TAPE_LP_HZ, DELAY_TAPE_WOW_HZ, DELAY_TAPE_WOW_MS,
  * DELAY_ANALOG_LP_HZ. */
 #define OMX_DELAY_INSTANCE_DUCK_ATTACK_MS ((float)OMX_FX_DUCK_ATTACK_MS)
@@ -94,7 +93,8 @@ typedef struct {
   struct omx_fx_delay_taps taps;          /**< the read taps, from fxDelayTaps and tap0..3 */
   float tap_ms[OMX_FXDELAY_MAX_TAPS];     /**< each tap's time as delivered, ms */
   int tap_clamped[OMX_FXDELAY_MAX_TAPS];  /**< each tap's time met the time travel's top */
-  float bpm;                              /**< the host's tempo, BPM */
+  float bpm;                              /**< the host's tempo, BPM; 0 while it hands none */
+  int synced;                             /**< the last resolve's time followed the tempo */
   float ring_l[OMX_FXDELAY_CAP];
   float ring_r[OMX_FXDELAY_CAP];
   /** The previous cycle's engaged flag, so a bypass->engaged edge can clear the rings. */
@@ -113,17 +113,18 @@ static inline int omx_delay_instance_init(OmxDelayInstance *s, float sr) {
   s->state.ring_l = s->ring_l;
   s->state.ring_r = s->ring_r;
   s->state.cap = (uint32_t)OMX_FXDELAY_CAP;
-  s->bpm = OMX_DELAY_INSTANCE_TEMPO_FALLBACK;
+  s->bpm = 0.0f;
   omx_lfo_start(&s->cstate.wow);
   s->ready = 1;
   return 1;
 }
 
-/** The host's tempo, BPM, for a delay at tempo sync: a value that is not a positive finite tempo reads
- * as DELAY_TEMPO_FALLBACK_BPM. Takes effect at the next resolve. */
+/** The host's tempo, BPM, for a delay at tempo sync. A value that is not a positive finite tempo (0 is
+ * how a face says its host handed none this block) is NO tempo: a delay at tempo then keeps its time
+ * control, as free. Takes effect at the next resolve. */
 static inline void omx_delay_instance_set_tempo(OmxDelayInstance *s, float bpm) {
   if (!s) return;
-  s->bpm = bpm > 0.0f && bpm - bpm == 0.0f ? bpm : OMX_DELAY_INSTANCE_TEMPO_FALLBACK;
+  s->bpm = bpm > 0.0f && bpm - bpm == 0.0f ? bpm : 0.0f;
 }
 
 /** The engage-edge clear: both rings and the per-leg damping back to silence. RT-safe: a bounded
@@ -173,7 +174,9 @@ static inline void omx_delay_instance_resolve(OmxDelayInstance *s, int bypass, f
   o->enabled = engaged;
   const float ms = omx_clamp_or(fx_delay_time, (float)OMX_FX_DELAY_TIME_RANGE_MIN, (float)OMX_FX_DELAY_TIME_RANGE_MAX,
                                 OMX_DELAY_INSTANCE_TIME_DEFAULT);
-  const int sync_tempo = sync == OMX_DELAY_SYNCS_TEMPO ? 1 : 0;
+  /* At tempo with no tempo handed, the time control: the delay a user set, never an invented tempo. */
+  const int sync_tempo = sync == OMX_DELAY_SYNCS_TEMPO && s->bpm > 0.0f ? 1 : 0;
+  s->synced = sync_tempo;
   const float division_beats =
       OMX_DELAY_INSTANCE_DIVISION_BEATS[division >= 0 && division < (int)OMX_DELAY_DIVISIONS_COUNT
                                             ? division
@@ -256,6 +259,10 @@ static inline uint32_t omx_delay_instance_latency(const OmxDelayInstance *s) {
   (void)s;
   return 0u;
 }
+
+/** 1 when the last resolve's time followed the host's tempo (sync at tempo and a tempo handed), 0 when it
+ * is the time control: free, or at tempo with no tempo from the host. The plugin's state readout. */
+static inline int omx_delay_instance_synced(const OmxDelayInstance *s) { return s ? s->synced : 0; }
 
 /** Tap `k`'s time as the last resolve delivered it, ms, and whether it met the time travel's top: the
  * plugin's tapMs and tapClamped outputs. A `k` outside the taps reads 0. */

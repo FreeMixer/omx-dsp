@@ -649,7 +649,8 @@ check() {
   case "$allow" in ''|/*) ;; *) allow="$PWD/$allow" ;; esac
   [ -n "$allow" ] && [ ! -f "$allow" ] && allow=""
   while IFS= read -r f; do [ -n "$f" ] && files+=("$f"); done < <(sources "$root")
-  if [ "${#files[@]}" -eq 0 ]; then echo "$ME: no C or TypeScript sources in scope under $root"; return 0; fi
+  # reading nothing is not a clean tree: the caller named the wrong root, or git could not read it
+  if [ "${#files[@]}" -eq 0 ]; then echo "$ME: no C or TypeScript sources in scope under $root, so nothing was read" >&2; return 1; fi
   out="$(cd "$root" && "$AWK" -v mode=check -v exports="$exports" -v allow="$allow" -v sabotage="${OMX_COPY_CHECK_SABOTAGE:-}" "$PROG" "${files[@]}")" || rc=$?
   [ "$rc" = 0 ] || die "the scan failed: $out"
   printf '%s\n' "$out" | "$AWK" -F'\t' -v me="$ME" -v enforce="$enforce" -v allowf="${allow:-none}" '
@@ -800,8 +801,14 @@ self_test_once() {
   [ "$rc" = 1 ] || { echo "  FAIL: --enforce exited $rc over copies, want 1"; fails=$((fails + 1)); }
   # a clean consumer passes --enforce
   mkdir -p "$d/clean/src"; cp "$d/c/src/legit.c" "$d/clean/src/"
-  rc=0; check "$d/clean" "$d/exports.json" "" 1 >/dev/null 2>&1 || rc=$?
+  if command -v git >/dev/null 2>&1; then git -C "$d/clean" init -q && git -C "$d/clean" add -A; fi
+  rc=0; out="$(check "$d/clean" "$d/exports.json" "" 1 2>&1)" || rc=$?
   [ "$rc" = 0 ] || { echo "  FAIL: --enforce exited $rc over a clean consumer, want 0"; fails=$((fails + 1)); }
+  # a tree with nothing in scope read nothing, which is not a clean tree
+  mkdir -p "$d/none"; echo notes > "$d/none/README"
+  if command -v git >/dev/null 2>&1; then git -C "$d/none" init -q && git -C "$d/none" add -A; fi
+  rc=0; out="$(check "$d/none" "$d/exports.json" "" 0 2>&1)" || rc=$?
+  { [ "$rc" = 1 ] && grep -q 'nothing was read' <<<"$out"; } || { echo "  FAIL: a tree with no source exited $rc: $out"; fails=$((fails + 1)); }
   rm -rf "$d"
   return "$fails"
 }

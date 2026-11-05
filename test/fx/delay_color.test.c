@@ -6,7 +6,9 @@
 //   A  the come-up values (free, digital, no duck) are omx_fx_delay_process bit for bit, ping-pong and
 //      feedback engaged, and the kernel's colour path with a NULL colour is the taps path bit for bit;
 //   B  tempo: the first echo of an impulse lands at round(60000 / BPM x beats x rate / 1000) samples,
-//      to the sample, for every division at three tempos, held to the time travel's top;
+//      to the sample, for every division (1/1 to 1/32, straight, dotted, triplet) at three tempos, held
+//      to the time travel's top; with no tempo handed, or a tempo withdrawn, the echo lands at the time
+//      control's sample and the synced readout says 0; at tempo with a tempo it says 1;
 //   C  tape: the k-th repeat's magnitude at 1 kHz is (feedback |LP(f)|)^k, LP the one-pole at
 //      DELAY_TAPE_LP_HZ, within 0.005 dB plus the wow's Doppler for its k + 1 passes, and below it by at
 //      most the linear read's loss at a half sample, k = 0..4;
@@ -37,9 +39,11 @@
 #define ANALOG_LP_HZ 3000.0
 #define WOW_HZ 0.4
 #define WOW_MS 0.3
-#define FALLBACK_BPM 120.0
 #define DUCK_ATTACK_MS 5.0
-static const double BEATS[15] = {4, 6, 8.0 / 3.0, 2, 3, 4.0 / 3.0, 1, 1.5, 2.0 / 3.0, 0.5, 0.75, 1.0 / 3.0, 0.25, 0.375, 1.0 / 6.0};
+#define NDIV 18
+static const double BEATS[NDIV] = {4,   6,     8.0 / 3.0, 2,    3,     4.0 / 3.0, 1,     1.5,   2.0 / 3.0,
+                                   0.5, 0.75,  1.0 / 3.0, 0.25, 0.375, 1.0 / 6.0, 0.125, 0.1875, 1.0 / 12.0};
+_Static_assert(NDIV == OMX_DELAY_DIVISIONS_COUNT, "the oracle states every declared division");
 
 #define MAXN 1200000u
 static float g_l[MAXN], g_r[MAXN], g_ol[MAXN], g_or[MAXN], g_al[MAXN], g_ar[MAXN];
@@ -122,7 +126,7 @@ static void arm_tempo(void) {
   g_arm = "B";
   static const float BPM[3] = {90.0f, 120.0f, 137.5f};
   for (int b = 0; b < 3; b++)
-    for (int dv = 0; dv < 15; dv++) {
+    for (int dv = 0; dv < NDIV; dv++) {
       struct ctl c = COMEUP;
       c.sync = OMX_DELAY_SYNCS_TEMPO;
       c.division = dv;
@@ -136,22 +140,47 @@ static void arm_tempo(void) {
       const uint32_t want = (uint32_t)floor(ms * g_sr / 1000.0 + 0.5);
       ok(g_d.atom.d_l == want && g_d.atom.d_r == want, "the synced time is 60000 / BPM x beats, to the sample", g_d.atom.d_l,
          want);
+      ok(omx_delay_instance_synced(&g_d) == 1, "at tempo with a tempo handed, the readout says synced", dv, 1);
     }
-  /* With no tempo handed, the fallback; the impulse's echo lands where the atom says. */
+  /* With no tempo handed, the time control; the impulse's echo lands where the time control says. */
   struct ctl c = COMEUP;
   c.sync = OMX_DELAY_SYNCS_TEMPO;
   c.division = 9; /* an eighth */
   c.fb = 0.0f;
-  setup(&c);
-  const uint32_t want = (uint32_t)floor(60000.0 / FALLBACK_BPM * 0.5 * g_sr / 1000.0 + 0.5);
+  c.time = 137.0f;
+  const uint32_t want = (uint32_t)floor(137.0 * g_sr / 1000.0 + 0.5);
   const uint32_t n = want + 64u;
   memset(g_l, 0, n * sizeof(float));
   g_l[0] = 1.0f;
   memcpy(g_r, g_l, n * sizeof(float));
-  run(g_l, g_r, g_ol, g_or, n);
-  uint32_t at = 0;
-  while (at < n && g_ol[at] == 0.0f) at++;
-  ok(at == want && g_ol[at] == 1.0f, "with no tempo handed the fallback's eighth: the echo at its sample", at, want);
+  for (int pass = 0; pass < 2; pass++) {
+    setup(&c);
+    if (pass == 1) {
+      /* A tempo handed, then withdrawn (a face hands 0 for a block with no transport tempo). */
+      omx_delay_instance_set_tempo(&g_d, 90.0f);
+      omx_delay_instance_resolve(&g_d, 0, c.time, c.fb, c.tone, c.mix, 0, TAPS_IDLE, c.sync, c.division, 0, 0.0f, -30.0f, 250.0f);
+      ok(omx_delay_instance_synced(&g_d) == 1 && g_d.atom.d_l == (uint32_t)floor(60000.0 / 90.0 * 0.5 * g_sr / 1000.0 + 0.5),
+         "a tempo handed: the eighth at 90 BPM", g_d.atom.d_l, 0);
+      omx_delay_instance_set_tempo(&g_d, 0.0f);
+      omx_delay_instance_resolve(&g_d, 0, c.time, c.fb, c.tone, c.mix, 0, TAPS_IDLE, c.sync, c.division, 0, 0.0f, -30.0f, 250.0f);
+      omx_delay_instance_clear(&g_d);
+      drain();
+    }
+    ok(omx_delay_instance_synced(&g_d) == 0, "at tempo with no tempo handed, the readout says the time control", pass, 0);
+    run(g_l, g_r, g_ol, g_or, n);
+    uint32_t at = 0;
+    while (at < n && g_ol[at] == 0.0f) at++;
+    ok(at == want && g_ol[at] == 1.0f,
+       pass ? "a tempo withdrawn: the echo back at the time control's sample"
+            : "with no tempo handed the time control: the echo at its sample",
+       at, want);
+  }
+  /* Free with a tempo handed: the time control, and the readout says so. */
+  c.sync = OMX_DELAY_SYNCS_FREE;
+  setup(&c);
+  omx_delay_instance_set_tempo(&g_d, 120.0f);
+  omx_delay_instance_resolve(&g_d, 0, c.time, c.fb, c.tone, c.mix, 0, TAPS_IDLE, c.sync, c.division, 0, 0.0f, -30.0f, 250.0f);
+  ok(omx_delay_instance_synced(&g_d) == 0 && g_d.atom.d_l == want, "free ignores a handed tempo", g_d.atom.d_l, want);
   clean();
 }
 
@@ -340,8 +369,8 @@ static void arm_hostile(void) {
     const struct omx_fx_delay_color *c = &g_d.color;
     ok(c->mode == OMX_DELAY_MODES_DEFAULT && c->duck.depth_db >= OMX_DELAY_DUCK_DB_RANGE_MIN && c->duck.depth_db <= 0.0f &&
            c->duck.thresh_db >= OMX_DELAY_DUCK_THRESHOLD_DB_RANGE_MIN && c->duck.thresh_db <= 0.0f &&
-           g_d.atom.d_l < g_d.state.cap && g_d.bpm > 0.0f && g_d.bpm - g_d.bpm == 0.0f &&
-           (W[h] > 0.0f && W[h] - W[h] == 0.0f ? g_d.bpm == W[h] : g_d.bpm == (float)FALLBACK_BPM),
+           g_d.atom.d_l < g_d.state.cap && g_d.bpm >= 0.0f && g_d.bpm - g_d.bpm == 0.0f &&
+           (W[h] > 0.0f && W[h] - W[h] == 0.0f ? g_d.bpm == W[h] : g_d.bpm == 0.0f),
        "hostile words: every travel, choice and the tempo at a declared value", h, 0);
     stimulus(g_l, g_r, 4096u, 0x77u, 300u);
     run(g_l, g_r, g_ol, g_or, 4096u);

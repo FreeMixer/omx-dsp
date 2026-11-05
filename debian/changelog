@@ -1,3 +1,37 @@
+omx-dsp (0.30.0) unstable; urgency=medium
+
+  * glue: detectorTopology, appended as the eighth control, default
+    feedforward. It takes comp's DETECTOR_TOPOLOGY, labels included, instead
+    of a copy. In feedback, keyHpHz has no effect (#279).
+  * dynamics: the feedback loop's attack is bounded by the equilibrium of the
+    held input, so a large step no longer dives far under the static curve
+    (10:1 at 0.1 ms went 180 dB down before). A program release inside the
+    feedback loop recovers one way instead of attacking again. Only the
+    dynamics_feedback golden moves (#279).
+  * fastmath: the libmvec loops walk the block in tiles of 16 samples, so a
+    sample's bits no longer depend on where the caller's block ends. 0.29.0
+    broke "uneven blocks are one block" for the dynamics gain and the drive's
+    tanh. OMX_DYN_SIMD and OMX_DRIVE_TANH_SIMD are removed; nothing used them
+    (#280).
+  * delay: DELAY_DIVISIONS gains 1/32, 1/32 dotted and 1/32 triplet, appended,
+    so the ids before them keep their numbers. A synced delay with no host
+    tempo keeps its time control instead of assuming 120 BPM;
+    omx_delay_instance_set_tempo(s, 0) means no tempo, and
+    omx_delay_instance_synced() says whether the last resolve followed the
+    tempo. DELAY_TEMPO_FALLBACK_BPM is retired (#277).
+  * gaincomp: omx_gaincomp_floor() is the one floor of an ABOVE reduction;
+    the compressor's duck, the de-esser and band-dyn band and the wet ducker
+    call it. No golden moves (#278).
+  * The packages install their licence and a short README and no other
+    markdown; their descriptions point to openmixer.org. The Debian .docs and
+    .install lists carry their licence lines (#281).
+  * The source checks no longer pass over an empty scope in a container; SPDX
+    lines are checked by the shared check (#286).
+  * Requires omx-contract 3.9.0 or later, for glue's use of comp's item, and
+    before 4.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 04 Nov 2026 18:00:00 +0100
+
 omx-dsp (0.29.0) unstable; urgency=medium
 
   * New: the drive shaper and the dynamics gain curves run through glibc's

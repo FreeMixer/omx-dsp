@@ -122,7 +122,7 @@ endif
 export CONTRACT_INC
 endif
 INC      = -Iinclude -isystem $(CONTRACT_INC)
-# The floor the spec declares, rendered into omxdsp.pc's Requires. There is no ceiling.
+# The floor the spec declares, rendered into omxdsp.pc's Requires, beside its ceiling, the next major.
 CONTRACT_FLOOR   := $(shell sh tools/contract-include.sh --floor)
 BUILD    = build
 LIB      = $(BUILD)/libomxdsp.a
@@ -353,6 +353,7 @@ onepole-sabotage: $(HEADERS) $(FX_HEADERS) $(KERNELS) $(SRC) test/onepole-sabota
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
 	bash tools/doc-check.sh
+	bash tools/reduction-check.sh --self-test
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
 	bash tools/pole-rescale-guard.sh include src
@@ -707,10 +708,12 @@ test:
 
 # ---- libmvec (include/omxdsp/omx_fastmath.h) --------------------------------------------------------
 # fastmath          the oracle of tanhf, expf, log10f and powf over the library's range, and the check that every
-#                   hot loop (the drive's shaper, the dynamics gain curves) really calls the libmvec symbols
+#                   hot loop (the drive's shaper, the dynamics gain curves) really calls the libmvec symbols and no
+#                   libm one, and the block size is not observable through those loops (fastmath_blocks)
 # fastmath-diff     each kernel that uses them, rendered on the libm and on libmvec: the largest sample difference in dB
 # fastmath-sabotage the oracle goes red on a result moved by 5 ULP, the loop check on a header without the pragma,
-#                   the probe on a toolchain with no libmvec, no pragma or no vector symbol
+#                   the probe on a toolchain with no libmvec, no pragma or no vector symbol, the loop check on a
+#                   loop whose remainder runs on the libm
 # fastmath-plain    the same oracle, the drive and a dynamics oracle again with FASTMATH=off: the libm path
 # fastmath-partial  the flags of a libmvec with log10f and expf but no powf and no tanhf (aarch64 glibc before 2.40),
 #                   on any host: no loop that needs a missing function takes its lane, every render is the plain
@@ -721,11 +724,16 @@ FM_DIFF_LIMIT_DBFS ?= -96
 $(BUILD)/fastmath: test/fx/fastmath.test.c include/omxdsp/omx_fastmath.h | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $@ $< -lm $(MVEC_LIBS)
 
+# the block size through the libmvec path: built as a consumer builds the kernels, contracts out, libmvec flags in
+$(BUILD)/fastmath_blocks: test/fx/fastmath_blocks.test.c $(LIB) $(HEADERS) $(FX_HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS) $(INC) -o $@ $< $(LIB) -lm $(MVEC_LIBS)
+
 $(BUILD)/fastmath_sabotage: test/fx/fastmath.test.c include/omxdsp/omx_fastmath.h | $(BUILD)
 	$(CC) $(CFLAGS) -DOMX_FM_ORACLE_SABOTAGE=1 $(INC) -o $@ $< -lm $(MVEC_LIBS)
 
-fastmath: $(BUILD)/fastmath
+fastmath: $(BUILD)/fastmath $(BUILD)/fastmath_blocks
 	./$(BUILD)/fastmath
+	./$(BUILD)/fastmath_blocks
 	sh tools/fastmath-vec-check.sh "$(CC)" "$(INC) $(FPFLAGS)" $(MVEC_CFLAGS)
 
 fastmath-diff: $(LIB)

@@ -43,7 +43,9 @@
  * `range_db` is a live control of the COMP slot as well (mixer_rt.c's resolve_dyn loads it for both
  * modes; the BELOW branch floors on it and the ABOVE branch ignores it). Flooring the ABOVE branch
  * inside the shared computer would change what every compressor on this desk does. So the floor is
- * applied HERE, over the shared computer's output, and is declared as this stage's own bound.
+ * applied over the shared computer's output, by omx_gaincomp_floor() — the ONE floor word, which the
+ * comp's duck (omx_dyn.floor_db, the compressor's rangeDb) and the wet ducker hold their reduction
+ * with too — and is declared as this stage's own bound.
  *
  * ## Why there is no stereoLink, no look-ahead and no oversampler
  *

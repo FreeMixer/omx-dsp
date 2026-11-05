@@ -13,7 +13,9 @@
 #   linked    — linked folds as the mean of the legs, not the louder: arm A;
 #   listen    — listen puts the unfiltered key on the output: arm D;
 #   hold      — the hold never freezes the cascade: arm E;
-#   floor     — the ducker's floor is never applied: arm G.
+#   floor     — the ducker's floor is never applied: arm G;
+#   word      — the shared floor word (omx_gaincomp_floor) returns the gain unfloored: arm G;
+#   default   — the floor applied with duck off, the default: arm G.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip.
 # Usage: CC=… CFLAGS=… comp_key-perturb.sh <scratch-dir>
 set -euo pipefail
@@ -66,7 +68,11 @@ sabotage hold omx_dyn.h 's|    else if (st->hold_left > 0u) {|    else if (0) {|
 pids+=($!)
 sabotage floor omx_dyn.h 's|    if (floored) omx_dyn_floor_gain(gain, m, floor_lin);|    (void)floored; (void)floor_lin;|' G &
 pids+=($!)
+sabotage word omx_gaincomp.h 's|float floor) { return g < floor ? floor : g; }|float floor) { (void)floor; return g; }|' G &
+pids+=($!)
+sabotage default fx/omx_comp_instance.h 's|  p->floor_db = duck_on \&\& duck_range < 0.0f ? duck_range : 0.0f;|  p->floor_db = duck_range < 0.0f ? duck_range : 0.0f;|' G &
+pids+=($!)
 failed=0
 for p in "${pids[@]}"; do wait "$p" || failed=1; done
 [ "$failed" = 0 ] || { echo "comp_key-perturb: FAIL — a sabotage was not seen"; exit 1; }
-echo "comp_key-perturb: the key path oracle sees all nine sabotages"
+echo "comp_key-perturb: the key path oracle sees all eleven sabotages"

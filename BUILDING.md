@@ -305,7 +305,7 @@ The facts no single package implements (the declared sample rates, the parameter
 FreeMixer/omx-contract, read through `<omxcontract/omx_contract_limits.h>`, which the definitions
 header includes. That dependency is declared once, in the packaging: `packaging/omx-dsp.spec`
 (`BuildRequires`, `Requires`) and `debian/control` (`Build-Depends`, `Depends`) carry the same floor
-and no upper bound (`>= 3.1.0`), and `omxdsp.pc` requires the same floor. Install
+and the same ceiling, the next major (`>= 3.9.0` and `< 4`), and `omxdsp.pc` requires the same range. Install
 it from the FreeMixer channel with the rest of the build dependencies:
 
     dnf builddep packaging/omx-dsp.spec     # Fedora, with the FreeMixer repository added
@@ -313,10 +313,10 @@ it from the FreeMixer channel with the rest of the build dependencies:
 
 `tools/contract-include.sh` finds the installed `omx-contract` with `pkg-config`: at or above the
 floor the spec declares, it prints the package's include directory; otherwise the build stops, naming
-the package, the floor and the version installed. The dependency is a floor only, never a ceiling.
+the package, the floor and the version installed. The script reads the floor; the ceiling is held by the package managers and pkg-config.
 Nothing is downloaded and no version is pinned anywhere else. `tools/contract-include-selftest.sh`
-(`make checks`) holds the script to that floor, `debian/control` and `omxdsp.pc.in` to the spec's, and
-refuses an upper bound in any of them.
+(`make checks`) holds the script to that floor, and the spec, `debian/control` and `omxdsp.pc.in` to the same
+floor and the ceiling `< 4`; a ceiling missing from any of them is red.
 
 `OMX_CONTRACT_INC=<dir>` names another include directory (one that holds `omxcontract/`) and skips the
 version check. The perturbation arms use it, and so can you: render a contract with one value moved

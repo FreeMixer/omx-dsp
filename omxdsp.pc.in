@@ -12,6 +12,6 @@ hrpcorpus=${datadir}/omxdsp/hrp_peaking_corpus.h
 Name: @NAME@
 Description: DSP primitives and effect kernels of OpenMixer, linked statically (@FLAVOUR@)
 Version: @VERSION@
-Requires: omx-contract >= @CONTRACTFLOOR@
+Requires: omx-contract >= @CONTRACTFLOOR@, omx-contract < 4
 Cflags: -I${includedir} @FPFLAGS@@CFLAGS@
 Libs: -L${libdir} -l@NAME@@LIBS@ -lm

@@ -34,9 +34,28 @@ struct omx_gaincomp_params {
   float ratio;      /**< The ratio, at least the mode's declared minimum. */
   float knee_db;    /**< The knee width, dB, not negative; 0 is a hard knee. */
   float range_db;   /**< BELOW: the attenuation floor, dB, at most 0. UPWARD: the largest boost, dB,
-                     *   at least 0. Ignored in ABOVE. */
+                     *   at least 0. Ignored in ABOVE: an ABOVE floor is the caller's, through
+                     *   omx_gaincomp_floor(), so no compressor is clamped by a word it never set. */
   float makeup_lin; /**< The make-up, linear amplitude, positive; 1 is none. */
 };
+
+/**
+ * @brief THE FLOOR of an ABOVE gain: `max(floor, g)`, the one word every floored reduction goes through.
+ *
+ * The comp's duck (omx_dynamics_keyed, `omx_dyn.floor_db`), the de-esser and the band-dyn band
+ * (omx_band_dyn_offset_db, `range_db`) and the wet ducker (omx_duck_gain_db, `depth_db`) all hold their
+ * reduction here, so a reduction cannot be floored two ways. It is not inside omx_gaincomp_db(): `range_db`
+ * is ignored in ABOVE mode, and flooring every compressor at a word it never set would clamp it.
+ *
+ * Either domain, both arguments in the same one: dB, or linear amplitude (the floor's own dB through
+ * omx_db_to_lin(), make-up included as the gain carries it). The map is monotone, so the floor is the
+ * same either way. A floor of -INFINITY in dB, or 0 in linear, is no floor: `g` itself, bit for bit.
+ * @param g The gain.
+ * @param floor The floor, in `g`'s domain.
+ * @return `floor` where `g` is below it, else `g` (a NaN `g` stays NaN).
+ * @note RT-safe: one compare and one select, no call, so a loop of it vectorises. Thread-safe: pure.
+ */
+static inline OMX_FM_ALWAYS float omx_gaincomp_floor(float g, float floor) { return g < floor ? floor : g; }
 
 #undef OMX_CONTRACT_STAGE
 /**
@@ -302,6 +321,65 @@ static inline float omx_gaincomp_db_fb(const struct omx_gaincomp_params *p, floa
   const float g = omx_gaincomp_db(&mirror, -level_db);
   OMX_POST(g <= 0.0f, "no-gain-added");
   return g;
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "gaincomp/fb-settled"
+/**
+ * @brief Where the feedback loop settles for a HELD input level: the output level, dB, solving
+ *        `y = x + omx_gaincomp_db_fb(y)` in closed form (bus compressor design §4 L2).
+ *
+ * Below the knee's reach `y = x`; past it (`x − T ≥ R·W/2`) `y − T = (x − T)/R`, the feed-forward
+ * curve at the same ratio; inside it `v = y − T + W/2` solves `a·v² + v − (x − T + W/2) = 0` with
+ * `a = (R − 1)/(2W)`, taken as `v = 2q/(1 + √(1 + 4aq))` so the knee's foot (q → 0) loses nothing to
+ * cancellation. Continuous at both edges. The loop's attack is bounded by it (omx_dynamics_keyed):
+ * a step can bring the envelope TO the level the held input settles at, never past it.
+ * @param p The slot's gain-computer parameters (`thresh_db`, `ratio`, `knee_db` are read).
+ * @param x_db The input level, dB, in the detector's measure; finite.
+ * @return The settled output level, dB: at most `x_db`.
+ * @pre `ratio-at-least-one`, `finite-in`.
+ * @post `no-gain-added`.
+ * @note RT-safe: at most one sqrtf. Thread-safe: pure.
+ */
+static inline float omx_gaincomp_fb_settled_db(const struct omx_gaincomp_params *p, float x_db) {
+  OMX_PRE(p->ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
+  OMX_PRE(x_db - x_db == 0.0f, "finite-in");
+  const float r = p->ratio, w = p->knee_db, s = x_db - p->thresh_db, hw = 0.5f * w;
+  float y;
+  if (s <= -hw) y = x_db;
+  else if (s >= hw * r) y = p->thresh_db + s / r;
+  else {
+    const float a = (r - 1.0f) / (2.0f * w), q = s + hw;
+    y = p->thresh_db + 2.0f * q / (1.0f + sqrtf(1.0f + 4.0f * a * q)) - hw;
+  }
+  y = y < x_db ? y : x_db;
+  OMX_POST(y <= x_db, "no-gain-added");
+  return y;
+}
+#undef OMX_CONTRACT_STAGE
+
+#define OMX_CONTRACT_STAGE "gaincomp/fb-level-of"
+/**
+ * @brief The inverse of omx_gaincomp_db_fb(): the detector level, dB, at which the feedback characteristic
+ *        answers `gr_db`.
+ *
+ * Past the knee's reach (`−gr ≥ (R − 1)·W/2`) the level is `T + (−gr)/(R − 1)`; inside it, from the C¹ parabola,
+ * `T − W/2 + √(2W·(−gr)/(R − 1))`. A reduction of 0 (or a ratio of 1) answers the knee's foot, `T − W/2`, the
+ * highest level the characteristic leaves untouched. The loop keeps its envelope at least at the level the
+ * APPLIED gain stands for while a program release holds that gain deeper (omx_dynamics_keyed).
+ * @param p The slot's gain-computer parameters (`thresh_db`, `ratio`, `knee_db` are read).
+ * @param gr_db The reduction, dB, at most 0; finite.
+ * @return The detector level, dB.
+ * @pre `ratio-at-least-one`, `finite-in`.
+ * @note RT-safe: at most one sqrtf. Thread-safe: pure.
+ */
+static inline float omx_gaincomp_fb_level_of_db(const struct omx_gaincomp_params *p, float gr_db) {
+  OMX_PRE(p->ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
+  OMX_PRE(gr_db - gr_db == 0.0f, "finite-in");
+  const float r1 = p->ratio - 1.0f, w = p->knee_db, red = gr_db < 0.0f ? -gr_db : 0.0f, hw = 0.5f * w;
+  if (r1 <= 0.0f || red <= 0.0f) return p->thresh_db - hw;
+  if (red >= r1 * hw) return p->thresh_db + red / r1;
+  return p->thresh_db - hw + sqrtf(2.0f * w * red / r1);
 }
 #undef OMX_CONTRACT_STAGE
 

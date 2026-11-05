@@ -37,8 +37,8 @@
  *        lanes, which evaluate every arm, would only be slower than the per-sample functions.
  */
 #define OMX_DYN_LANES 1
-/** @brief Before a loop over the gain computer: vectorise it (omx_fastmath.h's OMX_FM_SIMD). */
-#define OMX_DYN_SIMD OMX_FM_SIMD
+/** @brief A loop over the gain computer: omx_fastmath.h's tiled OMX_FM_MAP, every sample through libmvec. */
+#define OMX_DYN_MAP OMX_FM_MAP
 /** @brief The off-centre knee's gain in a loop: the branch-free lane of omx_gaincomp.h. */
 #define OMX_DYN_GAIN_SHIFTED omx_gaincomp_gain_shifted_lane
 /** @brief The centred knee's gain in a loop: the branch-free lane of omx_gaincomp.h. */
@@ -46,8 +46,8 @@
 #else
 /** @brief 0 here: the loops over the gain computer call the per-sample functions. */
 #define OMX_DYN_LANES 0
-/** @brief Empty here: the loops over the gain computer are the scalar ones. */
-#define OMX_DYN_SIMD
+/** @brief A loop over the gain computer: the plain loop here. */
+#define OMX_DYN_MAP OMX_FM_MAP_PLAIN
 /** @brief The off-centre knee's gain in a loop: the branching function, which skips the knee's work outside it. */
 #define OMX_DYN_GAIN_SHIFTED omx_gaincomp_gain_shifted
 /** @brief The centred knee's gain in a loop: the per-sample function, which skips the knee's work outside it. */
@@ -232,6 +232,8 @@ struct omx_dyn_state {
   float fb_env;                    /**< the feedback loop's ONE envelope stage, detector domain */
   float fb_yl;                     /**< the loop's last pre-make-up output, leg L: y[n-1] */
   float fb_yr;                     /**< the loop's last pre-make-up output, leg R: y[n-1] */
+  float fb_xh;                     /**< the loop's held INPUT level, detector domain: up at once, down at the
+                                    *   release pole; the equilibrium it settles at bounds the attack */
   int fb_ran;                      /**< the last block ran the feedback loop */
   struct omx_env_program_release prs; /**< the program release's state; zeroed while it does not run */
 };
@@ -409,15 +411,15 @@ static inline void omx_dyn_hold_chain(struct omx_dyn_state *st, const struct omx
 }
 
 /**
- * @brief The floor folded into the gain: `max(floor, g)`, the floor carrying the make-up as the
- *        gain does.
+ * @brief The floor folded into the gain: omx_gaincomp_floor(), `max(floor, g)`, the floor carrying the
+ *        make-up as the gain does.
  * @param gain The chunk's gains, floored in place.
  * @param m Samples.
  * @param floor_lin The floor, linear, make-up included.
  * @note RT-safe: one compare per sample. Thread-safe on distinct buffers.
  */
 static inline void omx_dyn_floor_gain(float *gain, uint32_t m, float floor_lin) {
-  for (uint32_t i = 0; i < m; i++) gain[i] = gain[i] < floor_lin ? floor_lin : gain[i];
+  for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_floor(gain[i], floor_lin);
 }
 
 /**
@@ -578,19 +580,13 @@ static inline void omx_dyn_flat_gain_block(const struct omx_dyn_flat *f, const s
   const float lo = f->lo, hi = f->hi, g_floor = f->g_floor, g_open = f->g_open;
   const float shift = p->knee_shift_db;
   const struct omx_gaincomp_params gc = p->gc;
-  if (shift == 0.0f) {
-    OMX_DYN_SIMD
-    for (uint32_t i = 0; i < n; i++) {
-      const float v = in[i], g = omx_gaincomp_gain_lane(&gc, v);
-      out[i] = omx_fm_select(v <= lo, g_floor, omx_fm_select(v >= hi, g_open, g));
-    }
-  } else {
-    OMX_DYN_SIMD
-    for (uint32_t i = 0; i < n; i++) {
-      const float v = in[i], g = omx_gaincomp_gain_shifted_lane(&gc, shift, v);
-      out[i] = omx_fm_select(v <= lo, g_floor, omx_fm_select(v >= hi, g_open, g));
-    }
-  }
+  if (shift == 0.0f)
+    OMX_DYN_MAP(out, in, n, v,
+                omx_fm_select(v <= lo, g_floor, omx_fm_select(v >= hi, g_open, omx_gaincomp_gain_lane(&gc, v))));
+  else
+    OMX_DYN_MAP(out, in, n, v,
+                omx_fm_select(v <= lo, g_floor,
+                              omx_fm_select(v >= hi, g_open, omx_gaincomp_gain_shifted_lane(&gc, shift, v))));
 #else
   for (uint32_t i = 0; i < n; i++) out[i] = omx_dyn_flat_gain(f, p, in[i]);
 #endif
@@ -812,9 +808,43 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
       for (uint32_t i = 0; i < m; i++) {
         const float hl = st->fb_yl, hr = st->fb_yr;
         const float d = rms ? fmaxf(hl * hl, hr * hr) : fmaxf(fabsf(hl), fabsf(hr));
-        const float e = omx_onepole_flush(&st->fb_env, d, d > st->fb_env ? fb_pa : fb_pr);
+        const float xin = rms ? fmaxf(xl[i] * xl[i], xr[i] * xr[i]) : fmaxf(fabsf(xl[i]), fabsf(xr[i]));
+        st->fb_xh = omx_flush(fmaxf(xin, fb_pr * st->fb_xh));
+        float e;
+        if (d > st->fb_env) {
+          /* THE ATTACK'S BOUND (§4 L4, large signal): the floor keeps the small-signal pole
+           * non-negative, but on a large step the detector hears a whole uncompressed sample one
+           * sample late, and one attack step can carry the envelope past the level the loop
+           * settles at for this input; the output-domain characteristic then multiplies the excess
+           * by R - 1 and the slot falls tens of dB under its curve, climbing back at the RELEASE
+           * pole. So an attack step goes at most to the equilibrium of the HELD input (fb_xh,
+           * through omx_gaincomp_fb_settled_db), never past it and never backwards. The input is
+           * held, not read sample by sample, so on programme the bound sits at the peaks' equilibrium,
+           * above the envelope, and puts no audio-rate edge on the gain (O10). A small step
+           * approaches from below and the bound does not bind (O4 unchanged). */
+          const float xh = st->fb_xh;
+          const float yeq = omx_db_to_lin(omx_gaincomp_fb_settled_db(&p->gc, omx_lin_to_db(rms ? sqrtf(xh) : xh)));
+          const float cap = fmaxf(st->fb_env, rms ? yeq * yeq : yeq);
+          const float step = omx_onepole(&st->fb_env, d, fb_pa);
+          st->fb_env = omx_flush(step < cap ? step : cap);
+          e = st->fb_env;
+        } else {
+          e = omx_onepole_flush(&st->fb_env, d, fb_pr);
+        }
         const float gr = omx_gaincomp_db_fb(&p->gc, omx_lin_to_db(rms ? sqrtf(e) : e));
-        const float g = omx_db_to_lin(prog ? omx_env_program_release(&st->prs, &p->prp[0], gr) : gr);
+        const float grp = prog ? omx_env_program_release(&st->prs, &p->prp[0], gr) : gr;
+        if (grp < gr) {
+          /* THE PROGRAM RELEASE INSIDE THE LOOP: the word holds the applied gain deeper than the detector's own
+           * reduction, so the output, and with it what the detector hears, is quieter than the envelope stands for.
+           * Left alone the envelope releases below the level the APPLIED gain stands for and, when the word lets the
+           * gain up, the detector hears more than its envelope and attacks again (0.68 dB of re-attack measured,
+           * O13). So the envelope never falls below the level at which the characteristic answers the applied
+           * reduction: the release is the word's alone and recovers one way. */
+          const float lv = omx_db_to_lin(omx_gaincomp_fb_level_of_db(&p->gc, grp));
+          const float floor_env = rms ? lv * lv : lv;
+          if (st->fb_env < floor_env) st->fb_env = omx_flush(floor_env);
+        }
+        const float g = omx_db_to_lin(grp);
         st->fb_yl = omx_flush(xl[i] * g);
         st->fb_yr = omx_flush(xr[i] * g);
         gain[i] = g * p->gc.makeup_lin;
@@ -851,13 +881,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
           /* the parameters by value: a store into the block cannot then alias what the loop reads */
           const struct omx_gaincomp_params gcl = p->gc;
           const float shl = p->knee_shift_db;
-          if (shl == 0.0f) {
-            OMX_DYN_SIMD
-            for (uint32_t i = 0; i < m; i++) gain[i] = OMX_DYN_GAIN(&gcl, lev[i]);
-          } else {
-            OMX_DYN_SIMD
-            for (uint32_t i = 0; i < m; i++) gain[i] = OMX_DYN_GAIN_SHIFTED(&gcl, shl, lev[i]);
-          }
+          if (shl == 0.0f) OMX_DYN_MAP(gain, lev, m, v, OMX_DYN_GAIN(&gcl, v));
+          else OMX_DYN_MAP(gain, lev, m, v, OMX_DYN_GAIN_SHIFTED(&gcl, shl, v));
         }
       }
     } else {
@@ -896,13 +921,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
           /* the parameters by value: a store into the block cannot then alias what the loop reads */
           const struct omx_gaincomp_params gcl = p->gc;
           const float shl = p->knee_shift_db;
-          if (shl == 0.0f) {
-            OMX_DYN_SIMD
-            for (uint32_t k = 0; k < mf; k++) g4[k] = OMX_DYN_GAIN(&gcl, g4[k]);
-          } else {
-            OMX_DYN_SIMD
-            for (uint32_t k = 0; k < mf; k++) g4[k] = OMX_DYN_GAIN_SHIFTED(&gcl, shl, g4[k]);
-          }
+          if (shl == 0.0f) OMX_DYN_MAP(g4, g4, mf, v, OMX_DYN_GAIN(&gcl, v));
+          else OMX_DYN_MAP(g4, g4, mf, v, OMX_DYN_GAIN_SHIFTED(&gcl, shl, v));
         }
       }
       omx_oversampler_down(&st->ovs_a, g4, m, gain);
