@@ -4,7 +4,7 @@ Source: omx-dsp
 Section: libdevel
 Priority: optional
 Maintainer: Pau Aliagas <linuxnow@gmail.com>
-Build-Depends: debhelper-compat (= 13), libomx-contract-dev (>= 3.9.0), libomx-contract-dev (<< 4~), pkgconf
+Build-Depends: debhelper-compat (= 13), libomx-contract-dev (>= 3.9.0~), libomx-contract-dev (<< 4~), pkgconf
 Standards-Version: 4.6.2
 Homepage: https://github.com/FreeMixer/omx-dsp
 Rules-Requires-Root: no
