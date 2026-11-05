@@ -4,7 +4,7 @@ Source: omx-dsp
 Section: libdevel
 Priority: optional
 Maintainer: Pau Aliagas <linuxnow@gmail.com>
-Build-Depends: debhelper-compat (= 13), libomx-contract-dev (>= 3.9.0), libomx-contract-dev (<< 4~), pkgconf
+Build-Depends: debhelper-compat (= 13), libomx-contract-dev (>= 3.9.0~), libomx-contract-dev (<< 4~), pkgconf
 Standards-Version: 4.6.2
 Homepage: https://github.com/FreeMixer/omx-dsp
 Rules-Requires-Root: no
@@ -12,7 +12,7 @@ Rules-Requires-Root: no
 Package: libomxdsp-dev
 Architecture: any
 Multi-Arch: same
-Depends: libomx-contract-dev (>= 3.9.0), libomx-contract-dev (<< 4~), omx-dsp-contract (= ${source:Version}), ${misc:Depends}
+Depends: libomx-contract-dev (>= 3.9.0~), libomx-contract-dev (<< 4~), omx-dsp-contract (= ${source:Version}), ${misc:Depends}
 Description: audio toolbox of the OpenMixer console, a real-time-safe C library
  libomxdsp is the sound of the OpenMixer console, as a library: the filters,
  envelopes, delays, limiters, gates, compressors and other building blocks of

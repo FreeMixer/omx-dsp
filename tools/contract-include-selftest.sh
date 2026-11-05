@@ -20,8 +20,8 @@ floor="$(sh "$HERE/tools/contract-include.sh" --floor)"
 
 # The spec, debian/control and omxdsp.pc.in say the same floor and the same ceiling, the next major.
 for field in Build-Depends Depends; do
-  grep -q "^$field: .*libomx-contract-dev (>= $floor)" "$HERE/debian/control" \
-    || fail "debian/control's $field does not carry libomx-contract-dev (>= $floor), the spec's floor"
+  grep -q "^$field: .*libomx-contract-dev (>= $floor~)" "$HERE/debian/control" \
+    || fail "debian/control's $field does not carry libomx-contract-dev (>= $floor~), the spec's floor"
 done
 grep -q "^Requires: omx-contract-devel >= $floor\$" "$HERE/packaging/omx-dsp.spec" \
   || fail "the spec's devel Requires is not its BuildRequires floor >= $floor"
@@ -33,7 +33,7 @@ missing() {  # tree: every place a dependency on the contract should carry its c
   grep -q '^Requires: omx-contract-devel < 4$' "$1/packaging/omx-dsp.spec" || echo "spec Requires omx-contract-devel < 4"
   grep -q '^Requires: omx-contract-data < 4$' "$1/packaging/omx-dsp.spec" || echo "spec Requires omx-contract-data < 4"
   grep -q '^Build-Depends: .*libomx-contract-dev (<< 4~)' "$1/debian/control" || echo "control Build-Depends libomx-contract-dev (<< 4~)"
-  grep -q '^Depends: libomx-contract-dev (>= [0-9.]*), libomx-contract-dev (<< 4~)' "$1/debian/control" || echo "control Depends libomx-contract-dev (<< 4~)"
+  grep -q '^Depends: libomx-contract-dev (>= [0-9.]*~), libomx-contract-dev (<< 4~)' "$1/debian/control" || echo "control Depends libomx-contract-dev (<< 4~)"
   grep -q '^Depends: omx-contract-data (>= [0-9.]*~), omx-contract-data (<< 4~)' "$1/debian/control" || echo "control Depends omx-contract-data (<< 4~)"
   grep -q '^Requires: omx-contract >= @CONTRACTFLOOR@, omx-contract < 4$' "$1/omxdsp.pc.in" || echo "omxdsp.pc.in Requires omx-contract < 4"
 }
