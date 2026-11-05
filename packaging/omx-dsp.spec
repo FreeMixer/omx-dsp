@@ -15,7 +15,7 @@ BuildRequires: binutils
 BuildRequires: gawk
 BuildRequires: diffutils
 BuildRequires: pkgconfig
-BuildRequires: omx-contract-devel >= 3.8.0
+BuildRequires: omx-contract-devel >= 3.9.0
 
 # Headers and a static archive only: nothing of this package is loaded at run time.
 %global debug_package %{nil}
@@ -35,14 +35,14 @@ Its documentation is on openmixer.org.
 %package devel
 Summary: Headers and static library to build on the OpenMixer audio toolbox
 Provides: %{name}-static = %{version}-%{release}
-Requires: omx-contract-devel >= 3.8.0
+Requires: omx-contract-devel >= 3.9.0
 Requires: %{name}-contract = %{version}-%{release}
 
 %package contract
 Summary: omx-dsp's kernel and instance declarations, for programs that read them at run time
 BuildArch: noarch
 # the declarations live in omx-contract's contract directory and are read against its schema; a floor only
-Requires: omx-contract-data >= 3.8.0
+Requires: omx-contract-data >= 3.9.0
 
 %description contract
 omx-dsp's package of omx-contract's contract directory: the declarations of

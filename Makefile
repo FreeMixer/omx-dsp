@@ -353,6 +353,7 @@ onepole-sabotage: $(HEADERS) $(FX_HEADERS) $(KERNELS) $(SRC) test/onepole-sabota
 checks:
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash tools/writable-data-check.sh $(BUILD)/wd
 	bash tools/doc-check.sh
+	bash tools/reduction-check.sh --self-test
 	bash tools/reduction-check.sh
 	bash tools/log10f-guard.sh include src
 	bash tools/pole-rescale-guard.sh include src
