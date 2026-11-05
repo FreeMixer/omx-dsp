@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
 # The dependency floors of this repository, written here and nowhere else. The RPM spec, debian/control and
 # the release-tag variable of .github/workflows/ci.yml are rendered from this file and refused when they
 # differ (deps-render in FreeMixer/.github: render.sh --write, render.sh --check).
