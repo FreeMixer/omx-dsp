@@ -89,12 +89,12 @@ jobs:
 
       - name: Every file a comment can be written in opens with its licence
         id: handback-spdx
-        uses: FreeMixer/.github/.github/actions/spdx-check@e20d1b7fdc40770ca6f3256b8ca9c975674fe055 # until v1 carries spdx-check
+        uses: FreeMixer/.github/.github/actions/spdx-check@v1
 
       # packaging/deps.txt is the one place a floor is written: the spec, debian/control and OMX_CONTRACT_REF follow it
       - name: The dependency floors are the ones packaging/deps.txt declares
         id: handback-deps
-        uses: FreeMixer/.github/.github/actions/deps-render@b11c009e05baf221a38c72ba419917807ef82b01
+        uses: FreeMixer/.github/.github/actions/deps-render@v1
 
       - name: The release workflow builds arm on every tag
         id: handback-release-arm-gate
