@@ -1,3 +1,14 @@
+omx-dsp (0.30.1) unstable; urgency=medium
+
+  * test: the bandwidth-to-Q table is held within 4 ULP of its golden, so the
+    package's check passes with Fedora 45's libm (glibc 2.44).
+  * debian: the libomx-contract-dev floor carries the tilde, as the other
+    floors do.
+  * githooks: commit-msg is the shared v1 stub; CI takes its shared checks at
+    v1.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 06 Nov 2026 01:00:00 +0100
+
 omx-dsp (0.30.0) unstable; urgency=medium
 
   * glue: detectorTopology, appended as the eighth control, default
