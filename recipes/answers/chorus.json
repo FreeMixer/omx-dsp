@@ -94,7 +94,7 @@
     {
       "name": "CHORUS_BASE_MS",
       "source": {
-        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_chorus.h OMX_CHORUS_BASE_MS"
+        "origin": "omx-dsp e5267a4 include/omxdsp/fx/omx_chorus.h OMX_CHORUS_BASE_MS"
       },
       "value": 10,
       "doc": "The chorus's base delay, ms: the voices swing around it by up to the depth.",
@@ -104,7 +104,7 @@
     {
       "name": "CHORUS_MAX_MS",
       "source": {
-        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_chorus.h OMX_CHORUS_MAX_MS (the sum typed as a literal)"
+        "origin": "omx-dsp e5267a4 include/omxdsp/fx/omx_chorus.h OMX_CHORUS_MAX_MS (the sum typed as a literal)"
       },
       "value": 22,
       "doc": "The longest delay a chorus voice reaches, rounded up to whole ms: the base delay plus the depth maximum. The delay line is sized from it.",

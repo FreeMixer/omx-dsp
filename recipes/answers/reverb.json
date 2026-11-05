@@ -216,7 +216,7 @@
     {
       "name": "REVERB_ALGORITHMS",
       "source": {
-        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_reverb.h enum omx_reverb_algo; the console engine's reverb algorithm list"
+        "origin": "omx-dsp e5267a4 include/omxdsp/fx/omx_reverb.h enum omx_reverb_algo; the console engine's reverb algorithm list"
       },
       "value": [
         "room",
@@ -232,7 +232,7 @@
     {
       "name": "REVERB_GATE_ATTACK_MS",
       "source": {
-        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_reverb.h OMX_REVERB_GATE_ATTACK_MS; the console engine carries a copy of the same constant until the FX migration"
+        "origin": "omx-dsp e5267a4 include/omxdsp/fx/omx_reverb.h OMX_REVERB_GATE_ATTACK_MS; the console engine carries a copy of the same constant until the FX migration"
       },
       "value": 1.5,
       "doc": "The gated reverb's gate attack, ms: the time the gate takes to open on a hit.",

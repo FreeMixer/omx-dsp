@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 // 2.5.0 (#40): the comp's detector topology is a control, detectorTopology (DETECTOR_TOPOLOGY: feedforward, feedback).
 // omx_dyn.h reads OMX_DETECTOR_TOPOLOGY_* from the render and takes a zeroed atom as feedforward, so feedforward is 0.
-// The loop delay DYN_FB_LOOP_DELAY_SAMPLES was retired in 153cb5a (no reader), and the arms over it with it; the frozen
+// The loop delay DYN_FB_LOOP_DELAY_SAMPLES was retired in dfbc289 (no reader), and the arms over it with it; the frozen
 // copy of the salvage lane's local defines it was compared with (omx-dsp 91beb6d) is no longer reachable from any ref.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

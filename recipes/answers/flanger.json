@@ -74,7 +74,7 @@
     {
       "name": "FLANGER_BASE_MS",
       "source": {
-        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_flanger.h OMX_FLANGER_BASE_MS"
+        "origin": "omx-dsp e5267a4 include/omxdsp/fx/omx_flanger.h OMX_FLANGER_BASE_MS"
       },
       "value": 0.5,
       "doc": "The flanger's base delay, ms: the sweep rides on it up to the depth.",
@@ -84,7 +84,7 @@
     {
       "name": "FLANGER_MAX_MS",
       "source": {
-        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_flanger.h OMX_FLANGER_MAX_MS (the sum typed as a literal)"
+        "origin": "omx-dsp e5267a4 include/omxdsp/fx/omx_flanger.h OMX_FLANGER_MAX_MS (the sum typed as a literal)"
       },
       "value": 6,
       "doc": "The longest delay a flanger sweep reaches, rounded up to whole ms: the base delay plus the depth maximum. The delay line is sized from it.",

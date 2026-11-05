@@ -39,7 +39,7 @@ test('a source moved without its continuous form, or a continuous form given a s
   assert.deepEqual(continuousProblems(resolveData(loadData(stepped))), ['COMP_CONTINUOUS_TRAVELS.releaseMs is not COMP_LIMITS.releaseMs with step 0']);
 });
 
-// TRIM_TRAVELS, the table this read the travel through, was retired in 153cb5a: the travel is read as TRIM_RANGE.
+// TRIM_TRAVELS, the table this read the travel through, was retired in dfbc289: the travel is read as TRIM_RANGE.
 test('the trim travel is the TRIM_RANGE omx-dsp\'s 4108494 header spells, coming up at 0 dB', () => {
   const header = atCommit('4108494', 'include/omxdsp/omx_contract_limits.h');
   const define = (name) => Number(new RegExp(`^#define ${name} (\\S+?)f?$`, 'm').exec(header)[1]);

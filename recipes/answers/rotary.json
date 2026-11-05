@@ -242,7 +242,7 @@
     {
       "name": "ROTARY_SPEEDS",
       "source": {
-        "origin": "omx-dsp 6d6fcda include/omxdsp/fx/omx_rotary.h enum omx_rotary_speed"
+        "origin": "omx-dsp e5267a4 include/omxdsp/fx/omx_rotary.h enum omx_rotary_speed"
       },
       "value": [
         "stop",
