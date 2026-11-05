@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
-// The 38 limits omx-dsp's tools/contract-gap.txt (omx-dsp af6c21d) listed as missing from omx-contract
-// 1.2.1 are in the c render with omx-dsp's own literal, both read from af6c21d itself: the names from its
+// The 38 limits omx-dsp's tools/contract-gap.txt (omx-dsp e5267a4) listed as missing from omx-contract
+// 1.2.1 are in the c render with omx-dsp's own literal, both read from e5267a4 itself: the names from its
 // tools/contract-gap.txt, the literals from its committed include/omxdsp/omx_contract_limits.h.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -11,8 +11,8 @@ import { atCommit, editData, resolvedOf, scratchData, texts } from './helpers.mj
 import { loadData, resolveData } from './oc.mjs';
 
 const defines = (text) => new Map([...text.matchAll(/^#define (OMX_\w+) (.+)$/gm)].map((m) => [m[1], m[2].replace(/\s*\/\*.*\*\/\s*$/, '').trim()]));
-const pinned = defines(atCommit('af6c21d', 'include/omxdsp/omx_contract_limits.h'));
-const gap = atCommit('af6c21d', 'tools/contract-gap.txt').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')).map((n) => [n, pinned.get(n)]);
+const pinned = defines(atCommit('e5267a4', 'include/omxdsp/omx_contract_limits.h'));
+const gap = atCommit('e5267a4', 'tools/contract-gap.txt').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')).map((n) => [n, pinned.get(n)]);
 /** The names a later commit stopped carrying, with its reason (tools/after-pin.mjs): left out, and the list is exact. */
 const carried = gap.filter(([n]) => !DROPPED_AFTER_PIN.has(n));
 
