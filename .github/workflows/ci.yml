@@ -89,7 +89,7 @@ jobs:
 
       - name: Every file a comment can be written in opens with its licence
         id: handback-spdx
-        uses: FreeMixer/.github/.github/actions/spdx-check@c67b6d0e09fd9f7cf9a8dd24ff41ea30d99f893c
+        uses: FreeMixer/.github/.github/actions/spdx-check@e20d1b7fdc40770ca6f3256b8ca9c975674fe055
 
       # packaging/deps.txt is the one place a floor is written: the spec, debian/control and OMX_CONTRACT_REF follow it
       - name: The dependency floors are the ones packaging/deps.txt declares
