@@ -124,7 +124,7 @@
     {
       "name": "EQ_NOTCH_Q_RANGE",
       "source": {
-        "origin": "imported as index.ts EQ_NOTCH_Q_RANGE ({\"min\":0.3,\"max\":116,\"step\":1,\"unit\":\"\"}) at the console engine's 964a79835692; moved in omx-dsp 09ff9da: a travel's step must reach its maximum and default from its minimum"
+        "origin": "imported as index.ts EQ_NOTCH_Q_RANGE ({\"min\":0.3,\"max\":116,\"step\":1,\"unit\":\"\"}) at the console engine's 964a79835692; moved in omx-dsp dbcb2cb: a travel's step must reach its maximum and default from its minimum"
       },
       "value": {
         "min": 0.3,
@@ -168,7 +168,7 @@
     {
       "name": "OPERATOR_EQ_BANDS_RESERVE",
       "source": {
-        "origin": "the console engine's operator EQ bands reserve; read by omx-dsp 6d6fcda test/kernels/biquad.c"
+        "origin": "the console engine's operator EQ bands reserve; read by omx-dsp e5267a4 test/kernels/biquad.c"
       },
       "value": 9,
       "doc": "The band slots kept for the operator's own hand: the reserve the feedback suppressor and the ring correction may never eat into. Nine is the working set a live EQ actually holds. The budget OPERATOR_EQ_BANDS_RESERVE + FBS_DEFAULT_MAX_AUTO_BANDS + HRP_DEFAULT_MAX_AUTO_BANDS (9 + 6 + 8 = 23) must fit EQ_MAX_BANDS, and `omx-contract validate` refuses data where it does not.",
@@ -178,7 +178,7 @@
     {
       "name": "EQ_BAND_TYPES",
       "source": {
-        "origin": "the console engine's EQ band types and their labels; omx-dsp 6d6fcda include/omxdsp/fx/omx_eq_instance.h enum omx_eq_lv2_type; omx-plugins 3778732 the eq decls' band type values"
+        "origin": "the console engine's EQ band types and their labels; omx-dsp e5267a4 include/omxdsp/fx/omx_eq_instance.h enum omx_eq_lv2_type; omx-plugins 3778732 the eq decls' band type values"
       },
       "value": [
         "bell",
@@ -204,7 +204,7 @@
     {
       "name": "FILTER_SLOPES",
       "source": {
-        "origin": "the console engine's EQ filter slopes; omx-dsp 6d6fcda include/omxdsp/fx/omx_eq_instance.h enum omx_eq_lv2_slope"
+        "origin": "the console engine's EQ filter slopes; omx-dsp e5267a4 include/omxdsp/fx/omx_eq_instance.h enum omx_eq_lv2_slope"
       },
       "value": [
         12,
@@ -265,7 +265,7 @@
     {
       "name": "EQ_PASS_FILTER_DEFAULTS",
       "source": {
-        "origin": "the console engine's default EQ state; omx-dsp 6d6fcda include/omxdsp/fx/omx_eq_instance.h OMX_EQ_LV2_HPF_FREQ_DEFAULT and OMX_EQ_LV2_LPF_FREQ_DEFAULT"
+        "origin": "the console engine's default EQ state; omx-dsp e5267a4 include/omxdsp/fx/omx_eq_instance.h OMX_EQ_LV2_HPF_FREQ_DEFAULT and OMX_EQ_LV2_LPF_FREQ_DEFAULT"
       },
       "value": {
         "hpfFreqHz": 80,

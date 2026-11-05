@@ -92,7 +92,7 @@
     {
       "name": "GATE_KEY_SOURCES",
       "source": {
-        "origin": "omx-dsp 6d6fcda include/omxdsp/omx_gate.h key_external; omx-plugins 3778732 plugins/omx-keyed-gate/omx-keyed-gate.decl.json key_external"
+        "origin": "omx-dsp e5267a4 include/omxdsp/omx_gate.h key_external; omx-plugins 3778732 plugins/omx-keyed-gate/omx-keyed-gate.decl.json key_external"
       },
       "value": [
         "self",

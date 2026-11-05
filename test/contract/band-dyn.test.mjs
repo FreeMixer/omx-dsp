@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 // The band-dynamics kernel's constants, the two it still declares: the knee and the detector's attack floor. Its six
-// controls and BAND_DYN_MAX_BANDS were retired in 153cb5a (no reader; dyneq's refs take the values they forwarded), so
+// controls and BAND_DYN_MAX_BANDS were retired in dfbc289 (no reader; dyneq's refs take the values they forwarded), so
 // the arms over them went with them.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
