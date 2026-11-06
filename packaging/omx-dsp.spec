@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.30.0
+Version: 0.30.1
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -97,6 +97,12 @@ Its documentation is on openmixer.org.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Fri Nov 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.30.1-1
+- test: the bandwidth-to-Q table is held within 4 ULP of its golden, so the
+  package's check passes with Fedora 45's libm
+- debian: the libomx-contract-dev floor carries the tilde
+- githooks: commit-msg is the shared v1 stub; CI takes its shared checks at v1
+
 * Wed Nov 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.30.0-1
 - glue: detectorTopology, default feedforward, takes comp's DETECTOR_TOPOLOGY;
   keyHpHz has no effect in feedback (#279)

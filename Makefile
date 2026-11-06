@@ -175,7 +175,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check contract-proof contract-tests test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
+.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check contract-proof contract-tests test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -278,9 +278,23 @@ eq-sabotage: test/omxdsp_suite.c test/eq-sabotage.sh $(KERNELS) $(LIB_CONTRACTS)
 $(BUILD)/eq_bandwidth_q_table: test/eq_bandwidth_q_table.c $(LIB) $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) $(INC) -o $@ $< $(LIB) -lm
 
+# q is held within 4 ULP, not bit for bit: the law goes through libm's sin() and sinh(), which glibc does not
+# round correctly, so libm versions differ in the last digits (test/eq_bandwidth_q_table.c says more).
 bandwidth-q-table: $(BUILD)/eq_bandwidth_q_table
-	./$(BUILD)/eq_bandwidth_q_table | diff -u test/golden/eq_bandwidth_q.json -
-	@echo "bandwidth-q-table: test/golden/eq_bandwidth_q.json is omx_eq_bandwidth_q()'s"
+	./$(BUILD)/eq_bandwidth_q_table --check test/golden/eq_bandwidth_q.json
+
+# The bound proves itself: the golden and Fedora 45's table (glibc 2.44) pass, a q moved 4 ULP passes and one
+# moved 5 ULP either way fails.
+bandwidth-q-sabotage: $(BUILD)/eq_bandwidth_q_table
+	./$(BUILD)/eq_bandwidth_q_table --check test/golden/eq_bandwidth_q.json test/golden/eq_bandwidth_q.json
+	./$(BUILD)/eq_bandwidth_q_table --check test/golden/eq_bandwidth_q.json test/eq_bandwidth_q/fedora45-glibc-2.44.json
+	./$(BUILD)/eq_bandwidth_q_table --nudge 4 test/golden/eq_bandwidth_q.json | ./$(BUILD)/eq_bandwidth_q_table --check test/golden/eq_bandwidth_q.json -
+	@for n in 5 -5; do \
+	  if ./$(BUILD)/eq_bandwidth_q_table --nudge $$n test/golden/eq_bandwidth_q.json | ./$(BUILD)/eq_bandwidth_q_table --check test/golden/eq_bandwidth_q.json - > $(BUILD)/bandwidth-q-nudge.out; then \
+	    echo "bandwidth-q-sabotage: a q moved $$n ULP passed"; exit 1; fi; \
+	  grep -q '^row 7 .*(5 ULP apart, bound 4)' $(BUILD)/bandwidth-q-nudge.out || { cat $(BUILD)/bandwidth-q-nudge.out; echo "bandwidth-q-sabotage: the refusal does not name row 7"; exit 1; }; \
+	done
+	@echo "bandwidth-q-sabotage: 4 ULP passes, 5 ULP either way is refused, Fedora 45's table passes"
 
 # THE default EQ rule (omx_eq_defaults.h, moved from omx-contract's C render at 3.0.0) against its
 # JavaScript spelling's answers (tools/eq-defaults-golden.mjs writes the golden; no node here).
@@ -778,7 +792,7 @@ check-package: $(CHECK_PACKAGE)
 	@echo "omxdsp: make check-package green"
 
 .PHONY: test-parallel
-test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
 
 # ---- install ------------------------------------------------------------------------------------
 
