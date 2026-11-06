@@ -99,7 +99,7 @@ Its documentation is on openmixer.org.
 %changelog
 * Fri Nov 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.32.0-1
 - curve: a term carries its band's origin (CURVE_ORIGINS: user, fbs-fixed,
-  fbs-live); omx_curve_points_marked answers a mark per feedback corrector's
+  fbs-live, hrp, room-mode); omx_curve_points_marked answers a mark per feedback corrector's
   band and, asked, the curve over the user bands alone; the twin curvePoints
   answers the same
 
