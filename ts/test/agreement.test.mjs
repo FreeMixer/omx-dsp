@@ -403,9 +403,9 @@ describe('curvePoints marks the feedback corrector\'s bands and draws the user-o
   const reqs = [];
   for (const sr of RATES) for (let seed = 0; seed < 6; seed++) {
     const terms = [];
-    const nb = 2 + (seed % 3);
+    const nb = 3 + (seed % 3);
     for (let b = 0; b < nb; b++) {
-      const origin = b === 0 ? 'user' : ['fbs-fixed', 'fbs-live', 'user'][(seed + b) % 3];
+      const origin = b === 0 ? 'user' : ['fbs-fixed', 'fbs-live', 'hrp', 'room-mode', 'user'][(seed + b) % 5];
       const notch = origin !== 'user' && (seed + b) % 2 === 0;
       const f0 = 200 * (1 + ((seed * 3 + b * 7) % 40));
       terms.push({ role: 'band_freq', index: b, value: f0, unit: 'hz', shape: notch ? 'notch' : 'bell', origin });
@@ -443,8 +443,14 @@ describe('curvePoints marks the feedback corrector\'s bands and draws the user-o
     }
     assert.deepEqual(curvePoints({ ...reqs[0], terms: reqs[0].terms.map(({ origin, ...t }) => t) }).marks, []);
   });
-  it('SABOTAGE: an origin dropped from the marks is red', () => {
-    const drop = (rq) => { const a = curvePoints(rq); return 'code' in a ? a : { ...a, marks: a.marks.filter((m) => m.origin !== 'fbs-live') }; };
-    assert.ok(agree(drop).length > 0);
+  it('every planter\'s origin is in the grid', () => {
+    const seen = new Set(reqs.flatMap((rq) => rq.terms.map((t) => t.origin).filter(Boolean)));
+    for (const o of CURVE_WORDS.origins) assert.ok(seen.has(o), o);
+  });
+  it('SABOTAGE: an origin dropped from the marks (fbs-live, then hrp) is red', () => {
+    for (const gone of ['fbs-live', 'hrp']) {
+      const drop = (rq) => { const a = curvePoints(rq); return 'code' in a ? a : { ...a, marks: a.marks.filter((m) => m.origin !== gone) }; };
+      assert.ok(agree(drop).length > 0, gone);
+    }
   });
 });

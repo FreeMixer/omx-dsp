@@ -68,7 +68,7 @@ struct omx_curve_term {
                               *   value selects, resolved by the caller from the role's `shapes`; for `band_freq`
                               *   the fixed shape of a band no control selects. */
   enum omx_curve_origins origin; /**< Where the band comes from (CURVE_ORIGINS): OMX_CURVE_ORIGINS_USER, the zero of
-                                  *   an initializer that names none, or a feedback corrector's pool. A band's origin is
+                                  *   an initializer that names none, or a planter's (the feedback corrector's two pools, the HRP, a room mode). A band's origin is
                                   *   its `band_freq` term's; the sum ignores it. */
 };
 
@@ -97,7 +97,8 @@ struct omx_curve_mark {
 };
 
 /** @brief The wire words of CURVE_ORIGINS, by value. */
-static const char *const OMX_CURVE_ORIGIN_WORDS[OMX_CURVE_ORIGINS_COUNT] = {"user", "fbs-fixed", "fbs-live"};
+static const char *const OMX_CURVE_ORIGIN_WORDS[OMX_CURVE_ORIGINS_COUNT] = {"user", "fbs-fixed", "fbs-live", "hrp",
+                                                                            "room-mode"};
 
 /** @brief What omx_curve_points_marked() answers beside the points; the caller's buffers, any of them NULL when not
  *         asked for. */

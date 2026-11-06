@@ -38,7 +38,7 @@
 #               over this live data/ with omx-contract's reader and renderer
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
-#   make curve-sabotage  the one curve function's arm (omx_curve.h) fails against eight sabotages
+#   make curve-sabotage  the one curve function's arm (omx_curve.h) fails against nine sabotages
 #   make curve-golden  test/kernels/fixtures/curve_golden.h rewritten from omx_curve_points() (tools/curve-golden.c)
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
 #   make delay-taps-sabotage  the FX delay's read-tap oracle fails against ten sabotages
@@ -315,7 +315,7 @@ $(BUILD)/curve_golden: tools/curve-golden.c test/kernels/fixtures/curve_requests
 curve-golden: $(BUILD)/curve_golden
 	./$(BUILD)/curve_golden > test/kernels/fixtures/curve_golden.h
 
-# The curve arm fails against eight sabotages of omx_curve.h (test/curve-sabotage.sh); the real suite is the control.
+# The curve arm fails against nine sabotages of omx_curve.h (test/curve-sabotage.sh); the real suite is the control.
 curve-sabotage: test/omxdsp_suite.c test/curve-sabotage.sh $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/curve-sabotage.sh $(BUILD)/curve-sabotage $(LIB_CONTRACTS)
 

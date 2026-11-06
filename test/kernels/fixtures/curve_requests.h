@@ -67,7 +67,8 @@ static const struct omx_curve_request CURVE_GOLDEN_GATE = {
     CURVE_GOLDEN_GATE_TERMS, (uint32_t)(sizeof CURVE_GOLDEN_GATE_TERMS / sizeof CURVE_GOLDEN_GATE_TERMS[0]), 0};
 
 /* The strip EQ the feedback corrector planted two notches in, at 48 kHz: two user bells, a ring-out notch at 2.5 kHz
- * (a notch band) and a show notch at 630 Hz (a -9 dB bell at Q 16), and a 12 dB/oct high-pass; the user-only curve
+ * (a notch band), a show notch at 630 Hz (a -9 dB bell at Q 16), an HRP cut at 1.8 kHz (-4.5 dB, Q 24), and a
+ * 12 dB/oct high-pass; the user-only curve
  * asked for beside the marks. */
 static const struct omx_curve_term CURVE_GOLDEN_FBS_TERMS[] = {
     CT(BAND_FREQ, 0, 120.0, HZ, OMX_CURVE_SHAPES_BELL),
@@ -81,6 +82,9 @@ static const struct omx_curve_term CURVE_GOLDEN_FBS_TERMS[] = {
     CTO(BAND_FREQ, 3, 630.0, HZ, OMX_CURVE_SHAPES_BELL, FBS_LIVE),
     CTO(BAND_GAIN, 3, -9.0, DB, CT_NS, FBS_LIVE),
     CTO(BAND_Q, 3, 16.0, NONE, CT_NS, FBS_LIVE),
+    CTO(BAND_FREQ, 4, 1800.0, HZ, OMX_CURVE_SHAPES_BELL, HRP),
+    CTO(BAND_GAIN, 4, -4.5, DB, CT_NS, HRP),
+    CTO(BAND_Q, 4, 24.0, NONE, CT_NS, HRP),
     CT(HPF_FREQ, 0, 60.0, HZ, CT_NS),
     CT(HPF_SLOPE, 0, 12.0, DB, CT_NS),
 };
