@@ -18,11 +18,12 @@ import {
   CURVE_ROLES,
   CURVE_SHAPES,
   CURVE_UNITS,
+  EQ_BAND_DEFAULTS,
   GATE_RANGE_DB_RANGE,
   GATE_RATIO_RANGE,
   LIN_TO_DB_FLOOR,
 } from './definitions.js';
-import { magnitudeSumDb, octavesToQ, type BiquadBand, type BiquadType } from './eq.js';
+import { clampEqQFor, magnitudeSumDb, octavesToQ, type BiquadBand, type BiquadType } from './eq.js';
 import { gaincompDb, gaincompDbShifted, gateKnee } from './gaincomp.js';
 
 /** A set id as the description spells it: `eqResponse` is `eq_response`; the unshaped band is `-`. */
@@ -131,6 +132,7 @@ const valueOf = (t: CurveTerm): number => {
 
 const SHAPE_TYPE: Readonly<Record<string, BiquadType>> = {
   bell: 'bell', lowshelf: 'lowshelf', highshelf: 'highshelf', highpass: 'highpass', lowpass: 'lowpass', notch: 'notch',
+  allpass1: 'allpass1', allpass2: 'allpass2',
 };
 
 /** The Q of each section of a Butterworth head filter (omx_eq_butterworth_qs): 12 dB/oct one at 1/sqrt(2), 24 dB/oct
@@ -207,14 +209,14 @@ function eqPoints(rq: CurveRequest, find: Find, lo: number, hi: number): CurveAn
     if (!freq) return { code: 'termMissing' };
     const shape = type?.shape ?? freq.shape;
     if (shape === undefined) return { code: 'termMissing' };
-    if (shape === 'off') continue;
     const kind = SHAPE_TYPE[shape];
-    if (!kind) return { code: 'kindUnknown' };
-    if (!q) return { code: 'termMissing' };
+    if (!kind) continue; // off, or a choice with no shape (`-`): not drawn
     const gains = kind === 'bell' || kind === 'lowshelf' || kind === 'highshelf';
     if (gains && !gain) return { code: 'termMissing' };
     if (on && valueOf(on) === 0) continue;
-    bands.push({ type: kind, freq: valueOf(freq), gainDb: gains && gain ? valueOf(gain) : 0, q: valueOf(q) });
+    bands.push({ type: kind, freq: valueOf(freq), gainDb: gains && gain ? valueOf(gain) : 0,
+      // no Q control: the declared default (EQ_BAND_DEFAULTS), clamped for the shape as the kernel clamps it
+      q: q ? valueOf(q) : Math.fround(clampEqQFor(kind === 'notch' ? 'notch' : 'bell', EQ_BAND_DEFAULTS.q)) });
     origin.push(freq.origin ?? 'user');
   }
   const pass: BiquadBand[] = [];
@@ -223,7 +225,8 @@ function eqPoints(rq: CurveRequest, find: Find, lo: number, hi: number): CurveAn
     const fr = find(`${pre}_freq`), sl = find(`${pre}_slope`), on = find(`${pre}_on`);
     if (!fr && !sl && !on) continue;
     present = true;
-    if (!fr || !sl) return { code: 'termMissing' };
+    // the slope in dB per octave, from the role's declared enumeration or a dB control; a bare choice value is none
+    if (!fr || !sl || sl.unit !== 'db') return { code: 'termMissing' };
     const slope = valueOf(sl);
     if (slope !== 12 && slope !== 24) return { code: 'kindUnknown' };
     if (on && valueOf(on) === 0) continue;
@@ -248,9 +251,11 @@ function transferPoints(rq: CurveRequest, find: Find, lo: number, hi: number): C
   const below = rq.family === 'gate';
   const thr = find('threshold'), ratio = find('ratio'), knee = find('knee'), makeup = find('makeup'), range = find('range');
   const ks = find('knee_start'), ke = find('knee_end');
-  if (!thr || !ratio || (below && !range) || (below && !ks !== !ke)) return { code: 'termMissing' };
+  // a limiter has no ratio role: the dynamics form at ratio infinity, a hard corner at the threshold
+  const limiter = rq.family === 'limiter';
+  if (!thr || (!ratio && !limiter) || (below && !range) || (below && !ks !== !ke)) return { code: 'termMissing' };
   const f = Math.fround;
-  const r = f(valueOf(ratio)), k = knee ? f(valueOf(knee)) : 0;
+  const r = ratio ? f(valueOf(ratio)) : Infinity, k = knee ? f(valueOf(knee)) : 0;
   const rmin = f(below ? GATE_RATIO_RANGE.min : COMP_RATIO_RANGE.min);
   const thresh = f(valueOf(thr));
   let kneeDb = k < COMP_KNEE_DB_RANGE.min ? COMP_KNEE_DB_RANGE.min : k;

@@ -309,7 +309,7 @@ describe('curvePoints agrees with omx_curve_points at every oracle rate', () => 
         if (b === 2) terms.push({ role: 'band_on', index: b, value: seed % 3 === 0 ? 0 : 1, unit: 'none' });
       }
       if (seed % 3 !== 2) terms.push({ role: 'hpf_freq', value: 20 + seed * 7, unit: 'hz' }, { role: 'hpf_slope', value: seed % 2 ? 24 : 12, unit: 'db' });
-      if (seed % 4 === 1) terms.push({ role: 'lpf_freq', value: 9 + seed / 4, unit: 'khz' }, { role: 'lpf_slope', value: 12, unit: 'none' }, { role: 'lpf_on', value: seed % 8 === 1 ? 0 : 1, unit: 'none' });
+      if (seed % 4 === 1) terms.push({ role: 'lpf_freq', value: 9 + seed / 4, unit: 'khz' }, { role: 'lpf_slope', value: 12, unit: 'db' }, { role: 'lpf_on', value: seed % 8 === 1 ? 0 : 1, unit: 'none' });
       out.push({ kind: 'eq_response', family: 'eq', sampleRate: sr, points: 16 + ((seed * 37) % 200) % (CURVE_POINTS_MAX - 3 * nb - 12 - 16), terms, ...(seed % 5 === 4 ? { extents: { min: 40, max: 0.45 * sr } } : {}) });
     }
     return out;
@@ -360,16 +360,36 @@ describe('curvePoints agrees with omx_curve_points at every oracle rate', () => 
     assert.ok(curveAgainst(trAsked, ks, T.curvePointsTransfer).failures.length > 10);
   });
 
+  it('the ruled defaults agree: a band with no Q, the allpasses, a `-` band, a limiter with no ratio', () => {
+    const reqs = [];
+    for (const sr of RATES) {
+      reqs.push({ kind: 'eq_response', family: 'eq', sampleRate: sr, points: 48, terms: [
+        { role: 'band_freq', index: 0, value: 900, unit: 'hz', shape: 'bell' }, { role: 'band_gain', index: 0, value: 5, unit: 'db' },
+        { role: 'band_freq', index: 1, value: 4000, unit: 'hz', shape: 'notch' },
+        { role: 'band_type', index: 2, value: 3, unit: 'none', shape: 'allpass1' }, { role: 'band_freq', index: 2, value: 300, unit: 'hz' },
+        { role: 'band_freq', index: 3, value: 7000, unit: 'hz', shape: 'allpass2' },
+        { role: 'band_type', index: 4, value: 5, unit: 'none', shape: '-' }, { role: 'band_freq', index: 4, value: 60, unit: 'hz' },
+        { role: 'band_gain', index: 4, value: 9, unit: 'db' }] });
+      reqs.push({ kind: 'transfer_curve', family: 'limiter', sampleRate: sr, points: 41, terms: [
+        { role: 'threshold', value: -6, unit: 'dbfs' }, { role: 'knee', value: 2, unit: 'db' }] });
+    }
+    const asked = askCurves(reqs);
+    assert.ok(asked.answers.every((a) => a[0] === 0), 'every ruled request draws');
+    assert.deepEqual(curveAgainst(asked, curvePoints, T.curvePointsEq).failures.slice(0, 5), []);
+    const noDefault = (rq) => curvePoints(rq.family === 'eq' ? rq : { ...rq, terms: [...rq.terms, { role: 'ratio', value: 4, unit: 'ratio' }] });
+    assert.ok(curveAgainst(asked, noDefault, T.curvePointsEq).failures.length > 0, 'SABOTAGE: a limiter at ratio 4 is red');
+  });
   it('every refusal is the same code on both sides', () => {
     const bell = [{ role: 'band_freq', value: 1000, unit: 'hz', shape: 'bell' }, { role: 'band_gain', value: 3, unit: 'db' }, { role: 'band_q', value: 1, unit: 'none' }];
     const eq = { kind: 'eq_response', family: 'eq', sampleRate: 48000, points: 64, terms: bell };
     const comp = { kind: 'transfer_curve', family: 'dynamics', sampleRate: 48000, points: 41, terms: [{ role: 'threshold', value: -20, unit: 'db' }, { role: 'ratio', value: 4, unit: 'ratio' }] };
     const bad = [
       [{ ...eq, family: 'gate' }, 'kindUnknown'], [{ ...comp, family: 'eq' }, 'kindUnknown'],
-      [{ ...eq, terms: [{ role: 'band_freq', value: 1000, unit: 'hz', shape: '-' }, bell[2]] }, 'kindUnknown'],
+      [{ ...eq, terms: [{ role: 'hpf_freq', value: 80, unit: 'hz' }, { role: 'hpf_slope', value: 1, unit: 'none' }] }, 'termMissing'],
+      [{ ...comp, family: 'limiter', terms: [{ role: 'ratio', value: 4, unit: 'ratio' }] }, 'termMissing'],
       [{ ...eq, terms: [{ role: 'hpf_freq', value: 80, unit: 'hz' }, { role: 'hpf_slope', value: 18, unit: 'db' }] }, 'kindUnknown'],
       [{ ...eq, terms: bell.slice(1) }, 'termMissing'], [{ ...eq, terms: [{ ...bell[0], shape: undefined }, ...bell.slice(1)] }, 'termMissing'],
-      [{ ...eq, terms: bell.slice(0, 2) }, 'termMissing'], [{ ...eq, terms: [] }, 'termMissing'], [{ ...comp, terms: comp.terms.slice(0, 1) }, 'termMissing'],
+[{ ...eq, terms: [] }, 'termMissing'], [{ ...comp, terms: comp.terms.slice(0, 1) }, 'termMissing'],
       [{ ...comp, family: 'gate' }, 'termMissing'],
       [{ ...comp, family: 'gate', terms: [...comp.terms, { role: 'range', value: -60, unit: 'db' }, { role: 'knee_end', value: -30, unit: 'db' }] }, 'termMissing'],
       [{ ...eq, terms: [{ ...bell[0], unit: 'db' }] }, 'unitRefused'], [{ ...comp, terms: [...comp.terms, { role: 'makeup', value: 2, unit: 'coef' }] }, 'unitRefused'],

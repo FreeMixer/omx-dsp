@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "fx/omx_eq_instance.h"
 #include "omx_eq_design.h"
 #include "omx_gaincomp.h"
 #include "omx_gate.h"
@@ -121,8 +122,8 @@ static const char *const OMX_CURVE_ROLE_WORDS[OMX_CURVE_ROLES_COUNT] = {
 static const char *const OMX_CURVE_UNIT_WORDS[OMX_CURVE_UNITS_COUNT] = {"hz",   "khz", "db",   "dbfs", "dbu",
                                                                         "lufs", "coef", "oct", "none", "ratio"};
 /** @brief The wire words of CURVE_SHAPES, by value; `unshaped` is spelt `-`. */
-static const char *const OMX_CURVE_SHAPE_WORDS[OMX_CURVE_SHAPES_COUNT] = {"off",     "bell",    "lowshelf", "highshelf",
-                                                                          "highpass", "lowpass", "notch",    "-"};
+static const char *const OMX_CURVE_SHAPE_WORDS[OMX_CURVE_SHAPES_COUNT] = {
+    "off", "bell", "lowshelf", "highshelf", "highpass", "lowpass", "notch", "-", "allpass1", "allpass2"};
 
 /**
  * @brief The value of `word` in one of the word tables above, the way a host reads a bound line.
@@ -203,7 +204,7 @@ static inline double omx_curve_term_value(const struct omx_curve_term *t) {
 /**
  * @brief The design kind a drawn shape is.
  * @param shape An enum omx_curve_shapes.
- * @return The enum omx_eq_kind, or -1 for `off` and `unshaped`, which design nothing.
+ * @return The enum omx_eq_kind, or -1 for `off` and `unshaped`, which are not drawn.
  * @note RT-safe and thread-safe: a switch, pure.
  */
 static inline int omx_curve_shape_kind(int shape) {
@@ -214,6 +215,8 @@ static inline int omx_curve_shape_kind(int shape) {
   case OMX_CURVE_SHAPES_HIGHPASS: return OMX_EQ_HIGHPASS;
   case OMX_CURVE_SHAPES_LOWPASS: return OMX_EQ_LOWPASS;
   case OMX_CURVE_SHAPES_NOTCH: return OMX_EQ_NOTCH;
+  case OMX_CURVE_SHAPES_ALLPASS1: return OMX_EQ_ALLPASS1;
+  case OMX_CURVE_SHAPES_ALLPASS2: return OMX_EQ_ALLPASS2;
   default: return -1;
   }
 }
@@ -253,7 +256,9 @@ static inline int omx_curve_pass(const struct omx_curve_request *rq, enum omx_cu
                               *on = omx_curve_find(rq, on_role, 0);
   *present = f || s || on;
   if (!*present) return OMX_CURVE_OK;
-  if (!f || !s) return OMX_CURVE_TERM_MISSING;
+  /* the slope in dB per octave: from the role's declared enumeration (the caller resolves a choice to it) or a
+   * control in dB; a bare choice value is no slope */
+  if (!f || !s || s->unit != OMX_CURVE_UNITS_DB) return OMX_CURVE_TERM_MISSING;
   const double slope = omx_curve_term_value(s);
   if (slope != 12.0 && slope != 24.0) return OMX_CURVE_KIND_UNKNOWN;
   out->on = on ? omx_curve_term_value(on) != 0.0 : 1;
@@ -298,16 +303,17 @@ static inline uint32_t omx_curve_eq(const struct omx_curve_request *rq, double x
     if (!freq) return (*code = OMX_CURVE_TERM_MISSING), 0u;
     const int shape = type && type->shape != OMX_CURVE_NO_SHAPE ? type->shape : freq->shape;
     if (shape == OMX_CURVE_NO_SHAPE) return (*code = OMX_CURVE_TERM_MISSING), 0u;
-    if (shape == OMX_CURVE_SHAPES_OFF) continue;
     const int kind = omx_curve_shape_kind(shape);
-    if (kind < 0) return (*code = OMX_CURVE_KIND_UNKNOWN), 0u;
-    if (!q) return (*code = OMX_CURVE_TERM_MISSING), 0u;
+    if (kind < 0) continue; /* off, or a choice with no shape (`-`): not drawn */
     const int gains = kind == OMX_EQ_PEAKING || kind == OMX_EQ_LOWSHELF || kind == OMX_EQ_HIGHSHELF;
     if (gains && !gain) return (*code = OMX_CURVE_TERM_MISSING), 0u;
     bands[used].kind = (enum omx_eq_kind)kind;
     bands[used].freq_hz = omx_curve_term_value(freq);
     bands[used].gain_db = gains ? omx_curve_term_value(gain) : 0.0;
-    bands[used].q = omx_curve_term_value(q);
+    /* no Q control: the band's declared default (EQ_BAND_DEFAULTS), clamped for its shape as clampEqQFor clamps */
+    bands[used].q = q ? omx_curve_term_value(q)
+                      : (double)omx_eq_lv2_clamp_q(kind == OMX_EQ_NOTCH ? OMX_EQ_LV2_NOTCH : OMX_EQ_LV2_BELL,
+                                                   (float)OMX_EQ_BAND_DEFAULTS_Q);
     bands[used].on = on ? omx_curve_term_value(on) != 0.0 : 1;
     origin[used] = freq->origin;
     used++;
@@ -364,7 +370,7 @@ static inline uint32_t omx_curve_eq(const struct omx_curve_request *rq, double x
  * @brief A `transfer_curve`: the gain computer of the family's mode at each grid level, `y = x + g(x)` plus the
  *        make-up, from `x_min` to `x_max` dB in `points` evenly spaced levels, both edges included.
  *
- * ABOVE (dynamics, limiter, de-esser) needs a threshold and a ratio; BELOW (gate) a threshold, a range and a
+ * ABOVE (dynamics, de-esser) needs a threshold and a ratio, a limiter a threshold (its ratio is infinity); BELOW (gate) a threshold, a range and a
  * ratio, and the knee range both its ends or neither, resolved as the gate resolves it (omx_gate_knee()). A
  * value outside the gain computer's domain is held at its edge, the bound its precondition names: a ratio at
  * least the mode's minimum (OMX_COMP_RATIO_MIN, OMX_GATE_RATIO_MIN), a knee at least OMX_COMP_KNEE_DB_MIN, a
@@ -389,9 +395,12 @@ static inline uint32_t omx_curve_transfer(const struct omx_curve_request *rq, do
                               *range = omx_curve_find(rq, OMX_CURVE_ROLES_RANGE, 0),
                               *ks = omx_curve_find(rq, OMX_CURVE_ROLES_KNEE_START, 0),
                               *ke = omx_curve_find(rq, OMX_CURVE_ROLES_KNEE_END, 0);
-  if (!thr || !ratio || (below && !range) || (below && !ks != !ke)) return (*code = OMX_CURVE_TERM_MISSING), 0u;
+  /* a limiter has no ratio role: the dynamics form at ratio infinity, a hard corner at the threshold */
+  const int limiter = rq->family == OMX_CURVE_FAMILIES_LIMITER;
+  if (!thr || (!ratio && !limiter) || (below && !range) || (below && !ks != !ke))
+    return (*code = OMX_CURVE_TERM_MISSING), 0u;
   if (room < rq->points) return (*code = OMX_CURVE_ROOM), 0u;
-  const float r = (float)omx_curve_term_value(ratio), k = knee ? (float)omx_curve_term_value(knee) : 0.0f;
+  const float r = ratio ? (float)omx_curve_term_value(ratio) : INFINITY, k = knee ? (float)omx_curve_term_value(knee) : 0.0f;
   struct omx_dyn d;
   memset(&d, 0, sizeof d);
   d.gc.mode = below ? OMX_DYN_BELOW : OMX_DYN_ABOVE;

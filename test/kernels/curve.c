@@ -222,7 +222,15 @@ static void arm_curve(void) {
   }
   const struct omx_curve_term unshaped[] = {CT(BAND_TYPE, 0, 5.0, NONE, OMX_CURVE_SHAPES_UNSHAPED),
                                             CT(BAND_FREQ, 0, 1000.0, HZ, CT_NS), CT(BAND_Q, 0, 1.0, NONE, CT_NS)};
-  ok(curve_code_of(&CURVE_GOLDEN_EQ, unshaped, 3u) == OMX_CURVE_KIND_UNKNOWN, "an unshaped band: kind unknown", 0, 0);
+  {
+    /* a choice value with no shape (`-`) is off: not drawn, the curve flat */
+    struct omx_curve_request ru = CURVE_GOLDEN_EQ;
+    ru.terms = unshaped, ru.nterms = 3u;
+    const uint32_t nu = omx_curve_points(&ru, x, y, OMX_CURVE_POINTS_MAX, &code);
+    uint32_t flat = 0;
+    for (uint32_t i = 0; i < nu; i++) flat += y[i] == 0.0;
+    ok(code == OMX_CURVE_OK && nu > 0u && flat == nu, "an unshaped band is not drawn: the curve is flat", flat, nu);
+  }
   const struct omx_curve_term slope18[] = {CT(HPF_FREQ, 0, 80.0, HZ, CT_NS), CT(HPF_SLOPE, 0, 18.0, DB, CT_NS)};
   ok(curve_code_of(&CURVE_GOLDEN_EQ, slope18, 2u) == OMX_CURVE_KIND_UNKNOWN, "an 18 dB/oct head filter: kind unknown", 0, 0);
   const struct omx_curve_term off[] = {CT(BAND_TYPE, 0, 0.0, NONE, OMX_CURVE_SHAPES_OFF), CT(BAND_FREQ, 0, 1000.0, HZ, CT_NS)};
@@ -237,7 +245,38 @@ static void arm_curve(void) {
   const struct omx_curve_term hpnogain[] = {CT(BAND_FREQ, 0, 100.0, HZ, OMX_CURVE_SHAPES_HIGHPASS), CT(BAND_Q, 0, 0.7, NONE, CT_NS)};
   ok(curve_code_of(&CURVE_GOLDEN_EQ, nofreq, 2u) == OMX_CURVE_TERM_MISSING, "a band with no band_freq: term missing", 0, 0);
   ok(curve_code_of(&CURVE_GOLDEN_EQ, noshape, 3u) == OMX_CURVE_TERM_MISSING, "a band with no shape: term missing", 0, 0);
-  ok(curve_code_of(&CURVE_GOLDEN_EQ, noq, 2u) == OMX_CURVE_TERM_MISSING, "a band with no Q: term missing", 0, 0);
+  {
+    /* no Q control: the declared default EQ_BAND_DEFAULTS q, clamped for the shape */
+    const struct omx_curve_term withq[] = {CT(BAND_FREQ, 0, 1000.0, HZ, OMX_CURVE_SHAPES_BELL), CT(BAND_GAIN, 0, 3.0, DB, CT_NS),
+                                           CT(BAND_Q, 0, (double)OMX_EQ_BAND_DEFAULTS_Q, NONE, CT_NS)};
+    double ya[OMX_CURVE_POINTS_MAX], yb[OMX_CURVE_POINTS_MAX];
+    struct omx_curve_request ra = CURVE_GOLDEN_EQ, rb = CURVE_GOLDEN_EQ;
+    ra.terms = noq, ra.nterms = 2u, rb.terms = withq, rb.nterms = 3u;
+    const uint32_t na = omx_curve_points(&ra, x, ya, OMX_CURVE_POINTS_MAX, &code);
+    const uint32_t nb2 = omx_curve_points(&rb, x, yb, OMX_CURVE_POINTS_MAX, &code);
+    ok(na > 0u && na == nb2 && memcmp(ya, yb, na * sizeof(double)) == 0,
+       "a band with no Q draws at the declared default Q, bit for bit", na, nb2);
+    /* the allpasses draw what they run: 0 dB */
+    const struct omx_curve_term ap[] = {CT(BAND_FREQ, 0, 800.0, HZ, OMX_CURVE_SHAPES_ALLPASS1), CT(BAND_FREQ, 1, 3000.0, HZ, OMX_CURVE_SHAPES_ALLPASS2)};
+    ra.terms = ap, ra.nterms = 2u;
+    const uint32_t nap = omx_curve_points(&ra, x, ya, OMX_CURVE_POINTS_MAX, &code);
+    double worst = 0.0;
+    for (uint32_t i = 0; i < nap; i++) worst = fmax(worst, fabs(ya[i]));
+    ok(code == OMX_CURVE_OK && nap > 0u && worst < 1e-9, "two allpass bands draw 0 dB", worst, 1e-9);
+    /* a slope that is a bare choice value, with no enumeration resolving it: term missing */
+    const struct omx_curve_term bare[] = {CT(HPF_FREQ, 0, 80.0, HZ, CT_NS), CT(HPF_SLOPE, 0, 1.0, NONE, CT_NS)};
+    ok(curve_code_of(&CURVE_GOLDEN_EQ, bare, 2u) == OMX_CURVE_TERM_MISSING, "a slope from no enumeration: term missing", 0, 0);
+    /* a limiter: threshold alone, ratio infinity, a hard corner */
+    const struct omx_curve_term lim[] = {CT(THRESHOLD, 0, -6.0, DBFS, CT_NS)};
+    struct omx_curve_request rl = CURVE_GOLDEN_COMP;
+    rl.family = OMX_CURVE_FAMILIES_LIMITER, rl.terms = lim, rl.nterms = 1u;
+    const uint32_t nl = omx_curve_points(&rl, x, ya, OMX_CURVE_POINTS_MAX, &code);
+    uint32_t corner = 0;
+    for (uint32_t i = 0; i < nl; i++) corner += ya[i] == (x[i] <= -6.0 ? x[i] : -6.0);
+    ok(code == OMX_CURVE_OK && nl > 0u && corner == nl, "a limiter is a hard corner at its threshold", corner, nl);
+    const struct omx_curve_term noratio_c[] = {CT(THRESHOLD, 0, -6.0, DB, CT_NS)};
+    ok(curve_code_of(&CURVE_GOLDEN_COMP, noratio_c, 1u) == OMX_CURVE_TERM_MISSING, "a compressor still needs its ratio", 0, 0);
+  }
   ok(curve_code_of(&CURVE_GOLDEN_EQ, nogain, 2u) == OMX_CURVE_TERM_MISSING, "a shelf with no gain: term missing", 0, 0);
   ok(curve_code_of(&CURVE_GOLDEN_EQ, nopassslope, 1u) == OMX_CURVE_TERM_MISSING, "a head filter with no slope: term missing", 0, 0);
   ok(curve_code_of(&CURVE_GOLDEN_EQ, hpnogain, 2u) == OMX_CURVE_OK, "a high-pass band needs no gain", 0, 0);

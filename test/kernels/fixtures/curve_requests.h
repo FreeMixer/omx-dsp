@@ -17,7 +17,7 @@
 #define CT_NS OMX_CURVE_NO_SHAPE
 
 /* A four-band parametric with both head filters, at 48 kHz: a bell from an octave width, a low shelf whose gain is
- * a linear factor, a high shelf in kHz from a band_type choice, a notch, a 24 dB/oct high-pass, a 12 dB/oct low-pass. */
+ * a linear factor, a high shelf in kHz from a band_type choice, a notch, a 24 dB/oct high-pass, a 12 dB/oct low-pass (each slope resolved to dB per octave). */
 static const struct omx_curve_term CURVE_GOLDEN_EQ_TERMS[] = {
     CT(BAND_FREQ, 0, 1000.0, HZ, OMX_CURVE_SHAPES_BELL),
     CT(BAND_GAIN, 0, 6.0, DB, CT_NS),
@@ -36,7 +36,7 @@ static const struct omx_curve_term CURVE_GOLDEN_EQ_TERMS[] = {
     CT(HPF_FREQ, 0, 40.0, HZ, CT_NS),
     CT(HPF_SLOPE, 0, 24.0, DB, CT_NS),
     CT(LPF_FREQ, 0, 16.0, KHZ, CT_NS),
-    CT(LPF_SLOPE, 0, 12.0, NONE, CT_NS),
+    CT(LPF_SLOPE, 0, 12.0, DB, CT_NS),
     CT(LPF_ON, 0, 1.0, NONE, CT_NS),
 };
 static const struct omx_curve_request CURVE_GOLDEN_EQ = {

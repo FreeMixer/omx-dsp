@@ -22,7 +22,7 @@ const PRIM = join(TS, '..', 'data', 'primitives');
 const HEADER = join(TS, '..', 'include', 'omxdsp', 'omxdsp_definitions.h');
 const OUT = join(TS, 'src', 'definitions.ts');
 /** data file -> the constants of it a twin reads */
-const CONSTANTS = { 'rta.json': ['RTA_TARGET_BIN_HZ', 'RTA_FFT_SIZE_MAX'], 'eq.json': ['LOWPASS_HANDOVER'] };
+const CONSTANTS = { 'rta.json': ['RTA_TARGET_BIN_HZ', 'RTA_FFT_SIZE_MAX'], 'eq.json': ['LOWPASS_HANDOVER', 'EQ_BAND_DEFAULTS'] };
 /** data file -> control name -> the exported name of its { min, max } travel */
 const TRAVELS = {
   'eq.json': { q: 'EQ_Q_RANGE', notchQ: 'EQ_NOTCH_Q_RANGE' },
