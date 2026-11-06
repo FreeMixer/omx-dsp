@@ -36,7 +36,7 @@ const red = (asked, twin, tol) => against(asked, twin, tol).failures.length > 0;
 describe('the oracle is here', () => {
   it('answers every kernel these twins need', () => {
     const k = oracleKernels();
-    for (const n of ['lin_to_db', 'lin_to_db_d', 'db_to_lin', 'eq_octaves_q', 'rta_fft_size_for', 'eq_design', 'eq_lv2_clamp_q', 'eq_band_magnitude_db', 'eq_magnitude_sum_db', 'curve_points', 'gaincomp_db', 'gaincomp_db_shifted', 'gate_knee']) assert.ok(k.includes(n), n);
+    for (const n of ['lin_to_db', 'lin_to_db_d', 'db_to_lin', 'eq_octaves_q', 'rta_fft_size_for', 'eq_design', 'eq_lv2_clamp_q', 'eq_band_magnitude_db', 'eq_magnitude_sum_db', 'curve_points', 'curve_points_marked', 'gaincomp_db', 'gaincomp_db_shifted', 'gate_knee']) assert.ok(k.includes(n), n);
   });
 });
 
@@ -384,5 +384,67 @@ describe('curvePoints agrees with omx_curve_points at every oracle rate', () => 
       assert.equal(CURVE_CODES[asked.answers[i][0]], code, `kernel, refusal ${i}`);
       assert.deepEqual(curvePoints(rq), { code }, `twin, refusal ${i}`);
     });
+  });
+});
+
+describe('curvePoints marks the feedback corrector\'s bands and draws the user-only curve as omx_curve_points_marked', () => {
+  const rowOfMarked = (rq) => [
+    idx(CURVE_WORDS.displays, rq.kind), idx(CURVE_WORDS.families, rq.family), rq.sampleRate, rq.points, rq.extents ? 1 : 0,
+    rq.extents?.min ?? 0, rq.extents?.max ?? 0, rq.userOnly ? 1 : 0, rq.terms.length,
+    ...rq.terms.flatMap((t) => [idx(CURVE_WORDS.roles, t.role), t.index ?? 0, t.value, idx(CURVE_WORDS.units, t.unit),
+      t.shape === undefined ? -1 : idx(CURVE_WORDS.shapes, t.shape), idx(CURVE_WORDS.origins, t.origin ?? 'user')]),
+  ];
+  const answerOfMarked = (a, userOnly) => {
+    if ('code' in a) return [CURVE_CODES.indexOf(a.code), 0, 0];
+    const out = [0, a.points.length, ...a.points.flatMap((p) => [p.x, p.y]), a.marks.length,
+      ...a.marks.flatMap((m) => [m.freq, m.depthDb, m.q, idx(CURVE_WORDS.origins, m.origin)])];
+    return userOnly ? [...out, ...a.userPoints.map((p) => p.y)] : out;
+  };
+  const reqs = [];
+  for (const sr of RATES) for (let seed = 0; seed < 6; seed++) {
+    const terms = [];
+    const nb = 2 + (seed % 3);
+    for (let b = 0; b < nb; b++) {
+      const origin = b === 0 ? 'user' : ['fbs-fixed', 'fbs-live', 'user'][(seed + b) % 3];
+      const notch = origin !== 'user' && (seed + b) % 2 === 0;
+      const f0 = 200 * (1 + ((seed * 3 + b * 7) % 40));
+      terms.push({ role: 'band_freq', index: b, value: f0, unit: 'hz', shape: notch ? 'notch' : 'bell', origin });
+      if (!notch) terms.push({ role: 'band_gain', index: b, value: origin === 'user' ? 4 - b : -6 - b, unit: 'db' });
+      terms.push({ role: 'band_q', index: b, value: origin === 'user' ? 0.9 : 12 + b, unit: 'none' });
+    }
+    if (seed % 2) terms.push({ role: 'hpf_freq', value: 50, unit: 'hz' }, { role: 'hpf_slope', value: 24, unit: 'db' });
+    reqs.push({ kind: 'eq_response', family: 'eq', sampleRate: sr, points: 40 + seed * 10, terms, userOnly: seed % 3 !== 2 });
+  }
+  const asked = ask('curve_points_marked', reqs.map(rowOfMarked));
+  const agree = (twin) => {
+    const failures = [];
+    reqs.forEach((rq, i) => {
+      const t = answerOfMarked(twin(rq), rq.userOnly), k = asked.answers[i];
+      if (t.length !== k.length) return failures.push(`request ${i}: ${t.length} numbers, the kernel ${k.length}`);
+      for (let j = 0; j < t.length; j++)
+        if (!(Math.abs(t[j] - k[j]) <= Math.max(T.curvePointsEq.abs, 1e-15 * Math.abs(k[j])))) return failures.push(`request ${i} [${j}]: ${t[j]} vs ${k[j]}`);
+    });
+    return failures;
+  };
+  it('the points, every mark and the user-only curve agree at every rate', () => {
+    assert.ok(asked.answers.every((a) => a[0] === 0));
+    assert.ok(asked.answers.some((a) => a[2 + 2 * a[1]] >= 2), 'requests with two marks are in the grid');
+    assert.deepEqual(agree(curvePoints).slice(0, 5), []);
+  });
+  it('the user-only curve is the curve over the user bands alone, and no request without origins has a mark', () => {
+    for (const rq of reqs.filter((r) => r.userOnly)) {
+      const a = curvePoints(rq);
+      const mine = curvePoints({ ...rq, userOnly: false, terms: rq.terms.filter((t) => {
+        const band = rq.terms.find((u) => u.role === 'band_freq' && (u.index ?? 0) === (t.index ?? 0));
+        return !t.role.startsWith('band_') || (band?.origin ?? 'user') === 'user';
+      }) });
+      const at = new Map(mine.points.map((p) => [p.x, p.y]));
+      for (const p of a.userPoints) if (at.has(p.x)) assert.ok(Math.abs(at.get(p.x) - p.y) <= 1e-12, `${p.x}`);
+    }
+    assert.deepEqual(curvePoints({ ...reqs[0], terms: reqs[0].terms.map(({ origin, ...t }) => t) }).marks, []);
+  });
+  it('SABOTAGE: an origin dropped from the marks is red', () => {
+    const drop = (rq) => { const a = curvePoints(rq); return 'code' in a ? a : { ...a, marks: a.marks.filter((m) => m.origin !== 'fbs-live') }; };
+    assert.ok(agree(drop).length > 0);
   });
 });

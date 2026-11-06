@@ -31,7 +31,7 @@ const TRAVELS = {
 };
 /** data/primitives file -> the items of it a twin reads */
 const PRIMITIVES = {
-  'curve.json': ['CURVE_DISPLAYS', 'CURVE_FAMILIES', 'CURVE_ROLES', 'CURVE_UNITS', 'CURVE_SHAPES', 'CURVE_CODES', 'CURVE_POINTS_MAX', 'CURVE_EXTENTS'],
+  'curve.json': ['CURVE_DISPLAYS', 'CURVE_FAMILIES', 'CURVE_ROLES', 'CURVE_UNITS', 'CURVE_SHAPES', 'CURVE_ORIGINS', 'CURVE_CODES', 'CURVE_POINTS_MAX', 'CURVE_EXTENTS'],
   'lin-to-db-floor.json': ['LIN_TO_DB_FLOOR'],
 };
 

@@ -151,9 +151,10 @@ static int h_curve_points(const double *in, int n, double *out) {
     terms[i].value = t[2];
     terms[i].unit = (enum omx_curve_units)(int)t[3];
     terms[i].shape = (int)t[4];
+    terms[i].origin = OMX_CURVE_ORIGINS_USER;
   }
   const struct omx_curve_request rq = {(enum omx_curve_displays)(int)in[0], (enum omx_curve_families)(int)in[1], in[2],
-                                       (uint32_t)in[3], in[4] != 0.0, in[5], in[6], terms, (uint32_t)nt};
+                                       (uint32_t)in[3], in[4] != 0.0, in[5], in[6], terms, (uint32_t)nt, 0};
   double x[OMX_CURVE_POINTS_MAX], y[OMX_CURVE_POINTS_MAX];
   int code = -1;
   const uint32_t cnt = omx_curve_points(&rq, x, y, OMX_CURVE_POINTS_MAX, &code);
@@ -164,6 +165,49 @@ static int h_curve_points(const double *in, int n, double *out) {
     out[3 + 2 * i] = y[i];
   }
   return 2 + 2 * (int)cnt;
+}
+
+/* curve_points_marked: kind family rate points has_extents x_min x_max user_only nterms
+ *                      { role index value unit shape origin }*nterms
+ *                      -> code count { x y }*count nmarks { freq depth_db q origin }*nmarks [{ y_user }*count] */
+static int h_curve_points_marked(const double *in, int n, double *out) {
+  if (n < 9) return -1;
+  const int nt = (int)in[8];
+  if (nt < 0 || nt > 512 || n != 9 + 6 * nt) return -1;
+  static struct omx_curve_term terms[512];
+  for (int i = 0; i < nt; i++) {
+    const double *t = in + 9 + 6 * i;
+    terms[i].role = (enum omx_curve_roles)(int)t[0];
+    terms[i].index = (uint32_t)t[1];
+    terms[i].value = t[2];
+    terms[i].unit = (enum omx_curve_units)(int)t[3];
+    terms[i].shape = (int)t[4];
+    terms[i].origin = (enum omx_curve_origins)(int)t[5];
+  }
+  const struct omx_curve_request rq = {(enum omx_curve_displays)(int)in[0], (enum omx_curve_families)(int)in[1], in[2],
+                                       (uint32_t)in[3], in[4] != 0.0, in[5], in[6], terms, (uint32_t)nt, in[7] != 0.0};
+  double x[OMX_CURVE_POINTS_MAX], y[OMX_CURVE_POINTS_MAX], yu[OMX_CURVE_POINTS_MAX];
+  struct omx_curve_mark marks[OMX_CURVE_BANDS_MAX];
+  struct omx_curve_extra ex = {yu, marks, OMX_CURVE_BANDS_MAX, 0u};
+  int code = -1;
+  const uint32_t cnt = omx_curve_points_marked(&rq, x, y, OMX_CURVE_POINTS_MAX, &ex, &code);
+  int k = 0;
+  out[k++] = code;
+  out[k++] = cnt;
+  for (uint32_t i = 0; i < cnt; i++) {
+    out[k++] = x[i];
+    out[k++] = y[i];
+  }
+  out[k++] = cnt ? ex.nmarks : 0;
+  for (uint32_t i = 0; cnt && i < ex.nmarks; i++) {
+    out[k++] = marks[i].freq_hz;
+    out[k++] = marks[i].depth_db;
+    out[k++] = marks[i].q;
+    out[k++] = marks[i].origin;
+  }
+  if (cnt && rq.user_only)
+    for (uint32_t i = 0; i < cnt; i++) out[k++] = yu[i];
+  return k;
 }
 
 /* gaincomp_db: mode thresh_db ratio knee_db range_db level_db -> dB (float, the per-sample form) */
@@ -372,6 +416,7 @@ static const struct {
     {"eq_band_magnitude_db", h_eq_band_magnitude_db},
     {"eq_magnitude_sum_db", h_eq_magnitude_sum_db},
     {"curve_points", h_curve_points},
+    {"curve_points_marked", h_curve_points_marked},
     {"gaincomp_db", h_gaincomp_db},
     {"gaincomp_db_shifted", h_gaincomp_db_shifted},
     {"gate_knee", h_gate_knee},
