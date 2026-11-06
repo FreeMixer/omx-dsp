@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.30.1
+Version: 0.31.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -97,6 +97,14 @@ Its documentation is on openmixer.org.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Fri Nov 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.31.0-1
+- curve: omx_curve_points (omx_curve.h), one curve function for every surface:
+  a panel description's eq_response or transfer_curve, bound to values and a
+  rate, to points; its words, codes, CURVE_POINTS_MAX and default extents
+  declared in data/primitives/curve.json
+- ts: curvePoints and the gain computer twins (gaincompDb, gaincompDbShifted,
+  gateKnee), pinned by the oracle's curve_points at the nine oracle rates
+
 * Fri Nov 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.30.1-1
 - test: the bandwidth-to-Q table is held within 4 ULP of its golden, so the
   package's check passes with Fedora 45's libm

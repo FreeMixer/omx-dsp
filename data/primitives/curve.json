@@ -1,0 +1,142 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "CURVE_DISPLAYS": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+    },
+    "doc": "The displays a panel description draws from a closed form, the kinds omx_curve_points answers: an EQ's magnitude response, x in Hz and y in dB, and a dynamics stage's static transfer curve, input dB to output dB. The wire spells each id in snake case (`eq_response`, `transfer_curve`), the description's own display word.",
+    "ids": [
+      "eqResponse",
+      "transferCurve"
+    ]
+  },
+  "CURVE_FAMILIES": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+    },
+    "doc": "The panel families omx_curve_points draws, by the description's family word. `eq` draws an eq_response; the other four a transfer_curve, the family choosing the gain computer's mode: `dynamics`, `limiter` and `deesser` act ABOVE the threshold, `gate` BELOW it with the shifted knee of the gate's knee range. Any other family has no closed form here.",
+    "ids": [
+      "eq",
+      "dynamics",
+      "limiter",
+      "gate",
+      "deesser"
+    ]
+  },
+  "CURVE_ROLES": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+    },
+    "doc": "The roles of a panel description a curve request reads, by the description's role word (the wire spells each id in snake case: `band_freq`, `knee_start`). The EQ's indexed band roles and head filters, and the gain computer's terms. A term of any other role is no term of the curve.",
+    "ids": [
+      "bandType",
+      "bandFreq",
+      "bandGain",
+      "bandQ",
+      "bandOn",
+      "hpfFreq",
+      "hpfSlope",
+      "hpfOn",
+      "lpfFreq",
+      "lpfSlope",
+      "lpfOn",
+      "threshold",
+      "ratio",
+      "knee",
+      "makeup",
+      "range",
+      "kneeStart",
+      "kneeEnd"
+    ]
+  },
+  "CURVE_UNITS": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_unit_accepted"
+    },
+    "doc": "The units a curve term's value may come in, the param-contract extension's unit tokens the served description gives a role. omx_curve_points converts once: `coef` to dB for a gain, `oct` to Q for a bandwidth, `khz` to Hz; a level in `db`, `dbfs`, `dbu` or `lufs` is read as dB from the threshold's own scale; `none` is a plain number, a switch or a choice; `ratio` a ratio. A unit its role does not accept is refused.",
+    "ids": [
+      "hz",
+      "khz",
+      "db",
+      "dbfs",
+      "dbu",
+      "lufs",
+      "coef",
+      "oct",
+      "none",
+      "ratio"
+    ]
+  },
+  "CURVE_SHAPES": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_shape_kind"
+    },
+    "doc": "The shape of an EQ band, as the caller resolves it from the description: a `band_type` role's `shapes` list indexed by the control's choice value, or the fixed `shape` of a band no control selects. `off` is a band that is not drawn; `unshaped`, spelt `-` on the wire, a choice value with no closed form, which no curve is drawn from. The others design the band through omx_eq_design: a bell, the two shelves, the pass filters and the notch.",
+    "ids": [
+      "off",
+      "bell",
+      "lowshelf",
+      "highshelf",
+      "highpass",
+      "lowpass",
+      "notch",
+      "unshaped"
+    ]
+  },
+  "CURVE_CODES": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_code"
+    },
+    "doc": "What omx_curve_points answers in its code: `ok`, a curve; `kindUnknown`, a kind, family, shape or slope with no closed form; `termMissing`, a term the model needs is not in the request (a band's frequency, shape and Q, a bell's or shelf's gain, a head filter's corner and slope; threshold and ratio for an ABOVE family; threshold, range and ratio for a gate; both ends of a gate's knee range or neither); `unitRefused`, a term in a unit its role does not accept; `valueNotFinite`, a value, the rate or an extent that is not finite, a rate that is not positive; `pointsRange`, grid points outside 2 to CURVE_POINTS_MAX (for an EQ, with three anchors a drawn band), a band index past what fits, or extents that bound nothing; `room`, a caller's buffers too small for the points. No curve is drawn from a guess: a missing term is a code, never a default.",
+    "ids": [
+      "ok",
+      "kindUnknown",
+      "termMissing",
+      "unitRefused",
+      "valueNotFinite",
+      "pointsRange",
+      "room"
+    ]
+  },
+  "CURVE_POINTS_MAX": {
+    "kind": "scalar",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+    },
+    "doc": "The most points one curve carries, an EQ's band anchors included: a reply of x with four significant digits and y to 0.01 dB, about 13 bytes a point, fits the 4096-byte line a host's reply is built in. Every caller reads it here; it moves with that buffer, in this one place.",
+    "unit": "",
+    "value": 256
+  },
+  "CURVE_EXTENTS": {
+    "kind": "sheet",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+    },
+    "doc": "A curve's default extents, where a request gives none: an eq_response from `freqMinHz` to the lower of `freqMaxHz` and `nyquistFraction` of Nyquist, each band's dB floored at `eqFloorDb` so a notch's null stays finite (the console's EQ draws to -120 dB); a transfer_curve's input from `levelMinDb` to `levelMaxDb`. Hz and dB.",
+    "value": {
+      "freqMinHz": 20,
+      "freqMaxHz": 20000,
+      "nyquistFraction": 0.999,
+      "eqFloorDb": -120,
+      "levelMinDb": -80,
+      "levelMaxDb": 0
+    }
+  }
+}

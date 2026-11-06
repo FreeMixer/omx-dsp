@@ -20,5 +20,35 @@ export {
   type BiquadSection,
   type BiquadType,
 } from './eq.js';
-export { EQ_NOTCH_Q_RANGE, EQ_Q_RANGE, LOWPASS_HANDOVER, RTA_FFT_SIZE_MAX, RTA_TARGET_BIN_HZ } from './definitions.js';
+export {
+  COMP_KNEE_DB_RANGE,
+  COMP_RATIO_RANGE,
+  CURVE_CODES,
+  CURVE_DISPLAYS,
+  CURVE_EXTENTS,
+  CURVE_FAMILIES,
+  CURVE_POINTS_MAX,
+  CURVE_ROLES,
+  CURVE_SHAPES,
+  CURVE_UNITS,
+  EQ_NOTCH_Q_RANGE,
+  EQ_Q_RANGE,
+  GATE_RANGE_DB_RANGE,
+  GATE_RATIO_RANGE,
+  LIN_TO_DB_FLOOR,
+  LOWPASS_HANDOVER,
+  RTA_FFT_SIZE_MAX,
+  RTA_TARGET_BIN_HZ,
+} from './definitions.js';
 export { fftSizeForRate } from './rta.js';
+export { gaincompDb, gaincompDbShifted, gateKnee, type GaincompMode, type GaincompParams } from './gaincomp.js';
+export {
+  CURVE_WORDS,
+  butterworthQs,
+  curvePoints,
+  type CurveAnswer,
+  type CurveCode,
+  type CurvePoint,
+  type CurveRequest,
+  type CurveTerm,
+} from './curve.js';

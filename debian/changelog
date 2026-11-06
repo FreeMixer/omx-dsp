@@ -1,3 +1,15 @@
+omx-dsp (0.31.0) unstable; urgency=medium
+
+  * curve: omx_curve_points (omx_curve.h), one curve function for every
+    surface: a panel description's eq_response or transfer_curve, bound to
+    values and a rate, to points; its words, codes, CURVE_POINTS_MAX and
+    default extents declared in data/primitives/curve.json.
+  * ts: curvePoints and the gain computer twins (gaincompDb,
+    gaincompDbShifted, gateKnee), pinned by the oracle's curve_points at the
+    nine oracle rates.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 06 Nov 2026 17:15:00 +0100
+
 omx-dsp (0.30.1) unstable; urgency=medium
 
   * test: the bandwidth-to-Q table is held within 4 ULP of its golden, so the

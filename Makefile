@@ -38,6 +38,8 @@
 #               over this live data/ with omx-contract's reader and renderer
 #   make magnitude-sabotage  the magnitude arms fail against a sabotaged evaluator
 #   make eq-sabotage  the EQ bank, head filter and curve arms fail against nine sabotages
+#   make curve-sabotage  the one curve function's arm (omx_curve.h) fails against six sabotages
+#   make curve-golden  test/kernels/fixtures/curve_golden.h rewritten from omx_curve_points() (tools/curve-golden.c)
 #   make geq-true-sabotage  the graphic EQ's true-mode oracle fails against seven sabotages
 #   make delay-taps-sabotage  the FX delay's read-tap oracle fails against ten sabotages
 #   make align-fdelay-sabotage  the strip alignment stage's oracle fails against five sabotages
@@ -175,7 +177,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check contract-proof contract-tests test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
+.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check contract-proof contract-tests test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage curve-golden curve-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -303,6 +305,19 @@ $(BUILD)/eq_default_bands: test/eq_default_bands.c $(HEADERS) | $(BUILD)
 
 eq-default-bands: $(BUILD)/eq_default_bands
 	./$(BUILD)/eq_default_bands test/golden/eq_default_bands.txt
+
+# The one curve function's golden vectors (test/kernels/fixtures/curve_golden.h, read back by the suite's curve arm)
+# are written by tools/curve-golden.c from test/kernels/fixtures/curve_requests.h: `make curve-golden` rewrites
+# them, in the commit that changes the law, and the diff is the review.
+$(BUILD)/curve_golden: tools/curve-golden.c test/kernels/fixtures/curve_requests.h $(HEADERS) | $(BUILD)
+	$(CC) $(CFLAGS_PLAIN) $(INC) -o $@ $< -lm
+
+curve-golden: $(BUILD)/curve_golden
+	./$(BUILD)/curve_golden > test/kernels/fixtures/curve_golden.h
+
+# The curve arm fails against six sabotages of omx_curve.h (test/curve-sabotage.sh); the real suite is the control.
+curve-sabotage: test/omxdsp_suite.c test/curve-sabotage.sh $(KERNELS) $(LIB_CONTRACTS) $(HEADERS) | $(BUILD)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/curve-sabotage.sh $(BUILD)/curve-sabotage $(LIB_CONTRACTS)
 
 eq-defaults-table:
 	node tools/eq-defaults-golden.mjs --check
@@ -792,7 +807,7 @@ check-package: $(CHECK_PACKAGE)
 	@echo "omxdsp: make check-package green"
 
 .PHONY: test-parallel
-test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage curve-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
 
 # ---- install ------------------------------------------------------------------------------------
 

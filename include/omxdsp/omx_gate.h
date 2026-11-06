@@ -284,6 +284,7 @@ static inline void omx_gate_resolve(struct omx_gate *g, const struct omx_gate_co
  * @param knee_end_db The other edge, dB, finite.
  * @post `knee-not-negative`, `shift-inside-the-knee`.
  * @note RT-safe. Thread-safe: pure in its arguments.
+ * @twin gateKnee
  */
 static inline void omx_gate_knee(struct omx_dyn *p, float knee_start_db, float knee_end_db) {
   const float lo = knee_start_db < knee_end_db ? knee_start_db : knee_end_db;
