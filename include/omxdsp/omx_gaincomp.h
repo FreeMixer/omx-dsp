@@ -124,6 +124,7 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_db_sel(const struct omx_gaincomp_
  *      (`OMX_GATE_RANGE_DB_MAX`, BELOW only), `range-is-a-boost` (UPWARD only), `finite-in`.
  * @post `finite`.
  * @note RT-safe: arithmetic and selects, no call. Thread-safe: pure.
+ * @twin gaincompDb
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_db(const struct omx_gaincomp_params *p, float level_db) {
   return omx_gaincomp_db_sel(p, level_db, 0);
@@ -233,6 +234,7 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_knee_shifted(const struct omx_gai
  *      `ratio-at-least-one`, `range-is-an-attenuation`, `finite-in`.
  * @post `finite`, `no-gain-added`.
  * @note RT-safe: arithmetic and one sqrtf. Thread-safe: pure.
+ * @twin gaincompDbShifted
  */
 static inline float omx_gaincomp_db_shifted(const struct omx_gaincomp_params *p, float shift_db, float level_db) {
   if (shift_db == 0.0f) return omx_gaincomp_db(p, level_db);

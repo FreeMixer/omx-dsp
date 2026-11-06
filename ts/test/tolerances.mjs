@@ -31,4 +31,18 @@ export const TOLERANCES = {
   biquadMagnitudeDb: { abs: 1e-8 },
   // A sum of up to four of those: 1e-8 dB holds with 13 times to spare.
   magnitudeSumDb: { abs: 1e-8 },
+  // The gain computer is float arithmetic and one sqrtf, -ffp-contract=off; the twin rounds each step with
+  // Math.fround, and one rounding of the double result is the float result of +, -, *, / and sqrt: bit for bit.
+  gaincompDb: { abs: 0 },
+  gaincompDbShifted: { abs: 0 },
+  gateKnee: { abs: 0 },
+  // A transfer curve is x + that gain (+ make-up) in double on both sides: bit for bit.
+  curvePointsTransfer: { abs: 0 },
+  // An EQ curve is magnitudeSumDb over up to ten sections at x from Math.pow against libm pow (a few ulp of x):
+  // the worst gap measured is 2.7e-10 dB; 1e-8 dB is the sum tolerance above, and a Q moved by less than the
+  // engine's float narrowing (2^-25 relative) moves the curve by more.
+  curvePointsEq: { abs: 1e-8 },
+  // A gain given as a linear factor goes through omx_lin_to_db, which is log10f: V8's log10 rounded to float differs
+  // from it by up to one float step of the dB value (1e-6 dB at 12 dB); measured 1.3e-6 dB at worst.
+  curvePointsEqCoef: { abs: 4e-6 },
 };

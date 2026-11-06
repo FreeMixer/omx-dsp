@@ -304,8 +304,9 @@ static inline uint32_t omx_curve_eq(const struct omx_curve_request *rq, double x
  *
  * ABOVE (dynamics, limiter, de-esser) needs a threshold and a ratio; BELOW (gate) a threshold, a range and a
  * ratio, and the knee range both its ends or neither, resolved as the gate resolves it (omx_gate_knee()). A
- * value outside the gain computer's domain is held at its edge, as the kernel's own clamp holds it: a ratio at
- * least 1, a knee not negative, a gate's range at most 0 dB.
+ * value outside the gain computer's domain is held at its edge, the bound its precondition names: a ratio at
+ * least the mode's minimum (OMX_COMP_RATIO_MIN, OMX_GATE_RATIO_MIN), a knee at least OMX_COMP_KNEE_DB_MIN, a
+ * gate's range at most OMX_GATE_RANGE_DB_MAX.
  * @param rq The request, kind and family checked.
  * @param x_min The lowest input level, dB.
  * @param x_max The highest input level, dB, above `x_min`.
@@ -333,8 +334,9 @@ static inline uint32_t omx_curve_transfer(const struct omx_curve_request *rq, do
   memset(&d, 0, sizeof d);
   d.gc.mode = below ? OMX_DYN_BELOW : OMX_DYN_ABOVE;
   d.gc.thresh_db = (float)omx_curve_term_value(thr);
-  d.gc.ratio = r < 1.0f ? 1.0f : r;
-  d.gc.knee_db = k < 0.0f ? 0.0f : k;
+  const float rmin = below ? OMX_GATE_RATIO_MIN : OMX_COMP_RATIO_MIN;
+  d.gc.ratio = r < rmin ? rmin : r;
+  d.gc.knee_db = k < OMX_COMP_KNEE_DB_MIN ? OMX_COMP_KNEE_DB_MIN : k;
   d.gc.makeup_lin = 1.0f;
   if (below) {
     const float rg = (float)omx_curve_term_value(range);
@@ -375,6 +377,7 @@ static inline uint32_t omx_curve_transfer(const struct omx_curve_request *rq, do
  * @return The points written; 0 when `*code` is not OMX_CURVE_OK.
  * @post `ascending`.
  * @note Not for the audio thread (a design per band and point, libm); thread-safe on distinct output, reentrant.
+ * @twin curvePoints
  */
 static inline uint32_t omx_curve_points(const struct omx_curve_request *rq, double *x, double *y, uint32_t room,
                                         int *code) {

@@ -34,6 +34,7 @@
 #include <omxdsp/mix/omx_pan_law.h>
 #include <omxdsp/omx_balance_law.h>
 #include <omxdsp/omx_contract.h>
+#include <omxdsp/omx_curve.h>
 #include <omxdsp/omx_dyn.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_magnitude.h>
@@ -134,6 +135,64 @@ static int h_eq_magnitude_sum_db(const double *in, int n, double *out) {
   }
   out[0] = omx_eq_magnitude_sum_db(bands, (uint32_t)nb, in[0], in[1], in[2]);
   return 1;
+}
+
+/* curve_points: kind family rate points has_extents x_min x_max nterms { role index value unit shape }*nterms
+ *               -> code count { x y }*count (shape -1 for none; the enums are omx_curve.h's, by value) */
+static int h_curve_points(const double *in, int n, double *out) {
+  if (n < 8) return -1;
+  const int nt = (int)in[7];
+  if (nt < 0 || nt > 512 || n != 8 + 5 * nt) return -1;
+  static struct omx_curve_term terms[512];
+  for (int i = 0; i < nt; i++) {
+    const double *t = in + 8 + 5 * i;
+    terms[i].role = (enum omx_curve_roles)(int)t[0];
+    terms[i].index = (uint32_t)t[1];
+    terms[i].value = t[2];
+    terms[i].unit = (enum omx_curve_units)(int)t[3];
+    terms[i].shape = (int)t[4];
+  }
+  const struct omx_curve_request rq = {(enum omx_curve_displays)(int)in[0], (enum omx_curve_families)(int)in[1], in[2],
+                                       (uint32_t)in[3], in[4] != 0.0, in[5], in[6], terms, (uint32_t)nt};
+  double x[OMX_CURVE_POINTS_MAX], y[OMX_CURVE_POINTS_MAX];
+  int code = -1;
+  const uint32_t cnt = omx_curve_points(&rq, x, y, OMX_CURVE_POINTS_MAX, &code);
+  out[0] = code;
+  out[1] = cnt;
+  for (uint32_t i = 0; i < cnt; i++) {
+    out[2 + 2 * i] = x[i];
+    out[3 + 2 * i] = y[i];
+  }
+  return 2 + 2 * (int)cnt;
+}
+
+/* gaincomp_db: mode thresh_db ratio knee_db range_db level_db -> dB (float, the per-sample form) */
+static int h_gaincomp_db(const double *in, int n, double *out) {
+  if (n != 6) return -1;
+  const struct omx_gaincomp_params p = {(int)in[0], (float)in[1], (float)in[2], (float)in[3], (float)in[4], 1.0f};
+  out[0] = omx_gaincomp_db(&p, (float)in[5]);
+  return 1;
+}
+
+/* gaincomp_db_shifted: thresh_db ratio knee_db range_db shift_db level_db -> dB (float, BELOW mode) */
+static int h_gaincomp_db_shifted(const double *in, int n, double *out) {
+  if (n != 6) return -1;
+  const struct omx_gaincomp_params p = {OMX_DYN_BELOW, (float)in[0], (float)in[1], (float)in[2], (float)in[3], 1.0f};
+  out[0] = omx_gaincomp_db_shifted(&p, (float)in[4], (float)in[5]);
+  return 1;
+}
+
+/* gate_knee: thresh_db knee_start_db knee_end_db -> knee_db shift_db (float) */
+static int h_gate_knee(const double *in, int n, double *out) {
+  if (n != 3) return -1;
+  struct omx_dyn d;
+  memset(&d, 0, sizeof d);
+  d.gc.mode = OMX_DYN_BELOW;
+  d.gc.thresh_db = (float)in[0];
+  omx_gate_knee(&d, (float)in[1], (float)in[2]);
+  out[0] = d.gc.knee_db;
+  out[1] = d.knee_shift_db;
+  return 2;
 }
 
 /* hrp_cut_db: excess_db amount max_cut_db -> cut_db (float) */
@@ -312,6 +371,10 @@ static const struct {
     {"eq_pass", h_eq_pass},
     {"eq_band_magnitude_db", h_eq_band_magnitude_db},
     {"eq_magnitude_sum_db", h_eq_magnitude_sum_db},
+    {"curve_points", h_curve_points},
+    {"gaincomp_db", h_gaincomp_db},
+    {"gaincomp_db_shifted", h_gaincomp_db_shifted},
+    {"gate_knee", h_gate_knee},
     {"hrp_cut_db", h_hrp_cut_db},
     {"hrp_resonance_score", h_hrp_resonance_score},
     {"hrp_cents_between", h_hrp_cents_between},
