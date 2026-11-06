@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 Name: omx-dsp
-Version: 0.31.0
+Version: 0.32.0
 Release: 1%{?dist}
 License: GPL-3.0-or-later
 Summary: The audio toolbox of the OpenMixer console, as a real-time-safe C library
@@ -97,6 +97,12 @@ Its documentation is on openmixer.org.
 %{_datadir}/omx-contract/contract.d/3/omx-dsp/
 
 %changelog
+* Fri Nov 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.32.0-1
+- curve: a term carries its band's origin (CURVE_ORIGINS: user, fbs-fixed,
+  fbs-live); omx_curve_points_marked answers a mark per feedback corrector's
+  band and, asked, the curve over the user bands alone; the twin curvePoints
+  answers the same
+
 * Fri Nov 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.31.0-1
 - curve: omx_curve_points (omx_curve.h), one curve function for every surface:
   a panel description's eq_response or transfer_curve, bound to values and a

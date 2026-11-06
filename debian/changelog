@@ -1,3 +1,12 @@
+omx-dsp (0.32.0) unstable; urgency=medium
+
+  * curve: a term carries its band's origin (CURVE_ORIGINS: user, fbs-fixed,
+    fbs-live); omx_curve_points_marked answers a mark per feedback
+    corrector's band and, asked, the curve over the user bands alone; the
+    twin curvePoints answers the same.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 06 Nov 2026 18:50:00 +0100
+
 omx-dsp (0.31.0) unstable; urgency=medium
 
   * curve: omx_curve_points (omx_curve.h), one curve function for every
