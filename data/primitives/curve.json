@@ -7,7 +7,7 @@
     "kind": "set",
     "since": "3.0.0",
     "source": {
-      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points_marked"
     },
     "doc": "The displays a panel description draws from a closed form, the kinds omx_curve_points answers: an EQ's magnitude response, x in Hz and y in dB, and a dynamics stage's static transfer curve, input dB to output dB. The wire spells each id in snake case (`eq_response`, `transfer_curve`), the description's own display word.",
     "ids": [
@@ -19,7 +19,7 @@
     "kind": "set",
     "since": "3.0.0",
     "source": {
-      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points_marked"
     },
     "doc": "The panel families omx_curve_points draws, by the description's family word. `eq` draws an eq_response; the other four a transfer_curve, the family choosing the gain computer's mode: `dynamics`, `limiter` and `deesser` act ABOVE the threshold, `gate` BELOW it with the shifted knee of the gate's knee range. Any other family has no closed form here.",
     "ids": [
@@ -34,7 +34,7 @@
     "kind": "set",
     "since": "3.0.0",
     "source": {
-      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points_marked"
     },
     "doc": "The roles of a panel description a curve request reads, by the description's role word (the wire spells each id in snake case: `band_freq`, `knee_start`). The EQ's indexed band roles and head filters, and the gain computer's terms. A term of any other role is no term of the curve.",
     "ids": [
@@ -130,7 +130,7 @@
     "kind": "scalar",
     "since": "3.0.0",
     "source": {
-      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points_marked"
     },
     "doc": "The most points one curve carries, an EQ's band anchors included: a reply of x with four significant digits and y to 0.01 dB, about 13 bytes a point, fits the 4096-byte line a host's reply is built in. Every caller reads it here; it moves with that buffer, in this one place.",
     "unit": "",
@@ -140,7 +140,7 @@
     "kind": "sheet",
     "since": "3.0.0",
     "source": {
-      "impl": "include/omxdsp/omx_curve.h#omx_curve_points"
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points_marked"
     },
     "doc": "A curve's default extents, where a request gives none: an eq_response from `freqMinHz` to the lower of `freqMaxHz` and `nyquistFraction` of Nyquist, each band's dB floored at `eqFloorDb` so a notch's null stays finite (the console's EQ draws to -120 dB); a transfer_curve's input from `levelMinDb` to `levelMaxDb`. Hz and dB.",
     "value": {
