@@ -67,6 +67,9 @@ struct omx_curve_term {
   int shape;                 /**< An enum omx_curve_shapes, or OMX_CURVE_NO_SHAPE: for `band_type` the shape its
                               *   value selects, resolved by the caller from the role's `shapes`; for `band_freq`
                               *   the fixed shape of a band no control selects. */
+  enum omx_curve_origins origin; /**< Where the band comes from (CURVE_ORIGINS): OMX_CURVE_ORIGINS_USER, the zero of
+                                  *   an initializer that names none, or a feedback corrector's pool. A band's origin is
+                                  *   its `band_freq` term's; the sum ignores it. */
 };
 
 /** @brief A curve request: a display of the description, already bound to values and a rate. */
@@ -81,6 +84,28 @@ struct omx_curve_request {
   double x_max;                      /**< The high edge of x, above `x_min`. */
   const struct omx_curve_term *terms; /**< The terms; a later term of one role and index replaces an earlier. */
   uint32_t nterms;                   /**< Terms in `terms`. */
+  int user_only;                     /**< Non-zero: omx_curve_points_marked() also answers the curve over the `user`
+                                      *   bands alone, at the same x. */
+};
+
+/** @brief A band of an `eq_response` whose origin is not `user`: where a surface marks what the corrector plants. */
+struct omx_curve_mark {
+  double freq_hz;                /**< The band's centre, Hz. */
+  double depth_db;               /**< The band's own magnitude at its centre, dB: a bell's gain, a notch's floor. */
+  double q;                      /**< The band's Q. */
+  enum omx_curve_origins origin; /**< Its origin, never OMX_CURVE_ORIGINS_USER. */
+};
+
+/** @brief The wire words of CURVE_ORIGINS, by value. */
+static const char *const OMX_CURVE_ORIGIN_WORDS[OMX_CURVE_ORIGINS_COUNT] = {"user", "fbs-fixed", "fbs-live"};
+
+/** @brief What omx_curve_points_marked() answers beside the points; the caller's buffers, any of them NULL when not
+ *         asked for. */
+struct omx_curve_extra {
+  double *y_user;               /**< The curve over the `user` bands alone at each x; room for the points. */
+  struct omx_curve_mark *marks; /**< One per drawn band whose origin is not `user`, in band order. */
+  uint32_t mark_room;           /**< Room in `marks`. */
+  uint32_t nmarks;              /**< Set to the marks written. */
 };
 
 /** @brief The wire words of CURVE_DISPLAYS, by value: the description's display words. */
@@ -245,13 +270,15 @@ static inline int omx_curve_pass(const struct omx_curve_request *rq, enum omx_cu
  * @param x The frequencies, Hz.
  * @param y The response, dB.
  * @param room Room in `x` and in `y`.
+ * @param ex The marks and the user-only curve, or NULL.
  * @param code The answer's code.
  * @return The points written; 0 with a code other than OMX_CURVE_OK.
  * @note Not for the audio thread; thread-safe on distinct output.
  */
 static inline uint32_t omx_curve_eq(const struct omx_curve_request *rq, double x_min, double x_max, double *x,
-                                    double *y, uint32_t room, int *code) {
+                                    double *y, uint32_t room, struct omx_curve_extra *ex, int *code) {
   struct omx_eq_band bands[OMX_CURVE_BANDS_MAX];
+  enum omx_curve_origins origin[OMX_CURVE_BANDS_MAX];
   uint32_t nb = 0;
   for (uint32_t i = 0; i < rq->nterms; i++) {
     const enum omx_curve_roles r = rq->terms[i].role;
@@ -281,6 +308,7 @@ static inline uint32_t omx_curve_eq(const struct omx_curve_request *rq, double x
     bands[used].gain_db = gains ? omx_curve_term_value(gain) : 0.0;
     bands[used].q = omx_curve_term_value(q);
     bands[used].on = on ? omx_curve_term_value(on) != 0.0 : 1;
+    origin[used] = freq->origin;
     used++;
   }
   struct omx_eq_pass hpf, lpf;
@@ -294,8 +322,41 @@ static inline uint32_t omx_curve_eq(const struct omx_curve_request *rq, double x
   const uint32_t nd = omx_eq_curve_bands(1, bands, used, has_hpf ? &hpf : NULL, has_lpf ? &lpf : NULL, drawn);
   if (OMX_EQ_CURVE_CAP(rq->points, nd) > OMX_CURVE_POINTS_MAX) return (*code = OMX_CURVE_POINTS_RANGE), 0u;
   if (room < OMX_EQ_CURVE_CAP(rq->points, nd)) return (*code = OMX_CURVE_ROOM), 0u;
+  if (ex && ex->marks) {
+    uint32_t nm = 0;
+    for (uint32_t b = 0; b < used; b++)
+      if (bands[b].on && origin[b] != OMX_CURVE_ORIGINS_USER) nm++;
+    if (nm > ex->mark_room) return (*code = OMX_CURVE_ROOM), 0u;
+  }
   *code = OMX_CURVE_OK;
-  return omx_eq_curve_db(drawn, nd, x_min, x_max, rq->points, rq->sample_rate, OMX_CURVE_EXTENTS_EQ_FLOOR_DB, x, y);
+  const uint32_t n =
+      omx_eq_curve_db(drawn, nd, x_min, x_max, rq->points, rq->sample_rate, OMX_CURVE_EXTENTS_EQ_FLOOR_DB, x, y);
+  if (!ex) return n;
+  /* the user bands and the head filters alone, the same rule over fewer bands, at the same x */
+  struct omx_eq_band mine[OMX_CURVE_BANDS_MAX];
+  uint32_t nmine = 0;
+  ex->nmarks = 0;
+  for (uint32_t b = 0; b < used; b++) {
+    if (origin[b] == OMX_CURVE_ORIGINS_USER) {
+      mine[nmine++] = bands[b];
+      continue;
+    }
+    if (!bands[b].on || !ex->marks) continue;
+    struct omx_curve_mark *m = &ex->marks[ex->nmarks++];
+    m->freq_hz = bands[b].freq_hz;
+    m->depth_db = omx_eq_band_magnitude_db(&bands[b], bands[b].freq_hz, rq->sample_rate, OMX_CURVE_EXTENTS_EQ_FLOOR_DB);
+    m->q = bands[b].q;
+    m->origin = origin[b];
+  }
+  if (ex->y_user) {
+    struct omx_eq_band drawn_user[OMX_CURVE_BANDS_MAX + OMX_EQ_PASS_MAX_SECTIONS];
+    const uint32_t nu = omx_eq_curve_bands(1, mine, nmine, has_hpf ? &hpf : NULL, has_lpf ? &lpf : NULL, drawn_user);
+    const double hi = rq->sample_rate / 2.0 * 0.999;
+    for (uint32_t i = 0; i < n; i++)
+      ex->y_user[i] = omx_eq_magnitude_sum_db(drawn_user, nu, x[i] < hi ? x[i] : hi, rq->sample_rate,
+                                              OMX_CURVE_EXTENTS_EQ_FLOOR_DB);
+  }
+  return n;
 }
 
 /**
@@ -357,8 +418,9 @@ static inline uint32_t omx_curve_transfer(const struct omx_curve_request *rq, do
 
 #define OMX_CONTRACT_STAGE "curve/points"
 /**
- * @brief The points of one display of a panel description: the one curve function every surface calls, a host's
- *        `curve_points` verb, a plugin's own window and the twin `curvePoints` alike.
+ * @brief The points of one display of a panel description, and the marks of the bands a feedback corrector planted:
+ *        the one curve function every surface calls, a host's `curve_points` verb, a plugin's own window and the twin
+ *        `curvePoints` alike (omx_curve_points() is it with no marks).
  *
  * Checked in this order, the first failure answered: the kind and family (OMX_CURVE_KIND_UNKNOWN: an
  * `eq_response` of the `eq` family, a `transfer_curve` of `dynamics`, `limiter`, `gate` or `deesser`); the grid
@@ -373,14 +435,17 @@ static inline uint32_t omx_curve_transfer(const struct omx_curve_request *rq, do
  * @param x The x of each point, ascending: Hz, or input dB.
  * @param y The y of each point: dB, or output dB.
  * @param room Room in `x` and in `y`: CURVE_POINTS_MAX always suffices.
+ * @param ex NULL, or the marks of the bands whose origin is not `user` and, when the request sets `user_only`, the
+ *        curve over the `user` bands alone at the same x (OMX_CURVE_ROOM when `user_only` asks for it and `y_user` is
+ *        NULL, or the marks outnumber `mark_room`). A transfer curve has no mark, and its user-only curve is itself.
  * @param code Set to an enum omx_curve_code.
  * @return The points written; 0 when `*code` is not OMX_CURVE_OK.
  * @post `ascending`.
  * @note Not for the audio thread (a design per band and point, libm); thread-safe on distinct output, reentrant.
  * @twin curvePoints
  */
-static inline uint32_t omx_curve_points(const struct omx_curve_request *rq, double *x, double *y, uint32_t room,
-                                        int *code) {
+static inline uint32_t omx_curve_points_marked(const struct omx_curve_request *rq, double *x, double *y,
+                                               uint32_t room, struct omx_curve_extra *ex, int *code) {
   const int eq = rq->kind == OMX_CURVE_DISPLAYS_EQ_RESPONSE;
   if (!(eq ? rq->family == OMX_CURVE_FAMILIES_EQ
            : rq->kind == OMX_CURVE_DISPLAYS_TRANSFER_CURVE && rq->family != OMX_CURVE_FAMILIES_EQ &&
@@ -393,7 +458,8 @@ static inline uint32_t omx_curve_points(const struct omx_curve_request *rq, doub
   for (uint32_t i = 0; i < rq->nterms; i++)
     if (!isfinite(rq->terms[i].value)) return (*code = OMX_CURVE_VALUE_NOT_FINITE), 0u;
   for (uint32_t i = 0; i < rq->nterms; i++)
-    if ((unsigned)rq->terms[i].role >= OMX_CURVE_ROLES_COUNT || !omx_curve_unit_accepted(rq->terms[i].role, rq->terms[i].unit))
+    if ((unsigned)rq->terms[i].role >= OMX_CURVE_ROLES_COUNT || (unsigned)rq->terms[i].origin >= OMX_CURVE_ORIGINS_COUNT ||
+        !omx_curve_unit_accepted(rq->terms[i].role, rq->terms[i].unit))
       return (*code = OMX_CURVE_UNIT_REFUSED), 0u;
   double lo, hi;
   if (rq->has_extents) {
@@ -408,12 +474,33 @@ static inline uint32_t omx_curve_points(const struct omx_curve_request *rq, doub
     hi = OMX_CURVE_EXTENTS_LEVEL_MAX_DB;
   }
   if (!(hi > lo) || (eq && !(lo > 0.0))) return (*code = OMX_CURVE_POINTS_RANGE), 0u;
-  const uint32_t n = eq ? omx_curve_eq(rq, lo, hi, x, y, room, code) : omx_curve_transfer(rq, lo, hi, x, y, room, code);
+  if (ex && rq->user_only && !ex->y_user) return (*code = OMX_CURVE_ROOM), 0u;
+  const uint32_t n = eq ? omx_curve_eq(rq, lo, hi, x, y, room, ex, code) : omx_curve_transfer(rq, lo, hi, x, y, room, code);
+  if (ex && !eq && n) {
+    ex->nmarks = 0;
+    if (ex->y_user)
+      for (uint32_t i = 0; i < n; i++) ex->y_user[i] = y[i]; /* no band of a transfer curve has an origin */
+  }
   int ascending = 1;
   for (uint32_t i = 1; i < n; i++) ascending &= x[i - 1] <= x[i];
   OMX_POST(ascending, "ascending");
   (void)ascending; /* read only by the post-condition, compiled out in a release build */
   return n;
+}
+
+/**
+ * @brief omx_curve_points_marked() with no marks and no user-only curve: the points alone.
+ * @param rq The request.
+ * @param x The x of each point, ascending.
+ * @param y The y of each point.
+ * @param room Room in `x` and in `y`.
+ * @param code Set to an enum omx_curve_code.
+ * @return The points written; 0 when `*code` is not OMX_CURVE_OK.
+ * @note Not for the audio thread; thread-safe on distinct output, reentrant.
+ */
+static inline uint32_t omx_curve_points(const struct omx_curve_request *rq, double *x, double *y, uint32_t room,
+                                        int *code) {
+  return omx_curve_points_marked(rq, x, y, room, NULL, code);
 }
 #undef OMX_CONTRACT_STAGE
 

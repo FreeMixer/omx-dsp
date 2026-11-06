@@ -1324,6 +1324,12 @@ enum omx_curve_families {
   OMX_CURVE_FAMILIES_DEESSER = 4,
 };
 #define OMX_CURVE_FAMILIES_COUNT 5u
+enum omx_curve_origins {
+  OMX_CURVE_ORIGINS_USER = 0,
+  OMX_CURVE_ORIGINS_FBS_FIXED = 1,
+  OMX_CURVE_ORIGINS_FBS_LIVE = 2,
+};
+#define OMX_CURVE_ORIGINS_COUNT 3u
 enum omx_curve_roles {
   OMX_CURVE_ROLES_BAND_TYPE = 0,
   OMX_CURVE_ROLES_BAND_FREQ = 1,

@@ -96,6 +96,19 @@
       "unshaped"
     ]
   },
+  "CURVE_ORIGINS": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/omx_curve.h#omx_curve_points_marked"
+    },
+    "doc": "Where an EQ band of a curve request comes from, as the console's strip EQ state says it: `user`, the operator's own band, and the feedback corrector's notches, `fbsFixed` (the ring-out pool) and `fbsLive` (the show pool), spelt `user`, `fbs-fixed` and `fbs-live` on the wire. The sum ignores it: every drawn band is in the curve. A band whose origin is not `user` is answered as a mark (its frequency, depth, Q and origin), and a request that asks for it also gets the curve over the `user` bands alone. A plugin's descriptor carries no origin: a request with none draws no marks.",
+    "ids": [
+      "user",
+      "fbsFixed",
+      "fbsLive"
+    ]
+  },
   "CURVE_CODES": {
     "kind": "set",
     "since": "3.0.0",

@@ -3,8 +3,8 @@
 
 /* ---- the one curve function (omx_curve.h): a description's display, bound, to points ------------- */
 
-#include "fixtures/curve_golden.h"
 #include "fixtures/curve_requests.h"
+#include "fixtures/curve_golden.h"
 
 static const float CURVE_ORACLE_RATES[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
 
@@ -49,9 +49,23 @@ static void arm_curve(void) {
      omx_curve_word(OMX_CURVE_DISPLAY_WORDS, OMX_CURVE_DISPLAYS_COUNT, "transfer_curve") == OMX_CURVE_DISPLAYS_TRANSFER_CURVE,
      "the words are the description's snake-case words", 0, 0);
 
-  /* The golden vector of each model, read back. */
+  /* The golden vector of each model, read back, with its marks and its user-only curve. */
   for (uint32_t k = 0; k < CURVE_GOLDEN_COUNT; k++) {
-    const uint32_t n = curve_run(CURVE_GOLDEN_REQUESTS[k].rq, x, y, &code);
+    double yu[OMX_CURVE_POINTS_MAX];
+    struct omx_curve_mark mk[8];
+    struct omx_curve_extra ex = {yu, mk, 8u, 0u};
+    code = -1;
+    const uint32_t n = omx_curve_points_marked(CURVE_GOLDEN_REQUESTS[k].rq, x, y, OMX_CURVE_POINTS_MAX, &ex, &code);
+    ok(ex.nmarks == CURVE_GOLDEN[k].nmarks, "a golden request answers its marks", ex.nmarks, CURVE_GOLDEN[k].nmarks);
+    for (uint32_t m = 0; m < ex.nmarks && m < CURVE_GOLDEN[k].nmarks; m++)
+      ok(mk[m].freq_hz == CURVE_GOLDEN[k].marks[m].freq_hz && mk[m].q == CURVE_GOLDEN[k].marks[m].q &&
+             mk[m].origin == CURVE_GOLDEN[k].marks[m].origin &&
+             fabs(mk[m].depth_db - CURVE_GOLDEN[k].marks[m].depth_db) <= CURVE_GOLDEN_EQ_TOL,
+         "a golden mark: frequency, Q and origin bit for bit, depth within the bound", mk[m].depth_db,
+         CURVE_GOLDEN[k].marks[m].depth_db);
+    for (uint32_t i = 0; i < n && i < CURVE_GOLDEN[k].n; i++)
+      ok(fabs(yu[i] - CURVE_GOLDEN[k].y_user[i]) <= CURVE_GOLDEN_EQ_TOL, "a golden user-only y within its bound", yu[i],
+         CURVE_GOLDEN[k].y_user[i]);
     ok(code == OMX_CURVE_OK && n == CURVE_GOLDEN[k].n, "a golden request answers its point count", n, CURVE_GOLDEN[k].n);
     const double tol = CURVE_GOLDEN_REQUESTS[k].rq->kind == OMX_CURVE_DISPLAYS_EQ_RESPONSE ? CURVE_GOLDEN_EQ_TOL : 0.0;
     double worst = 0.0;
@@ -87,6 +101,50 @@ static void arm_curve(void) {
     for (uint32_t i = 0; i < n && i < m; i++) same += x[i] == dx[i] && y[i] == dy[i];
     ok(same == m, "the EQ is omx_eq_curve_db, bit for bit", same, m);
     ok(x[0] == 20.0 && x[n - 1u] == hi, "the default extents: 20 Hz to the lower of 20 kHz and 0.999 Nyquist", x[n - 1u], hi);
+  }
+
+  /* Two FBS notches: the sum is the curve over every band, the user-only curve is the curve over the user bands and the
+   * head filter alone at every point, and each notch is a mark of its origin. Without origins, no mark. */
+  {
+    double yu[OMX_CURVE_POINTS_MAX], all[OMX_CURVE_POINTS_MAX], sum[OMX_CURVE_POINTS_MAX];
+    struct omx_curve_mark mk[4];
+    struct omx_curve_extra ex = {yu, mk, 4u, 0u};
+    const uint32_t n = omx_curve_points_marked(&CURVE_GOLDEN_FBS, x, y, OMX_CURVE_POINTS_MAX, &ex, &code);
+    const struct omx_eq_band user[2] = {{OMX_EQ_PEAKING, 120.0, 3.0, 0.8, 1}, {OMX_EQ_HIGHSHELF, 4000.0, 2.0, 0.7071, 1}};
+    const struct omx_eq_band every[4] = {user[0], user[1], {OMX_EQ_NOTCH, 2500.0, 0.0, 30.0, 1},
+                                         {OMX_EQ_PEAKING, 630.0, -9.0, 16.0, 1}};
+    const struct omx_eq_pass hpf = {1, 60.0, 0};
+    struct omx_eq_band du[2 + OMX_EQ_PASS_MAX_SECTIONS], da[4 + OMX_EQ_PASS_MAX_SECTIONS];
+    const uint32_t nu = omx_eq_curve_bands(1, user, 2u, &hpf, NULL, du), na = omx_eq_curve_bands(1, every, 4u, &hpf, NULL, da);
+    uint32_t same_user = 0, same_all = 0, below = 0;
+    for (uint32_t i = 0; i < n; i++) {
+      const double xi = x[i] < 0.999 * 24000.0 ? x[i] : 0.999 * 24000.0;
+      same_user += yu[i] == omx_eq_magnitude_sum_db(du, nu, xi, 48000.0, -120.0);
+      all[i] = omx_eq_magnitude_sum_db(da, na, xi, 48000.0, -120.0);
+      same_all += y[i] == all[i];
+      below += y[i] <= yu[i] + 1e-12;
+    }
+    memcpy(sum, y, n * sizeof(double));
+    ok(code == OMX_CURVE_OK && n > 0 && same_user == n, "the user-only curve is the user bands' at every point", same_user, n);
+    ok(same_all == n, "the sum keeps the notches: the curve over every band", same_all, n);
+    ok(below == n, "the notches only take away: the sum is at or under the user-only curve", below, n);
+    ok(ex.nmarks == 2u && mk[0].origin == OMX_CURVE_ORIGINS_FBS_FIXED && mk[0].freq_hz == 2500.0 && mk[0].q == 30.0 &&
+           mk[0].depth_db == -120.0 && mk[1].origin == OMX_CURVE_ORIGINS_FBS_LIVE && mk[1].freq_hz == 630.0,
+       "a mark per FBS band, its origin, frequency, Q and depth", ex.nmarks, 2.0);
+    ex.nmarks = 9u;
+    omx_curve_points_marked(&CURVE_GOLDEN_EQ, x, y, OMX_CURVE_POINTS_MAX, &ex, &code);
+    ok(code == OMX_CURVE_OK && ex.nmarks == 0u, "a request with no origin draws no mark", ex.nmarks, 0.0);
+    struct omx_curve_extra small = {yu, mk, 1u, 0u};
+    ok(omx_curve_points_marked(&CURVE_GOLDEN_FBS, x, y, OMX_CURVE_POINTS_MAX, &small, &code) == 0u && code == OMX_CURVE_ROOM,
+       "two marks for room of one: room", code, 0);
+    struct omx_curve_extra nouser = {NULL, mk, 4u, 0u};
+    ok(omx_curve_points_marked(&CURVE_GOLDEN_FBS, x, y, OMX_CURVE_POINTS_MAX, &nouser, &code) == 0u && code == OMX_CURVE_ROOM,
+       "user_only with no buffer for it: room", code, 0);
+    ok(omx_curve_points(&CURVE_GOLDEN_FBS, x, all, OMX_CURVE_POINTS_MAX, &code) == n && memcmp(all, sum, n * sizeof(double)) == 0,
+       "omx_curve_points is the same sum, marks or none", code, 0);
+    struct omx_curve_term bad[] = {CT(BAND_FREQ, 0, 100.0, HZ, OMX_CURVE_SHAPES_NOTCH), CT(BAND_Q, 0, 4.0, NONE, CT_NS)};
+    bad[0].origin = (enum omx_curve_origins)OMX_CURVE_ORIGINS_COUNT;
+    ok(curve_code_of(&CURVE_GOLDEN_EQ, bad, 2u) == OMX_CURVE_UNIT_REFUSED, "an origin past the set: refused", 0, 0);
   }
 
   /* A transfer curve is x + the gain computer, bit for bit, in each mode. */
