@@ -52,10 +52,9 @@ jobs:
       channel-deps: true
     secrets: inherit
 
-  # after the RPMs: both publish into one tree, and a push that loses a race is refused
+  # after the RPMs, and only when they are green: both publish into one tree, and a push that loses a race is refused
   deb:
     needs: rpm
-    if: ${{ !cancelled() }}
     uses: FreeMixer/.github/.github/workflows/build-deb.yml@v1
     with:
       package-name: omx-dsp
