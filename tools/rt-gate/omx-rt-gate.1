@@ -112,8 +112,9 @@ Load the tables and every roles file and stop.
 .BI \-\-thread\-tags " OUT"
 Check that every function the headers under \fB\-\-under\fR declare carries
 exactly one \fB@thread audio\fR, \fB@thread worker\fR or \fB@thread control\fR in
-the comment above it, write the tags to \fIOUT\fR and, with \fB\-\-selfrun\fR, a
-unit that takes the address of every tagged function (omx-dsp's own run).
+the comment above it (a file named with \fB\-\-except\fR is left out), write the
+tags to \fIOUT\fR and, with \fB\-\-selfrun\fR, a unit that takes the address of
+every tagged function (omx-dsp's own run).
 .SH EXIT STATUS
 0 when every root was walked and nothing is red; 1 when something is red; 2
 when nothing was judged: a table refused at load, a unit that does not compile,

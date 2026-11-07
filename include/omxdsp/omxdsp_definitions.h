@@ -1515,7 +1515,6 @@ enum omx_drive_hf_rolloffs {
 #define OMX_DRIVE_HF_ROLLOFFS_UNIT "Hz"
 #define OMX_DRIVE_HF_ROLLOFFS_12000_VALUE 12000.0f
 #define OMX_DRIVE_HF_ROLLOFFS_16000_VALUE 16000.0f
-/** @thread audio */
 static inline int omx_drive_hf_rolloffs_value(int id, float *out) {
   switch (id) {
   case OMX_DRIVE_HF_ROLLOFFS_12000: *out = OMX_DRIVE_HF_ROLLOFFS_12000_VALUE; return 1;

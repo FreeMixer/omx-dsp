@@ -1884,7 +1884,7 @@ static int block_above(struct srcfile *f, int line, int *first, int *last) {
   return 0;
 }
 
-static int thread_tags(char **cc, int ncc, const char *unit, const char *under, const char *out, const char *selfrun, const char *work) {
+static int thread_tags(char **cc, int ncc, const char *unit, const char *under, const char *except, const char *out, const char *selfrun, const char *work) {
   struct unit u = {0};
   u.src = xstrdup(unit);
   u.ipath = xasprintf("%s/tags.i", work);
@@ -1904,6 +1904,8 @@ static int thread_tags(char **cc, int ncc, const char *unit, const char *under, 
     roles[i] = ROLE_NONE;
     const char *file = u.files[u.t[fd->tok].file];
     if (strncmp(file, under, strlen(under))) continue;
+    /* the header omx-contract renders from data/ carries no tag: its items are documented there */
+    if (except && !strcmp(file, except)) continue;
     int start = decl_start(&u, fd->tok);
     int line = u.t[start].file == u.t[fd->tok].file ? u.t[start].line : fd->line;
     struct srcfile *sf = source(file);
@@ -1957,7 +1959,7 @@ static void usage(void) {
   fputs("usage: omx-rt-gate [--tables DIR] --abi NAME[:host]... [--tags FILE]... [--graphs DIR|FILE]...\n"
         "                   [--work DIR] [--list-roots] -- CC [FLAGS...] UNIT.c...\n"
         "       omx-rt-gate [--tables DIR] [--tags FILE]... --check-tables\n"
-        "       omx-rt-gate --thread-tags OUT [--selfrun UNIT.c] [--under DIR] [--work DIR] -- CC [FLAGS...] HEADERS.c\n", stderr);
+        "       omx-rt-gate --thread-tags OUT [--selfrun UNIT.c] [--under DIR] [--except FILE] [--work DIR] -- CC [FLAGS...] HEADERS.c\n", stderr);
   exit(2);
 }
 
@@ -1983,7 +1985,7 @@ int main(int argc, char **argv) {
   const char *tables = xasprintf("%s/tables", data);
   char **tags = NULL, **graphs = NULL;
   int ntags = 0, ctags = 0, ngraphs = 0, cgraphs = 0, check_only = 0, list_roots = 0, defaults = 1;
-  const char *work = NULL, *tags_out = NULL, *selfrun_out = NULL, *under = "include/";
+  const char *work = NULL, *tags_out = NULL, *selfrun_out = NULL, *under = "include/", *except = NULL;
   int i = 1;
   setvbuf(stdout, NULL, _IOLBF, 0);
   for (; i < argc; i++) {
@@ -2007,6 +2009,7 @@ int main(int argc, char **argv) {
     else if (!strcmp(a, "--thread-tags") && i + 1 < argc) tags_out = argv[++i];
     else if (!strcmp(a, "--selfrun") && i + 1 < argc) selfrun_out = argv[++i];
     else if (!strcmp(a, "--under") && i + 1 < argc) under = argv[++i];
+    else if (!strcmp(a, "--except") && i + 1 < argc) except = argv[++i];
     else usage();
   }
   if (tags_out) {
@@ -2016,7 +2019,7 @@ int main(int argc, char **argv) {
     if (!work) work = mkdtemp(tmpl2);
     else mkdir(work, 0700);
     if (!work) die_nj("mkdtemp: %s", strerror(errno));
-    return thread_tags(argv + i, ncc - 1, argv[argc - 1], under, tags_out, selfrun_out, work);
+    return thread_tags(argv + i, ncc - 1, argv[argc - 1], under, except, tags_out, selfrun_out, work);
   }
   /* one forbidden list and one class table: a tables directory with any other list is refused */
   {

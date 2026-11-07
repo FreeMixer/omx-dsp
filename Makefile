@@ -820,7 +820,8 @@ $(RT_GATE_ARM): tools/rt-gate/externals-arm.c | $(BUILD)
 
 # the thread tags: every function the shipped headers declare carries exactly one `@thread audio|worker|control`
 # in the comment above it, under each set of flags a consumer builds with (the plain libm, this toolchain's
-# libmvec, contracts compiled in); the shipped tags are their union
+# libmvec, contracts compiled in); the shipped tags are their union. The header omx-contract renders from data/
+# is left out: it is the render, and its items are documented in data/
 RT_GATE_HEADERS_UNIT = $(RT_GATE_DIR)/headers.c
 RT_GATE_TAGS         = $(RT_GATE_DIR)/omx-dsp.tags
 RT_GATE_FLAVOURS     = plain release contracts
@@ -833,7 +834,8 @@ $(RT_GATE_HEADERS_UNIT): $(HEADERS) $(FX_HEADERS) $(ANALYSIS_HEADERS) $(MIX_HEAD
 	@for h in $(sort $(patsubst include/%,%,$^)); do echo "#include <$$h>"; done > $@
 
 $(RT_GATE_DIR)/%.tags: $(RT_GATE) $(RT_GATE_HEADERS_UNIT)
-	./$(RT_GATE) --thread-tags $@ --selfrun $(RT_GATE_DIR)/selfrun-$*.c --under include/omxdsp --work $(RT_GATE_DIR)/tags-$* \
+	./$(RT_GATE) --thread-tags $@ --selfrun $(RT_GATE_DIR)/selfrun-$*.c --under include/omxdsp \
+	  --except include/omxdsp/omxdsp_definitions.h --work $(RT_GATE_DIR)/tags-$* \
 	  -- $(CC) $(RT_GATE_FLAGS_$*) $(RT_GATE_HEADERS_UNIT)
 
 $(RT_GATE_TAGS): $(foreach f,$(RT_GATE_FLAVOURS),$(RT_GATE_DIR)/$(f).tags)
