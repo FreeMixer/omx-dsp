@@ -27,6 +27,7 @@
  * @param duration_s Seconds.
  * @return The length; 0 when the product is not finite and positive or exceeds 2³¹.
  * @note Allocation-free, O(1). Thread-safe: pure.
+ * @thread control
  */
 uint32_t omx_sweep_length(double sample_rate, double duration_s);
 
@@ -45,6 +46,7 @@ uint32_t omx_sweep_length(double sample_rate, double duration_s);
  * @return 1; 0 when the sweep cannot exist (core's `RangeError`), touching nothing.
  * @note Allocation-free, O(n). Thread-safe on distinct buffers.
  * @twin generateSweep
+ * @thread control
  */
 int omx_sweep_generate(double sample_rate, double f0, double f1, double duration_s, double fade_in_s,
                        double fade_out_s, double *stimulus, double *inverse, uint32_t n, double *sweep_rate_s);
@@ -57,6 +59,7 @@ int omx_sweep_generate(double sample_rate, double f0, double f1, double duration
  *         la + lb − 1 is over 2³¹, which none holds.
  * @pre `length-fits-a-power-of-two`.
  * @note Allocation-free, O(log n). Thread-safe: pure.
+ * @thread control
  */
 uint32_t omx_sweep_convolve_size(uint32_t la, uint32_t lb);
 
@@ -70,6 +73,7 @@ uint32_t omx_sweep_convolve_size(uint32_t la, uint32_t lb);
  *        `la + lb − 1` entries are the convolution.
  * @return The convolution's length, `la + lb − 1` (0 when either is empty, or when it is over 2³¹).
  * @note Allocation-free, O(n log n). Thread-safe on distinct scratch.
+ * @thread control
  */
 uint32_t omx_sweep_convolve(const double *a, uint32_t la, const double *b, uint32_t lb, double *scratch);
 
@@ -87,6 +91,7 @@ uint32_t omx_sweep_convolve(const double *a, uint32_t la, const double *b, uint3
  * @param scratch `4 · omx_sweep_convolve_size(nr, n)` doubles.
  * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
  * @twin recoverImpulseResponse
+ * @thread control
  */
 void omx_sweep_recover_ir(const double *response, uint32_t nr, const double *inverse, uint32_t n, uint32_t pre_roll,
                           double *ir, uint32_t length, double *scratch);
@@ -100,6 +105,7 @@ void omx_sweep_recover_ir(const double *response, uint32_t nr, const double *inv
  * @return The delay, fractional; NAN for an order under 1.
  * @note Allocation-free, O(1). Thread-safe: pure.
  * @twin harmonicDelaySamples
+ * @thread control
  */
 double omx_sweep_harmonic_delay(double sweep_rate_s, double sample_rate, double order);
 

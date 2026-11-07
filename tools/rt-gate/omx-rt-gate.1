@@ -1,0 +1,138 @@
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\" Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+.TH OMX-RT-GATE 1 "" "omx-dsp" "User Commands"
+.SH NAME
+omx-rt-gate \- prove that real-time C never allocates, locks, sleeps or does I/O
+.SH SYNOPSIS
+.B omx-rt-gate
+\fB\-\-abi\fR \fINAME\fR[\fB:host\fR]... [\fB\-\-tags\fR \fIFILE\fR]... [\fB\-\-graphs\fR \fIDIR\fR]...
+[\fB\-\-list\-roots\fR] \fB\-\-\fR \fICC\fR [\fIFLAGS\fR...] \fIUNIT.c\fR...
+.br
+.B omx-rt-gate \-\-check\-tables
+.br
+.B omx-rt-gate \-\-thread\-tags
+\fIOUT\fR [\fB\-\-selfrun\fR \fIUNIT.c\fR] [\fB\-\-under\fR \fIDIR\fR] \fB\-\-\fR \fICC\fR [\fIFLAGS\fR...] \fIHEADERS.c\fR
+.br
+.B omx-rt-gate \-\-write\-graphs
+\fIDIR\fR \fB\-\-\fR \fICC\fR [\fIFLAGS\fR...] \fIUNIT.c\fR...
+.SH DESCRIPTION
+The gate reads the real-time translation units of a plugin or an engine the
+way the compiler sees them. Each unit is compiled with the flags given after
+\fB\-\-\fR plus \fB\-O0 \-fno\-inline \-fcallgraph\-info\fR, which writes its
+call graph with every macro expanded, every static function named per unit and
+every indirect call marked at its site, and is preprocessed with the same
+flags. The graphs are joined by symbol name to the graphs omx-dsp ships for its
+own compiled units. An optimised build is never the input: dead-code removal
+takes a planted malloc out of the graph. A distribution's fortification and
+stack protector are taken out as well: the one warns at \-O0, the other calls
+\fB__stack_chk_fail\fR, the compiler's own guard, which no source writes.
+.PP
+The roots are not listed by hand. They are the functions the preprocessed unit
+stores in the fields of an ABI's tables: an \fBLV2_Descriptor\fR, an
+\fBLV2_Worker_Interface\fR, a \fBclap_plugin\fR, a \fBpw_filter_events\fR, by an
+initializer, a compound literal or an assignment to the field. The role of
+each field is declared once, in the ABI's roles file; a consumer names the ABIs
+it binds with \fB\-\-abi\fR and adds none of its own.
+.PP
+From every root the gate follows every call. It prints one line per finding:
+.PP
+.RS
+\fICODE\fR \fIsymbol\fR \fBat\fR \fIfile\fR:\fIline\fR:\fIcol\fR \fBvia\fR \fIroot\fR[\fIrole\fR] \fB\->\fR ...
+.RE
+.TP
+.B RT\-ALLOC, RT\-LOCK, RT\-BLOCK, RT\-IO, RT\-LOG
+a symbol of the forbidden list. A worker root (LV2 \fBwork\fR) is held to the
+same list as an audio root: its time is unbounded, but it allocates nothing,
+takes no lock and does no I/O or logging.
+.TP
+.B RT\-EXTERNAL
+an external symbol the class table does not classify.
+.TP
+.B RT\-THREAD
+an omx-dsp function tagged \fB@thread worker\fR or \fB@thread control\fR reached
+from an audio root.
+.TP
+.B RT\-INDIRECT
+an indirect call the gate cannot classify. The field read at the site must be a
+role a bound ABI declares, or a vtable: the targets are the functions an
+initializer or a store puts into that field, and each is walked like a direct
+call.
+.TP
+.B RT\-ROLE
+an indirect call into a worker role from an audio root.
+.TP
+.B RT\-RESULT
+the worker's result crosses by pointer. It must cross by value: a fixed-size
+type with no pointer field, copied inside the callback that delivers it (LV2
+\fBwork_response\fR, by \fBmemcpy\fR into a local or by dereferencing the body),
+the body pointer used at most once, as that copy's argument; or word atomics.
+Work's \fBrespond\fR passes the address of a pointer-free local.
+.PP
+Before judging anything the gate compiles a probe with a planted malloc behind
+a probe root, through the same compiler, tables and walk, and requires it to be
+read red. A gate that cannot see it judges nothing.
+.SH TABLES
+The tables are installed under \fI/usr/share/omxdsp/rt\-gate/tables\fR and are
+the only ones read: one forbidden list, one class table and the ABIs' roles
+files. A tables directory holding any other list is refused.
+.TP
+.B forbidden.tbl
+\fIsymbol code reason\fR: the forbidden list, with codes from the closed set
+above.
+.TP
+.B classes.tbl
+\fIsymbol class arm:case reason\fR: the external symbols a root may call, each
+with its class from the closed set \fBmaths\fR, \fBbulk\-memory\fR,
+\fBword\-atomic\fR, \fBclock\fR, \fBftz\-register\fR, \fBwake\fR, the arm that
+measured it and the reason. \fBsem_post\fR is a wake, like FUTEX_WAKE: an atomic,
+and a futex wake only when a waiter sleeps; \fBsem_wait\fR and
+\fBsem_timedwait\fR stay forbidden. A row naming a site, a field, a file or a
+function of omx-dsp, a class outside the set, a row without a reason or an arm,
+a duplicate, or a row for a forbidden symbol is refused at load.
+.TP
+.B lv2.abi, clap.abi, pipewire.abi
+the roles of each ABI: \fBplugin\fR fields the bound side provides (its roots),
+\fBhost\fR fields the other side provides (callable with their role),
+\fBhanded\fR parameters (LV2 work's respond) and the \fBresult\fR rows.
+\fB\-\-abi lv2\fR binds the plugin side, \fB\-\-abi lv2:host\fR the host side.
+.SH OPTIONS
+.TP
+.BI \-\-abi " NAME" "\fR[\fB:host\fR]"
+An ABI the units bind: \fBlv2\fR, \fBclap\fR, \fBpipewire\fR.
+.TP
+.BI \-\-tags " FILE"
+The thread tags of a library's functions. The installed omx-dsp tags are read
+by default.
+.TP
+.BI \-\-graphs " DIR"
+The call graphs of a library's compiled units. The installed omx-dsp graphs are
+read by default.
+.TP
+.B \-\-list\-roots
+Print every derived root, its role and the field it was stored in.
+.TP
+.B \-\-check\-tables
+Load the tables and every roles file and stop.
+.TP
+.BI \-\-thread\-tags " OUT"
+Check that every function the headers under \fB\-\-under\fR declare carries
+exactly one \fB@thread audio\fR, \fB@thread worker\fR or \fB@thread control\fR in
+the comment above it (a file named with \fB\-\-except\fR is left out), write the
+tags to \fIOUT\fR and, with \fB\-\-selfrun\fR, a unit that takes the address of
+every tagged function (omx-dsp's own run).
+.TP
+.BI \-\-write\-graphs " DIR"
+Compile each unit the way the gate reads one and leave its call graph,
+\fIDIR/<unit>.ci\fR, for a library to ship (omx-dsp's own under
+\fI/usr/share/omxdsp/rt\-gate/graphs\fR).
+.SH EXIT STATUS
+0 when every root was walked and nothing is red; 1 when something is red; 2
+when nothing was judged: a table refused at load, a unit that does not compile,
+no root, a root missing from the graphs, the positive control blind. Never a
+pass in place of a judgement.
+.SH EXAMPLE
+.nf
+omx-rt-gate \-\-abi lv2 \-\- gcc $(pkg-config \-\-cflags omxdsp) \-Isrc src/plugin_lv2.c
+.fi
+.SH SEE ALSO
+.BR omx-dsp-copy-check (1)

@@ -1,0 +1,264 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
+# fbs_place.vectors: the feedback corrector's placement by value (FreeMixer/omx-plugins#330, spec 7.7 and 7.16).
+# One file, read by the C placement's test (test/analysis/fbs_place.test.c) and by its TypeScript twin's
+# (ts/test/fbs-place.test.mjs): both are held to the values below, so they are held to each other.
+# The values are the console's placement rules worked by hand; the console holds its own corrector to this
+# file on its side.
+#
+#   vector <name>                       a fresh placement (pool live, the declared defaults)
+#   pool fixed|live                     the pool the next finds go to
+#   set <hold|never> <bands> <notchQ> <merge> <cooldown>   the arming values, clamped as the console does
+#   config <hold|never> <bands> <notchQ> <merge> <cooldown>  what they read back as
+#   tick <ms> [c <hz> <depth>]... [s <hz>]...   one detector tick: c a newly confirmed ring, s one still sounding
+#   ticks <from> <to> <step> [s <hz>]...         a tick every step from..to (inclusive), the same rings sounding
+#   advance <ms>                        the clock moves with no tick (the ramp steps due fire)
+#   slot <k> <hz> <gain> <q> <on> <origin> <shape>  slot k's report words (origin and shape as wire words)
+#   free <k>                            slot k reports free
+#   count <n>                           the bands planted
+#   log [<action> <hz> <slot>]...       the actions since the last log line, in order (an empty line: none)
+#   cap <origin> <db> <held>            the per-origin gain cap
+#   cents <a> <b> <cents>               the merge radius's distance
+#   end
+#
+# Tolerances: frequencies, Q, on, origin, shape, counts and the action order are exact; a gain within 1e-9 dB
+# (a release stage is planted * ratio^stage, a power); cents within 1e-4.
+tolerance gain 1e-9
+tolerance cents 1e-4
+
+vector empty-and-silence
+tick 0
+ticks 100 10000 100
+count 0
+log
+free 0
+free 23
+end
+
+vector gain-cap-every-origin
+cap fbs-fixed -30 -24
+cap fbs-fixed 3 0
+cap fbs-fixed nan 0
+cap fbs-live -24 -24
+cap fbs-live -0.5 -0.5
+cap fbs-live -40 -24
+cap fbs-live nan 0
+cap user -30 -15
+cap user 20 15
+cap user -10 -10
+cap user nan nan
+cap hrp -20 -15
+cap hrp 12 12
+cap room-mode -18 -15
+cap room-mode 16 15
+end
+
+vector cents
+cents 1000 1059.4 99.89693450927734
+cents 1000 1059.5 100.06026458740234
+cents 0 1000 1e9
+end
+
+vector set-clamps
+config 5 6 116 100 600
+set 0.4 30 200 1000 nan
+config 1 24 116 600 600
+set 400 2.5 0.1 -5 7201
+config 300 3 0.3 0 7200
+set nan nan nan nan nan
+config 5 6 116 100 600
+set never 0 116 100 0
+config never 1 116 100 0
+end
+
+vector pools-fixed-notch-live-bell
+pool fixed
+set 5 6 116 100 600
+tick 100 c 1000 -12 c 2000 -6
+slot 0 1000 0 116 1 fbs-fixed notch
+slot 1 2000 0 116 1 fbs-fixed notch
+log notched 1000 0 notched 2000 1
+ticks 200 30000 100
+slot 0 1000 0 116 1 fbs-fixed notch
+slot 1 2000 0 116 1 fbs-fixed notch
+log
+pool live
+tick 30100 c 4000 -9
+slot 2 4000 -9 8 1 fbs-live bell
+set 5 6 4 100 600
+tick 30200 c 8000 -40
+slot 3 8000 -24 4 1 fbs-live bell
+pool fixed
+tick 30300 c 12000 -9
+slot 4 12000 0 4 1 fbs-fixed notch
+count 5
+log notched 4000 2 notched 8000 3 notched 12000 4
+end
+
+vector edge-refused-never-clamped
+tick 100 c 59.9 -6 c 16000.5 -6 c 60 -6 c 16000 -6
+log rejected-edge 59.9 -1 rejected-edge 16000.5 -1 notched 60 0 notched 16000 1
+slot 0 60 -6 8 1 fbs-live bell
+slot 1 16000 -6 8 1 fbs-live bell
+count 2
+end
+
+vector pool-full-plants-nothing
+set 5 2 116 100 600
+tick 100 c 500 -6 c 1000 -6 c 2000 -6
+log notched 500 0 notched 1000 1 pool-full 2000 -1
+count 2
+free 2
+end
+
+vector merge-across-the-radius
+tick 100 c 1000 -12
+tick 200 c 1059.4 -12 s 1000
+log notched 1000 0
+count 1
+tick 300 c 1059.5 -12 s 1000
+log notched 1059.5 1
+slot 1 1059.5 -12 8 1 fbs-live bell
+tick 400 c 1014.9 -12 s 1000 s 1059.5
+log
+count 2
+end
+
+vector merge-the-oldest-answers
+set 5 6 116 150 600
+tick 0 c 3000 -1.2
+tick 100 c 1000 -6
+ticks 200 8000 100 s 1000
+log notched 3000 0 notched 1000 1 lifted 3000 0
+tick 8100 c 1182.3 -6 s 1000
+log notched 1182.3 0
+tick 9000 c 1087.4 -6
+log
+ticks 9100 13100 100
+advance 13400
+slot 0 1182.3 -5.8 8 1 fbs-live bell
+slot 1 1000 -6 8 1 fbs-live bell
+end
+
+vector staged-fade
+tick 0 c 1000 -12
+log notched 1000 0
+ticks 100 4900 100
+slot 0 1000 -12 8 1 fbs-live bell
+tick 5000
+slot 0 1000 -12 8 1 fbs-live bell
+advance 5300
+slot 0 1000 -11.6 8 1 fbs-live bell
+advance 5600
+slot 0 1000 -11.2 8 1 fbs-live bell
+log
+ticks 5700 7900 100
+log
+tick 8000
+slot 0 1000 -8 8 1 fbs-live bell
+log easing 1000 0
+ticks 8100 15900 100
+slot 0 1000 -8 8 1 fbs-live bell
+log
+ticks 16000 19000 100
+slot 0 1000 -5.333333333333333 8 1 fbs-live bell
+log easing 1000 0
+ticks 19100 30000 100
+slot 0 1000 -3.5555555555555545 8 1 fbs-live bell
+log easing 1000 0
+ticks 30100 41000 100
+slot 0 1000 -2.37037037037037 8 1 fbs-live bell
+ticks 41100 52000 100
+slot 0 1000 -1.5802469135802464 8 1 fbs-live bell
+ticks 52100 63000 100
+slot 0 1000 -1.053497942386831 8 1 fbs-live bell
+log easing 1000 0 easing 1000 0 easing 1000 0
+ticks 63100 73900 100
+count 1
+tick 74000
+free 0
+count 0
+log lifted 1000 0
+end
+
+vector regrowth-re-arms-deeper-and-doubles-the-hold
+tick 0 c 1000 -12
+ticks 100 5000 100
+advance 5600
+slot 0 1000 -11.2 8 1 fbs-live bell
+tick 5700 s 1000
+slot 0 1000 -15 8 1 fbs-live bell
+log notched 1000 0 re-armed 1000 0
+ticks 5800 15600 100
+slot 0 1000 -15 8 1 fbs-live bell
+tick 15700
+advance 16000
+slot 0 1000 -14.5 8 1 fbs-live bell
+ticks 16100 18700 100
+slot 0 1000 -10 8 1 fbs-live bell
+log easing 1000 0
+tick 18800 c 1003 -9
+slot 0 1000 -18 8 1 fbs-live bell
+log re-armed 1000 0
+tick 18900 s 1000
+slot 0 1000 -18 8 1 fbs-live bell
+log
+end
+
+vector re-arm-deepens-to-the-cut-bound
+tick 0 c 2000 -22.5
+ticks 100 5000 100
+advance 5300
+slot 0 2000 -21.75 8 1 fbs-live bell
+tick 5300 s 2000
+slot 0 2000 -24 8 1 fbs-live bell
+log notched 2000 0 re-armed 2000 0
+end
+
+vector never-releases
+set never 6 116 100 600
+tick 0 c 1000 -12
+ticks 1000 60000 1000
+slot 0 1000 -12 8 1 fbs-live bell
+log notched 1000 0
+end
+
+vector ring-memory-keeps-the-escalation
+tick 0 c 1000 -1.2
+ticks 100 5000 100
+tick 5300 s 1000
+slot 0 1000 -4.2 8 1 fbs-live bell
+log notched 1000 0 re-armed 1000 0
+ticks 5400 51300 100
+free 0
+log easing 1000 0 easing 1000 0 easing 1000 0 lifted 1000 0
+tick 52000 c 1010 -6
+log notched 1010 0
+ticks 52100 61900 100
+slot 0 1010 -6 8 1 fbs-live bell
+tick 62000
+advance 62300
+slot 0 1010 -5.8 8 1 fbs-live bell
+end
+
+vector slots-keep-their-finds
+tick 100 c 500 -6 c 1000 -6 c 2000 -6
+log notched 500 0 notched 1000 1 notched 2000 2
+ticks 200 49000 100 s 500 s 2000
+slot 1 1000 -1.185185185185185 8 1 fbs-live bell
+log easing 1000 1 easing 1000 1 easing 1000 1 easing 1000 1
+ticks 49100 52000 100 s 500 s 2000
+log
+tick 52100 s 500 s 2000
+log lifted 1000 1
+slot 0 500 -6 8 1 fbs-live bell
+free 1
+slot 2 2000 -6 8 1 fbs-live bell
+tick 52200 c 505 -9 c 4000 -9 s 500 s 2000
+log notched 4000 1
+slot 0 500 -6 8 1 fbs-live bell
+slot 1 4000 -9 8 1 fbs-live bell
+slot 2 2000 -6 8 1 fbs-live bell
+count 3
+end

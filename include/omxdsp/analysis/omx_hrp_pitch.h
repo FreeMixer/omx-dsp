@@ -107,14 +107,16 @@ typedef struct {
  * The other end is the noise floor, and it is what stops the halving from continuing: flat
  * broadband hiss scores ~0.015 (`test_noise_is_not_a_voice` builds exactly that spectrum), so
  * eight voices still leave a factor of four between music and hiss. A budget large enough to push
- * the floor into that gap would need a different discriminator, not a smaller number. */
+ * the floor into that gap would need a different discriminator, not a smaller number.
+ * @thread worker */
 static inline float omx_hrp_min_confidence_for(uint32_t max_voices) {
   if (max_voices == 0) max_voices = 1;
   if (max_voices > OMX_HRP_MAX_VOICES) max_voices = OMX_HRP_MAX_VOICES;
   return 1.0f / (float)(max_voices * OMX_HRP_CONFIDENCE_SHARE_DIVISOR);
 }
 
-/** The defaults this desk searches with. */
+/** The defaults this desk searches with.
+ * @thread worker */
 static inline OmxHrpConfig omx_hrp_config_default(void) {
   OmxHrpConfig c;
   c.f0_min_hz = 25.0f;   /* below a 5-string bass' B0 */
@@ -127,7 +129,8 @@ static inline OmxHrpConfig omx_hrp_config_default(void) {
   return c;
 }
 
-/** Nearest equal-tempered MIDI note, and the signed cents to it. A4 = 440 Hz = note 69. */
+/** Nearest equal-tempered MIDI note, and the signed cents to it. A4 = 440 Hz = note 69.
+ * @thread worker */
 static inline int omx_hrp_midi_note(float f0_hz, float *cents_out) {
   if (!(f0_hz > 0.0f)) {
     if (cents_out) *cents_out = 0.0f;
@@ -152,7 +155,8 @@ static inline int omx_hrp_midi_note(float f0_hz, float *cents_out) {
 
 /** The half-width in BINS for a partial predicted at `exact` bins: the cents tolerance in
  * this spectrum's own units, floored at ±1 because a Hann window's main lobe is two bins
- * wide — the energy of even a perfectly-placed partial straddles its neighbours. */
+ * wide — the energy of even a perfectly-placed partial straddles its neighbours.
+ * @thread worker */
 static inline int32_t omx_hrp_peak_halfwidth(float exact_bins) {
   int32_t half = (int32_t)(exact_bins * OMX_HRP_PEAK_TOL_FRAC);
   return half < 1 ? 1 : half;
@@ -163,7 +167,8 @@ static inline int32_t omx_hrp_peak_halfwidth(float exact_bins) {
  * Interpolating would be wrong here: a partial that falls between bins is smeared across them by
  * the window, and the peak is the honest reading of "how much is there". The search radius is
  * {@link omx_hrp_peak_halfwidth} — proportional, so a displaced upper partial still reads as its
- * own harmonic's level. */
+ * own harmonic's level.
+ * @thread worker */
 static inline float omx_hrp_bin_peak(const float *mag, uint32_t nbins, float bin_hz, float hz) {
   if (!(bin_hz > 0.0f) || nbins == 0) return 0.0f;
   float exact = hz / bin_hz;
@@ -191,7 +196,8 @@ static inline float omx_hrp_bin_peak(const float *mag, uint32_t nbins, float bin
  * more — instruments genuinely skip harmonics, and penalising absence would refuse a clarinet.
  *
  * Normalised by the weights actually used, so combs with different harmonic counts below Nyquist
- * remain comparable. */
+ * remain comparable.
+ * @thread worker */
 static inline float omx_hrp_comb_score(const float *mag, uint32_t nbins, float bin_hz, float f0_hz,
                                        uint32_t harmonics) {
   if (!(f0_hz > 0.0f) || !(bin_hz > 0.0f) || nbins == 0) return 0.0f;
@@ -209,7 +215,8 @@ static inline float omx_hrp_comb_score(const float *mag, uint32_t nbins, float b
 
 /** The mean magnitude of the partials a comb at `f0` predicts — the yardstick the octave guard
  *  measures "is this partial actually there?" against. Unweighted on purpose: presence is a fact
- *  about a bin, not about which harmonic index happens to point at it. */
+ *  about a bin, not about which harmonic index happens to point at it.
+ * @thread worker */
 static inline float omx_hrp_partial_mean(const float *mag, uint32_t nbins, float bin_hz,
                                          float f0_hz, uint32_t harmonics) {
   if (!(f0_hz > 0.0f) || !(bin_hz > 0.0f) || nbins == 0) return 0.0f;
@@ -225,7 +232,8 @@ static inline float omx_hrp_partial_mean(const float *mag, uint32_t nbins, float
   return counted == 0 ? 0.0f : sum / (float)counted;
 }
 
-/** Total magnitude in the spectrum — the denominator confidence is measured against. */
+/** Total magnitude in the spectrum — the denominator confidence is measured against.
+ * @thread worker */
 static inline float omx_hrp_total(const float *mag, uint32_t nbins) {
   float t = 0.0f;
   for (uint32_t i = 0; i < nbins; i++) t += mag[i];
@@ -245,6 +253,7 @@ static inline float omx_hrp_total(const float *mag, uint32_t nbins) {
  *
  * Judged against the candidate's OWN loudest partial rather than any global level, so a quiet
  * voice inside a loud chord is held to the same shape rather than to the chord's volume.
+ * @thread worker
  */
 static inline int omx_hrp_low_support(const float *mag, uint32_t nbins, float bin_hz, float f0_hz,
                                       uint32_t harmonics, float accept) {
@@ -265,7 +274,8 @@ static inline int omx_hrp_low_support(const float *mag, uint32_t nbins, float bi
  * This is what makes the search polyphonic: without it, the second-best candidate is almost
  * always an octave or fifth of the first, because those combs share partials with it. Zeroing
  * ±1 bin matches the width {@link omx_hrp_bin_peak} reads over, so a partial is either fully
- * credited to this voice or fully left for the next one. */
+ * credited to this voice or fully left for the next one.
+ * @thread worker */
 static inline void omx_hrp_cancel(float *residual, uint32_t nbins, float bin_hz, float f0_hz,
                                   uint32_t harmonics) {
   if (!(f0_hz > 0.0f) || !(bin_hz > 0.0f)) return;
@@ -304,6 +314,7 @@ static inline void omx_hrp_cancel(float *residual, uint32_t nbins, float bin_hz,
  * 0.700 against a 0.70 completeness gate, which is a coincidence rather than a decision. Asking
  * for contiguity instead, it fails outright at H5 while a true missing fundamental passes with
  * every one of H2..H5 present.
+ * @thread worker
  */
 static inline int omx_hrp_descent_admissible(const float *mag, uint32_t nbins, float bin_hz,
                                              float sub_hz, const OmxHrpConfig *cfg) {
@@ -337,6 +348,7 @@ static inline int omx_hrp_descent_admissible(const float *mag, uint32_t nbins, f
  * comb predicts and the upper one does not (the n not divisible by d), how many are actually
  * there? Two independent ones is the bar — one could be any neighbouring sound. The lowest
  * divisor that clears it wins, because that is the deepest fundamental the evidence supports.
+ * @thread worker
  */
 static inline float omx_hrp_octave_guard(const float *mag, uint32_t nbins, float bin_hz,
                                          float f0_hz, const OmxHrpConfig *cfg) {
@@ -402,6 +414,7 @@ static inline float omx_hrp_octave_guard(const float *mag, uint32_t nbins, float
  * Each observed partial gives an estimate `peak_hz / n`, and the high harmonics are the precise
  * ones: a fixed ±half-bin uncertainty at n·f0 is only a third as much error in f0 at H3 as at H1.
  * Fitting `peak_hz(n) = n · f0` weighted by that precision is exactly `Σ n·peak / Σ n²`.
+ * @thread worker
  */
 static inline float omx_hrp_refine(const float *mag, uint32_t nbins, float bin_hz, float f0_hz,
                                    uint32_t harmonics, float present_threshold) {
@@ -445,6 +458,7 @@ static inline float omx_hrp_refine(const float *mag, uint32_t nbins, float bin_h
  * @param bin_hz    hertz per bin — `rate / fft_size`
  * @param residual  CALLER-OWNED scratch of `nbins` floats; clobbered. No allocation happens here.
  * @param out       the voice set; always written, `voice_count` 0 when nothing is pitched
+ * @thread worker
  */
 static inline void omx_hrp_detect(const float *mag, uint32_t nbins, float bin_hz,
                                   const OmxHrpConfig *cfg, float *residual, OmxHrpVoiceSet *out) {

@@ -146,6 +146,7 @@ typedef enum {
  * and a family prior that went deaf on its own instrument would be worse than no prior at all.
  *
  * An unknown or {@link OMX_HRP_FAMILY_NONE} family returns the console's own defaults unchanged.
+ * @thread worker
  */
 static inline OmxHrpConfig omx_hrp_family_search(int family) {
   OmxHrpConfig c = omx_hrp_config_default();
@@ -241,6 +242,7 @@ static inline OmxHrpConfig omx_hrp_family_search(int family) {
  *
  * Held equal to `rbjCoeffs` by the corpus in `hrp_peaking_corpus.h`, which BOTH sides check.
  * @twin rbjCoeffs
+ * @thread worker
  */
 
 static inline void omx_hrp_peaking_coeffs(float freq_hz, float q, float gain_db, uint32_t rate,
@@ -270,7 +272,8 @@ typedef struct {
   float state[OMX_EQ_MAX_BANDS][4];
 } OmxHrpCascade;
 
-/** An empty cascade: no bands, no state. Running audio through it is a copy. */
+/** An empty cascade: no bands, no state. Running audio through it is a copy.
+ * @thread audio */
 static inline void omx_hrp_cascade_init(OmxHrpCascade *c) {
   if (c) memset(c, 0, sizeof(*c));
 }
@@ -279,6 +282,7 @@ static inline void omx_hrp_cascade_init(OmxHrpCascade *c) {
  * Append one designed section. Returns 1 when it was taken, 0 when the cascade is full — a
  * refusal, never a silent drop past the end of the array, because a band that did not reach
  * the audio would otherwise show in the report and not in the sound.
+ * @thread worker
  */
 static inline int omx_hrp_cascade_add(OmxHrpCascade *c, const float coeffs[5], int enabled) {
   if (!c || !coeffs) return 0;
@@ -290,7 +294,8 @@ static inline int omx_hrp_cascade_add(OmxHrpCascade *c, const float coeffs[5], i
   return 1;
 }
 
-/** Sections that will actually run — a parked (identity) band costs nothing and is skipped. */
+/** Sections that will actually run — a parked (identity) band costs nothing and is skipped.
+ * @thread audio */
 static inline uint32_t omx_hrp_cascade_live(const OmxHrpCascade *c) {
   if (!c) return 0;
   uint32_t live = 0;
@@ -311,6 +316,7 @@ static inline uint32_t omx_hrp_cascade_live(const OmxHrpCascade *c) {
  * `in` and `out` may be the same buffer. State persists across calls, so a shell may stream in
  * blocks of any size — a file in 64 k chunks, a host in 64-frame quanta — and get the same
  * samples a single call would produce.
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "hrp/cascade"
@@ -348,6 +354,7 @@ static inline void omx_hrp_cascade_apply(OmxHrpCascade *c, const float *in, floa
  *
  * §25 lives in the sign: this returns a magnitude to CUT. There is no path here that boosts.
  * @twin harmonicDeviationGainsDb
+ * @thread worker
  */
 static inline float omx_hrp_cut_db(float excess_db, float amount, float max_cut_db) {
   if (!(excess_db > OMX_HRP_EXCESS_THRESHOLD_DB)) return 0.0f;
@@ -367,6 +374,7 @@ static inline float omx_hrp_cut_db(float excess_db, float amount, float max_cut_
  * is unmeasurable (§11/§54 — it never becomes a deviation, so it never scores). Any unusable
  * input scores zero, because a NaN weight would poison every comparison it met.
  * @twin hrpResonanceScore
+ * @thread worker
  */
 static inline float omx_hrp_resonance_score(float cut_db, float voice_confidence,
                                             float partial_confidence) {
@@ -393,14 +401,16 @@ typedef struct {
   uint32_t harmonic;
 } OmxHrpCandidate;
 
-/** Strongest first; ties by voice id then harmonic, so the answer never depends on input order. */
+/** Strongest first; ties by voice id then harmonic, so the answer never depends on input order.
+ * @thread worker */
 static inline int omx_hrp_candidate_before(const OmxHrpCandidate *a, const OmxHrpCandidate *b) {
   if (a->score != b->score) return a->score > b->score;
   if (a->voice_id != b->voice_id) return a->voice_id < b->voice_id;
   return a->harmonic < b->harmonic;
 }
 
-/** Musical distance between two frequencies, in cents. */
+/** Musical distance between two frequencies, in cents.
+ * @thread worker */
 static inline float omx_hrp_cents_apart(float a_hz, float b_hz) {
   if (!(a_hz > 0.0f) || !(b_hz > 0.0f)) return 0.0f;
   const float c = 1200.0f * (float)(log2((double)a_hz / (double)b_hz));
@@ -432,6 +442,7 @@ static inline float omx_hrp_cents_apart(float a_hz, float b_hz) {
  * Insertion sort, not qsort: `n` is at most voices × harmonics (8 × 12 = 96) and the comparison
  * needs no function-pointer call. `qsort` would also drag libc's allocation-free-ness into a
  * question §4 already answered.
+ * @thread worker
  */
 static inline uint32_t omx_hrp_select(OmxHrpCandidate *cand, uint32_t n, float collision_cents,
                                       uint32_t budget) {

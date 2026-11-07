@@ -96,6 +96,7 @@ static inline void omx_doubler_instance_resolve(OmxDoublerInstance *s, int bypas
                                                 float detune_cents, float mod_rate_hz, float mod_depth_ms,
                                                 float spread_pct, float mix_pct);
 
+/** @thread control */
 static inline int omx_doubler_instance_init(OmxDoublerInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   if (omx_fdelay_init(&s->line, s->ring, OMX_DOUBLER_INSTANCE_CAP, OMX_DOUBLER_INSTANCE_ORDER) != OMX_FDELAY_OK) return 0;
@@ -115,6 +116,7 @@ static inline int omx_doubler_instance_init(OmxDoublerInstance *s, float sr) {
  * Voice k takes its resolved design and mean, unless a hand-over is still fading. A new mean, drift,
  * window or direction goes through the hand-over (a voice that has not read yet only starts); a new
  * detune alone keeps the head's position. RT-safe: no libm call.
+ * @thread audio
  */
 static inline void omx_doubler_instance_settle(OmxDoublerInstance *s, uint32_t k) {
   if (omx_doppler_handing_over(&s->hs[k])) return;
@@ -136,6 +138,7 @@ static inline void omx_doubler_instance_settle(OmxDoublerInstance *s, uint32_t k
  * arguments are the doubler kernel's contract controls in their declared order: the voice count,
  * the mean delay (ms), the detune (cents), the drift's rate (Hz) and depth (ms), the spread and the
  * mix (percent).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "doubler/instance-resolve"
 static inline void omx_doubler_instance_resolve(OmxDoublerInstance *s, int bypass, float voices, float delay_ms,
@@ -186,6 +189,7 @@ static inline void omx_doubler_instance_resolve(OmxDoublerInstance *s, int bypas
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: the dry legs blended with the voices, in to out. `in_*` and
  * `out_*` may alias. Not ready, bypassed or a mix of 0 is the identity and moves no state.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "doubler/instance-run"
 static inline void omx_doubler_instance_run(OmxDoublerInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -213,7 +217,8 @@ static inline void omx_doubler_instance_run(OmxDoublerInstance *s, const float *
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_doubler_instance_latency(const OmxDoublerInstance *s) {
   (void)s;
   return 0u;

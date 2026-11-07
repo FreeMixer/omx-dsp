@@ -105,6 +105,7 @@ typedef struct {
 /**
  * @brief The corpus-tuned default gates, read from the generated header.
  * @return core's `DEFAULT_THRESHOLDS`: every opt-in route off.
+ * @thread worker
  */
 OmxFbsThresholds omx_fbs_thresholds_default(void);
 
@@ -114,6 +115,7 @@ OmxFbsThresholds omx_fbs_thresholds_default(void);
  *          `fft_size` (> 0), `bin_slot` (`nbins_cap` entries, the widest frame a push may carry),
  *          `slots` and `free_stack` (`n_slots` entries each, how many bins may be tracked at once).
  *          Every other field is reset.
+ * @thread worker
  */
 void omx_fbs_init(OmxFbsDetector *d);
 
@@ -123,7 +125,8 @@ void omx_fbs_init(OmxFbsDetector *d);
  * @param mags Linear magnitudes, `nbins` of them.
  * @param nbins Bin count, ≤ the detector's nbins_cap.
  * @param out Receives the frame's decisions.
- * @note Allocation-free, lock-free, no I/O. Not for the audio callback.
+ * @note Allocation-free, lock-free, no I/O.
+ * @thread control
  */
 void omx_fbs_push(OmxFbsDetector *d, const double *mags, uint32_t nbins, OmxFbsResult *out);
 
@@ -133,6 +136,7 @@ void omx_fbs_push(OmxFbsDetector *d, const double *mags, uint32_t nbins, OmxFbsR
  * @param n Its length.
  * @param t The gates.
  * @return 1 when the history is a monotone, distributed, linear-in-dB run-away.
+ * @thread worker
  */
 int omx_fbs_is_growing(const double *levels_db, uint32_t n, const OmxFbsThresholds *t);
 
@@ -143,6 +147,7 @@ int omx_fbs_is_growing(const double *levels_db, uint32_t n, const OmxFbsThreshol
  * @param nbins Their count.
  * @param bin The candidate bin, < nbins.
  * @return dB; +INFINITY when there is no line below to measure.
+ * @thread worker
  */
 double omx_fbs_pshr(const double *mags, uint32_t nbins, uint32_t bin);
 

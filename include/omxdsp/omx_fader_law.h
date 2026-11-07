@@ -49,7 +49,8 @@ struct omx_fader_law_params {
  *         = 1` at every pan, so panning never changes the signal's total power.
  * @pre `pan-in-range`, `leg-is-stereo`.
  * @post `finite`, never negative (a hard-right pan's far leg is 0, not -4e-8).
- * @note RT-safe: one `cosf` or `sinf`, both on the RT-safe allowlist. Thread-safe: pure.
+ * @note One `cosf` or `sinf`, both, classified maths. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_pan_law_gain(float pan, int leg) {
   OMX_PRE(pan >= -1.0f && pan <= 1.0f, "pan-in-range");
@@ -71,8 +72,9 @@ static inline float omx_pan_law_gain(float pan, int leg) {
  * @return The entry's linear coefficient, not negative.
  * @pre `fader-finite`, `send-not-negative`, `dca-not-negative`.
  * @post `finite`, `not-negative`.
- * @note RT-safe: omx_db_to_lin() (one `powf`) and at most one `cosf`/`sinf` through
- *       omx_pan_law_gain(), both on the RT-safe allowlist; no call otherwise. Thread-safe: pure.
+ * @note Omx_db_to_lin() (one `powf`) and at most one `cosf`/`sinf` through
+ *       omx_pan_law_gain(), both, classified maths; no call otherwise. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_fader_law_coeff(const struct omx_fader_law_params *p) {
   OMX_PRE(p->fader_db - p->fader_db == 0.0f, "fader-finite");

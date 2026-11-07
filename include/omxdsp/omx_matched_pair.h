@@ -36,8 +36,9 @@ typedef struct {
  * @return The pair and its factored value at `z = 1`.
  * @pre `positive-finite-w`, `positive-finite-damping`.
  * @post `pair-inside-unit-circle`: `0 <= p2 < 1` and `dc > 0`.
- * @note RT-safe: `exp`, `cos`, `sin`, `sqrt` on the RT-safe allowlist. Thread-safe: pure.
+ * @note `exp`, `cos`, `sin`, `sqrt`, classified maths. Thread-safe: pure.
  * @twin matchedPair
+ * @thread audio
  */
 static inline OmxMatchedPair omx_matched_pair(double wn, double zeta) {
   OMX_PRE(wn > 0.0 && wn - wn == 0.0, "positive-finite-w");
@@ -73,7 +74,8 @@ static inline OmxMatchedPair omx_matched_pair(double wn, double zeta) {
  * @param freq_hz Requested corner, Hz.
  * @param sr Sample rate, Hz.
  * @return The clamped corner, Hz.
- * @note RT-safe and thread-safe: two compares.
+ * @note Thread-safe: two compares.
+ * @thread audio
  */
 static inline double omx_matched_f0(double freq_hz, double sr) {
   const double nyquist = sr * 0.5;
@@ -88,7 +90,8 @@ static inline double omx_matched_f0(double freq_hz, double sr) {
  * @param freq_hz Requested corner, Hz.
  * @param sr Sample rate, Hz.
  * @return Radians per sample.
- * @note RT-safe and thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_matched_w0(double freq_hz, double sr) {
   return 2.0 * M_PI * omx_matched_f0(freq_hz, sr) / sr;
@@ -101,7 +104,8 @@ static inline double omx_matched_w0(double freq_hz, double sr) {
  * @param b1 Numerator coefficient.
  * @param b2 Numerator coefficient.
  * @param p The pole pair.
- * @note RT-safe and thread-safe: five narrowing stores.
+ * @note Thread-safe: five narrowing stores.
+ * @thread audio
  */
 static inline void omx_matched_section(float out[5], double b0, double b1, double b2,
                                        OmxMatchedPair p) {
@@ -133,7 +137,8 @@ typedef struct {
  * @return The three numerator coefficients.
  * @pre `positive-finite-dc`, `finite-targets`, `corner-inside-the-band`.
  * @post `finite-numerator`.
- * @note RT-safe: `sqrt` on the RT-safe allowlist. Thread-safe: pure.
+ * @note `sqrt`, classified maths. Thread-safe: pure.
+ * @thread audio
  */
 static inline OmxMatchedNumerator omx_matched_fit_numerator(double u, double n_nyq, double n_f0,
                                                             double s0) {
@@ -165,7 +170,8 @@ static inline OmxMatchedNumerator omx_matched_fit_numerator(double u, double n_n
  * @param zp Pole damping, positive.
  * @param wz Zero angular frequency, radians per sample.
  * @param zz Zero damping, positive.
- * @note RT-safe and thread-safe: two omx_matched_pair() calls and a division.
+ * @note Thread-safe: two omx_matched_pair() calls and a division.
+ * @thread audio
  */
 static inline void omx_matched_pair_section(float out[5], double wp, double zp, double wz,
                                             double zz) {

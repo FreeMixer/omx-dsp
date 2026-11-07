@@ -20,6 +20,66 @@ export const LOWPASS_HANDOVER = {
   hiAtPeakQ: 0.8,
 } as const;
 
+/** What every band of a fresh EQ comes up at, whatever its type and its strip: flat (0 dB) and Q 1. The band frequencies and types come from the default rule. @see data/kernels/eq.json */
+export const EQ_BAND_DEFAULTS = {
+  gainDb: 0,
+  q: 1,
+} as const;
+
+/** The deepest cut a band of an fbs-* origin may hold, in dB: the feedback corrector's own safety bound, never the operator EQ's ±15 (EQ_GAIN_RANGE), which stays the bound of every other origin. Declared here as one value until the vocabulary owner (omx-contract) carries it as its own word, a new ref beside EQ_GAIN_RANGE and never a widening of it; this item then becomes that ref, and no second copy of the number is ever written. (dB) @see data/kernels/fbs.json */
+export const FBS_MAX_CUT_DB = -24;
+
+/** How much deeper a live band's full depth goes each time regrowth re-clamps a release, in dB, down to FBS_MAX_CUT_DB: regrowth at a depth is the measurement that the depth was not enough. (dB) @see data/kernels/fbs.json */
+export const FBS_RECLAMP_DEEPEN_DB = 3;
+
+/** The most times the clean hold doubles after re-clamps: the hold before the first release stage is the channel's hold times 2^min(re-clamps, this). @see data/kernels/fbs.json */
+export const FBS_RECLAMP_BACKOFF_CAP = 3;
+
+/** How long one release stage's gain ramp takes, in ms, from the depth the band stands at to the stage's depth. (ms) @see data/kernels/fbs.json */
+export const FBS_LIFT_RAMP_MS = 3000;
+
+/** The equal steps one release ramp takes, FBS_LIFT_RAMP_MS / this apart: the last step lands the stage's depth exactly. @see data/kernels/fbs.json */
+export const FBS_LIFT_RAMP_STEPS = 10;
+
+/** Each release stage holds the planted depth times this ratio to the stage's power: every stage releases a third of what remains. @see data/kernels/fbs.json */
+export const FBS_RELEASE_RATIO = 0.6666666666666666;
+
+/** A release stage whose depth is shallower than this, in dB, removes the band instead of holding it: the cut is inaudible. (dB) @see data/kernels/fbs.json */
+export const FBS_RELEASE_DONE_DB = 1;
+
+/** How long a band listens at an eased stage, clean, before the next stage begins, in ms. (ms) @see data/kernels/fbs.json */
+export const FBS_RELEASE_DWELL_MS = 8000;
+
+/** The lowest frequency a confirmed ring is planted at, in Hz; one below it is refused as rejected-edge, never clamped onto the EQ's edge. (Hz) @see data/kernels/fbs.json */
+export const FBS_RING_HZ_MIN = 60;
+
+/** The highest frequency a confirmed ring is planted at, in Hz; one above it is refused as rejected-edge. (Hz) @see data/kernels/fbs.json */
+export const FBS_RING_HZ_MAX = 16000;
+
+/** Two readings are the same ringing frequency within this many Hz, or FBS_SAME_RING_SHARE of the higher one, whichever is wider. (Hz) @see data/kernels/fbs.json */
+export const FBS_SAME_RING_HZ = 3;
+
+/** The share of the higher frequency within which two readings are the same ringing frequency, when it is wider than FBS_SAME_RING_HZ: FFT bin spacing grows with frequency. @see data/kernels/fbs.json */
+export const FBS_SAME_RING_SHARE = 0.015;
+
+/** The clean hold, in seconds, before a live band's first release stage. (s) @see data/kernels/fbs.json */
+export const FBS_DEFAULT_HOLD_SECONDS = 5;
+
+/** How many bands one corrector may plant when nobody set its cap; a full pool plants nothing and says pool-full. @see data/kernels/fbs.json */
+export const FBS_DEFAULT_MAX_AUTO_BANDS = 6;
+
+/** The merge radius, in cents: a confirmed ring this close to a band already planted is that band's find, and plants nothing. (cents) @see data/kernels/fbs.json */
+export const FBS_DEFAULT_MERGE_CENTS = 100;
+
+/** How long a fully released find's re-clamp count is remembered, in seconds, so a chronic ringer re-plants with its doubled holds. (s) @see data/kernels/fbs.json */
+export const FBS_DEFAULT_COOLDOWN_SECONDS = 600;
+
+/** Default planted-notch width (Q) — the dbx-AFS-style ultra-narrow notch the corrector plants. `addBand`'s per-shape clamp holds it at 116 for a fixed notch and narrows it to 8 for a live bell, so this is the declared starting point rather than the width every notch ends up with. @see data/kernels/fbs.json */
+export const FBS_DEFAULT_NOTCH_Q = 116;
+
+/** Released finds the ring memory holds at once. The console's list is unbounded and expires by FBS_DEFAULT_COOLDOWN_SECONDS; a full memory here forgets its oldest entry first, and counts it. @see data/kernels/fbs.json */
+export const FBS_RING_MEMORY_SLOTS = 32;
+
 /** The displays a panel description draws from a closed form, the kinds omx_curve_points answers: an EQ's magnitude response, x in Hz and y in dB, and a dynamics stage's static transfer curve, input dB to output dB. The wire spells each id in snake case (`eq_response`, `transfer_curve`), the description's own display word. @see data/primitives/curve.json */
 export const CURVE_DISPLAYS = ['eqResponse', 'transferCurve'] as const;
 
@@ -32,10 +92,13 @@ export const CURVE_ROLES = ['bandType', 'bandFreq', 'bandGain', 'bandQ', 'bandOn
 /** The units a curve term's value may come in, the param-contract extension's unit tokens the served description gives a role. omx_curve_points converts once: `coef` to dB for a gain, `oct` to Q for a bandwidth, `khz` to Hz; a level in `db`, `dbfs`, `dbu` or `lufs` is read as dB from the threshold's own scale; `none` is a plain number, a switch or a choice; `ratio` a ratio. A unit its role does not accept is refused. @see data/primitives/curve.json */
 export const CURVE_UNITS = ['hz', 'khz', 'db', 'dbfs', 'dbu', 'lufs', 'coef', 'oct', 'none', 'ratio'] as const;
 
-/** The shape of an EQ band, as the caller resolves it from the description: a `band_type` role's `shapes` list indexed by the control's choice value, or the fixed `shape` of a band no control selects. `off` is a band that is not drawn; `unshaped`, spelt `-` on the wire, a choice value with no closed form, which no curve is drawn from. The others design the band through omx_eq_design: a bell, the two shelves, the pass filters and the notch. @see data/primitives/curve.json */
-export const CURVE_SHAPES = ['off', 'bell', 'lowshelf', 'highshelf', 'highpass', 'lowpass', 'notch', 'unshaped'] as const;
+/** The shape of an EQ band, as the caller resolves it from the description: a `band_type` role's `shapes` list indexed by the control's choice value, or the fixed `shape` of a band no control selects. `off` is a band that is not drawn, and so is `unshaped`, spelt `-` on the wire, a choice value with no shape. The others design the band through omx_eq_design: a bell, the two shelves, the pass filters, the notch, and the first- and second-order allpasses, which draw what they run, 0 dB. @see data/primitives/curve.json */
+export const CURVE_SHAPES = ['off', 'bell', 'lowshelf', 'highshelf', 'highpass', 'lowpass', 'notch', 'unshaped', 'allpass1', 'allpass2'] as const;
 
-/** What omx_curve_points answers in its code: `ok`, a curve; `kindUnknown`, a kind, family, shape or slope with no closed form; `termMissing`, a term the model needs is not in the request (a band's frequency, shape and Q, a bell's or shelf's gain, a head filter's corner and slope; threshold and ratio for an ABOVE family; threshold, range and ratio for a gate; both ends of a gate's knee range or neither); `unitRefused`, a term in a unit its role does not accept; `valueNotFinite`, a value, the rate or an extent that is not finite, a rate that is not positive; `pointsRange`, grid points outside 2 to CURVE_POINTS_MAX (for an EQ, with three anchors a drawn band), a band index past what fits, or extents that bound nothing; `room`, a caller's buffers too small for the points. No curve is drawn from a guess: a missing term is a code, never a default. @see data/primitives/curve.json */
+/** Where an EQ band of a curve request comes from, as the console's strip EQ state says it (its BAND_ORIGINS): `user`, the operator's own band, and the bands a planter put there, `fbsFixed` and `fbsLive` (the feedback corrector's ring-out and show pools), `hrp` (the harmonic resonance processor's cuts) and `roomMode` (a room mode's correction), spelt `user`, `fbs-fixed`, `fbs-live`, `hrp` and `room-mode` on the wire. The sum ignores it: every drawn band is in the curve. A band whose origin is not `user` is answered as a mark (its frequency, depth, Q and origin), and a request that asks for it also gets the curve over the `user` bands alone. A plugin's descriptor carries no origin: a request with none draws no marks. @see data/primitives/curve.json */
+export const CURVE_ORIGINS = ['user', 'fbsFixed', 'fbsLive', 'hrp', 'roomMode'] as const;
+
+/** What omx_curve_points answers in its code: `ok`, a curve; `kindUnknown`, a kind, family or head filter slope with no closed form; `termMissing`, a term the closed form has no default for is not in the request (a band's frequency and shape, a bell's or shelf's gain, a head filter's corner, and its slope unless it comes from the role's declared enumeration as dB per octave; threshold and ratio for dynamics and the de-esser, threshold for a limiter (its ratio is infinity, a hard corner), threshold, range and ratio for a gate; both ends of a gate's knee range or neither); `unitRefused`, a term in a unit its role does not accept; `valueNotFinite`, a value, the rate or an extent that is not finite, a rate that is not positive; `pointsRange`, grid points outside 2 to CURVE_POINTS_MAX (for an EQ, with three anchors a drawn band), a band index past what fits, or extents that bound nothing; `room`, a caller's buffers too small. Where omx-dsp declares a default the curve takes it: a band's Q is EQ_BAND_DEFAULTS q, clamped for its shape as clampEqQFor clamps it. No curve is drawn from a guess. @see data/primitives/curve.json */
 export const CURVE_CODES = ['ok', 'kindUnknown', 'termMissing', 'unitRefused', 'valueNotFinite', 'pointsRange', 'room'] as const;
 
 /** The most points one curve carries, an EQ's band anchors included: a reply of x with four significant digits and y to 0.01 dB, about 13 bytes a point, fits the 4096-byte line a host's reply is built in. Every caller reads it here; it moves with that buffer, in this one place. @see data/primitives/curve.json */
@@ -57,11 +120,53 @@ export const LIN_TO_DB_FLOOR = {
   db: -180,
 } as const;
 
+/** A meter's view law, the same on every surface: the fill is linear in dB from `floorDb` (dBFS, an empty display) to 0 dBFS (a full one); a stepped display (an LED ladder) holds its count until the level moves `stepHysteresis` of a step past the count's own rounding edge; the peak marker falls `fallDbPerSecond` dB for each second elapsed at the view's draw tick, whatever the tick's rate, silence included. A host reads a plugin's held meter at `hostReadHz`; the console streams meter values at `streamHz`. dBFS, a fraction of a step, dB per second and Hz. @see data/primitives/meter.json */
+export const METER_VIEW = {
+  floorDb: -60,
+  stepHysteresis: 0.25,
+  fallDbPerSecond: 18,
+  hostReadHz: 50,
+  streamHz: 20,
+} as const;
+
+/** What a meter measures, as a plugin's descriptor and the panel description spell it: `level`, a signal level (its measurement one of METER_MEASUREMENTS), and `gainReduction`, the gain a dynamics stage takes off, dB at or below 0. The wire spells them `level` and `gain-reduction`. `rms`, `vu` and `ppm` are not kinds. @see data/primitives/meter.json */
+export const METER_KINDS = ['level', 'gainReduction'] as const;
+
+/** The measurement of a `level` meter: the sample peak (`peak`, dBFS), the true peak (`truePeak`, dBTP), and the loudness measures of omx_loudness.h: momentary, short-term and integrated loudness (`lufsM`, `lufsS`, `lufsI`, LUFS) and the loudness range (`lra`, LU). The wire spells them `peak`, `true-peak`, `lufs-m`, `lufs-s`, `lufs-i` and `lra`. A foreign meter's measurement is null, never guessed. @see data/primitives/meter.json */
+export const METER_MEASUREMENTS = ['peak', 'truePeak', 'lufsM', 'lufsS', 'lufsI', 'lra'] as const;
+
+/** The unit a meter's values are in, spelt as its label: dBFS for a sample peak, dBTP for a true peak, LUFS for a loudness, LU for a loudness range, dB for a gain reduction. The scale a surface draws is captioned with it. @see data/primitives/meter.json */
+export const METER_UNITS = ['dbfs', 'dbtp', 'lufs', 'lu', 'db'] as const;
+
+/** The labels of METER_UNITS, in its order. @see data/primitives/meter.json */
+export const METER_UNITS_LABELS = ['dBFS', 'dBTP', 'LUFS', 'LU', 'dB'] as const;
+
+/** What a subscriber that decimates a meter stream keeps of the frames it drops, one per kind in METER_KINDS order, as the engine's slot keeps between two reads: a `level` keeps the `peak` (the largest value), a `gainReduction` the `deepest` (the smallest dB). Never the newest. @see data/primitives/meter.json */
+export const METER_DECIMATION = ['peak', 'deepest'] as const;
+
 /** The Q (resonance) extent of a parametric band. @see data/kernels/eq.json */
 export const EQ_Q_RANGE = { min: 0.3, max: 8 } as const;
 
 /** The Q extent of a NOTCH band. Wider than EQ_Q_RANGE on purpose (#116, operator decision): an ultra-narrow surgical cut is the notch shape's whole point — the FBS ring-out pool plants dbx-AFS-style ring killers at Q ≈ 116 (~1/80 octave), inaudible on program yet fatal to a single ringing frequency. Gain-carrying shapes stay bounded at EQ_Q_RANGE — a Q-116 bell is a resonator, not an EQ move. @see data/kernels/eq.json */
 export const EQ_NOTCH_Q_RANGE = { min: 0.3, max: 116 } as const;
+
+/** The parametric-band gain travel, in dB. The ± scalar `clampEqGain` enforces is READ off this (the engine derives its gain limit from `max`), so the bound is stated once and a surface cannot draw a wider knob than the clamp will honour. @see data/kernels/eq.json */
+export const EQ_GAIN_RANGE = { min: -15, max: 15 } as const;
+
+/** The frequency band a parametric band can be dragged across. @see data/kernels/eq.json */
+export const EQ_FREQ_RANGE = { min: 20, max: 20000 } as const;
+
+/** How many bands this corrector may plant at once (its pool), from one to the EQ's band count. An integer control. @see data/kernels/fbs.json */
+export const FBS_BANDS_RANGE = { min: 1, max: 24 } as const;
+
+/** The clean hold, in seconds, before a live band's first release stage. @see data/kernels/fbs.json */
+export const FBS_HOLD_RANGE = { min: 1, max: 300 } as const;
+
+/** The merge radius, in cents. An integer control. @see data/kernels/fbs.json */
+export const FBS_MERGE_RANGE = { min: 0, max: 600 } as const;
+
+/** How long a released find's escalation is remembered, in seconds. An integer control. @see data/kernels/fbs.json */
+export const FBS_COOLDOWN_RANGE = { min: 0, max: 7200 } as const;
 
 /** The travel of ratio, from its table COMP_LIMITS. @see data/kernels/comp.json */
 export const COMP_RATIO_RANGE = { min: 1, max: 20 } as const;

@@ -52,7 +52,8 @@ _Static_assert(OMX_SUBOCT_RANGE_LO_HZ_COUNT == OMX_SUBOCT_RANGES_COUNT && OMX_SU
 /** The envelope's times, ms: SUBOCT_ENV_ATTACK_MS and SUBOCT_ENV_RELEASE_MS. */
 #define OMX_SUBOCT_INSTANCE_ENV ((float)OMX_SUBOCT_ENV_ATTACK_MS), ((float)OMX_SUBOCT_ENV_RELEASE_MS)
 
-/** The divider's arming level for a tracked peak `e`: SUBOCT_HYSTERESIS e. */
+/** The divider's arming level for a tracked peak `e`: SUBOCT_HYSTERESIS e.
+ * @thread audio */
 static inline float omx_suboct_arm_level(float e) { return OMX_SUBOCT_HYSTERESIS * e; }
 
 typedef struct {
@@ -81,7 +82,8 @@ static inline void omx_suboct_instance_resolve(OmxSuboctInstance *s, int bypass,
                                                float track_gate_db);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. The sub-octaver comes up at its declared defaults. Allocates nothing. */
+ * set. The sub-octaver comes up at its declared defaults. Allocates nothing.
+ * @thread control */
 static inline int omx_suboct_instance_init(OmxSuboctInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -95,7 +97,8 @@ static inline int omx_suboct_instance_init(OmxSuboctInstance *s, float sr) {
   return 1;
 }
 
-/** Two sections of the 24 dB Butterworth low-pass at `hz`. */
+/** Two sections of the 24 dB Butterworth low-pass at `hz`.
+ * @thread audio */
 static inline void omx_suboct_lp24(double c[2][5], double hz, double sr) {
   double q[2];
   omx_eq_butterworth_qs(1, q);
@@ -107,6 +110,7 @@ static inline void omx_suboct_lp24(double c[2][5], double hz, double sr) {
  * Resolve the host's control values for one cycle. `bypass` non-zero makes run() the identity. The
  * arguments are the suboct kernel's contract controls in their declared order: the range (a
  * SUBOCT_RANGES index), oct1, oct2 and dry (percent) and trackGateDb (dBFS).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "suboct/instance-resolve"
 static inline void omx_suboct_instance_resolve(OmxSuboctInstance *s, int bypass, int range, float oct1, float oct2, float dry,
@@ -142,6 +146,7 @@ static inline void omx_suboct_instance_resolve(OmxSuboctInstance *s, int bypass,
  * THE AUDIO CALLBACK'S WHOLE SHARE: the legs' fold through the tracking band, the dividers and the
  * octaves' low-passes, the gated octaves added to each leg over the dry, in to out. `in_*` and `out_*`
  * may alias. Not ready or bypassed is the identity and moves no state.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "suboct/instance-run"
 static inline void omx_suboct_instance_run(OmxSuboctInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -177,12 +182,14 @@ static inline void omx_suboct_instance_run(OmxSuboctInstance *s, const float *in
 #undef OMX_CONTRACT_STAGE
 
 /** The trackedHz readout: the rate over the samples between the divider's last two toggles; 0 while
- * gated or before two toggles. */
+ * gated or before two toggles.
+ * @thread audio */
 static inline float omx_suboct_instance_tracked_hz(const OmxSuboctInstance *s) {
   return s && s->ready && s->g > 0.0f && s->period > 0u ? s->sr / (float)s->period : 0.0f;
 }
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_suboct_instance_latency(const OmxSuboctInstance *s) {
   (void)s;
   return 0u;

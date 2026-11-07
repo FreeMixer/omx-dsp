@@ -46,7 +46,8 @@ static const float OMX_HALFBAND_ODD_COEF[OMX_HALFBAND_ODD_TAPS] = {
  * @return The filtered sample.
  * @pre `finite-window`.
  * @post `finite-out`.
- * @note RT-safe: 25 multiply-adds, no call. Thread-safe: pure over the caller's window.
+ * @note 25 multiply-adds, no call. Thread-safe: pure over the caller's window.
+ * @thread audio
  */
 static inline float omx_halfband_dot(const float *c) {
   OMX_PRE(omx_block_finite(c - (2u * OMX_HALFBAND_ODD_TAPS - 1u), 4u * OMX_HALFBAND_ODD_TAPS - 1u),
@@ -72,7 +73,8 @@ typedef float omx_f32x4 __attribute__((vector_size(16)));
  * @brief An unaligned load of four floats (memcpy: no alignment or aliasing assumption).
  * @param p the first of four readable floats.
  * @return the four floats, lane 0 = `p[0]`.
- * @note RT-safe and reentrant: reads `p` only, no state.
+ * @note Reentrant: reads `p` only, no state.
+ * @thread audio
  */
 static inline omx_f32x4 omx_f32x4_load(const float *p) {
   omx_f32x4 v;
@@ -100,8 +102,9 @@ static inline omx_f32x4 omx_f32x4_load(const float *p) {
  * @param out n outputs; must not overlap the window.
  * @pre `finite-window`.
  * @post `finite-out`.
- * @note RT-safe and reentrant: no allocation, no lock, no state — the caller owns `c` and `out`;
+ * @note Reentrant: no allocation, no lock, no state — the caller owns `c` and `out`;
  *       its scratch is sixteen accumulators and a 63-float split on the caller's stack.
+ * @thread audio
  */
 static inline void omx_halfband_decimate(const float *c, uint32_t n, float *out) {
   if (n == 0u) return;
@@ -166,14 +169,16 @@ struct omx_oversampler {
 /**
  * @brief The state's size, for a host that lays the state out itself.
  * @return `sizeof(struct omx_oversampler)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_oversampler_state_size(void) { return sizeof(struct omx_oversampler); }
 
 /**
  * @brief The state's alignment, for a host that lays the state out itself.
  * @return `OMXDSP_ALIGNOF(struct omx_oversampler)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_oversampler_state_align(void) { return OMXDSP_ALIGNOF(struct omx_oversampler); }
 
@@ -181,8 +186,9 @@ static inline size_t omx_oversampler_state_align(void) { return OMXDSP_ALIGNOF(s
  * @brief Set the factor and clear the history; the factor is rounded down to 1, 2 or 4.
  * @param o The element.
  * @param factor The requested factor.
- * @note RT-safe: one memset. Thread-safe on distinct state. The caller owns any crossfade that
+ * @note One memset. Thread-safe on distinct state. The caller owns any crossfade that
  *       hides the discontinuity of re-arming a running element.
+ * @thread audio
  */
 void omx_oversampler_init(struct omx_oversampler *o, uint32_t factor);
 
@@ -194,7 +200,8 @@ void omx_oversampler_init(struct omx_oversampler *o, uint32_t factor);
  * @param out `n · factor` frames; may not alias `in`.
  * @pre `finite-in`.
  * @post `finite-out`.
- * @note RT-safe: bounded stack scratch per chunk, no allocation. Thread-safe on distinct state.
+ * @note Bounded stack scratch per chunk, no allocation. Thread-safe on distinct state.
+ * @thread audio
  */
 void omx_oversampler_up(struct omx_oversampler *o, const float *in, uint32_t n, float *out);
 
@@ -206,7 +213,8 @@ void omx_oversampler_up(struct omx_oversampler *o, const float *in, uint32_t n, 
  * @param out `n` frames; may not alias `in`.
  * @pre `finite-in`.
  * @post `finite-out`.
- * @note RT-safe: bounded stack scratch per chunk, no allocation. Thread-safe on distinct state.
+ * @note Bounded stack scratch per chunk, no allocation. Thread-safe on distinct state.
+ * @thread audio
  */
 void omx_oversampler_down(struct omx_oversampler *o, const float *in, uint32_t n, float *out);
 
@@ -214,7 +222,8 @@ void omx_oversampler_down(struct omx_oversampler *o, const float *in, uint32_t n
  * @brief The round-trip group delay of up then down, in base-rate samples: 0, 48 or 72.
  * @param o The element.
  * @return Base-rate samples.
- * @note RT-safe and thread-safe: a table lookup on the factor.
+ * @note Thread-safe: a table lookup on the factor.
+ * @thread audio
  */
 uint32_t omx_oversampler_latency(const struct omx_oversampler *o);
 
@@ -222,7 +231,8 @@ uint32_t omx_oversampler_latency(const struct omx_oversampler *o);
  * @brief The same figure for a factor not yet instantiated.
  * @param factor 1, 2 or 4 (anything else rounds as omx_oversampler_init() does).
  * @return Base-rate samples.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 uint32_t omx_oversampler_latency_for(uint32_t factor);
 

@@ -87,10 +87,12 @@ typedef struct {
   float tap_l[OMX_DYNEQ_INSTANCE_CHUNK], tap_r[OMX_DYNEQ_INSTANCE_CHUNK];
 } OmxDyneqInstance;
 
-/** A choice word: inside [0, count), else the declared default. */
+/** A choice word: inside [0, count), else the declared default.
+ * @thread audio */
 static inline int omx_dyneq_instance_choice(int v, int count, int dflt) { return v >= 0 && v < count ? v : dflt; }
 
-/** The EQ design kind of a dynamic band's type. */
+/** The EQ design kind of a dynamic band's type.
+ * @thread audio */
 static inline enum omx_eq_kind omx_dyneq_instance_kind(int type) {
   return type == OMX_DYNEQ_BAND_TYPES_LOW_SHELF ? OMX_EQ_LOWSHELF
          : type == OMX_DYNEQ_BAND_TYPES_HIGH_SHELF ? OMX_EQ_HIGHSHELF
@@ -101,6 +103,7 @@ static inline enum omx_eq_kind omx_dyneq_instance_kind(int type) {
  * Bind an instance to its rate. Returns 1 when usable, 0 when not (a refused init leaves `ready`
  * clear and run() is the identity): the rate must be one of the oracle set. Every band comes up off,
  * so a fresh instance is a wire. Allocates nothing.
+ * @thread control
  */
 static inline int omx_dyneq_instance_init(OmxDyneqInstance *s, float sr) {
   if (!s) return 0;
@@ -121,6 +124,7 @@ static inline int omx_dyneq_instance_init(OmxDyneqInstance *s, float sr) {
  * centre (Hz), the static gain (dB), the Q, the dynMode (off, down, up), the threshold (dB), the
  * ratio, the signed range (dB), the attack and the release (ms) and the listen switch; then the
  * mix (percent).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "dyneq/instance-resolve"
 static inline void omx_dyneq_instance_resolve(OmxDyneqInstance *s, int bypass, const int band_on[OMX_DYNEQ_INSTANCE_BANDS],
@@ -233,7 +237,8 @@ static inline void omx_dyneq_instance_resolve(OmxDyneqInstance *s, int bypass, c
 #undef OMX_CONTRACT_STAGE
 
 /** One chunk, in place over `l` and `r`: band by band, the static section and the dynamics; the
- * listened bands' sum, or the mix. */
+ * listened bands' sum, or the mix.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "dyneq/instance-chunk"
 static inline void omx_dyneq_instance_chunk(OmxDyneqInstance *s, float *l, float *r, uint32_t m) {
   struct omx_eq_lv2 *el = &s->eq.leg[0], *er = &s->eq.leg[1];
@@ -278,6 +283,7 @@ static inline void omx_dyneq_instance_chunk(OmxDyneqInstance *s, float *l, float
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the bands in place on out.
  * `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity and moves no state word.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "dyneq/instance-run"
 static inline void omx_dyneq_instance_run(OmxDyneqInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -296,6 +302,7 @@ static inline void omx_dyneq_instance_run(OmxDyneqInstance *s, const float *in_l
  * Band `i`'s readout, band<i+1>GainDb: the gain its dynamics apply now, dB, signed (a cut negative, a
  * boost positive), inside the range travel. 0 for a band that is off, a band whose dynamics are off,
  * and a refused instance.
+ * @thread audio
  */
 static inline float omx_dyneq_instance_band_gain_db(const OmxDyneqInstance *s, uint32_t i) {
   if (!s || !s->ready || i >= OMX_DYNEQ_INSTANCE_BANDS || !s->band[i].enabled) return 0.0f;
@@ -303,7 +310,8 @@ static inline float omx_dyneq_instance_band_gain_db(const OmxDyneqInstance *s, u
   return omx_band_dyn_offset_db(&s->band[i].dyn.gc, omx_env_level(&s->st[i].env, &bk.ep));
 }
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_dyneq_instance_latency(const OmxDyneqInstance *s) {
   (void)s;
   return 0u;

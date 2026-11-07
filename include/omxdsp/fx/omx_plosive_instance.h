@@ -75,21 +75,25 @@ typedef struct {
   int ready;
 } OmxPlosiveInstance;
 
-/** The half's gain for a contrast: 10^(-amount ramp(delta, s)/20), exactly 1 below the offset. */
+/** The half's gain for a contrast: 10^(-amount ramp(delta, s)/20), exactly 1 below the offset.
+ * @thread audio */
 static inline float omx_plosive_gain(float amount_db, float delta, float s_db) {
   const float u = omx_envdiff_ramp(delta, s_db);
   return u > 0.0f && amount_db > 0.0f ? omx_db_to_lin_poly(-amount_db * u) : 1.0f;
 }
 
-/** One leg's pop band, LP = (x + A x)/2, the allpass's word advanced. */
+/** One leg's pop band, LP = (x + A x)/2, the allpass's word advanced.
+ * @thread audio */
 static inline float omx_plosive_pop_band(struct omx_allpass1 *ap, float a, float x) {
   return 0.5f * (x + omx_allpass1_tick(ap, x, a));
 }
 
-/** The pop half at gain g: x - (1 - g) LP, the input itself at g = 1 (L2). */
+/** The pop half at gain g: x - (1 - g) LP, the input itself at g = 1 (L2).
+ * @thread audio */
 static inline float omx_plosive_pop_apply(float x, float lp, float g) { return g != 1.0f ? x - (1.0f - g) * lp : x; }
 
-/** The consonant half at gain g: x1 + (g - 1) B, x1 itself at g = 1 (L2). */
+/** The consonant half at gain g: x1 + (g - 1) B, x1 itself at g = 1 (L2).
+ * @thread audio */
 static inline float omx_plosive_cons_apply(float x1, float b, float g) { return g != 1.0f ? x1 + (g - 1.0f) * b : x1; }
 
 static inline void omx_plosive_instance_resolve(OmxPlosiveInstance *s, int bypass, float consonant_db, float sensitivity_db,
@@ -97,7 +101,8 @@ static inline void omx_plosive_instance_resolve(OmxPlosiveInstance *s, int bypas
                                                 float pop_sensitivity_db, float pop_recovery_ms, float pop_hz);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. The tamer comes up at its declared defaults. Allocates nothing. */
+ * set. The tamer comes up at its declared defaults. Allocates nothing.
+ * @thread control */
 static inline int omx_plosive_instance_init(OmxPlosiveInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -111,7 +116,8 @@ static inline int omx_plosive_instance_init(OmxPlosiveInstance *s, float sr) {
   return 1;
 }
 
-/** The detector poles of a half whose slow follower attacks in `slow_attack_ms`. */
+/** The detector poles of a half whose slow follower attacks in `slow_attack_ms`.
+ * @thread audio */
 static inline void omx_plosive_poles(const struct omx_env_params *fe, float slow_attack_ms, float sr,
                                      struct omx_envdiff_poles *p) {
   omx_env_stage_poles(fe, 1u, &p->fast_attack, &p->fast_release);
@@ -123,6 +129,7 @@ static inline void omx_plosive_poles(const struct omx_env_params *fe, float slow
  * Resolve the host's control values for one cycle. `bypass` non-zero makes run() the identity. The
  * arguments are the plosive kernel's contract controls in their declared order (dB, dB, ms, Hz,
  * octaves, dB, dB, ms, Hz).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "plosive/instance-resolve"
 static inline void omx_plosive_instance_resolve(OmxPlosiveInstance *s, int bypass, float consonant_db, float sensitivity_db,
@@ -163,6 +170,7 @@ static inline void omx_plosive_instance_resolve(OmxPlosiveInstance *s, int bypas
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: the pop half then the consonant half, in to out. `in_*` and `out_*`
  * may alias. Not ready or bypassed is the identity and moves no state.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "plosive/instance-run"
 static inline void omx_plosive_instance_run(OmxPlosiveInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -201,17 +209,20 @@ static inline void omx_plosive_instance_run(OmxPlosiveInstance *s, const float *
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The consonantReductionDb readout: the deepest consonant cut of the last block, dB, at most 0. */
+/** The consonantReductionDb readout: the deepest consonant cut of the last block, dB, at most 0.
+ * @thread audio */
 static inline float omx_plosive_instance_consonant_reduction_db(const OmxPlosiveInstance *s) {
   return s && s->ready && s->cons_min < 1.0f ? omx_lin_to_db(s->cons_min) : 0.0f;
 }
 
-/** The popReductionDb readout: the deepest pop cut of the last block, dB, at most 0. */
+/** The popReductionDb readout: the deepest pop cut of the last block, dB, at most 0.
+ * @thread audio */
 static inline float omx_plosive_instance_pop_reduction_db(const OmxPlosiveInstance *s) {
   return s && s->ready && s->pop_min < 1.0f ? omx_lin_to_db(s->pop_min) : 0.0f;
 }
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_plosive_instance_latency(const OmxPlosiveInstance *s) {
   (void)s;
   return 0u;

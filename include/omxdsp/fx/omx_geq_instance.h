@@ -93,6 +93,7 @@ typedef struct {
  * @param sr The sample rate, Hz.
  * @return 1 when usable, 0 when not.
  * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_geq_instance_rate_ok(double sr) {
   return isfinite(sr) && sr > 2.0 * omx_geq_instance_centres_hz[OMX_GEQ_BANDS - 1];
@@ -116,6 +117,7 @@ typedef struct {
  * Bind an instance to its rate. Returns 1 when usable, 0 when not (a rate that is not positive and
  * finite, or one whose Nyquist does not clear the top centre); a refused init leaves `ready` clear
  * and {@link omx_geq_instance_run} is then the identity: absence is a wire, not a crash.
+ * @thread control
  */
 static inline int omx_geq_instance_init(OmxGeqInstance *s, double sr) {
   if (!s) return 0;
@@ -128,7 +130,8 @@ static inline int omx_geq_instance_init(OmxGeqInstance *s, double sr) {
 }
 
 /** The engage-edge clear: every section's history on both legs back to silence. RT-safe: one
- * memset over the inline state. */
+ * memset over the inline state.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "geq/instance-clear"
 static inline void omx_geq_instance_clear(OmxGeqInstance *s) {
   if (!s || !s->ready) return;
@@ -142,7 +145,8 @@ static inline void omx_geq_instance_clear(OmxGeqInstance *s) {
  * @param s The instance, ready.
  * @param bypass Non-zero when the stage is bypassed this cycle.
  * @return 1 when engaged, 0 when bypassed.
- * @note RT-safe: one memset on the edge, nothing else. Not thread-safe on one instance.
+ * @note One memset on the edge, nothing else. Not thread-safe on one instance.
+ * @thread audio
  */
 static inline int omx_geq_instance_engage(OmxGeqInstance *s, int bypass) {
   const int engaged = bypass ? 0 : 1;
@@ -159,6 +163,7 @@ static inline int omx_geq_instance_engage(OmxGeqInstance *s, int bypass) {
  * OMX_GEQ_BANDS gains, the contract's own count, in ISO centre order. Each gain is clamped (see
  * the header note); a section is redesigned only when its clamped gain moved, and the atom is
  * rebuilt only when one did.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "geq/instance-resolve"
 static inline void omx_geq_instance_resolve(OmxGeqInstance *s, int bypass, const float band[OMX_GEQ_BANDS]) {
@@ -198,7 +203,8 @@ static inline void omx_geq_instance_resolve(OmxGeqInstance *s, int bypass, const
  * @param gain_db The gain the column is evaluated at, dB, non-zero.
  * @param sr The sample rate, Hz, usable.
  * @param col The column, OMX_GEQ_BANDS rows.
- * @note CONTROL thread: one omx_eq_design() and OMX_GEQ_BANDS magnitude evaluations. Thread-safe: pure.
+ * @note One omx_eq_design() and OMX_GEQ_BANDS magnitude evaluations. Thread-safe: pure.
+ * @thread control
  */
 static inline void omx_geq_instance_column(int k, double gain_db, double sr, double col[OMX_GEQ_BANDS]) {
   double c[5];
@@ -215,8 +221,9 @@ static inline void omx_geq_instance_column(int k, double gain_db, double sr, dou
  * @param sr The sample rate, Hz, usable.
  * @param x The solution, dB.
  * @return 1 when solved, 0 on a zero pivot or a non-finite solution (x is then unspecified).
- * @note CONTROL thread: OMX_GEQ_BANDS² magnitude evaluations and one 31 x 32 elimination on the
+ * @note OMX_GEQ_BANDS² magnitude evaluations and one 31 x 32 elimination on the
  *       stack (~8 KiB); no allocation. Thread-safe: pure.
+ * @thread control
  */
 static inline int omx_geq_instance_solve_pass(const double at_db[OMX_GEQ_BANDS], const double target_db[OMX_GEQ_BANDS],
                                               double sr, double x[OMX_GEQ_BANDS]) {
@@ -268,8 +275,9 @@ static inline int omx_geq_instance_solve_pass(const double at_db[OMX_GEQ_BANDS],
  * @return 1 when solved; 0 when refused (a rate {@link omx_geq_instance_rate_ok} refuses, a
  *         non-finite target, a singular pass).
  * @post `gains-inside-the-ceiling`.
- * @note CONTROL thread only: two passes of omx_geq_instance_solve_pass(); never on the audio
+ * @note Two passes of omx_geq_instance_solve_pass(); never on the audio
  *       thread. No allocation. Thread-safe: pure.
+ * @thread control
  */
 static inline int omx_geq_true_gains(const double target_db[OMX_GEQ_BANDS], double sr, double gains_db[OMX_GEQ_BANDS],
                                      int *clamped) {
@@ -314,8 +322,9 @@ static inline int omx_geq_true_gains(const double target_db[OMX_GEQ_BANDS], doub
  * @param d The design, written whole; `d->ok` 0 when refused.
  * @return 1 when designed, 0 when refused (instance not ready, a refused solve).
  * @post `sections-finite-and-stable`.
- * @note CONTROL thread only: in `true` mode ~1900 magnitude evaluations and two eliminations.
+ * @note In `true` mode ~1900 magnitude evaluations and two eliminations.
  *       No allocation, no lock. Thread-safe on distinct designs; reads `s->sr` only.
+ * @thread control
  */
 static inline int omx_geq_instance_design(const OmxGeqInstance *s, int mode, const float band[OMX_GEQ_BANDS],
                                           OmxGeqDesign *d) {
@@ -365,8 +374,9 @@ static inline int omx_geq_instance_design(const OmxGeqInstance *s, int mode, con
  * @param s The instance.
  * @param bypass Non-zero to bypass the stage this cycle.
  * @param d The design, from {@link omx_geq_instance_design} at this instance's rate.
- * @note RT-safe: OMX_GEQ_BANDS x 5 copies and omx_geq_set(); no libm design call, no allocation,
+ * @note OMX_GEQ_BANDS x 5 copies and omx_geq_set(); no libm design call, no allocation,
  *       no lock. Not thread-safe on one instance; `d` must not be written while this reads it.
+ * @thread audio
  */
 static inline void omx_geq_instance_apply(OmxGeqInstance *s, int bypass, const OmxGeqDesign *d) {
   if (!s || !s->ready || !d) return;
@@ -385,6 +395,7 @@ static inline void omx_geq_instance_apply(OmxGeqInstance *s, int bypass, const O
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel in
  * place on out. `in_*` and `out_*` may alias. Not ready, bypassed or flat is the identity byte for
  * byte.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "geq/instance-run"
 static inline void omx_geq_instance_run(OmxGeqInstance *s, const float *in_l, const float *in_r, float *out_l,

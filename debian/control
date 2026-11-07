@@ -31,6 +31,23 @@ Description: audio toolbox of the OpenMixer console, a real-time-safe C library
  .
  Its documentation is on openmixer.org.
 
+Package: omx-rt-gate
+Architecture: any
+Multi-Arch: foreign
+Depends: libomxdsp-dev (= ${binary:Version}), gcc, ${shlibs:Depends}, ${misc:Depends}
+Description: static real-time gate for plugin and engine C built on libomxdsp
+ omx-rt-gate proves that the real-time code of a plugin or an audio engine
+ never allocates, locks, sleeps, does I/O or logs. It compiles each real-time
+ source with the project's own flags, reads the compiler's call graph, finds
+ the functions a host calls from its audio thread in the plugin's LV2, CLAP or
+ PipeWire tables, and follows every call from there, through libomxdsp's own
+ code too. Each finding names the call, its place and the path from the entry
+ point. The tables it judges against ship with it: one forbidden list, one
+ class table and the thread roles of each ABI, with libomxdsp's thread tags
+ and call graphs.
+ .
+ Its documentation is on openmixer.org.
+
 Package: omx-dsp-contract
 Architecture: all
 Multi-Arch: foreign

@@ -65,7 +65,8 @@ typedef struct {
 } OmxLimiterInstance;
 
 /** The ring length every declared look-ahead fits at `sr`: how much of the inline rings the
- * kernel uses (omx_limiter_mem_floats() of it in floats and as many indices). */
+ * kernel uses (omx_limiter_mem_floats() of it in floats and as many indices).
+ * @thread audio */
 static inline uint32_t omx_limiter_instance_cap_for(float sr) { return omx_limiter_cap(sr); }
 
 /**
@@ -73,6 +74,7 @@ static inline uint32_t omx_limiter_instance_cap_for(float sr) { return omx_limit
  * init leaves `ready` clear and run() is the identity). The kernel is defined at the declared rates
  * only, so any other rate is refused, as is one the inline rings cannot hold. The state is armed
  * at the declared default look-ahead. Allocates nothing.
+ * @thread control
  */
 static inline int omx_limiter_instance_init(OmxLimiterInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
@@ -94,6 +96,7 @@ static inline int omx_limiter_instance_init(OmxLimiterInstance *s, float sr) {
  * user units: `ceiling_db` (dBFS, true peak), `lookahead_ms` and `release_ms` (ms), each clamped
  * into its declared travel, a non-finite word reading as the declared default. A look-ahead that
  * lands on another frame count, or a bypass->engaged edge, re-arms the state.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "limiter/instance-resolve"
 static inline void omx_limiter_instance_resolve(OmxLimiterInstance *s, int bypass, float ceiling_db,
@@ -125,6 +128,7 @@ static inline void omx_limiter_instance_resolve(OmxLimiterInstance *s, int bypas
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
  * in place on out. `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "limiter/instance-run"
 static inline void omx_limiter_instance_run(OmxLimiterInstance *s, const float *in_l, const float *in_r,
@@ -134,7 +138,8 @@ static inline void omx_limiter_instance_run(OmxLimiterInstance *s, const float *
 #undef OMX_CONTRACT_STAGE
 
 /** The frames of latency the instance introduces now: the armed state's `T` while engaged, 0
- * while bypassed or not ready. */
+ * while bypassed or not ready.
+ * @thread audio */
 static inline uint32_t omx_limiter_instance_latency(const OmxLimiterInstance *s) {
   if (!s || !s->ready || !s->atom.enabled) return 0u;
   return omx_limiter_latency(&s->state);

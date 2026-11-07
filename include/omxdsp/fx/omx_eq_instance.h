@@ -155,18 +155,21 @@ struct omx_eq_lv2 {
 
 /** `clampEqQFor`: a notch may go ultra-narrow; every other shape keeps `EQ_Q_RANGE`.
  * @twin clampEqQFor
+ * @thread audio
  */
 static inline float omx_eq_lv2_clamp_q(int type, float q) {
   return type == OMX_EQ_LV2_NOTCH ? omx_clampf(q, OMX_EQ_NOTCH_Q_RANGE_MIN, OMX_EQ_NOTCH_Q_RANGE_MAX)
                                   : omx_clampf(q, OMX_EQ_Q_RANGE_MIN, OMX_EQ_Q_RANGE_MAX);
 }
 
-/** `bandHasGain` ∧ gain == 0 → `eqBandIsIdentity`: present in the bank, parked. */
+/** `bandHasGain` ∧ gain == 0 → `eqBandIsIdentity`: present in the bank, parked.
+ * @thread audio */
 static inline int omx_eq_lv2_band_is_identity(const struct omx_eq_lv2_band *b) {
   return b->type != OMX_EQ_LV2_NOTCH && b->type != OMX_EQ_LV2_ALLPASS1 && b->type != OMX_EQ_LV2_ALLPASS2 &&
          b->gain_db == 0.0f;
 }
 
+/** @thread audio */
 static inline enum omx_eq_kind omx_eq_lv2_kind(int type) {
   switch (type) {
     case OMX_EQ_LV2_LOWSHELF: return OMX_EQ_LOWSHELF;
@@ -181,7 +184,8 @@ static inline enum omx_eq_kind omx_eq_lv2_kind(int type) {
 
 /** A fresh core at `rate`: the desk's flat default is not assumed — every band is OFF until the
  * host sets it (the TTL's defaults are what a host racks it with), the pass filters are off,
- * and the whole EQ is on. A freshly racked instance is therefore a wire. */
+ * and the whole EQ is on. A freshly racked instance is therefore a wire.
+ * @thread audio */
 static inline void omx_eq_lv2_init(struct omx_eq_lv2 *e, double rate) {
   memset(e, 0, sizeof *e);
   e->rate = rate;
@@ -189,7 +193,8 @@ static inline void omx_eq_lv2_init(struct omx_eq_lv2 *e, double rate) {
   e->dirty = 1;
 }
 
-/** `activate`: the history is cleared, the design is kept. */
+/** `activate`: the history is cleared, the design is kept.
+ * @thread audio */
 static inline void omx_eq_lv2_reset_state(struct omx_eq_lv2 *e) {
   memset(e->state, 0, sizeof e->state);
 }
@@ -198,7 +203,8 @@ static inline void omx_eq_lv2_reset_state(struct omx_eq_lv2 *e) {
  * (`clampEqFreq`/`clampEqGain`/`clampEqQFor`) and redesigns the section only if something
  * moved. Returns 1 when the bank must be rebuilt. A foreign host may write NaN or ±Inf: freq
  * and Q read a NaN as the floor (omx_clampf), the gain reads any non-finite word as 0 dB
- * (omx_clamp_or) — primitives row 23. */
+ * (omx_clamp_or) — primitives row 23.
+ * @thread audio */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "eq-lv2/set-band"
 static inline int omx_eq_lv2_set_band(struct omx_eq_lv2 *e, uint32_t i, int type, float freq_hz,
@@ -236,6 +242,7 @@ static inline int omx_eq_lv2_set_band(struct omx_eq_lv2 *e, uint32_t i, int type
 #undef OMX_CONTRACT_STAGE
 
 #define OMX_CONTRACT_STAGE "eq-lv2/set-pass"
+/** @thread audio */
 static inline int omx_eq_lv2_set_pass(struct omx_eq_lv2 *e, struct omx_eq_lv2_pass *pf,
                                       enum omx_eq_kind kind, float lo, float hi, int on,
                                       float freq_hz, int slope_24) {
@@ -264,19 +271,22 @@ static inline int omx_eq_lv2_set_pass(struct omx_eq_lv2 *e, struct omx_eq_lv2_pa
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The HPF: `clampFilterFreq('hpf')`, `HPF_FREQ_RANGE`. */
+/** The HPF: `clampFilterFreq('hpf')`, `HPF_FREQ_RANGE`.
+ * @thread audio */
 static inline int omx_eq_lv2_set_hpf(struct omx_eq_lv2 *e, int on, float freq_hz, int slope_24) {
   return omx_eq_lv2_set_pass(e, &e->hpf, OMX_EQ_HIGHPASS, OMX_HPF_FREQ_RANGE_MIN, OMX_HPF_FREQ_RANGE_MAX,
                              on, freq_hz, slope_24);
 }
 
-/** The LPF: `clampFilterFreq('lpf')`, `LPF_FREQ_RANGE`. */
+/** The LPF: `clampFilterFreq('lpf')`, `LPF_FREQ_RANGE`.
+ * @thread audio */
 static inline int omx_eq_lv2_set_lpf(struct omx_eq_lv2 *e, int on, float freq_hz, int slope_24) {
   return omx_eq_lv2_set_pass(e, &e->lpf, OMX_EQ_LOWPASS, OMX_LPF_FREQ_RANGE_MIN, OMX_LPF_FREQ_RANGE_MAX,
                              on, freq_hz, slope_24);
 }
 
-/** The whole-EQ switch (`EqState.on`). */
+/** The whole-EQ switch (`EqState.on`).
+ * @thread audio */
 static inline int omx_eq_lv2_set_on(struct omx_eq_lv2 *e, int on) {
   on = on ? 1 : 0;
   if (e->on == on) return 0;
@@ -286,7 +296,8 @@ static inline int omx_eq_lv2_set_on(struct omx_eq_lv2 *e, int on) {
 }
 
 /** `eqCoeffs`: assemble the bank from the bands and the pass filters, in that order, dropping
- * `on: false` bands and parking identity ones. Idempotent; a no-op unless a control moved. */
+ * `on: false` bands and parking identity ones. Idempotent; a no-op unless a control moved.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "eq-lv2/publish"
 static inline void omx_eq_lv2_publish(struct omx_eq_lv2 *e) {
   if (!e->dirty) return;
@@ -323,6 +334,7 @@ static inline void omx_eq_lv2_publish(struct omx_eq_lv2 *e) {
  * ONE block, in place over `buf`: the published bank through `omx_biquad_cascade`, the desk's
  * applier, in chunks of at most `OMX_EQ_MAX_BANDS` sections (see the header note — band-outer,
  * so a chunked walk IS the unchunked walk). An empty bank leaves every sample untouched.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "eq-lv2/process"
 static inline void omx_eq_lv2_process(struct omx_eq_lv2 *e, float *buf, uint32_t n) {
@@ -339,7 +351,8 @@ static inline void omx_eq_lv2_process(struct omx_eq_lv2 *e, float *buf, uint32_t
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The LV2 face: `in` to `out` (they may alias — an in-place host is fine). */
+/** The LV2 face: `in` to `out` (they may alias — an in-place host is fine).
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "eq-lv2/run"
 static inline void omx_eq_lv2_run(struct omx_eq_lv2 *e, const float *in, float *out, uint32_t n) {
   OMX_PRE(in != NULL && out != NULL, "ports-connected");
@@ -361,7 +374,8 @@ static inline void omx_eq_lv2_run(struct omx_eq_lv2 *e, const float *in, float *
 #define OMX_EQ_LV2_BAND_Q_DEFAULT ((float)OMX_EQ_BAND_DEFAULTS_Q)
 
 /** Band `i`'s default centre in a bank of OMX_EQ_LV2_BANDS bands, Hz: omx_eq_default_centres(). Run only
- * for an unconnected frequency port, so a plugin host (every port connected) never pays for it. */
+ * for an unconnected frequency port, so a plugin host (every port connected) never pays for it.
+ * @thread audio */
 static inline float omx_eq_lv2_band_freq_default(uint32_t i) {
   float centres[OMX_EQ_LV2_BANDS];
   return omx_eq_default_centres((unsigned)OMX_EQ_LV2_BANDS, centres) == (unsigned)OMX_EQ_LV2_BANDS
@@ -378,19 +392,23 @@ struct omx_eq_lv2_controls {
   const float *band[OMX_EQ_LV2_BANDS][5]; /* type, freq, gain, Q, on */
 };
 
-/** A float word, or its default when unconnected. */
+/** A float word, or its default when unconnected.
+ * @thread audio */
 static inline float omx_eq_lv2_word(const float *w, float dflt) { return w ? *w : dflt; }
 
-/** A switch word: on above one half. */
+/** A switch word: on above one half.
+ * @thread audio */
 static inline int omx_eq_lv2_word_on(const float *w, int dflt) { return w ? (*w > 0.5f) : dflt; }
 
-/** An integer word (a slope, a band type): omx_port_int() of the word, its default when unconnected. */
+/** An integer word (a slope, a band type): omx_port_int() of the word, its default when unconnected.
+ * @thread audio */
 static inline int omx_eq_lv2_word_int(const float *w, int lo, int hi, int dflt) {
   return w ? omx_port_int(*w, lo, hi, dflt) : dflt;
 }
 
 /** eq_lv2.c's run() up to the cascade: every control word handed to the setters, which clamp and
- * redesign only what moved. No allocation, no lock, no I/O. */
+ * redesign only what moved. No allocation, no lock, no I/O.
+ * @thread audio */
 static inline void omx_eq_lv2_set_controls(struct omx_eq_lv2 *e, const struct omx_eq_lv2_controls *c) {
   omx_eq_lv2_set_on(e, omx_eq_lv2_word_on(c->on, 1));
   omx_eq_lv2_set_hpf(e, omx_eq_lv2_word_on(c->hpf_on, 0), omx_eq_lv2_word(c->hpf_freq, OMX_EQ_LV2_HPF_FREQ_DEFAULT),
@@ -442,7 +460,8 @@ typedef struct {
 
 /** Bind an instance to its rate: both legs fresh, every band and filter off, the EQ engaged, a
  * wire. Returns 1 when usable, 0 when not: a rate the console does not declare is refused and run()
- * is the identity. Allocates nothing. */
+ * is the identity. Allocates nothing.
+ * @thread control */
 static inline int omx_eq_instance_init(OmxEqInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -452,10 +471,12 @@ static inline int omx_eq_instance_init(OmxEqInstance *s, float sr) {
   return 1;
 }
 
-/** A switch: 0 or 1, any other value the declared default. */
+/** A switch: 0 or 1, any other value the declared default.
+ * @thread audio */
 static inline int omx_eq_instance_switch(int v, int dflt) { return v == 0 || v == 1 ? v : dflt; }
 
-/** A slope: a FILTER_SLOPES id, any other value the declared default; 1 when it is 24 dB/oct. */
+/** A slope: a FILTER_SLOPES id, any other value the declared default; 1 when it is 24 dB/oct.
+ * @thread audio */
 static inline int omx_eq_instance_slope_24(int v) {
   return (v == OMX_FILTER_SLOPES_12 || v == OMX_FILTER_SLOPES_24 ? v : (int)OMX_FILTER_SLOPES_DEFAULT) ==
          OMX_FILTER_SLOPES_24;
@@ -465,6 +486,7 @@ static inline int omx_eq_instance_slope_24(int v) {
  * Resolve the host's control values into both legs for one cycle. `bypass` non-zero empties the
  * bank. The arguments are the eq kernel's contract controls, in their declared order and units
  * (see the note above).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "eq-instance/resolve"
 static inline void omx_eq_instance_resolve(OmxEqInstance *s, int bypass, int hpf_on, float hpf_freq, int hpf_slope,
@@ -502,7 +524,8 @@ static inline void omx_eq_instance_resolve(OmxEqInstance *s, int bypass, int hpf
 #undef OMX_CONTRACT_STAGE
 
 /** One block, stereo: each leg through its core. `in_*` and `out_*` may alias. Not ready is the
- * identity. */
+ * identity.
+ * @thread audio */
 static inline void omx_eq_instance_run(OmxEqInstance *s, const float *in_l, const float *in_r, float *out_l,
                                        float *out_r, uint32_t n) {
   if (!omx_instance_block_ok(in_l, in_r, out_l, out_r, n)) return;
@@ -514,7 +537,8 @@ static inline void omx_eq_instance_run(OmxEqInstance *s, const float *in_l, cons
   omx_eq_lv2_run(&s->leg[1], in_r, out_r, n);
 }
 
-/** The frames of latency the instance introduces: none (a biquad cascade has no delay line). */
+/** The frames of latency the instance introduces: none (a biquad cascade has no delay line).
+ * @thread audio */
 static inline uint32_t omx_eq_instance_latency(const OmxEqInstance *s) {
   (void)s;
   return 0u;

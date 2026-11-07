@@ -66,6 +66,7 @@ struct omx_leveler_row {
 /**
  * The table read at `amount` (percent, inside LEVELER_AMOUNT_POINTS' span): each column linear between
  * the two points around it, exactly the row at a point. RT-safe: arithmetic. Pure.
+ * @thread audio
  */
 static inline struct omx_leveler_row omx_leveler_table(float amount) {
   uint32_t k = 0u;
@@ -93,7 +94,8 @@ typedef struct {
 static inline void omx_leveler_instance_resolve(OmxLevelerInstance *s, int bypass, float amount, int direction, int speed);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. The leveler comes up at its declared defaults, an amount of 0. Allocates nothing. */
+ * set. The leveler comes up at its declared defaults, an amount of 0. Allocates nothing.
+ * @thread control */
 static inline int omx_leveler_instance_init(OmxLevelerInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -105,7 +107,8 @@ static inline int omx_leveler_instance_init(OmxLevelerInstance *s, float sr) {
   return 1;
 }
 
-/** One slot's atom: `mode`, the row's threshold, ratio, boost and make-up, the speed's poles. */
+/** One slot's atom: `mode`, the row's threshold, ratio, boost and make-up, the speed's poles.
+ * @thread audio */
 static inline void omx_leveler_slot(struct omx_dyn *d, int mode, float t, float r, float range, float makeup_db,
                                     float att_ms, float rel_ms, float sr) {
   memset(d, 0, sizeof(*d));
@@ -128,6 +131,7 @@ static inline void omx_leveler_slot(struct omx_dyn *d, int mode, float t, float 
  * arguments are the leveler kernel's contract controls in their declared order: the amount (percent),
  * the direction (a LEVELER_DIRECTIONS index) and the speed (a LEVELER_SPEEDS index); an index outside
  * its set reads as its default.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "leveler/instance-resolve"
 static inline void omx_leveler_instance_resolve(OmxLevelerInstance *s, int bypass, float amount, int direction, int speed) {
@@ -155,6 +159,7 @@ static inline void omx_leveler_instance_resolve(OmxLevelerInstance *s, int bypas
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: the engaged slots over both legs, in to out. `in_*` and `out_*`
  * may alias. Not ready, bypassed or an amount of 0 is the identity and moves no state.
+ * @thread audio
  */
 static inline void omx_leveler_instance_run(OmxLevelerInstance *s, const float *in_l, const float *in_r, float *out_l,
                                             float *out_r, uint32_t n) {
@@ -164,7 +169,8 @@ static inline void omx_leveler_instance_run(OmxLevelerInstance *s, const float *
   omx_dynamics(out_l, out_r, n, &s->up, &s->up_st);
 }
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_leveler_instance_latency(const OmxLevelerInstance *s) {
   (void)s;
   return 0u;

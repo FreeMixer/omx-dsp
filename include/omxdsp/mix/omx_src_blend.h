@@ -43,8 +43,9 @@
  * @param cur In: where the last block left off. Out: the target (0 when it is not finite).
  * @pre `finite-in`: the track and the live block are finite.
  * @post `finite-out`: the blended track is finite.
- * @note RT-safe: one pass, no allocation, no lock, no IO. Thread-safe over distinct buffers and
+ * @note One pass, no allocation, no lock, no IO. Thread-safe over distinct buffers and
  *       cursors.
+ * @thread audio
  */
 static inline void omx_src_blend(const float *live, float *track, uint32_t n, float tgt,
                                  float *cur) {

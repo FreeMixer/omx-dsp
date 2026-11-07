@@ -36,7 +36,7 @@ const red = (asked, twin, tol) => against(asked, twin, tol).failures.length > 0;
 describe('the oracle is here', () => {
   it('answers every kernel these twins need', () => {
     const k = oracleKernels();
-    for (const n of ['lin_to_db', 'lin_to_db_d', 'db_to_lin', 'eq_octaves_q', 'rta_fft_size_for', 'eq_design', 'eq_lv2_clamp_q', 'eq_band_magnitude_db', 'eq_magnitude_sum_db', 'curve_points', 'gaincomp_db', 'gaincomp_db_shifted', 'gate_knee']) assert.ok(k.includes(n), n);
+    for (const n of ['lin_to_db', 'lin_to_db_d', 'db_to_lin', 'eq_octaves_q', 'rta_fft_size_for', 'eq_design', 'eq_lv2_clamp_q', 'eq_band_magnitude_db', 'eq_magnitude_sum_db', 'curve_points', 'curve_points_marked', 'gaincomp_db', 'gaincomp_db_shifted', 'gate_knee']) assert.ok(k.includes(n), n);
   });
 });
 
@@ -309,7 +309,7 @@ describe('curvePoints agrees with omx_curve_points at every oracle rate', () => 
         if (b === 2) terms.push({ role: 'band_on', index: b, value: seed % 3 === 0 ? 0 : 1, unit: 'none' });
       }
       if (seed % 3 !== 2) terms.push({ role: 'hpf_freq', value: 20 + seed * 7, unit: 'hz' }, { role: 'hpf_slope', value: seed % 2 ? 24 : 12, unit: 'db' });
-      if (seed % 4 === 1) terms.push({ role: 'lpf_freq', value: 9 + seed / 4, unit: 'khz' }, { role: 'lpf_slope', value: 12, unit: 'none' }, { role: 'lpf_on', value: seed % 8 === 1 ? 0 : 1, unit: 'none' });
+      if (seed % 4 === 1) terms.push({ role: 'lpf_freq', value: 9 + seed / 4, unit: 'khz' }, { role: 'lpf_slope', value: 12, unit: 'db' }, { role: 'lpf_on', value: seed % 8 === 1 ? 0 : 1, unit: 'none' });
       out.push({ kind: 'eq_response', family: 'eq', sampleRate: sr, points: 16 + ((seed * 37) % 200) % (CURVE_POINTS_MAX - 3 * nb - 12 - 16), terms, ...(seed % 5 === 4 ? { extents: { min: 40, max: 0.45 * sr } } : {}) });
     }
     return out;
@@ -360,16 +360,36 @@ describe('curvePoints agrees with omx_curve_points at every oracle rate', () => 
     assert.ok(curveAgainst(trAsked, ks, T.curvePointsTransfer).failures.length > 10);
   });
 
+  it('the ruled defaults agree: a band with no Q, the allpasses, a `-` band, a limiter with no ratio', () => {
+    const reqs = [];
+    for (const sr of RATES) {
+      reqs.push({ kind: 'eq_response', family: 'eq', sampleRate: sr, points: 48, terms: [
+        { role: 'band_freq', index: 0, value: 900, unit: 'hz', shape: 'bell' }, { role: 'band_gain', index: 0, value: 5, unit: 'db' },
+        { role: 'band_freq', index: 1, value: 4000, unit: 'hz', shape: 'notch' },
+        { role: 'band_type', index: 2, value: 3, unit: 'none', shape: 'allpass1' }, { role: 'band_freq', index: 2, value: 300, unit: 'hz' },
+        { role: 'band_freq', index: 3, value: 7000, unit: 'hz', shape: 'allpass2' },
+        { role: 'band_type', index: 4, value: 5, unit: 'none', shape: '-' }, { role: 'band_freq', index: 4, value: 60, unit: 'hz' },
+        { role: 'band_gain', index: 4, value: 9, unit: 'db' }] });
+      reqs.push({ kind: 'transfer_curve', family: 'limiter', sampleRate: sr, points: 41, terms: [
+        { role: 'threshold', value: -6, unit: 'dbfs' }, { role: 'knee', value: 2, unit: 'db' }] });
+    }
+    const asked = askCurves(reqs);
+    assert.ok(asked.answers.every((a) => a[0] === 0), 'every ruled request draws');
+    assert.deepEqual(curveAgainst(asked, curvePoints, T.curvePointsEq).failures.slice(0, 5), []);
+    const noDefault = (rq) => curvePoints(rq.family === 'eq' ? rq : { ...rq, terms: [...rq.terms, { role: 'ratio', value: 4, unit: 'ratio' }] });
+    assert.ok(curveAgainst(asked, noDefault, T.curvePointsEq).failures.length > 0, 'SABOTAGE: a limiter at ratio 4 is red');
+  });
   it('every refusal is the same code on both sides', () => {
     const bell = [{ role: 'band_freq', value: 1000, unit: 'hz', shape: 'bell' }, { role: 'band_gain', value: 3, unit: 'db' }, { role: 'band_q', value: 1, unit: 'none' }];
     const eq = { kind: 'eq_response', family: 'eq', sampleRate: 48000, points: 64, terms: bell };
     const comp = { kind: 'transfer_curve', family: 'dynamics', sampleRate: 48000, points: 41, terms: [{ role: 'threshold', value: -20, unit: 'db' }, { role: 'ratio', value: 4, unit: 'ratio' }] };
     const bad = [
       [{ ...eq, family: 'gate' }, 'kindUnknown'], [{ ...comp, family: 'eq' }, 'kindUnknown'],
-      [{ ...eq, terms: [{ role: 'band_freq', value: 1000, unit: 'hz', shape: '-' }, bell[2]] }, 'kindUnknown'],
+      [{ ...eq, terms: [{ role: 'hpf_freq', value: 80, unit: 'hz' }, { role: 'hpf_slope', value: 1, unit: 'none' }] }, 'termMissing'],
+      [{ ...comp, family: 'limiter', terms: [{ role: 'ratio', value: 4, unit: 'ratio' }] }, 'termMissing'],
       [{ ...eq, terms: [{ role: 'hpf_freq', value: 80, unit: 'hz' }, { role: 'hpf_slope', value: 18, unit: 'db' }] }, 'kindUnknown'],
       [{ ...eq, terms: bell.slice(1) }, 'termMissing'], [{ ...eq, terms: [{ ...bell[0], shape: undefined }, ...bell.slice(1)] }, 'termMissing'],
-      [{ ...eq, terms: bell.slice(0, 2) }, 'termMissing'], [{ ...eq, terms: [] }, 'termMissing'], [{ ...comp, terms: comp.terms.slice(0, 1) }, 'termMissing'],
+[{ ...eq, terms: [] }, 'termMissing'], [{ ...comp, terms: comp.terms.slice(0, 1) }, 'termMissing'],
       [{ ...comp, family: 'gate' }, 'termMissing'],
       [{ ...comp, family: 'gate', terms: [...comp.terms, { role: 'range', value: -60, unit: 'db' }, { role: 'knee_end', value: -30, unit: 'db' }] }, 'termMissing'],
       [{ ...eq, terms: [{ ...bell[0], unit: 'db' }] }, 'unitRefused'], [{ ...comp, terms: [...comp.terms, { role: 'makeup', value: 2, unit: 'coef' }] }, 'unitRefused'],
@@ -384,5 +404,73 @@ describe('curvePoints agrees with omx_curve_points at every oracle rate', () => 
       assert.equal(CURVE_CODES[asked.answers[i][0]], code, `kernel, refusal ${i}`);
       assert.deepEqual(curvePoints(rq), { code }, `twin, refusal ${i}`);
     });
+  });
+});
+
+describe('curvePoints marks the feedback corrector\'s bands and draws the user-only curve as omx_curve_points_marked', () => {
+  const rowOfMarked = (rq) => [
+    idx(CURVE_WORDS.displays, rq.kind), idx(CURVE_WORDS.families, rq.family), rq.sampleRate, rq.points, rq.extents ? 1 : 0,
+    rq.extents?.min ?? 0, rq.extents?.max ?? 0, rq.userOnly ? 1 : 0, rq.terms.length,
+    ...rq.terms.flatMap((t) => [idx(CURVE_WORDS.roles, t.role), t.index ?? 0, t.value, idx(CURVE_WORDS.units, t.unit),
+      t.shape === undefined ? -1 : idx(CURVE_WORDS.shapes, t.shape), idx(CURVE_WORDS.origins, t.origin ?? 'user')]),
+  ];
+  const answerOfMarked = (a, userOnly) => {
+    if ('code' in a) return [CURVE_CODES.indexOf(a.code), 0, 0];
+    const out = [0, a.points.length, ...a.points.flatMap((p) => [p.x, p.y]), a.marks.length,
+      ...a.marks.flatMap((m) => [m.freq, m.depthDb, m.q, idx(CURVE_WORDS.origins, m.origin)])];
+    return userOnly ? [...out, ...a.userPoints.map((p) => p.y)] : out;
+  };
+  const reqs = [];
+  for (const sr of RATES) for (let seed = 0; seed < 6; seed++) {
+    const terms = [];
+    const nb = 3 + (seed % 3);
+    for (let b = 0; b < nb; b++) {
+      const origin = b === 0 ? 'user' : ['fbs-fixed', 'fbs-live', 'hrp', 'room-mode', 'user'][(seed + b) % 5];
+      const notch = origin !== 'user' && (seed + b) % 2 === 0;
+      const f0 = 200 * (1 + ((seed * 3 + b * 7) % 40));
+      terms.push({ role: 'band_freq', index: b, value: f0, unit: 'hz', shape: notch ? 'notch' : 'bell', origin });
+      if (!notch) terms.push({ role: 'band_gain', index: b, value: origin === 'user' ? 4 - b : -6 - b, unit: 'db' });
+      terms.push({ role: 'band_q', index: b, value: origin === 'user' ? 0.9 : 12 + b, unit: 'none' });
+    }
+    if (seed % 2) terms.push({ role: 'hpf_freq', value: 50, unit: 'hz' }, { role: 'hpf_slope', value: 24, unit: 'db' });
+    reqs.push({ kind: 'eq_response', family: 'eq', sampleRate: sr, points: 40 + seed * 10, terms, userOnly: seed % 3 !== 2 });
+  }
+  const asked = ask('curve_points_marked', reqs.map(rowOfMarked));
+  const agree = (twin) => {
+    const failures = [];
+    reqs.forEach((rq, i) => {
+      const t = answerOfMarked(twin(rq), rq.userOnly), k = asked.answers[i];
+      if (t.length !== k.length) return failures.push(`request ${i}: ${t.length} numbers, the kernel ${k.length}`);
+      for (let j = 0; j < t.length; j++)
+        if (!(Math.abs(t[j] - k[j]) <= Math.max(T.curvePointsEq.abs, 1e-15 * Math.abs(k[j])))) return failures.push(`request ${i} [${j}]: ${t[j]} vs ${k[j]}`);
+    });
+    return failures;
+  };
+  it('the points, every mark and the user-only curve agree at every rate', () => {
+    assert.ok(asked.answers.every((a) => a[0] === 0));
+    assert.ok(asked.answers.some((a) => a[2 + 2 * a[1]] >= 2), 'requests with two marks are in the grid');
+    assert.deepEqual(agree(curvePoints).slice(0, 5), []);
+  });
+  it('the user-only curve is the curve over the user bands alone, and no request without origins has a mark', () => {
+    for (const rq of reqs.filter((r) => r.userOnly)) {
+      const a = curvePoints(rq);
+      const mine = curvePoints({ ...rq, userOnly: false, terms: rq.terms.filter((t) => {
+        const band = rq.terms.find((u) => u.role === 'band_freq' && (u.index ?? 0) === (t.index ?? 0));
+        return !t.role.startsWith('band_') || (band?.origin ?? 'user') === 'user';
+      }) });
+      const at = new Map(mine.points.map((p) => [p.x, p.y]));
+      for (const p of a.userPoints) if (at.has(p.x)) assert.ok(Math.abs(at.get(p.x) - p.y) <= 1e-12, `${p.x}`);
+    }
+    assert.deepEqual(curvePoints({ ...reqs[0], terms: reqs[0].terms.map(({ origin, ...t }) => t) }).marks, []);
+  });
+  it('every planter\'s origin is in the grid', () => {
+    const seen = new Set(reqs.flatMap((rq) => rq.terms.map((t) => t.origin).filter(Boolean)));
+    for (const o of CURVE_WORDS.origins) assert.ok(seen.has(o), o);
+  });
+  it('SABOTAGE: an origin dropped from the marks (fbs-live, then hrp) is red', () => {
+    for (const gone of ['fbs-live', 'hrp']) {
+      const drop = (rq) => { const a = curvePoints(rq); return 'code' in a ? a : { ...a, marks: a.marks.filter((m) => m.origin !== gone) }; };
+      assert.ok(agree(drop).length > 0, gone);
+    }
   });
 });

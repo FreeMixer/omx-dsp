@@ -42,8 +42,9 @@ enum omx_bus_sum_width {
  * @param cur The coefficient applied at the end of the previous block; non-finite is taken as 0.
  * @param tgt The coefficient at the end of this block; non-finite is taken as 0.
  * @return The entry: `g_prev` the finite cursor, `g_cur` the finite target.
- * @note RT-safe, pure. A non-finite coefficient mutes the contribution instead of turning the
+ * @note Pure. A non-finite coefficient mutes the contribution instead of turning the
  *       whole accumulator to NaN, and the next block starts from a finite cursor.
+ * @thread audio
  */
 static inline struct omx_mixmatrix_entry omx_bus_sum_entry(uint32_t strip, uint32_t out, float cur,
                                                            float tgt) {
@@ -66,8 +67,9 @@ static inline struct omx_mixmatrix_entry omx_bus_sum_entry(uint32_t strip, uint3
  * @param e The entry (omx_bus_sum_entry()); a non-finite `g_prev` or `g_cur` is taken as 0.
  * @pre `finite-tap`, `finite-accumulator-in`.
  * @post `finite-accumulator-out`.
- * @note RT-safe: one pass, no branch in the loop, the ramp affine in `i` so the loop vectorises.
+ * @note One pass, no branch in the loop, the ramp affine in `i` so the loop vectorises.
  *       A NaN or infinite coefficient mutes the contribution; it never turns the accumulator to NaN.
+ * @thread audio
  */
 static inline void omx_bus_sum_accumulate(float *restrict y, const float *x, uint32_t n,
                                           const struct omx_mixmatrix_entry *e) {
@@ -92,7 +94,8 @@ static inline void omx_bus_sum_accumulate(float *restrict y, const float *x, uin
  * @param e The entry: the fold's coefficient, already level × fold coefficient; a non-finite
  *        `g_prev` or `g_cur` is taken as 0.
  * @post `finite-accumulator-out`.
- * @note RT-safe: one pass, no branch in the loop.
+ * @note One pass, no branch in the loop.
+ * @thread audio
  */
 static inline void omx_bus_sum_accumulate_fold(float *restrict y, const float *a, const float *b,
                                                uint32_t n, const struct omx_mixmatrix_entry *e) {
@@ -130,7 +133,8 @@ static inline void omx_bus_sum_accumulate_fold(float *restrict y, const float *a
  * @param fold_coef The fold's per-leg gain; read only when `w` is #OMX_BUS_SUM_FOLD.
  * @return 1 when samples were written, 0 when the contribution was skipped.
  * @pre `finite-image`, `image-is-a-gain`.
- * @note RT-safe: one or two passes over the block, no allocation. Thread-safe on disjoint buses.
+ * @note One or two passes over the block, no allocation. Thread-safe on disjoint buses.
+ * @thread audio
  */
 static inline int omx_bus_sum_add(const float *inL, const float *inR, float *restrict busL,
                                   float *restrict busR, uint32_t n, float level, float imgL,

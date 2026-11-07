@@ -64,7 +64,8 @@ struct omx_gen_state {
  * @param s The state.
  * @param seed The RNG seed; 0 is coerced to 1, since xorshift's fixed point at 0 would render
  *        silence forever.
- * @note RT-safe. Thread-safe on distinct states.
+ * @note Thread-safe on distinct states.
+ * @thread audio
  */
 static inline void omx_gen_init(struct omx_gen_state *s, uint32_t seed) {
   s->phase = 0.0f;
@@ -77,7 +78,8 @@ static inline void omx_gen_init(struct omx_gen_state *s, uint32_t seed) {
  * @brief One uniform white-noise sample in [-1, 1) from a xorshift32 step.
  * @param rng The RNG word, advanced.
  * @return The sample.
- * @note RT-safe: three shifts. Thread-safe on distinct words.
+ * @note Three shifts. Thread-safe on distinct words.
+ * @thread audio
  */
 static inline float omx_gen_white(uint32_t *rng) {
   uint32_t x = *rng;
@@ -96,7 +98,8 @@ static inline float omx_gen_white(uint32_t *rng) {
  * @param w The white sample.
  * @param b The filter's seven states, advanced.
  * @return The sample.
- * @note RT-safe: seven one-poles. Thread-safe on distinct states.
+ * @note Seven one-poles. Thread-safe on distinct states.
+ * @thread audio
  */
 static inline float omx_gen_pink(float w, float b[7]) {
   b[0] = 0.99886f * b[0] + w * 0.0555179f;
@@ -119,7 +122,8 @@ static inline float omx_gen_pink(float w, float b[7]) {
  * @param waveform An OMX_WAVE_* index; any other value is the sine.
  * @param phase The phase, cycles, in [0, 1).
  * @return The sample.
- * @note RT-safe: one sinf at most. Thread-safe: pure.
+ * @note One sinf at most. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_gen_osc(int waveform, float phase) {
   switch (waveform) {
@@ -153,7 +157,8 @@ static inline float omx_gen_osc(int waveform, float phase) {
  * @param level The target level, linear amplitude, clamped to [0, 1]; NaN is 0.
  * @param sr The sample rate, Hz.
  * @post `finite-out`: every kind is a bounded closed form times a ramped level in [0, 1].
- * @note RT-safe: O(n), no allocation. Thread-safe on distinct states.
+ * @note O(n), no allocation. Thread-safe on distinct states.
+ * @thread audio
  */
 static inline void omx_gen_fill(struct omx_gen_state *s, float *out, uint32_t n, int kind,
                                 int waveform, float freq_hz, float level, float sr) {

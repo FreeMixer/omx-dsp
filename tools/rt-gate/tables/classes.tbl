@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
+# classes.tbl — the class table of omx-rt-gate(1): the external symbols an audio or a worker root
+# may call, each with its class, the arm that measured it and the reason. Classification, never a
+# waiver: a row names a SYMBOL, never a site, a field, a file or a function of ours (one of ours is
+# walked through its graph, never classified). No per-consumer list, no known red, no "cannot
+# prove" row. At load a row is REFUSED, and the gate judges nothing (exit 2), when it names
+# anything but a symbol, carries a class outside the closed set, has no reason or no arm, repeats
+# a symbol, or classifies a forbidden one (forbidden.tbl).
+#
+#   <symbol> <class> <arm>:<case> <reason>
+#
+# The classes, a closed set:
+#   maths         libm: arithmetic on the arguments, no allocation, no lock. Domain errors set errno
+#                 (a thread-local word) and return a value; nothing waits.
+#   bulk-memory   memcpy, memmove, memset, memcmp: a bounded pass over caller-owned bytes.
+#   word-atomic   an atomic read-modify-write on one machine word, lock-free on the target. At -O0
+#                 the compiler emits lock-free atomics inline; a call to a libatomic entry (a wider
+#                 or unaligned object, which may take a lock) is no row here and reads red.
+#   clock         a clock read: clock_gettime on a vDSO clock, no system call.
+#   ftz-register  the floating-point control register (flush to zero, denormals are zero): the
+#                 compiler emits these inline (_mm_setcsr, the aarch64 FPCR builtins); a library
+#                 call that wraps one would be a row here.
+#   wake          a wake that never waits. sem_post is a wake, like FUTEX_WAKE: an atomic increment,
+#                 and a futex wake only when a waiter sleeps; it never blocks the caller. sem_wait and
+#                 sem_timedwait are not wakes: they stay forbidden (forbidden.tbl, RT-BLOCK).
+#
+# The arm: externals-arm (tools/rt-gate/externals-arm.c, make rt-gate) calls each symbol over a
+# spread of arguments with the process's allocator interposed and requires zero allocations; every
+# row's case must be measured there. It cannot see a lock taken inside the library or the time a
+# call takes: the class's reason above is what carries those.
+
+sinf maths externals-arm:sinf libm, single precision: arithmetic on the arguments
+cosf maths externals-arm:cosf libm, single precision: arithmetic on the arguments
+tanf maths externals-arm:tanf libm, single precision: arithmetic on the arguments
+tanhf maths externals-arm:tanhf libm, single precision: arithmetic on the arguments
+expf maths externals-arm:expf libm, single precision: arithmetic on the arguments
+exp2f maths externals-arm:exp2f libm, single precision: arithmetic on the arguments
+logf maths externals-arm:logf libm, single precision: arithmetic on the arguments
+log2f maths externals-arm:log2f libm, single precision: arithmetic on the arguments
+log10f maths externals-arm:log10f libm, single precision: arithmetic on the arguments
+sqrtf maths externals-arm:sqrtf libm, single precision: arithmetic on the arguments
+floorf maths externals-arm:floorf libm, single precision: arithmetic on the arguments
+ceilf maths externals-arm:ceilf libm, single precision: arithmetic on the arguments
+powf maths externals-arm:powf libm, single precision: arithmetic on the arguments
+fminf maths externals-arm:fminf libm, single precision: arithmetic on the arguments
+fmaxf maths externals-arm:fmaxf libm, single precision: arithmetic on the arguments
+nextafterf maths externals-arm:nextafterf libm, single precision: arithmetic on the arguments
+lrintf maths externals-arm:lrintf libm, single precision: arithmetic on the arguments
+lroundf maths externals-arm:lroundf libm, single precision: arithmetic on the arguments
+sin maths externals-arm:sin libm, double precision: arithmetic on the arguments
+cos maths externals-arm:cos libm, double precision: arithmetic on the arguments
+tan maths externals-arm:tan libm, double precision: arithmetic on the arguments
+sinh maths externals-arm:sinh libm, double precision: arithmetic on the arguments
+exp maths externals-arm:exp libm, double precision: arithmetic on the arguments
+log maths externals-arm:log libm, double precision: arithmetic on the arguments
+log2 maths externals-arm:log2 libm, double precision: arithmetic on the arguments
+log10 maths externals-arm:log10 libm, double precision: arithmetic on the arguments
+sqrt maths externals-arm:sqrt libm, double precision: arithmetic on the arguments
+floor maths externals-arm:floor libm, double precision: arithmetic on the arguments
+ceil maths externals-arm:ceil libm, double precision: arithmetic on the arguments
+pow maths externals-arm:pow libm, double precision: arithmetic on the arguments
+hypot maths externals-arm:hypot libm, double precision: arithmetic on the arguments
+atan2 maths externals-arm:atan2 libm, double precision: arithmetic on the arguments
+fmin maths externals-arm:fmin libm, double precision: arithmetic on the arguments
+fmax maths externals-arm:fmax libm, double precision: arithmetic on the arguments
+copysign maths externals-arm:copysign libm, double precision: arithmetic on the arguments
+lrint maths externals-arm:lrint libm, double precision: arithmetic on the arguments
+llround maths externals-arm:llround libm, double precision: arithmetic on the arguments
+lround maths externals-arm:lround libm, double precision: arithmetic on the arguments
+ldexp maths externals-arm:ldexp libm, double precision: arithmetic on the arguments
+
+memcpy bulk-memory externals-arm:memcpy a bounded pass over caller-owned bytes
+memmove bulk-memory externals-arm:memmove a bounded pass over caller-owned bytes
+memset bulk-memory externals-arm:memset a bounded pass over caller-owned bytes
+memcmp bulk-memory externals-arm:memcmp a bounded pass over caller-owned bytes
+
+clock_gettime clock externals-arm:clock_gettime CLOCK_MONOTONIC through the vDSO: no system call
+
+sem_post wake externals-arm:sem_post an atomic increment; a futex wake only when a waiter sleeps

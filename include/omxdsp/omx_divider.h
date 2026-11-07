@@ -29,6 +29,7 @@ struct omx_divider {
   uint32_t armed;   /**< 1 once the input has been below `−h` since the last toggle. */
   uint32_t toggles; /**< Toggles since init, modulo 2^32: a reader's period counter. */
 };
+/** @thread audio */
 OMXDSP_STATE_LAYOUT(divider, struct omx_divider)
 
 #undef OMX_CONTRACT_STAGE
@@ -37,7 +38,8 @@ OMXDSP_STATE_LAYOUT(divider, struct omx_divider)
  * @brief Reset the divider: unarmed, `q = +1`, no previous sample, no toggle counted.
  * @param d The caller-owned state.
  * @post `sign-word-is-unit`.
- * @note RT-safe: four stores. Thread-safe on distinct state.
+ * @note Four stores. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_divider_init(struct omx_divider *d) {
   d->prev = 0.0f;
@@ -59,7 +61,8 @@ static inline void omx_divider_init(struct omx_divider *d) {
  * @pre `finite-in`, `hysteresis-non-negative`.
  * @post `output-magnitude-le-input`, `finite`.
  * @invariant `sign-word-is-unit`.
- * @note RT-safe: two comparisons and one multiply, no call. Thread-safe on distinct state.
+ * @note Two comparisons and one multiply, no call. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_divider_step(struct omx_divider *d, float v, float h) {
   OMX_PRE(v - v == 0.0f, "finite-in");
@@ -88,7 +91,8 @@ static inline float omx_divider_step(struct omx_divider *d, float v, float h) {
  * @param n The block length; 0 is a no-op.
  * @param h The hysteresis for the whole block, `h ≥ 0`.
  * @pre `hysteresis-non-negative`.
- * @note RT-safe: `n` steps, no call outside this header. Thread-safe on distinct state.
+ * @note `n` steps, no call outside this header. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_divider_block(struct omx_divider *d, const float *in, float *out, uint32_t n,
                                      float h) {

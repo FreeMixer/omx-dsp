@@ -39,7 +39,8 @@
  * @param fader The fader, linear.
  * @param mute Non-zero: muted (level 0).
  * @return gain × fader × (mute ? 0 : 1).
- * @note RT-safe: two multiplies. Thread-safe: pure.
+ * @note Two multiplies. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_mix_strip_level(float gain, float fader, int mute) {
   return gain * fader * (mute ? 0.0f : 1.0f);
@@ -65,7 +66,8 @@ static inline float omx_mix_strip_level(float gain, float fader, int mute) {
  * @param divergence The centre's divergence (omx_pan_gains()); ignored without a centre.
  * @param g Out: omx_pan_layout_speakers(l) gains, in the layout's speaker order.
  * @pre `stereo-source-on-a-pair`: a stereo source's layout has two axis speakers.
- * @note RT-safe: at most one cosf, one sinf and one sqrtf. Thread-safe: pure.
+ * @note At most one cosf, one sinf and one sqrtf. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_mix_strip_gains(const struct omx_pan_layout *l, int channels, int active,
                                        float gain, float fader, int mute, float pan,
@@ -116,7 +118,8 @@ static inline void omx_mix_strip_gains(const struct omx_pan_layout *l, int chann
  *      `stereo-source-on-a-pair`: a stereo source's layout has two axis speakers.
  * @post `image-is-a-gain`: every image gain in [−1e-6, 1] (a far end reads −4.4e-08, a rounding of
  *       zero); `a-muted-channel-is-silent`: a muted strip's level is 0; `an-unassigned-channel-is-silent`.
- * @note RT-safe: at most one cosf, one sinf and one sqrtf. Thread-safe: pure.
+ * @note At most one cosf, one sinf and one sqrtf. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_mix_strip_split(const struct omx_pan_layout *l, int channels, int active,
                                        float gain, float fader, int mute, float pan,
@@ -159,7 +162,8 @@ static inline void omx_mix_strip_split(const struct omx_pan_layout *l, int chann
  * @param row_l The strip's left (or only) row of X.
  * @param row_r The strip's right row of X; ignored for a mono strip.
  * @param rows Out: omx_pan_layout_speakers(l) rows.
- * @note RT-safe: one pass over the speakers. Thread-safe: pure.
+ * @note One pass over the speakers. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_mix_strip_rows(const struct omx_pan_layout *l, int channels, uint32_t row_l,
                                       uint32_t row_r, uint32_t *rows) {
@@ -178,7 +182,8 @@ static inline void omx_mix_strip_rows(const struct omx_pan_layout *l, int channe
  * @param level The contribution's level (a send's coefficient, or a route's gain × mute).
  * @param fold_coef The per-leg fold coefficient, linear (0.5 by default).
  * @return level × fold_coef, or 0 when that is NaN or infinite.
- * @note RT-safe: one multiply, one isfinite. Thread-safe: pure.
+ * @note One multiply, one isfinite. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_mix_fold_gain(float level, float fold_coef) {
   float t = level * fold_coef;
@@ -198,7 +203,8 @@ static inline float omx_mix_fold_gain(float level, float fold_coef) {
  * @param g_cur Each gain at the end of the block.
  * @param n Gains.
  * @return The entries written.
- * @note RT-safe: one pass, no allocation. Thread-safe: writes only `e`.
+ * @note One pass, no allocation. Thread-safe: writes only `e`.
+ * @thread audio
  */
 static inline uint32_t omx_mix_fill_entries(struct omx_mixmatrix_entry *e, const uint32_t *rows,
                                             const uint32_t *outs, const float *g_prev,
@@ -228,7 +234,8 @@ static inline uint32_t omx_mix_fill_entries(struct omx_mixmatrix_entry *e, const
  * @param g_prev The fold gain at the start of the block (omx_mix_fold_gain()).
  * @param g_cur The fold gain at the end of the block.
  * @return The entries written: 0 or 2.
- * @note RT-safe: stores only. Thread-safe: writes only `e`.
+ * @note Stores only. Thread-safe: writes only `e`.
+ * @thread audio
  */
 static inline uint32_t omx_mix_fill_fold(struct omx_mixmatrix_entry *e, uint32_t row_l,
                                          uint32_t row_r, uint32_t out, float g_prev, float g_cur) {
@@ -254,7 +261,8 @@ static inline uint32_t omx_mix_fill_fold(struct omx_mixmatrix_entry *e, uint32_t
  * @param n Samples per leg.
  * @param floor_lin The level, linear, below which the block counts as silent; 0 makes nothing silent.
  * @return true when omx_meter_block_peak() is strictly below `floor_lin`.
- * @note RT-safe: one pass, no allocation. Thread-safe: reads only.
+ * @note One pass, no allocation. Thread-safe: reads only.
+ * @thread audio
  */
 static inline bool omx_mix_source_silent(const float *a, const float *b, uint32_t n, float floor_lin) {
   return omx_meter_block_peak(a, b, n) < floor_lin;
@@ -272,7 +280,8 @@ static inline bool omx_mix_source_silent(const float *a, const float *b, uint32_
  * @param curL The left ramp's current value.
  * @param curR The right ramp's current value.
  * @return true when all four are 0 (either sign).
- * @note RT-safe: four compares. Thread-safe: pure.
+ * @note Four compares. Thread-safe: pure.
+ * @thread audio
  */
 static inline bool omx_mix_settled_silent(float tgtL, float tgtR, float curL, float curR) {
   return tgtL == 0.0f && tgtR == 0.0f && curL == 0.0f && curR == 0.0f;

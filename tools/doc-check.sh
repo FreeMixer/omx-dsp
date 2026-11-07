@@ -12,7 +12,10 @@
 #   - a `#define OMX…` macro (its FIRST definition in the file; the release twin needs none),
 # must be immediately preceded (blank lines allowed) by a `/** … */` block that carries @brief;
 # a function's block carries one @param per parameter, @return unless it returns void, @pre when
-# its body evaluates OMX_PRE, @post for OMX_POST, @invariant for OMX_INVARIANT, and @note.
+# its body evaluates OMX_PRE, @post for OMX_POST, @invariant for OMX_INVARIANT, and exactly one
+# `@thread audio|worker|control` (the thread it may run on, read by omx-rt-gate; the tag replaces the
+# RT-safety prose a @note carried). Every header, fx/ and analysis/ included, is held to the one tag
+# by `omx-rt-gate --thread-tags` (make rt-gate-tags).
 #
 # Exit 1 with one line per missing item. `--self-test` runs the checker over a scratch header
 # with an undocumented function and a documented one and requires the first to be refused.
@@ -42,7 +45,8 @@ function check_block(line, kind, sig, body, docok, blk,   want, i, n, w) {
   if (!docok) { report(line, kind " has no /** doc block immediately before it"); return }
   if (blk !~ /@brief/) report(line, kind " doc block carries no @brief")
   if (kind == "function") {
-    if (blk !~ /@note/) report(line, "function doc block carries no @note (RT-safety and thread-safety)")
+    nt = gsub(/@thread[ \t]+(audio|worker|control)([^A-Za-z0-9_]|$)/, "&", blk)
+    if (nt != 1) report(line, "function doc block carries " nt " `@thread audio|worker|control` tags, one is the rule")
     n = split(param_names(sig), w, " ")
     for (i = 1; i <= n; i++) if (w[i] != "" && blk !~ ("@param[ \t]+" w[i] "([^A-Za-z0-9_]|$)")) report(line, "no @param " w[i])
     rt = sig; sub(/[A-Za-z_][A-Za-z0-9_]*[ \t]*\(.*$/, "", rt)
@@ -106,13 +110,31 @@ EOF
 /** @brief Identity.
  * @param x A sample.
  * @return `x`.
- * @note RT-safe and thread-safe. */
+ * @note Thread-safe.
+ * @thread audio */
 static inline float omx_good_documented(float x) { return x; }
 #endif
 EOF
+  cat > "$t/untagged.h" <<'EOF'
+#ifndef UNTAGGED_H
+#define UNTAGGED_H
+/** @brief Identity.
+ * @param x A sample.
+ * @return `x`.
+ * @note Thread-safe. */
+static inline float omx_untagged(float x) { return x; }
+/** @brief Identity.
+ * @param x A sample.
+ * @return `x`.
+ * @thread audio
+ * @thread control */
+static inline float omx_twice_tagged(float x) { return x; }
+#endif
+EOF
   if check "$t/bad.h" >/dev/null 2>&1; then echo "doc-check --self-test: FAIL — an undocumented function was accepted"; exit 1; fi
+  if [ "$(check "$t/untagged.h" 2>&1 | grep -c '@thread')" != 2 ]; then echo "doc-check --self-test: FAIL — a function without its one @thread tag was accepted"; exit 1; fi
   if ! check "$t/good.h"; then echo "doc-check --self-test: FAIL — a documented function was refused"; exit 1; fi
-  echo "doc-check --self-test: ok (refuses the undocumented, accepts the documented)"
+  echo "doc-check --self-test: ok (refuses the undocumented, the untagged and the twice tagged, accepts the documented)"
   exit 0
 fi
 

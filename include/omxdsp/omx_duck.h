@@ -50,7 +50,8 @@ struct omx_duck_state {
  * @param level The key level, linear, not negative.
  * @return The gain, dB, in `[depth, 0]`.
  * @post `gain-within-depth`.
- * @note RT-safe: no libm call. Thread-safe: pure.
+ * @note No libm call. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_duck_gain_db(const struct omx_duck *d, float level) {
   float g = d->thresh_db - omx_lin_to_db_poly(level);
@@ -68,7 +69,8 @@ static inline float omx_duck_gain_db(const struct omx_duck *d, float level) {
  * @param st The state, the follower advanced.
  * @param key The key sample.
  * @return The linear gain, `10^(g/20)` with `g` from omx_duck_gain_db().
- * @note RT-safe: one follower step, no libm call. Thread-safe on distinct state.
+ * @note One follower step, no libm call. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_duck_step(const struct omx_duck *d, struct omx_duck_state *st, float key) {
   const float k = fabsf(key);
@@ -89,8 +91,9 @@ static inline float omx_duck_step(const struct omx_duck *d, struct omx_duck_stat
  * @param n Frames.
  * @pre `depth-not-positive`, `poles-in-unit-interval`, `finite-key`.
  * @post `finite-state`.
- * @note RT-safe: one follower step and one gain per sample, no libm call. A depth of 0 dB returns
+ * @note One follower step and one gain per sample, no libm call. A depth of 0 dB returns
  *       at once: no sample and no state word moves.
+ * @thread audio
  */
 static inline void omx_duck_run(const struct omx_duck *d, struct omx_duck_state *st, const float *key, float *wl,
                                 float *wr, uint32_t n) {

@@ -16,14 +16,15 @@
 /** @brief API major version: a symbol's meaning changes only with a bump here. */
 #define OMXDSP_VERSION_MAJOR 0
 /** @brief API minor version: additions only. */
-#define OMXDSP_VERSION_MINOR 31
+#define OMXDSP_VERSION_MINOR 32
 /** @brief Patch version: no API change. */
 #define OMXDSP_VERSION_PATCH 0
 
 /**
  * @brief The library version as one word, `major << 16 | minor << 8 | patch`.
  * @return The packed version of the headers this translation unit compiled against.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline uint32_t omxdsp_version(void) {
   return ((uint32_t)OMXDSP_VERSION_MAJOR << 16) | ((uint32_t)OMXDSP_VERSION_MINOR << 8) |

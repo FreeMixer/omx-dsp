@@ -10,7 +10,13 @@
 #   makeup    the make-up left out of a transfer curve;
 #   knee      the gate's knee range dropped for the centred knee (omx_gaincomp_db);
 #   range     a gate with no range term drawn with no floor, not refused;
-#   anchors   an EQ's room counted without its anchors.
+#   anchors   an EQ's room counted without its anchors;
+#   fbs-live-mark  the show pool's origin dropped from the marks;
+#   hrp-mark  the HRP's origin dropped from the marks;
+#   default-q a band with no Q drawn at 0.5, not the declared default;
+#   limiter   a limiter's missing ratio taken as 4, not infinity;
+#   slope-enum a bare choice value taken as a slope;
+#   user-only the ring-out notches counted in the user-only curve.
 # The tree is never edited; a sed that matches nothing is a failure, not a skip. The real suite, run by
 # `make suite`, is the control.
 # Usage: CC=… CFLAGS=… CONTRACT_INC=… curve-sabotage.sh <scratch-dir> <libomxdsp-contracts.a>
@@ -54,4 +60,10 @@ run makeup 's|    y\[i\] = lv + (double)g + mk;|    y[i] = lv + (double)g + 0.0 
 run knee 's|    const float g = below ? omx_gaincomp_db_shifted(&d.gc, d.knee_shift_db, (float)lv) : omx_gaincomp_db(&d.gc, (float)lv);|    const float g = omx_gaincomp_db(\&d.gc, (float)lv);|'
 run range 's/(below \&\& !range) || //; s|const float rg = (float)omx_curve_term_value(range);|const float rg = range ? (float)omx_curve_term_value(range) : 0.0f;|'
 run anchors 's|  if (room < OMX_EQ_CURVE_CAP(rq->points, nd)) return|  if (room < rq->points) return|'
-echo "curve-sabotage: all six sabotages are caught"
+run fbs-live-mark 's|    if (!bands\[b\].on \|\| !ex->marks) continue;|    if (!bands[b].on \|\| !ex->marks \|\| origin[b] == OMX_CURVE_ORIGINS_FBS_LIVE) continue;|'
+run hrp-mark 's|    if (!bands\[b\].on \|\| !ex->marks) continue;|    if (!bands[b].on \|\| !ex->marks \|\| origin[b] == OMX_CURVE_ORIGINS_HRP) continue;|'
+run user-only 's|    if (origin\[b\] == OMX_CURVE_ORIGINS_USER) {|    if (origin[b] != OMX_CURVE_ORIGINS_FBS_LIVE) {|'
+run default-q 's|                      : (double)omx_eq_lv2_clamp_q(kind == OMX_EQ_NOTCH ? OMX_EQ_LV2_NOTCH : OMX_EQ_LV2_BELL,|                      : 0.5 + 0.0 * omx_eq_lv2_clamp_q(kind == OMX_EQ_NOTCH ? OMX_EQ_LV2_NOTCH : OMX_EQ_LV2_BELL,|'
+run limiter 's|  const float r = ratio ? (float)omx_curve_term_value(ratio) : INFINITY, k|  const float r = ratio ? (float)omx_curve_term_value(ratio) : 4.0f, k|'
+run slope-enum 's|  if (!f \|\| !s \|\| s->unit != OMX_CURVE_UNITS_DB) return OMX_CURVE_TERM_MISSING;|  if (!f \|\| !s) return OMX_CURVE_TERM_MISSING;|'
+echo "curve-sabotage: all twelve sabotages are caught"

@@ -42,7 +42,8 @@ struct omx_env {
   float stage[OMX_DYN_ENV_STAGES]; /**< Stage values, in the detector's domain; the last is the level. */
 };
 
-/** @brief The state layout, exported: omx_env_state_size() and omx_env_state_align(). */
+/** @brief The state layout, exported: omx_env_state_size() and omx_env_state_align().
+ * @thread audio */
 OMXDSP_STATE_LAYOUT(env, struct omx_env)
 
 /** @brief The detector's parameters. */
@@ -64,8 +65,9 @@ struct omx_env_params {
  * @param rc Out: the per-stage release pole, in [0, 1).
  * @pre `pole-in-declared-range`, `rate-multiplier-positive`.
  * @post `pole-in-declared-range`.
- * @note RT-safe: products at the base rate, two `powf` otherwise, on the RT-safe allowlist.
+ * @note Products at the base rate, two `powf` otherwise, classified maths.
  *       Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_env_stage_poles(const struct omx_env_params *e, uint32_t rate_mul, float *ac,
                                        float *rc) {
@@ -94,7 +96,8 @@ static inline void omx_env_stage_poles(const struct omx_env_params *e, uint32_t 
  * @param e The parameters (`detect` is read).
  * @return The level, linear, in the signal's amplitude.
  * @post `finite`.
- * @note RT-safe: at most one `sqrtf`. Thread-safe: pure.
+ * @note At most one `sqrtf`. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_env_level(const struct omx_env *env, const struct omx_env_params *e) {
   const float s = env->stage[OMX_DYN_ENV_STAGES - 1];
@@ -117,8 +120,9 @@ static inline float omx_env_level(const struct omx_env *env, const struct omx_en
  * @post `finite`.
  * @invariant `envelope-finite`; `no-overshoot`: every stage lies between the input and the
  *            previous stages, each being a convex combination.
- * @note RT-safe: `OMX_DYN_ENV_STAGES` one-pole steps and at most one `sqrtf`. Thread-safe on
+ * @note `OMX_DYN_ENV_STAGES` one-pole steps and at most one `sqrtf`. Thread-safe on
  *       distinct state.
+ * @thread audio
  */
 static inline float omx_env_step(struct omx_env *env, const struct omx_env_params *e, float d, float ac,
                                  float rc) {
@@ -158,7 +162,8 @@ static inline float omx_env_step(struct omx_env *env, const struct omx_env_param
  * @brief Flush every stage of the cascade out of the subnormal range, once per block.
  * @param env The state.
  * @post `no-denormal-state`: every stage is a fixed point of omx_flush().
- * @note RT-safe: `OMX_DYN_ENV_STAGES` selects. Thread-safe on distinct state.
+ * @note `OMX_DYN_ENV_STAGES` selects. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_env_flush(struct omx_env *env) {
   for (int s = 0; s < OMX_DYN_ENV_STAGES; s++) env->stage[s] = omx_flush(env->stage[s]);
@@ -196,8 +201,9 @@ struct omx_envdiff_poles {
  * @post `contrast-non-negative`, `finite`.
  * @invariant `both-cascades-finite`; `ordering-within-rounding`: the unfloored ratio is at least
  *            `1 − N·2⁻²⁴/(1 − q)`, `q` the fast cascade's slower per-stage pole.
- * @note RT-safe: one omx_env_step(), one division, one omx_lin_to_db_poly(), no libm call.
+ * @note One omx_env_step(), one division, one omx_lin_to_db_poly(), no libm call.
  *       Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_envdiff_step(struct omx_env *slow, const struct omx_env_params *e, float d, float fast_level,
                                      const struct omx_envdiff_poles *p, float floor) {
@@ -236,7 +242,8 @@ static inline float omx_envdiff_step(struct omx_env *slow, const struct omx_env_
  * @return The engagement, in [0, 1].
  * @pre `offset-not-negative`.
  * @post `engagement-in-unit-interval`.
- * @note RT-safe: arithmetic, no call. Thread-safe: pure.
+ * @note Arithmetic, no call. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_envdiff_ramp(float delta, float s_db) {
   OMX_PRE(s_db >= 0.0f, "offset-not-negative");
@@ -253,7 +260,8 @@ struct omx_env_program_release {
   float mem;  /**< The memory of active reduction, in [0, 1]. */
 };
 
-/** @brief The state layout, exported: omx_env_program_release_state_size() and omx_env_program_release_state_align(). */
+/** @brief The state layout, exported: omx_env_program_release_state_size() and omx_env_program_release_state_align().
+ * @thread audio */
 OMXDSP_STATE_LAYOUT(env_program_release, struct omx_env_program_release)
 
 /** @brief The program-dependent release's parameters, made by omx_env_program_release_poles(). */
@@ -283,7 +291,8 @@ struct omx_env_program_release_params {
  * @param rate_mul The rate multiplier, at least 1 (1 is the base rate).
  * @pre `profile-in-declared-range`, `rate-multiplier-positive`, `rate-is-declared`.
  * @post `pole-in-declared-range`.
- * @note RT-safe: three `expf`, on the RT-safe allowlist. Thread-safe on distinct parameters.
+ * @note Three `expf`, classified maths. Thread-safe on distinct parameters.
+ * @thread audio
  */
 static inline void omx_env_program_release_poles(struct omx_env_program_release_params *p, float fast_ms,
                                                  float slow_min_ms, float slow_max_ms, float share, float sr,
@@ -311,7 +320,8 @@ static inline void omx_env_program_release_poles(struct omx_env_program_release_
  * @param rate_mul The rate multiplier, at least 1.
  * @pre As omx_env_program_release_poles().
  * @post As omx_env_program_release_poles().
- * @note RT-safe and thread-safe as omx_env_program_release_poles().
+ * @note Thread-safe as omx_env_program_release_poles().
+ * @thread audio
  */
 static inline void omx_env_program_release_opto(struct omx_env_program_release_params *p, float sr,
                                                 uint32_t rate_mul) {
@@ -327,7 +337,8 @@ static inline void omx_env_program_release_opto(struct omx_env_program_release_p
  * @param rate_mul The rate multiplier, at least 1.
  * @pre As omx_env_program_release_poles().
  * @post As omx_env_program_release_poles().
- * @note RT-safe and thread-safe as omx_env_program_release_poles().
+ * @note Thread-safe as omx_env_program_release_poles().
+ * @thread audio
  */
 static inline void omx_env_program_release_auto(struct omx_env_program_release_params *p, float sr,
                                                 uint32_t rate_mul) {
@@ -351,7 +362,8 @@ static inline void omx_env_program_release_auto(struct omx_env_program_release_p
  * @post `finite`, `no-gain-added`.
  * @invariant `release-never-below-target`: each component lies between its previous value and
  *            `t`, so the reduction is never shallower than the target; `memory-in-unit-interval`.
- * @note RT-safe: one `expf` (the slow pole), no allocation. Thread-safe on distinct state.
+ * @note One `expf` (the slow pole), no allocation. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_env_program_release(struct omx_env_program_release *st,
                                             const struct omx_env_program_release_params *p, float t) {

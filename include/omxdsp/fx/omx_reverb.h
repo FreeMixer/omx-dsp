@@ -270,7 +270,8 @@ struct omx_reverb_return_state {
 /* The damping knob turned into the pole the live rate needs. Called ONCE PER BLOCK — a powf per
  * sample in a comb bank would be the RT path's most expensive line by an order of magnitude — and
  * the per-sample filter is `omx_onepole_flush` itself, which is what every other recursive
- * low-pass in this file already is. */
+ * low-pass in this file already is.
+ * @thread audio */
 static inline float omx_reverb_damp_pole(float damping, float sr) {
   float p = omx_clampf(damping, 0.0f, OMX_REVERB_DAMP_POLE_MAX); /* NaN: no damping */
   return omx_pole_rescale(p, OMX_REVERB_DAMP_REFERENCE_RATE, sr); /* the reference rate is untouched */
@@ -281,7 +282,8 @@ static inline float omx_reverb_damp_pole(float damping, float sr) {
  * makes a re-layout replay whatever the last layout left in it. The clear lives HERE, in the
  * primitive that hands the memory out, and not in each caller, because a caller that forgets is
  * a reverb that opens playing the old room (test/fx/reverb_math.test.c's re-layout arm bounds the
- * residue). Layout runs on INSERT, never on the RT thread, so the cost is paid once. */
+ * residue). Layout runs on INSERT, never on the RT thread, so the cost is paid once.
+ * @thread audio */
 static inline float *omx_pool_take(struct omx_reverb_state *s, uint32_t len) {
   if (s->next_free + len > s->pool_len) { s->_exhausted = 1; return NULL; }
   float *p = s->_pool + s->next_free;
@@ -290,7 +292,8 @@ static inline float *omx_pool_take(struct omx_reverb_state *s, uint32_t len) {
   return p;
 }
 
-/* Bind a caller pool into all sub-buffers, scaling the canonical tunings to `sr`. Call once on insert. */
+/* Bind a caller pool into all sub-buffers, scaling the canonical tunings to `sr`. Call once on insert.
+ * @thread audio */
 static inline void omx_reverb_state_layout(struct omx_reverb_state *s, float *pool, uint32_t pool_len, float sr) {
   /* bind the pool; zero the sub-buffer state (the caller calloc'd the pool, but be explicit for reuse) */
   /* THE RATE IS PUBLISHED LAST. `omx_reverb_process` runs a pool only when the rate it is
@@ -429,7 +432,8 @@ static inline void omx_reverb_state_layout(struct omx_reverb_state *s, float *po
  * filter is a recursion one sample long, and eight independent recursions in flight keep the core
  * busy — comb-major, gathered-vector and time-major-tile orders all measure slower
  * (`reverb-cost-ab.sh`). The segment ends where the first of the eight lines wraps, so the inner
- * loop carries no wrap test. */
+ * loop carries no wrap test.
+ * @thread audio */
 static inline void omx_fv_comb_bank_block(float *const *comb, const uint32_t *comb_len,
                                           uint32_t *comb_pos, float *comb_damp, const float *in,
                                           float *acc, uint32_t n, float feedback, float damp_pole) {
@@ -477,7 +481,8 @@ static inline void omx_fv_comb_bank_block(float *const *comb, const uint32_t *co
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "reverb/allpass"
-/* One Schroeder allpass (fixed 0.5 coefficient) over `n` samples of `x`, in place. */
+/* One Schroeder allpass (fixed 0.5 coefficient) over `n` samples of `x`, in place.
+ * @thread audio */
 static inline void omx_fv_allpass_block(float *buf, uint32_t len, uint32_t *pos, float *x, uint32_t n) {
   OMX_PRE(buf != NULL && len > 0u, "line-bound");
   OMX_PRE(n <= OMX_REVERB_CHUNK, "chunk-bound");
@@ -501,7 +506,8 @@ static inline void omx_fv_allpass_block(float *buf, uint32_t len, uint32_t *pos,
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "reverb/diffuser"
-/* One Dattorro diffuser (allpass with an explicit coefficient) over `n` samples of `x`, in place. */
+/* One Dattorro diffuser (allpass with an explicit coefficient) over `n` samples of `x`, in place.
+ * @thread audio */
 static inline void omx_plate_ap_block(float *buf, uint32_t len, uint32_t *pos, float *x, uint32_t n,
                                       float coef) {
   OMX_PRE(buf != NULL && len > 0u, "line-bound");
@@ -540,6 +546,7 @@ static inline void omx_plate_ap_block(float *buf, uint32_t len, uint32_t *pos, f
  * @param sr        the live rate, Hz.
  * @param shortest  the shortest modulated line, samples.
  * @return the excursion in samples, in `[0, (shortest - 2) / 2]`.
+ * @thread audio
  */
 static inline float omx_reverb_plate_excursion(float depth_pct, float sr, float shortest) {
   OMX_PRE(sr > 0.0f, "rate-positive");
@@ -564,6 +571,7 @@ static inline float omx_reverb_plate_excursion(float depth_pct, float sr, float 
  *
  * `delay` is in samples and must lie in [1, len]: the caller derives it from the line's own
  * length minus twice the excursion, so the read can never cross the write.
+ * @thread audio
  */
 static inline float omx_plate_ap_mod(float *buf, uint32_t len, uint32_t *pos, float in, float coef,
                                      float delay) {
@@ -580,7 +588,8 @@ static inline float omx_plate_ap_mod(float *buf, uint32_t len, uint32_t *pos, fl
 }
 
 /* A modulated READ off a plain delay line, linear-interpolated, same rule as the allpass above:
- * `delay` in [1, len]. The line's own write is the caller's, unmoved. */
+ * `delay` in [1, len]. The line's own write is the caller's, unmoved.
+ * @thread audio */
 static inline float omx_delay_read_mod(const float *buf, uint32_t len, uint32_t pos, float delay) {
   uint32_t i0 = (uint32_t)delay;
   float frac = delay - (float)i0;
@@ -595,7 +604,8 @@ static inline float omx_delay_read_mod(const float *buf, uint32_t len, uint32_t 
 /* ONE LEG OF THE FREEVERB NETWORK over a chunk: eight parallel combs summed into `wet`, then four
  * series allpasses, then the Freeverb output scaling. ROOM and HALL are this word over their own
  * lines (REVERSE and GATED are ROOM's), each leg called once — the two legs share no state, so
- * running L's whole network before R's is the same arithmetic as interleaving them. */
+ * running L's whole network before R's is the same arithmetic as interleaving them.
+ * @thread audio */
 static inline void omx_fv_leg_block(float *const *comb, const uint32_t *comb_len, uint32_t *comb_pos,
                                     float *comb_damp, float *const *ap, const uint32_t *ap_len,
                                     uint32_t *ap_pos, const float *fed, float *wet, uint32_t n,
@@ -610,6 +620,7 @@ static inline void omx_fv_leg_block(float *const *comb, const uint32_t *comb_len
 
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "reverb"
+/** @thread audio */
 static inline void omx_reverb_process_return(float *l, float *r, uint32_t n, const struct omx_reverb *p,
                                              const struct omx_reverb_return *x, struct omx_reverb_return_state *xs,
                                              struct omx_reverb_state *s, float sr) {
@@ -934,6 +945,7 @@ static inline void omx_reverb_process_return(float *l, float *r, uint32_t n, con
  * @param p the reverb's control atom
  * @param s the caller-owned pool's lines and the RT state
  * @param sr the live rate, Hz; the rate the lines were laid out at
+ * @thread audio
  */
 static inline void omx_reverb_process(float *l, float *r, uint32_t n, const struct omx_reverb *p,
                                       struct omx_reverb_state *s, float sr) {

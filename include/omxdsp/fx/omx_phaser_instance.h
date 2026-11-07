@@ -57,6 +57,7 @@ typedef struct {
  * Bind an instance to its rate. Returns 1 when usable, 0 when not (a refused init leaves `ready`
  * clear and run() is the identity). The rate must be finite and high enough that the sweep's
  * declared top (OMX_PHASER_F_TOP_HZ) stays below Nyquist, the kernel's own precondition.
+ * @thread control
  */
 static inline int omx_phaser_instance_init(OmxPhaserInstance *s, float sr) {
   if (!s) return 0;
@@ -75,6 +76,7 @@ static inline int omx_phaser_instance_init(OmxPhaserInstance *s, float sr) {
  * user units: `rate_hz` (Hz), `base_hz` (Hz), `depth_oct` (octaves), `stages` (a section count,
  * rounded to the nearest even member), `feedback` (signed) and `mix` (percent), each clamped into
  * its declared travel, a non-finite word reading as the declared default.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "phaser/instance-resolve"
 static inline void omx_phaser_instance_resolve(OmxPhaserInstance *s, int bypass, float rate_hz,
@@ -113,6 +115,7 @@ static inline void omx_phaser_instance_resolve(OmxPhaserInstance *s, int bypass,
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
  * in place on out. `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "phaser/instance-run"
 static inline void omx_phaser_instance_run(OmxPhaserInstance *s, const float *in_l,
@@ -122,7 +125,8 @@ static inline void omx_phaser_instance_run(OmxPhaserInstance *s, const float *in
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The frames of latency the instance introduces: none, at every rate. */
+/** The frames of latency the instance introduces: none, at every rate.
+ * @thread audio */
 static inline uint32_t omx_phaser_instance_latency(const OmxPhaserInstance *s) {
   (void)s;
   return 0u;

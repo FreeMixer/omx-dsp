@@ -32,7 +32,8 @@
  * @param balance The balance (or pan) position, [-1, +1]; a bus without one passes 0.
  * @param tgtL Out: the left gain.
  * @param tgtR Out: the right gain.
- * @note RT-safe: at most one cosf and one sinf. Thread-safe: pure.
+ * @note At most one cosf and one sinf. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_bus_out_gains(int channels, float fader, int mute, float balance,
                                      float *tgtL, float *tgtR) {
@@ -58,7 +59,8 @@ static inline void omx_bus_out_gains(int channels, float fader, int mute, float 
  * @param curR In: the right gain at the end of the previous block. Out: `tgtR`.
  * @pre `finite-bus-in`, `finite-target`.
  * @post `finite-bus-out`; `ramp-self-heals-to-finite`: the cursors end finite.
- * @note RT-safe: one pass, no allocation, no branch in the loop. Thread-safe on disjoint buses.
+ * @note One pass, no allocation, no branch in the loop. Thread-safe on disjoint buses.
+ * @thread audio
  */
 static inline void omx_bus_out_apply(float *restrict busL, float *restrict busR, uint32_t n,
                                      float tgtL, float tgtR, float *curL, float *curR) {
@@ -98,7 +100,8 @@ static inline void omx_bus_out_apply(float *restrict busL, float *restrict busR,
  * @pre `balance-within-declared-range`, `finite-bus-in`.
  * @post `gain-in-range`: neither leg's gain is negative or above the fader (the balance law only
  *       attenuates); `finite-bus-out`.
- * @note RT-safe: two passes over the block, no allocation. Thread-safe on disjoint buses.
+ * @note Two passes over the block, no allocation. Thread-safe on disjoint buses.
+ * @thread audio
  */
 static inline void omx_bus_out_run(float *busL, float *busR, uint32_t n, int channels,
                                    float fader, int mute, float balance, float *curL,

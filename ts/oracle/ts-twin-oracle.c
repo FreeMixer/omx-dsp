@@ -31,6 +31,7 @@
 #include <omxdsp/analysis/omx_room.h>
 #include <omxdsp/analysis/omx_rta.h>
 #include <omxdsp/fx/omx_eq_instance.h>
+#include <omxdsp/mix/omx_meter_view.h>
 #include <omxdsp/mix/omx_pan_law.h>
 #include <omxdsp/omx_balance_law.h>
 #include <omxdsp/omx_contract.h>
@@ -151,9 +152,10 @@ static int h_curve_points(const double *in, int n, double *out) {
     terms[i].value = t[2];
     terms[i].unit = (enum omx_curve_units)(int)t[3];
     terms[i].shape = (int)t[4];
+    terms[i].origin = OMX_CURVE_ORIGINS_USER;
   }
   const struct omx_curve_request rq = {(enum omx_curve_displays)(int)in[0], (enum omx_curve_families)(int)in[1], in[2],
-                                       (uint32_t)in[3], in[4] != 0.0, in[5], in[6], terms, (uint32_t)nt};
+                                       (uint32_t)in[3], in[4] != 0.0, in[5], in[6], terms, (uint32_t)nt, 0};
   double x[OMX_CURVE_POINTS_MAX], y[OMX_CURVE_POINTS_MAX];
   int code = -1;
   const uint32_t cnt = omx_curve_points(&rq, x, y, OMX_CURVE_POINTS_MAX, &code);
@@ -164,6 +166,49 @@ static int h_curve_points(const double *in, int n, double *out) {
     out[3 + 2 * i] = y[i];
   }
   return 2 + 2 * (int)cnt;
+}
+
+/* curve_points_marked: kind family rate points has_extents x_min x_max user_only nterms
+ *                      { role index value unit shape origin }*nterms
+ *                      -> code count { x y }*count nmarks { freq depth_db q origin }*nmarks [{ y_user }*count] */
+static int h_curve_points_marked(const double *in, int n, double *out) {
+  if (n < 9) return -1;
+  const int nt = (int)in[8];
+  if (nt < 0 || nt > 512 || n != 9 + 6 * nt) return -1;
+  static struct omx_curve_term terms[512];
+  for (int i = 0; i < nt; i++) {
+    const double *t = in + 9 + 6 * i;
+    terms[i].role = (enum omx_curve_roles)(int)t[0];
+    terms[i].index = (uint32_t)t[1];
+    terms[i].value = t[2];
+    terms[i].unit = (enum omx_curve_units)(int)t[3];
+    terms[i].shape = (int)t[4];
+    terms[i].origin = (enum omx_curve_origins)(int)t[5];
+  }
+  const struct omx_curve_request rq = {(enum omx_curve_displays)(int)in[0], (enum omx_curve_families)(int)in[1], in[2],
+                                       (uint32_t)in[3], in[4] != 0.0, in[5], in[6], terms, (uint32_t)nt, in[7] != 0.0};
+  double x[OMX_CURVE_POINTS_MAX], y[OMX_CURVE_POINTS_MAX], yu[OMX_CURVE_POINTS_MAX];
+  struct omx_curve_mark marks[OMX_CURVE_BANDS_MAX];
+  struct omx_curve_extra ex = {yu, marks, OMX_CURVE_BANDS_MAX, 0u};
+  int code = -1;
+  const uint32_t cnt = omx_curve_points_marked(&rq, x, y, OMX_CURVE_POINTS_MAX, &ex, &code);
+  int k = 0;
+  out[k++] = code;
+  out[k++] = cnt;
+  for (uint32_t i = 0; i < cnt; i++) {
+    out[k++] = x[i];
+    out[k++] = y[i];
+  }
+  out[k++] = cnt ? ex.nmarks : 0;
+  for (uint32_t i = 0; cnt && i < ex.nmarks; i++) {
+    out[k++] = marks[i].freq_hz;
+    out[k++] = marks[i].depth_db;
+    out[k++] = marks[i].q;
+    out[k++] = marks[i].origin;
+  }
+  if (cnt && rq.user_only)
+    for (uint32_t i = 0; i < cnt; i++) out[k++] = yu[i];
+  return k;
 }
 
 /* gaincomp_db: mode thresh_db ratio knee_db range_db level_db -> dB (float, the per-sample form) */
@@ -359,6 +404,86 @@ static int h_room_mode_set_stable(const double *in, int n, double *out) {
   return 1;
 }
 
+/* meter_view_fill_db: db floor_db -> fill */
+static int h_meter_view_fill_db(const double *in, int n, double *out) {
+  if (n != 2) return -1;
+  out[0] = omx_meter_view_fill_db(in[0], in[1]);
+  return 1;
+}
+
+/* meter_view_fill: level floor_db -> fill */
+static int h_meter_view_fill(const double *in, int n, double *out) {
+  if (n != 2) return -1;
+  out[0] = omx_meter_view_fill(in[0], in[1]);
+  return 1;
+}
+
+/* meter_view_step: fall_db_per_s floor_db { fill dt_s }*k -> the marker at each tick, from a fresh view */
+static int h_meter_view_step(const double *in, int n, double *out) {
+  if (n < 2 || (n - 2) % 2 != 0) return -1;
+  struct omx_meter_view v = {0};
+  const int k = (n - 2) / 2;
+  for (int i = 0; i < k; i++) out[i] = omx_meter_view_step(&v, in[2 + 2 * i], in[3 + 2 * i], in[0], in[1]);
+  return k;
+}
+
+/* meter_view_clip: { clip clear }*k -> the clip word at each tick (a clear is taken before the tick's clip) */
+static int h_meter_view_clip(const double *in, int n, double *out) {
+  if (n % 2 != 0) return -1;
+  struct omx_meter_view v = {0};
+  for (int i = 0; i < n / 2; i++) {
+    if (in[2 * i + 1] != 0.0) omx_meter_view_clip_clear(&v);
+    out[i] = omx_meter_view_clip(&v, in[2 * i] != 0.0);
+  }
+  return n / 2;
+}
+
+/* meter_view_ladder: steps hysteresis prev fill -> count (prev negative: none) */
+static int h_meter_view_ladder(const double *in, int n, double *out) {
+  if (n != 4) return -1;
+  out[0] = omx_meter_view_ladder((int32_t)in[2], in[3], (uint32_t)in[0], in[1]);
+  return 1;
+}
+
+/* meter_view_bar_step: steps prev level -> count */
+static int h_meter_view_bar_step(const double *in, int n, double *out) {
+  if (n != 3) return -1;
+  out[0] = omx_meter_view_bar_step((int32_t)in[1], in[2], (uint32_t)in[0]);
+  return 1;
+}
+
+/* meter_view_decimate: kind kept value -> kept */
+static int h_meter_view_decimate(const double *in, int n, double *out) {
+  if (n != 3) return -1;
+  out[0] = omx_meter_view_decimate((enum omx_meter_kinds)(int)in[0], in[1], in[2]);
+  return 1;
+}
+
+/* meter_view_gr: rate pole { deepest_db dt_s }*k -> the reading at each tick, from no reduction */
+static int h_meter_view_gr(const double *in, int n, double *out) {
+  if (n < 2 || (n - 2) % 2 != 0) return -1;
+  struct omx_meter_gr m = {0.0f, 0.0f};
+  const int k = (n - 2) / 2;
+  for (int i = 0; i < k; i++)
+    out[i] = (double)omx_meter_view_gr(&m, (float)in[2 + 2 * i], in[3 + 2 * i], (float)in[0], (float)in[1]);
+  return k;
+}
+
+/* meter_view_unit_of: kind measurement -> unit (METER_UNITS position; the count for none) */
+static int h_meter_view_unit_of(const double *in, int n, double *out) {
+  if (n != 2) return -1;
+  out[0] = (double)omx_meter_view_unit_of((enum omx_meter_kinds)(int)in[0], (enum omx_meter_measurements)(int)in[1]);
+  return 1;
+}
+
+/* meter_gr_hold_ms: -> OMX_METER_GR_HOLD_MS */
+static int h_meter_gr_hold_ms(const double *in, int n, double *out) {
+  (void)in;
+  if (n != 0) return -1;
+  out[0] = (double)OMX_METER_GR_HOLD_MS;
+  return 1;
+}
+
 static const struct {
   const char *name;
   handler fn;
@@ -372,6 +497,7 @@ static const struct {
     {"eq_band_magnitude_db", h_eq_band_magnitude_db},
     {"eq_magnitude_sum_db", h_eq_magnitude_sum_db},
     {"curve_points", h_curve_points},
+    {"curve_points_marked", h_curve_points_marked},
     {"gaincomp_db", h_gaincomp_db},
     {"gaincomp_db_shifted", h_gaincomp_db_shifted},
     {"gate_knee", h_gate_knee},
@@ -390,6 +516,16 @@ static const struct {
     {"room_mode_eq_proposals", h_room_mode_eq_proposals},
     {"room_mode_residual_db", h_room_mode_residual_db},
     {"room_mode_set_stable", h_room_mode_set_stable},
+    {"meter_view_fill_db", h_meter_view_fill_db},
+    {"meter_view_fill", h_meter_view_fill},
+    {"meter_view_step", h_meter_view_step},
+    {"meter_view_clip", h_meter_view_clip},
+    {"meter_view_ladder", h_meter_view_ladder},
+    {"meter_view_bar_step", h_meter_view_bar_step},
+    {"meter_view_decimate", h_meter_view_decimate},
+    {"meter_view_gr", h_meter_view_gr},
+    {"meter_view_unit_of", h_meter_view_unit_of},
+    {"meter_gr_hold_ms", h_meter_gr_hold_ms},
 };
 
 /* The kernels the table answers, for a test that asks "is the oracle really here". */

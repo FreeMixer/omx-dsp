@@ -22,17 +22,26 @@ const PRIM = join(TS, '..', 'data', 'primitives');
 const HEADER = join(TS, '..', 'include', 'omxdsp', 'omxdsp_definitions.h');
 const OUT = join(TS, 'src', 'definitions.ts');
 /** data file -> the constants of it a twin reads */
-const CONSTANTS = { 'rta.json': ['RTA_TARGET_BIN_HZ', 'RTA_FFT_SIZE_MAX'], 'eq.json': ['LOWPASS_HANDOVER'] };
+const CONSTANTS = {
+  'rta.json': ['RTA_TARGET_BIN_HZ', 'RTA_FFT_SIZE_MAX'],
+  'eq.json': ['LOWPASS_HANDOVER', 'EQ_BAND_DEFAULTS'],
+  'fbs.json': ['FBS_MAX_CUT_DB', 'FBS_RECLAMP_DEEPEN_DB', 'FBS_RECLAMP_BACKOFF_CAP', 'FBS_LIFT_RAMP_MS', 'FBS_LIFT_RAMP_STEPS', 'FBS_RELEASE_RATIO',
+    'FBS_RELEASE_DONE_DB', 'FBS_RELEASE_DWELL_MS', 'FBS_RING_HZ_MIN', 'FBS_RING_HZ_MAX', 'FBS_SAME_RING_HZ', 'FBS_SAME_RING_SHARE',
+    'FBS_DEFAULT_HOLD_SECONDS', 'FBS_DEFAULT_MAX_AUTO_BANDS', 'FBS_DEFAULT_MERGE_CENTS', 'FBS_DEFAULT_COOLDOWN_SECONDS', 'FBS_DEFAULT_NOTCH_Q',
+    'FBS_RING_MEMORY_SLOTS'],
+};
 /** data file -> control name -> the exported name of its { min, max } travel */
 const TRAVELS = {
-  'eq.json': { q: 'EQ_Q_RANGE', notchQ: 'EQ_NOTCH_Q_RANGE' },
+  'eq.json': { q: 'EQ_Q_RANGE', notchQ: 'EQ_NOTCH_Q_RANGE', gain: 'EQ_GAIN_RANGE', freq: 'EQ_FREQ_RANGE' },
+  'fbs.json': { bands: 'FBS_BANDS_RANGE', hold: 'FBS_HOLD_RANGE', merge: 'FBS_MERGE_RANGE', cooldown: 'FBS_COOLDOWN_RANGE' },
   'comp.json': { ratio: 'COMP_RATIO_RANGE', kneeDb: 'COMP_KNEE_DB_RANGE' },
   'gate.json': { ratio: 'GATE_RATIO_RANGE', rangeDb: 'GATE_RANGE_DB_RANGE' },
 };
 /** data/primitives file -> the items of it a twin reads */
 const PRIMITIVES = {
-  'curve.json': ['CURVE_DISPLAYS', 'CURVE_FAMILIES', 'CURVE_ROLES', 'CURVE_UNITS', 'CURVE_SHAPES', 'CURVE_CODES', 'CURVE_POINTS_MAX', 'CURVE_EXTENTS'],
+  'curve.json': ['CURVE_DISPLAYS', 'CURVE_FAMILIES', 'CURVE_ROLES', 'CURVE_UNITS', 'CURVE_SHAPES', 'CURVE_ORIGINS', 'CURVE_CODES', 'CURVE_POINTS_MAX', 'CURVE_EXTENTS'],
   'lin-to-db-floor.json': ['LIN_TO_DB_FLOOR'],
+  'meter.json': ['METER_VIEW', 'METER_KINDS', 'METER_MEASUREMENTS', 'METER_UNITS', 'METER_DECIMATION'],
 };
 
 const read = (file) => JSON.parse(readFileSync(join(DATA, file), 'utf8'));
@@ -91,6 +100,8 @@ export const render = () => {
         lines.push('', doc(c.doc, file, undefined, 'primitives'), `export const ${name} = {`, ...body, '} as const;');
       } else if (c?.kind === 'set' && Array.isArray(c.ids) && c.ids.every((i) => typeof i === 'string')) {
         lines.push('', doc(c.doc, file, undefined, 'primitives'), `export const ${name} = [${c.ids.map((i) => `'${i}'`).join(', ')}] as const;`);
+        if (Array.isArray(c.labels))
+          lines.push('', `/** The labels of ${name}, in its order. @see data/primitives/${file} */`, `export const ${name}_LABELS = [${c.labels.map((i) => `'${i}'`).join(', ')}] as const;`);
       } else throw new Error(`data/primitives/${file}: ${name} is no scalar, flat sheet or set of named ids`);
     }
   }
@@ -98,9 +109,9 @@ export const render = () => {
     const all = read(file).controls;
     for (const [control, name] of Object.entries(controls)) {
       const c = all.find((x) => x.name === control);
-      if (!c || c.kind !== 'travel' || typeof c.travel?.min !== 'number' || typeof c.travel?.max !== 'number')
-        throw new Error(`data/kernels/${file}: control ${control} has no numeric travel`);
-      lines.push('', doc(c.doc ?? `The travel of ${control}, from its table ${c.table}.`, file), `export const ${name} = { min: ${c.travel.min}, max: ${c.travel.max} } as const;`);
+      if (!c || c.kind !== 'travel' || c.travel?.min === undefined || c.travel?.max === undefined)
+        throw new Error(`data/kernels/${file}: control ${control} has no travel`);
+      lines.push('', doc(c.doc ?? `The travel of ${control}, from its table ${c.table}.`, file), `export const ${name} = { min: ${resolve(c.travel.min, own)}, max: ${resolve(c.travel.max, own)} } as const;`);
     }
   }
   return lines.join('\n') + '\n';

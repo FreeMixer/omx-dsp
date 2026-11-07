@@ -37,8 +37,9 @@
  * @param out Out: `count` centres, ascending and distinct.
  * @return `count`, or 0 for a count that is 0 or has no distinct preferred centres (out then holds
  *         no answer).
- * @note RT-safe once (no allocation, no lock), but O(count x 61) logs: read it off the audio path.
+ * @note Once (no allocation, no lock), but O(count x 61) logs: read it off the audio path.
  *       Thread-safe: pure.
+ * @thread audio
  */
 static inline unsigned omx_eq_default_centres(unsigned count, float *out) {
   static const double r10[] = OMX_ISO_THIRD_OCTAVE_CENTRES_HZ_INIT;
@@ -77,7 +78,8 @@ static inline unsigned omx_eq_default_centres(unsigned count, float *out) {
  * @param index The band, 0-based.
  * @param count How many bands the EQ has.
  * @return An OMX_EQ_BAND_TYPES_* member.
- * @note RT-safe, thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_eq_default_type(unsigned index, unsigned count) {
   if (count < 2) return OMX_EQ_BAND_TYPES_BELL;

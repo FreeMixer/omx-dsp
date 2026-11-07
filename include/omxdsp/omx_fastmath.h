@@ -105,7 +105,8 @@ extern float powf(float, float);
  * @param a The float taken when `cond` is non-zero.
  * @param b The float taken otherwise.
  * @return `a` or `b`, bit for bit.
- * @note RT-safe: three integer operations. Thread-safe: pure.
+ * @note Three integer operations. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_fm_select(int cond, float a, float b) {
   const uint32_t m = (uint32_t)0 - (uint32_t)(cond != 0);
@@ -143,7 +144,7 @@ static inline OMX_FM_ALWAYS float omx_fm_select(int cond, float a, float b) {
  * the expression over the whole tile as a loop of constant trip count, which the compiler vectorises with no
  * remainder and no peel. The block size is then not observable (test/fx/fastmath_blocks.test.c). Without libmvec
  * it is the plain loop. `out` may be `in`. The expression must be pure in `v`: no state, one sample in, one out.
- * @note RT-safe: no allocation, one tile on the stack. Thread-safe on distinct blocks.
+ * @note No allocation, one tile on the stack. Thread-safe on distinct blocks.
  */
 #define OMX_FM_MAP(out, in, n, v, expr)                                                                           \
   do {                                                                                                            \
@@ -180,7 +181,8 @@ static inline OMX_FM_ALWAYS float omx_fm_select(int cond, float a, float b) {
 /**
  * @brief Which of the four functions this translation unit calls through libmvec.
  * @return A bit set: 1 tanhf, 2 expf, 4 log10f, 8 powf; 0 when every call is the libm's.
- * @note RT-safe: a constant. Thread-safe: pure.
+ * @note A constant. Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_fastmath_enabled(void) {
   return 0

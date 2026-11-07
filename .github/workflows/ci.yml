@@ -340,13 +340,22 @@ jobs:
             '/usr/lib*/pkgconfig/omxdsp.pc' '/usr/lib*/pkgconfig/omxdsp-contracts.pc' '/usr/lib*/pkgconfig/omxdsp-tsan.pc' \
             /usr/share/doc/omx-dsp-devel/README.md \
             /usr/share/licenses/omx-dsp-devel/LICENSE /usr/bin/omx-dsp-copy-check \
-            /usr/share/man/man1/omx-dsp-copy-check.1.gz /usr/share/omxdsp/omx-dsp-exports.json /usr/share/omxdsp/hrp_peaking_corpus.h | sort > expected.txt
+            /usr/share/man/man1/omx-dsp-copy-check.1.gz \
+            /usr/share/omxdsp/omx-dsp-exports.json /usr/share/omxdsp/hrp_peaking_corpus.h \
+            /usr/share/omxdsp/meter-view-vectors.json | sort > expected.txt
           diff -u expected.txt files.txt
           # the listing is read from a file: grep -q stops at its first match, and under pipefail the rpm it
           # cut off (SIGPIPE, exit 141) fails the step once the listing is longer than the pipe holds
           rpm -qlp "$rpm" > listing.txt
           grep -q '^/usr/include/omxdsp/fx/omx_delay.h$' listing.txt
           grep -q '^/usr/include/omxdsp/fx/omx_reverb.h$' listing.txt
+          # the gate is its own package: its binary, man page and share directory, and nothing of it in the devel one
+          ! grep -q 'rt-gate' listing.txt
+          rpm -qlp "$(ls rpms/omx-rt-gate-[0-9]*.${{ matrix.arch }}.rpm)" > listing.txt
+          for f in bin/omx-rt-gate share/man/man1/omx-rt-gate.1.gz share/omxdsp/rt-gate/tables/forbidden.tbl \
+                   share/omxdsp/rt-gate/tables/classes.tbl share/omxdsp/rt-gate/tables/lv2.abi share/omxdsp/rt-gate/tables/clap.abi \
+                   share/omxdsp/rt-gate/tables/pipewire.abi share/omxdsp/rt-gate/tables/omxdsp.abi share/omxdsp/rt-gate/omx-dsp.tags \
+                   share/omxdsp/rt-gate/graphs/omx_fbs_detect.ci; do grep -q "^/usr/$f\$" listing.txt; done
           ! grep -E '\.so(\.|$)' listing.txt
           # the contract directory is read at run time: it is omx-dsp-contract's, never the devel package's (omx-contract#150)
           ! grep -q '^/usr/share/omx-contract/' listing.txt
@@ -416,13 +425,18 @@ jobs:
       - name: A consumer builds against libomxdsp-dev
         run: |
           set -euo pipefail
-          apt-get install -y --no-install-recommends ./debs/libomxdsp-dev_*.deb ./debs/omx-dsp-contract_*.deb
+          apt-get install -y --no-install-recommends ./debs/libomxdsp-dev_*.deb ./debs/omx-dsp-contract_*.deb ./debs/omx-rt-gate_*.deb
           dpkg -L libomxdsp-dev > listing.txt   # read from a file: see the RPM job's listing
           # the contract directory is omx-dsp-contract's (omx-contract#150)
           ! grep -q '^/usr/share/omx-contract/' listing.txt
           ! grep -E '\.so(\.|$)' listing.txt
           for a in libomxdsp libomxdsp-contracts libomxdsp-tsan; do grep -q "/$a\.a\$" listing.txt; done
           for p in omxdsp omxdsp-contracts omxdsp-tsan; do grep -q "/pkgconfig/$p\.pc\$" listing.txt; done
+          # the gate is its own package (libomxdsp-dev is Multi-Arch: same, no executable belongs there)
+          ! grep -q 'rt-gate' listing.txt
+          dpkg -L omx-rt-gate > listing.txt
+          for f in /usr/bin/omx-rt-gate /usr/share/man/man1/omx-rt-gate.1.gz /usr/share/omxdsp/rt-gate/tables/forbidden.tbl \
+                   /usr/share/omxdsp/rt-gate/omx-dsp.tags /usr/share/omxdsp/rt-gate/graphs/omx_fbs_detect.ci; do grep -q "^$f\$" listing.txt; done
           dpkg -L omx-dsp-contract > listing.txt
           grep -q '^/usr/share/omx-contract/contract.d/3/omx-dsp/MANIFEST.json$' listing.txt
           diff <(cd data && find . -name '*.json' | sed 's|^\./|/usr/share/omx-contract/contract.d/3/omx-dsp/|' | sort) \

@@ -44,7 +44,8 @@
  * @return The ratio; 0 for a cycle with no frames or no positive rate, so a callback that has not
  *         negotiated a format yet never divides by zero.
  * @post `finite`.
- * @note RT-safe, pure.
+ * @note Pure.
+ * @thread audio
  */
 static inline float omx_rt_load_ratio(uint64_t busy_ns, uint32_t frames, float sr) {
   if (frames == 0 || !(sr > 0.0f)) return 0.0f;
@@ -63,7 +64,8 @@ static inline float omx_rt_load_ratio(uint64_t busy_ns, uint32_t frames, float s
  * @param ratio This cycle's busy ratio (omx_rt_load_ratio()).
  * @return The new reading: `ratio` on the first cycle, else
  *         `OMX_RT_LOAD_SMOOTHING · smoothed + (1 − OMX_RT_LOAD_SMOOTHING) · ratio`.
- * @note RT-safe, pure. A convex combination: finite inputs give a finite reading.
+ * @note Pure. A convex combination: finite inputs give a finite reading.
+ * @thread audio
  */
 static inline float omx_rt_load_smooth(float smoothed, uint32_t cycles, float ratio) {
   return cycles == 0 ? ratio
@@ -76,7 +78,8 @@ static inline float omx_rt_load_smooth(float smoothed, uint32_t cycles, float ra
  * @param ratio This cycle's busy ratio.
  * @return `ratio` when it is strictly greater than `held`, else `held`: an equal or NaN ratio
  *         keeps what is held.
- * @note RT-safe, pure.
+ * @note Pure.
+ * @thread audio
  */
 static inline float omx_rt_load_peak(float held, float ratio) { return ratio > held ? ratio : held; }
 
@@ -84,7 +87,8 @@ static inline float omx_rt_load_peak(float held, float ratio) { return ratio > h
  * @brief Whether a cycle overran: its work took the whole budget or more.
  * @param ratio The cycle's busy ratio.
  * @return true when `ratio >= 1`.
- * @note RT-safe, pure.
+ * @note Pure.
+ * @thread audio
  */
 static inline bool omx_rt_load_overrun(float ratio) { return ratio >= 1.0f; }
 
@@ -100,8 +104,9 @@ static inline bool omx_rt_load_overrun(float ratio) { return ratio >= 1.0f; }
  * @param seen_ns The accumulated xrun time the previous cycle read, nanoseconds.
  * @param xrun_ns The accumulated xrun time read in this cycle, nanoseconds.
  * @return 1 when a baseline exists and the total grew, else 0.
- * @note RT-safe, pure. The caller stores `xrun_ns` as the next cycle's `seen_ns` and marks the
+ * @note Pure. The caller stores `xrun_ns` as the next cycle's `seen_ns` and marks the
  *       baseline taken.
+ * @thread audio
  */
 static inline uint32_t omx_rt_load_xrun_events(bool seeded, uint64_t seen_ns, uint64_t xrun_ns) {
   return (seeded && xrun_ns > seen_ns) ? 1u : 0u;

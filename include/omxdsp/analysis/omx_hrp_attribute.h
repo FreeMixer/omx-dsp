@@ -64,7 +64,8 @@ typedef struct {
 
 /** Is a partial audible at all, judged against this voice's own mean partial? Self-relative for
  *  the same reason everywhere else in HRP is: a quiet voice inside a loud chord must be held to
- *  its own shape, not to the chord's level. */
+ *  its own shape, not to the chord's level.
+ * @thread worker */
 static inline int omx_hrp_partial_present(float level, float voice_mean, float accept) {
   return voice_mean > 0.0f && level >= accept * voice_mean;
 }
@@ -77,6 +78,7 @@ static inline int omx_hrp_partial_present(float level, float voice_mean, float a
  * @param voices  the frame's voice set
  * @param cfg     the search config (harmonics, and the presence yardstick)
  * @param out     caller-owned array of at least `voices->voice_count` grids; fully written
+ * @thread worker
  */
 static inline void omx_hrp_attribute(const float *mag, uint32_t nbins, float bin_hz,
                                      const OmxHrpVoiceSet *voices, const OmxHrpConfig *cfg,
@@ -135,7 +137,8 @@ static inline void omx_hrp_attribute(const float *mag, uint32_t nbins, float bin
   }
 }
 
-/** The measured partial for harmonic `n` of one voice, or NULL if it was never measured. */
+/** The measured partial for harmonic `n` of one voice, or NULL if it was never measured.
+ * @thread worker */
 static inline const OmxHrpPartial *omx_hrp_partial_of(const OmxHrpVoiceHarmonics *grid,
                                                       uint32_t harmonic) {
   if (!grid) return NULL;
@@ -145,7 +148,8 @@ static inline const OmxHrpPartial *omx_hrp_partial_of(const OmxHrpVoiceHarmonics
 }
 
 /** How many of a voice's partials could be attributed to it ALONE — the ones a correction may
- *  safely act on. A voice whose every partial is shared has nothing HRP can honestly cut. */
+ *  safely act on. A voice whose every partial is shared has nothing HRP can honestly cut.
+ * @thread worker */
 static inline uint32_t omx_hrp_unambiguous_count(const OmxHrpVoiceHarmonics *grid) {
   uint32_t n = 0;
   if (!grid) return 0;

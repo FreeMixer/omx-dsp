@@ -77,7 +77,8 @@ _Static_assert(sizeof(struct omx_band_dyn_state) == sizeof(float) * (OMX_DYN_ENV
  * @param sample_rate The rate, Hz, positive.
  * @param c Receives `B`, `{b0, b1, b2, a1, a2}`, normalised, a-terms subtracted.
  * @post `pole-inside-the-unit-circle`: a shelf's `B` is stable and finite.
- * @note Control thread: omx_eq_design()'s `exp`, `cos`, `sin`, `sqrt`, no allocation. Thread-safe: pure.
+ * @note Omx_eq_design()'s `exp`, `cos`, `sin`, `sqrt`, no allocation. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_band_dyn_design(enum omx_eq_kind kind, double freq_hz, double q, double sample_rate,
                                        float c[5]) {
@@ -110,7 +111,8 @@ struct omx_band_dyn_block {
 /**
  * @brief Clear one band's state.
  * @param st The state.
- * @note CONTROL thread only.
+ * @note 
+ * @thread control
  */
 static inline void omx_band_dyn_state_init(struct omx_band_dyn_state *st) { memset(st, 0, sizeof(*st)); }
 
@@ -118,7 +120,8 @@ static inline void omx_band_dyn_state_init(struct omx_band_dyn_state *st) { mems
  * @brief The latency the band adds, in base-rate samples: zero at every rate, engaged or not (§4 L6).
  * @param p The atom.
  * @return 0.
- * @note RT-safe: no work. Thread-safe: pure.
+ * @note No work. Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_band_dyn_latency(const struct omx_band_dyn *p) {
   (void)p;
@@ -132,7 +135,8 @@ static inline int omx_band_dyn_latency(const struct omx_band_dyn *p) {
  * @param dyn The atom's dynamics.
  * @return The block's detector.
  * @post `poles-in-unit-interval`: both per-stage poles lie in [0, 1].
- * @note RT-safe: one pole derivation per block. Thread-safe: pure.
+ * @note One pole derivation per block. Thread-safe: pure.
+ * @thread audio
  */
 static inline struct omx_band_dyn_block omx_band_dyn_begin(const struct omx_dyn *dyn) {
   struct omx_band_dyn_block bk;
@@ -154,8 +158,9 @@ static inline struct omx_band_dyn_block omx_band_dyn_begin(const struct omx_dyn 
  * characteristic's steepest slope (`1 − 1/ratio` above, `ratio − 1` below).
  * @return `d ∈ [min(0, range_db), max(0, range_db)]`.
  * @post `offset-within-range` (§4 L5), `finite`.
- * @note RT-safe and pure, no libm call. The meter re-runs this on the level the last sample
+ * @note Pure, no libm call. The meter re-runs this on the level the last sample
  *       used, so the reading and the stage are one computation.
+ * @thread audio
  */
 static inline float omx_band_dyn_offset_db(const struct omx_gaincomp_params *gc, float level) {
   struct omx_gaincomp_params c = *gc;
@@ -178,7 +183,8 @@ static inline float omx_band_dyn_offset_db(const struct omx_gaincomp_params *gc,
  * @param level The detector level, linear, not negative.
  * @return `g`; exactly 1 where `d` is 0.
  * @post `gain-positive-finite`.
- * @note RT-safe and pure: omx_band_dyn_offset_db() and omx_db_to_lin_poly(), no libm call.
+ * @note Pure: omx_band_dyn_offset_db() and omx_db_to_lin_poly(), no libm call.
+ * @thread audio
  */
 static inline float omx_band_dyn_gain(const struct omx_gaincomp_params *gc, float level) {
   const float g = omx_db_to_lin_poly(omx_band_dyn_offset_db(gc, level));
@@ -199,7 +205,8 @@ static inline float omx_band_dyn_gain(const struct omx_gaincomp_params *gc, floa
  * @param bl Out: `B(xl)`.
  * @param br Out: `B(xr)`, 0 in mono.
  * @return The detector level, linear (omx_env_level() of the cascade).
- * @note RT-safe: two biquads, one cascade step.
+ * @note Two biquads, one cascade step.
+ * @thread audio
  */
 static inline float omx_band_dyn_level(const float c[5], struct omx_band_dyn_state *st,
                                        const struct omx_band_dyn_block *bk, float xl, float xr, int stereo,
@@ -225,7 +232,8 @@ static inline float omx_band_dyn_level(const float c[5], struct omx_band_dyn_sta
  * @param br Out: `B(xr)`, 0 in mono.
  * @return `g = 10^(d/20)`: omx_band_dyn_gain() of omx_band_dyn_level(), bit for bit what
  *         omx_band_dyn_run() applies to that sample.
- * @note RT-safe: two biquads, one cascade step, one gain-computer call, no libm call.
+ * @note Two biquads, one cascade step, one gain-computer call, no libm call.
+ * @thread audio
  */
 static inline float omx_band_dyn_detect(const float c[5], struct omx_band_dyn_state *st,
                                         const struct omx_gaincomp_params *gc,
@@ -243,7 +251,8 @@ static inline float omx_band_dyn_detect(const float c[5], struct omx_band_dyn_st
  * @param b `B(u)`.
  * @return The dynamic band's sample.
  * @pre `gain-positive`.
- * @note RT-safe: one multiply-add. Thread-safe: pure.
+ * @note One multiply-add. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_band_dyn_split(float u, float g, float b) {
   OMX_PRE(g > 0.0f, "gain-positive");
@@ -256,7 +265,8 @@ static inline float omx_band_dyn_split(float u, float g, float b) {
  * @brief Flush every recursive word of the state out of the subnormal range, once per block.
  * @param st The state.
  * @post `no-denormal-state`: every word is a fixed point of omx_flush().
- * @note RT-safe: O(1). Thread-safe on distinct state.
+ * @note O(1). Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_band_dyn_flush(struct omx_band_dyn_state *st) {
   omx_env_flush(&st->env);
@@ -292,8 +302,9 @@ static inline void omx_band_dyn_flush(struct omx_band_dyn_state *st) {
  * @pre `finite-in-l`, `finite-in-r`; behind the enable gate: `ratio-at-least-one`,
  *      `knee-not-negative`, `peak-detector`, `no-make-up`.
  * @post `finite-out-l`, `finite-out-r`; `st->gr_min_db` holds the run's deepest `g` in dB.
- * @note RT-safe: O(n), no allocation (four chunk arrays on the stack), no lock, no IO, no libm call
+ * @note O(n), no allocation (four chunk arrays on the stack), no lock, no IO, no libm call
  *       per sample.
+ * @thread audio
  */
 static inline void omx_band_dyn_run(float *l, float *r, uint32_t n, const struct omx_dyn *dyn, const float c[5],
                                     struct omx_band_dyn_state *st, int wideband, int enabled) {
@@ -333,7 +344,8 @@ static inline void omx_band_dyn_run(float *l, float *r, uint32_t n, const struct
  * @param p The atom.
  * @param st The state.
  * @pre `mode-is-a-member` behind the enable gate; those of omx_band_dyn_run().
- * @note RT-safe. Disabled: no sample and no state word moves.
+ * @note Disabled: no sample and no state word moves.
+ * @thread audio
  */
 static inline void omx_band_dyn_process(float *l, float *r, uint32_t n, const struct omx_band_dyn *p,
                                         struct omx_band_dyn_state *st) {

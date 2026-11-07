@@ -45,6 +45,7 @@
 /**
  * `rbjSection('highShelf', freq_hz, SQRT1_2, gain_db, rate)`, normalised to `{b0,b1,b2,a1,a2}`.
  * A 0 dB shelf is EXACTLY identity (both pairs come from the same call with the same arguments).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "drive/design-highshelf"
 static inline void omx_drive_design_highshelf(float freq_hz, float gain_db, uint32_t rate,
@@ -68,6 +69,7 @@ static inline void omx_drive_design_highshelf(float freq_hz, float gain_db, uint
  * `rbjSection('lowpass', freq_hz, SQRT1_2, 0, rate)`, normalised. The numerator is fitted to
  * the prototype's magnitude-squared at DC (1), at `f0` (Q^2) and at Nyquist, then `b0,b1,b2`
  * are recovered from `N(1)`, `N(-1)` and the `sin^2(w/2)` expansion — eq.ts, line for line.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "drive/design-lowpass"
 static inline void omx_drive_design_lowpass(float freq_hz, uint32_t rate, float out[5]) {
@@ -101,6 +103,7 @@ static inline void omx_drive_design_lowpass(float freq_hz, uint32_t rate, float 
  * low-pass and the tilt pair at `band_hz`, the roll-off at `hf_hz` (20 000 when the row says
  * `off` — a section is still designed so the C never runs an uninitialised one; `hf_on` is what
  * decides whether it runs). Only the four coefficient arrays are written.
+ * @thread audio
  */
 static inline void omx_drive_design_bank(struct omx_drive *o, float band_hz, float hf_hz,
                                          uint32_t rate) {

@@ -109,6 +109,7 @@ typedef struct {
  *        the ordinary reading).
  * @pre `fft-size-ge-2`, `rate-positive`, `buffers-present`.
  * @note Allocation-free, O(n). Thread-safe on distinct accumulators.
+ * @thread control
  */
 void omx_xspec_init(OmxXspec *a, double *xr, double *xi, double *pxx, double *pyy, uint32_t fft_size,
                     double sample_rate, double back_samples);
@@ -129,6 +130,7 @@ void omx_xspec_init(OmxXspec *a, double *xr, double *xi, double *pxx, double *py
  *         `shape-mismatch`; an offset disagreement alone is folded, the fit refuses it and the
  *         room curve, which reads no offset, does not.
  * @note Allocation-free, O(n). Thread-safe on distinct accumulators.
+ * @thread control
  */
 int omx_xspec_add(OmxXspec *a, const double *t_re, const double *t_im, const double *r_re, const double *r_im,
                   uint32_t nbins, uint32_t fft_size, double sample_rate, double back_samples);
@@ -144,6 +146,7 @@ int omx_xspec_add(OmxXspec *a, const double *t_re, const double *t_im, const dou
  * @param k_hi Receives the last bin.
  * @return 1 when the band selects at least two bins (`k_hi > k_lo`); 0 (`empty-band`) otherwise.
  * @note Allocation-free, O(1). Thread-safe: pure.
+ * @thread control
  */
 int omx_xspec_band(uint32_t fft_size, double sample_rate, double low_hz, double high_hz, uint32_t *k_lo,
                    uint32_t *k_hi);
@@ -163,6 +166,7 @@ int omx_xspec_band(uint32_t fft_size, double sample_rate, double low_hz, double 
  *         power of two (core's `null`).
  * @note Allocation-free, O(n log n) for the transform that finds the peak, then one cos/sin pair
  *       per band bin for the three heights. Thread-safe on distinct scratch.
+ * @thread control
  */
 int omx_align_coarse_delay(const double *cross_re, const double *cross_im, uint32_t fft_size, int32_t k_lo,
                            int32_t k_hi, enum omx_align_arrival arrival, double *scratch_re, double *scratch_im,
@@ -185,6 +189,7 @@ int omx_align_coarse_delay(const double *cross_re, const double *cross_im, uint3
  *         no-shared-energy, residual-exceeds-half-sample.
  * @note Allocation-free, O(n log n). Thread-safe on distinct accumulators and scratch.
  * @twin fitAlignment
+ * @thread control
  */
 enum omx_analysis_refusal omx_align_fit(const OmxXspec *a, uint32_t min_frames, double low_hz, double high_hz,
                                         enum omx_align_arrival arrival, double trust_coherence,
@@ -203,6 +208,7 @@ enum omx_analysis_refusal omx_align_fit(const OmxXspec *a, uint32_t min_frames, 
  * @param out Receives the correction.
  * @note Allocation-free, O(1). Thread-safe: pure.
  * @twin alignCorrection
+ * @thread control
  */
 void omx_align_correction(double fit_delay_ms, uint32_t fit_invert, double applied_delay_ms, uint32_t applied_inverted,
                           double travel_min, double travel_max, OmxAlignCorrection *out);
