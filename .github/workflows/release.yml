@@ -44,7 +44,7 @@ jobs:
     uses: FreeMixer/.github/.github/workflows/build-rpm.yml@v1
     with:
       package-name: omx-dsp
-      binary-names: omx-dsp-devel
+      binary-names: omx-dsp-devel omx-rt-gate
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
       needs-mod-host: false
       runner: ${{ inputs.runner || 'ubuntu-latest' }}
@@ -58,7 +58,7 @@ jobs:
     uses: FreeMixer/.github/.github/workflows/build-deb.yml@v1
     with:
       package-name: omx-dsp
-      binary-names: libomxdsp-dev
+      binary-names: libomxdsp-dev omx-rt-gate
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
       dependencies: ''
       runner: ${{ inputs.runner || 'ubuntu-latest' }}
