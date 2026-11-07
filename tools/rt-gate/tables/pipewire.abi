@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
+# pipewire.abi — the thread roles of a PipeWire filter engine, declared once (omx-rt-gate(1)):
+# the data thread's process callback and the fork block a split hands its workers.
+plugin pw_filter_events process audio
+plugin omx_fork_block run audio

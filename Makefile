@@ -54,6 +54,9 @@
 #               private-refs-check, from a checkout of it: DOTGITHUB=<dir>)
 #   make docs   the API reference by doxygen (build-time only)
 #   make test-tsan  the thread arm under -fsanitize=thread where the toolchain has it
+#   make rt-gate   omx-rt-gate, the one static real-time gate (tools/rt-gate, omx-rt-gate(1)): its class
+#               table measured by the externals arm, its planted fixtures red and clean twins green, its
+#               load refusals;  make rt-gate-sabotage  the guards broken one at a time, the -O2 arm
 #   make cost-prel  omx_env_program_release's ns/sample at every declared rate (its cost row)
 #   make cost-deesser  the de-esser's ns/frame at every declared rate, default and stereo, by the
 #               plugin cost method (1 kHz sine at -6 dBFS, 512-frame blocks, 64 discarded, p50/p95)
@@ -792,6 +795,43 @@ fastmath-partial: $(BUILD)/fastmath_partial
 
 .PHONY: fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
 
+# ---- omx-rt-gate: the one static real-time gate (tools/rt-gate, omx-rt-gate(1)) -----------------------
+# rt-gate           the gate built; the externals arm measures every row of the class table (each row names
+#                   its case, and every case must read zero allocations); the self-test judges every planted
+#                   fixture red, at its place and through its path, every clean twin green, and refuses at
+#                   load every waiver-shaped, unreasoned, unmeasured, duplicate or forbidden row
+# rt-gate-sabotage  the forbidden list and the class table emptied (the self-test must go red), the -O2 arm
+#                   (dead-code removal takes the planted malloc out of the graph: why the input is -O0), the
+#                   externals arm's own sabotage
+RT_GATE_DIR    = $(BUILD)/rt-gate
+RT_GATE        = $(RT_GATE_DIR)/omx-rt-gate
+RT_GATE_ARM    = $(RT_GATE_DIR)/externals-arm
+RT_GATE_TABLES = tools/rt-gate/tables
+RT_GATE_FIXTURES = $(wildcard tools/rt-gate/fixtures/*)
+
+$(RT_GATE): tools/rt-gate/omx-rt-gate.c | $(BUILD)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS_PLAIN) -DOMX_RT_GATE_DATADIR='"$(DATADIR)/omxdsp/rt-gate"' -o $@ $< $(LDFLAGS)
+
+# -O0 -fno-builtin: every case calls the real symbol, none folded or inlined away
+$(RT_GATE_ARM): tools/rt-gate/externals-arm.c | $(BUILD)
+	@mkdir -p $(@D)
+	$(CC) -O0 -fno-builtin -Wall -Wextra -Werror -o $@ $< -lm
+
+.PHONY: rt-gate rt-gate-arm rt-gate-selftest rt-gate-sabotage
+rt-gate-arm: $(RT_GATE_ARM) $(RT_GATE_TABLES)/classes.tbl
+	@awk '!/^#/ && NF && $$3 !~ /^externals-arm:/ { print "rt-gate-arm: " FILENAME ":" FNR ": " $$1 " names no externals-arm case"; bad = 1 } END { exit bad }' $(RT_GATE_TABLES)/classes.tbl
+	./$(RT_GATE_ARM) $$(awk '!/^#/ && NF { sub(/^externals-arm:/, "", $$3); print $$3 }' $(RT_GATE_TABLES)/classes.tbl)
+
+rt-gate-selftest: $(RT_GATE) $(RT_GATE_FIXTURES) $(wildcard $(RT_GATE_TABLES)/*)
+	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/rt-gate/selftest.sh $(abspath $(RT_GATE)) $(abspath $(RT_GATE_TABLES))
+
+rt-gate: rt-gate-arm rt-gate-selftest
+	@echo "rt-gate: the gate reads every planted red, passes every clean twin and refuses every bad row"
+
+rt-gate-sabotage: $(RT_GATE) $(RT_GATE_ARM) $(RT_GATE_FIXTURES)
+	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/rt-gate/sabotage.sh $(abspath $(RT_GATE)) $(abspath $(RT_GATE_TABLES)) $(abspath $(RT_GATE_ARM))
+
 # ---- the package build's check --------------------------------------------------------------------
 # What debian/rules and the RPM's %check run: the tests that prove the library just built, at every
 # declared rate (the suite, the negative arm, the consumer and thread arms, every oracle and golden
@@ -800,14 +840,14 @@ fastmath-partial: $(BUILD)/fastmath_partial
 # under make -j4 test the package build went past its 60-minute job on a 4-core runner.
 # tools/check-package-check.sh holds this list to make test's (part of make checks).
 CHECK_PACKAGE = lib suite negative consumer threads bandwidth-q-table eq-default-bands fx-oracles \
-                analysis-oracles engine-kernels-golden mix-golden flavours fastmath fastmath-diff fastmath-partial
+                analysis-oracles engine-kernels-golden mix-golden flavours fastmath fastmath-diff fastmath-partial rt-gate
 
 .PHONY: check-package fx-oracles analysis-oracles engine-kernels-golden mix-golden
 check-package: $(CHECK_PACKAGE)
 	@echo "omxdsp: make check-package green"
 
 .PHONY: test-parallel
-test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage curve-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial
+test-parallel: lib checks gen-once suite negative magnitude-sabotage eq-sabotage curve-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands consumer perturb fdelay-sabotage doppler-sabotage onepole-sabotage note-map-sabotage threads threads-sabotage test-fx test-analysis test-engine-kernels test-mix flavours fastmath fastmath-diff fastmath-sabotage fastmath-plain fastmath-partial rt-gate rt-gate-sabotage
 
 # ---- install ------------------------------------------------------------------------------------
 

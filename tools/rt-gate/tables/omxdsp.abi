@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
+# omxdsp.abi — the roles of omx-dsp's self-run (omx-rt-gate(1)): the generated unit stores the address
+# of every function tagged `@thread audio` in an audio entry and of every `@thread worker` one in a
+# worker entry. A `@thread control` function is stored in a control entry, which is no root.
+plugin omx_rt_gate_audio_entry fn audio
+plugin omx_rt_gate_worker_entry fn worker
