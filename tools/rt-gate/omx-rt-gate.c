@@ -1722,7 +1722,7 @@ static void show_log(const char *log) {
 /* the consumer's flags, without what would change the input: optimisation, output, LTO, the
  * dependency files; then -O0 -fno-inline -fcallgraph-info */
 static char **cc_argv(char **cc, int ncc, const char *unit, const char *out, int preprocess) {
-  char **a = xrealloc(NULL, (size_t)(ncc + 12) * sizeof *a);
+  char **a = xrealloc(NULL, (size_t)(ncc + 14) * sizeof *a);
   int n = 0;
   for (int i = 0; i < ncc; i++) {
     const char *f = cc[i];
@@ -1741,6 +1741,8 @@ static char **cc_argv(char **cc, int ncc, const char *unit, const char *out, int
   }
   a[n++] = "-O0";
   a[n++] = "-fno-inline";
+  /* a distribution's -D_FORTIFY_SOURCE warns at -O0, and a -Werror build stops on it */
+  a[n++] = "-Wp,-U_FORTIFY_SOURCE";
   if (preprocess) {
     a[n++] = "-E";
   } else {

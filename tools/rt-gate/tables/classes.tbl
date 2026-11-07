@@ -68,6 +68,7 @@ fmax maths externals-arm:fmax libm, double precision: arithmetic on the argument
 copysign maths externals-arm:copysign libm, double precision: arithmetic on the arguments
 lrint maths externals-arm:lrint libm, double precision: arithmetic on the arguments
 llround maths externals-arm:llround libm, double precision: arithmetic on the arguments
+lround maths externals-arm:lround libm, double precision: arithmetic on the arguments
 ldexp maths externals-arm:ldexp libm, double precision: arithmetic on the arguments
 
 memcpy bulk-memory externals-arm:memcpy a bounded pass over caller-owned bytes

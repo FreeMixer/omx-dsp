@@ -67,6 +67,7 @@ static long case_lrintf(void) { for (int i = 0; i < N; i++) sinkl = lrintf(xf(i)
 static long case_lroundf(void) { for (int i = 0; i < N; i++) sinkl = lroundf(xf(i)); return N; }
 static long case_lrint(void) { for (int i = 0; i < N; i++) sinkl = lrint(xd(i)); return N; }
 static long case_llround(void) { for (int i = 0; i < N; i++) sinkl = llround(xd(i)); return N; }
+static long case_lround(void) { for (int i = 0; i < N; i++) sinkl = lround(xd(i)); return N; }
 static long case_ldexp(void) { for (int i = 0; i < N; i++) sinkd = ldexp(xd(i), i % 64 - 32); return N; }
 
 static char a[4096], b[4096];
@@ -104,7 +105,7 @@ static const struct arm_case CASES[] = {
     C(sinf), C(cosf), C(tanf), C(tanhf), C(expf), C(exp2f), C(logf), C(log2f), C(log10f), C(sqrtf), C(floorf),
     C(ceilf), C(powf), C(fminf), C(fmaxf), C(nextafterf), C(lrintf), C(lroundf),
     C(sin), C(cos), C(tan), C(sinh), C(exp), C(log), C(log2), C(log10), C(sqrt), C(floor), C(ceil), C(pow),
-    C(hypot), C(atan2), C(fmin), C(fmax), C(copysign), C(lrint), C(llround), C(ldexp),
+    C(hypot), C(atan2), C(fmin), C(fmax), C(copysign), C(lrint), C(lround), C(llround), C(ldexp),
     C(memcpy), C(memmove), C(memset), C(memcmp), C(sem_post), C(clock_gettime),
 };
 

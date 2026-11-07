@@ -842,19 +842,73 @@ $(RT_GATE_TAGS): $(foreach f,$(RT_GATE_FLAVOURS),$(RT_GATE_DIR)/$(f).tags)
 rt-gate-tags: $(RT_GATE_TAGS)
 	@echo "rt-gate-tags: $$(wc -l < $(RT_GATE_TAGS)) functions, each with exactly one @thread tag"
 
-.PHONY: rt-gate rt-gate-arm rt-gate-selftest rt-gate-sabotage rt-gate-tags
+# the call graphs of the compiled units, per set of flags (-O0 -fno-inline: the gate's input, never -O2); the
+# release ones ship, for the consumers' join
+RT_GATE_GRAPHS = $(RT_GATE_DIR)/graphs-release
+$(RT_GATE_DIR)/graphs-%.stamp: $(SRC) $(HEADERS) $(ANALYSIS_HEADERS) | $(BUILD)
+	@mkdir -p $(RT_GATE_DIR)/graphs-$*
+	@for f in $(SRC); do b=$$(basename $$f .c); \
+	  $(CC) $(RT_GATE_FLAGS_$*) -O0 -fno-inline -fcallgraph-info -c -o $(RT_GATE_DIR)/graphs-$*/$$b.o $$f || exit 1; \
+	  rm -f $(RT_GATE_DIR)/graphs-$*/$$b.o; done
+	@touch $@
+
+# the self-run: the generated unit takes the address of every tagged function, each audio one an audio root
+# and each worker one a worker root (omxdsp.abi), joined to the compiled units' graphs; every tagged audio
+# and worker function must be a root walked, and nothing red
+rt-gate-selfrun-%: $(RT_GATE) $(RT_GATE_DIR)/%.tags $(RT_GATE_DIR)/graphs-%.stamp
+	./$(RT_GATE) --tables $(RT_GATE_TABLES) --abi omxdsp --tags $(RT_GATE_DIR)/$*.tags --graphs $(RT_GATE_DIR)/graphs-$* \
+	  --work $(RT_GATE_DIR)/selfrun-$*.work -- $(CC) $(RT_GATE_FLAGS_$*) $(RT_GATE_DIR)/selfrun-$*.c > $(RT_GATE_DIR)/selfrun-$*.out
+	@want=$$(awk '$$2 == "audio" || $$2 == "worker"' $(RT_GATE_DIR)/$*.tags | wc -l); \
+	  got=$$(sed -n 's/^SUMMARY roots=\([0-9]*\) .*/\1/p' $(RT_GATE_DIR)/selfrun-$*.out); \
+	  [ "$$got" = "$$want" ] || { echo "rt-gate-selfrun-$*: $$got roots walked, $$want tagged audio or worker"; exit 1; }; \
+	  echo "rt-gate-selfrun-$*: $$(sed -n 's/^SUMMARY //p' $(RT_GATE_DIR)/selfrun-$*.out)"
+
+rt-gate-selfrun: $(foreach f,$(RT_GATE_FLAVOURS),rt-gate-selfrun-$(f))
+
+.SECONDARY: $(foreach f,$(RT_GATE_FLAVOURS),$(RT_GATE_DIR)/graphs-$(f).stamp $(RT_GATE_DIR)/$(f).tags)
+
+# what make install ships of the gate, and the installed gate judged where it lies: with no --tables, --tags or
+# --graphs it reads its own share directory, joins a consumer to omx-dsp's graph and reads it red and green
+rt-gate-ship: $(RT_GATE) $(RT_GATE_TAGS) $(RT_GATE_DIR)/graphs-release.stamp
+
+install-rt-gate: rt-gate-ship
+	install -d $(DESTDIR)$(BINDIR) $(DESTDIR)$(MANDIR)/man1 $(DESTDIR)$(DATADIR)/omxdsp/rt-gate/tables $(DESTDIR)$(DATADIR)/omxdsp/rt-gate/graphs
+	install -m 0755 $(RT_GATE) $(DESTDIR)$(BINDIR)/omx-rt-gate
+	install -m 0644 tools/rt-gate/omx-rt-gate.1 $(DESTDIR)$(MANDIR)/man1/
+	install -m 0644 $(RT_GATE_TABLES)/*.tbl $(RT_GATE_TABLES)/*.abi $(DESTDIR)$(DATADIR)/omxdsp/rt-gate/tables/
+	install -m 0644 $(RT_GATE_TAGS) $(DESTDIR)$(DATADIR)/omxdsp/rt-gate/
+	install -m 0644 $(RT_GATE_GRAPHS)/*.ci $(DESTDIR)$(DATADIR)/omxdsp/rt-gate/graphs/
+
+rt-gate-installed: | $(BUILD)
+	rm -rf $(RT_GATE_DIR)/root
+	$(MAKE) --no-print-directory install-rt-gate DESTDIR=$(abspath $(RT_GATE_DIR)/root) PREFIX=/usr
+	@cd tools/rt-gate && for f in join.c join.clean.c; do \
+	  want=$$(sed -n 's|^// expect: ||p' fixtures/$$f); \
+	  $(abspath $(RT_GATE_DIR)/root)/usr/bin/omx-rt-gate --abi lv2 --work $(abspath $(RT_GATE_DIR))/installed-$$f -- \
+	    $(CC) -Wall -Wextra -Werror -O2 -Ifixtures -I$(abspath include) -isystem $(CONTRACT_INC) $(FPFLAGS) fixtures/$$f \
+	    > $(abspath $(RT_GATE_DIR))/installed-$$f.out 2>&1; rc=$$?; \
+	  [ "$$rc" = "$$want" ] || { cat $(abspath $(RT_GATE_DIR))/installed-$$f.out; echo "rt-gate-installed: $$f exit $$rc, want $$want"; exit 1; }; \
+	  sed -n 's|^// expect-red: ||p' fixtures/$$f | sort > $(abspath $(RT_GATE_DIR))/installed-$$f.want; \
+	  grep '^RT-' $(abspath $(RT_GATE_DIR))/installed-$$f.out | sort > $(abspath $(RT_GATE_DIR))/installed-$$f.got; \
+	  diff $(abspath $(RT_GATE_DIR))/installed-$$f.want $(abspath $(RT_GATE_DIR))/installed-$$f.got || \
+	    { echo "rt-gate-installed: $$f reds differ"; exit 1; }; \
+	  echo "rt-gate-installed: the installed gate judges fixtures/$$f exit $$rc"; done
+
+.PHONY: rt-gate rt-gate-arm rt-gate-selftest rt-gate-sabotage rt-gate-tags rt-gate-selfrun rt-gate-ship install-rt-gate rt-gate-installed
 rt-gate-arm: $(RT_GATE_ARM) $(RT_GATE_TABLES)/classes.tbl
 	@awk '!/^#/ && NF && $$3 !~ /^externals-arm:/ { print "rt-gate-arm: " FILENAME ":" FNR ": " $$1 " names no externals-arm case"; bad = 1 } END { exit bad }' $(RT_GATE_TABLES)/classes.tbl
 	./$(RT_GATE_ARM) $$(awk '!/^#/ && NF { sub(/^externals-arm:/, "", $$3); print $$3 }' $(RT_GATE_TABLES)/classes.tbl)
 
-rt-gate-selftest: $(RT_GATE) $(RT_GATE_FIXTURES) $(wildcard $(RT_GATE_TABLES)/*)
-	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/rt-gate/selftest.sh $(abspath $(RT_GATE)) $(abspath $(RT_GATE_TABLES))
+rt-gate-selftest: $(RT_GATE) $(RT_GATE_FIXTURES) $(wildcard $(RT_GATE_TABLES)/*) $(RT_GATE_TAGS) $(RT_GATE_DIR)/graphs-release.stamp
+	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/rt-gate/selftest.sh $(abspath $(RT_GATE)) $(abspath $(RT_GATE_TABLES)) \
+	  --graphs $(abspath $(RT_GATE_GRAPHS)) --tags $(abspath $(RT_GATE_TAGS)) --cflags "-I$(abspath include) -isystem $(CONTRACT_INC) $(FPFLAGS)"
 
-rt-gate: rt-gate-arm rt-gate-selftest rt-gate-tags
+rt-gate: rt-gate-arm rt-gate-selftest rt-gate-tags rt-gate-selfrun rt-gate-installed
 	@echo "rt-gate: the gate reads every planted red, passes every clean twin and refuses every bad row"
 
 rt-gate-sabotage: $(RT_GATE) $(RT_GATE_ARM) $(RT_GATE_FIXTURES)
-	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/rt-gate/sabotage.sh $(abspath $(RT_GATE)) $(abspath $(RT_GATE_TABLES)) $(abspath $(RT_GATE_ARM))
+	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/rt-gate/sabotage.sh $(abspath $(RT_GATE)) $(abspath $(RT_GATE_TABLES)) $(abspath $(RT_GATE_ARM)) \
+	  "-I$(abspath include) -isystem $(CONTRACT_INC) $(CFLAGS)"
 
 # ---- the package build's check --------------------------------------------------------------------
 # What debian/rules and the RPM's %check run: the tests that prove the library just built, at every
@@ -893,7 +947,7 @@ $(BUILD)/omxdsp-tsan.pc: omxdsp.pc.in include/omxdsp/omxdsp.h Makefile packaging
 	sed $(PC_SED) -e 's|@NAME@|omxdsp-tsan|' -e 's|@FLAVOUR@|contracts compiled in, under ThreadSanitizer|' \
 	    -e 's|@CFLAGS@| $(TSAN_CFLAGS) $(MVEC_CFLAGS)|' -e 's|@LIBS@| $(TSAN_LIBS) $(MVEC_LIBS)|' $< | sed 's/ *$$//' > $@
 
-install: $(LIBS_ALL) $(PC_ALL) $(EXPORTS)
+install: $(LIBS_ALL) $(PC_ALL) $(EXPORTS) install-rt-gate
 	install -d $(DESTDIR)$(INCLUDEDIR)/omxdsp/fx $(DESTDIR)$(INCLUDEDIR)/omxdsp/analysis $(DESTDIR)$(INCLUDEDIR)/omxdsp/mix $(DESTDIR)$(LIBDIR)/pkgconfig \
 	  $(DESTDIR)$(BINDIR) $(DESTDIR)$(DATADIR)/omxdsp $(DESTDIR)$(MANDIR)/man1
 	install -m 0644 include/omxdsp/*.h $(DESTDIR)$(INCLUDEDIR)/omxdsp/
