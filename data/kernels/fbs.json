@@ -6,33 +6,29 @@
   "controls": [
     {
       "name": "mode",
-      "kind": "travel",
+      "kind": "choice",
       "source": {
         "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_set_mode"
       },
-      "doc": "cut (0) runs the planted bands on the audio; report (1) keeps the audio bit-exact while the detector and the placement run and the report carries what cut would plant. It comes up at cut: a host with no controller gets the corrector. An integer control.",
-      "travel": {
-        "min": 0,
-        "max": 1,
-        "step": 1,
-        "unit": "",
-        "default": 0
-      }
+      "doc": "cut runs the planted bands on the audio; report keeps the audio bit-exact while the detector and the placement run and the report carries what cut would plant. It comes up at cut: a host with no controller gets the corrector. The integer the shell reads is the id's position.",
+      "ids": [
+        "cut",
+        "report"
+      ],
+      "default": "cut"
     },
     {
       "name": "pool",
-      "kind": "travel",
+      "kind": "choice",
       "source": {
         "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_ask_of"
       },
-      "doc": "Which pool the finds go to: fixed (0, ring-out: a true notch that never lifts) or live (1, a rampable bell with the staged release). An integer control.",
-      "travel": {
-        "min": 0,
-        "max": 1,
-        "step": 1,
-        "unit": "",
-        "default": 1
-      }
+      "doc": "Which pool the finds go to: fixed (ring-out: a true notch that never lifts) or live (a rampable bell with the staged release). The integer the shell reads is the id's position, OmxFbsPool's.",
+      "ids": [
+        "fixed",
+        "live"
+      ],
+      "default": "live"
     },
     {
       "name": "hold",
@@ -59,7 +55,9 @@
       },
       "doc": "How many bands this corrector may plant at once (its pool), from one to the EQ's band count. An integer control.",
       "travel": {
-        "min": 1,
+        "min": {
+          "ref": "FBS_MIN_AUTO_BANDS"
+        },
         "max": {
           "ref": "EQ_MAX_BANDS"
         },
@@ -628,6 +626,15 @@
       "doc": "Released finds the ring memory holds at once. The console's list is unbounded and expires by FBS_DEFAULT_COOLDOWN_SECONDS; a full memory here forgets its oldest entry first, and counts it.",
       "unit": "",
       "value": 32
+    },
+    "FBS_MIN_AUTO_BANDS": {
+      "kind": "scalar",
+      "source": {
+        "impl": "src/omx_fbs_place.c#omx_fbs_place_set"
+      },
+      "doc": "The smallest pool a corrector may be given: one band. A pool of none is no corrector; the cap is held at or above this.",
+      "unit": "",
+      "value": 1
     }
   }
 }

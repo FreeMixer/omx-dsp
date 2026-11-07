@@ -62,7 +62,7 @@ void omx_fbs_place_set(OmxFbsPlace *p, double hold_s, double max_bands, double n
     p->hold_s = isfinite(hold_s) ? clamp(hold_s, OMX_FBS_HOLD_RANGE_MIN, OMX_FBS_HOLD_RANGE_MAX)
                                  : (double)OMX_FBS_DEFAULT_HOLD_SECONDS;
   p->max_bands = isfinite(max_bands)
-                     ? (uint32_t)clamp(round_half_up(max_bands), OMX_FBS_BANDS_RANGE_MIN, OMX_FBS_BANDS_RANGE_MAX)
+                     ? (uint32_t)clamp(round_half_up(max_bands), OMX_FBS_MIN_AUTO_BANDS, OMX_FBS_BANDS_RANGE_MAX)
                      : (uint32_t)OMX_FBS_DEFAULT_MAX_AUTO_BANDS;
   p->notch_q = isfinite(notch_q) ? clamp(notch_q, OMX_EQ_NOTCH_Q_RANGE_MIN_DOUBLE, OMX_EQ_NOTCH_Q_RANGE_MAX)
                                  : (double)OMX_FBS_DEFAULT_NOTCH_Q;

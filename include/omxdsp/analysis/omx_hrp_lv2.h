@@ -102,10 +102,9 @@
 
 /** The modes, as the `mode` control's integer words (spec 7.16): `cut` runs the bands on the audio, `report`
  * keeps the audio bit-exact while the analysis and the report run on. */
-#define OMX_HRP_LV2_CUT 0
-#define OMX_HRP_LV2_REPORT 1
-_Static_assert(OMX_HRP_MODE_RANGE_MIN == OMX_HRP_LV2_CUT && OMX_HRP_MODE_RANGE_MAX == OMX_HRP_LV2_REPORT,
-               "the declared mode travel is cut and report");
+#define OMX_HRP_LV2_CUT OMX_HRP_MODES_CUT
+#define OMX_HRP_LV2_REPORT OMX_HRP_MODES_REPORT
+_Static_assert(OMX_HRP_MODES_COUNT == 2u, "the declared modes are cut and report");
 
 /* The ramp step is `hrp_correct.h`'s {@link OMX_HRP_GAIN_STEP_DB} — the console's own, shared
  * rather than restated, so a shell cannot smooth at a rate the desk does not. */
@@ -288,7 +287,7 @@ static inline int omx_hrp_lv2_init(OmxHrpLv2 *s, uint32_t rate, float *carry, fl
   s->max_bands = OMX_HRP_LV2_MAX_BANDS;
   s->hop = hop;
   omx_hrp_cascade_init(&s->live);
-  s->mode = OMX_HRP_MODE_RANGE_DEFAULT;
+  s->mode = OMX_HRP_MODES_DEFAULT;
   omx_live_report_clear(s->report, OMX_HRP_LV2_MAX_BANDS);
   s->ready = 1;
   return 1;
@@ -502,7 +501,7 @@ static inline void omx_hrp_lv2_run(OmxHrpLv2 *s, const float *in, float *out, ui
  * @thread audio
  */
 static inline void omx_hrp_lv2_set_mode(OmxHrpLv2 *s, float word) {
-  if (s) s->mode = omx_port_int(word, OMX_HRP_MODE_RANGE_MIN, OMX_HRP_MODE_RANGE_MAX, OMX_HRP_MODE_RANGE_DEFAULT);
+  if (s) s->mode = omx_port_int(word, 0, (int)OMX_HRP_MODES_COUNT - 1, OMX_HRP_MODES_DEFAULT);
 }
 
 /**

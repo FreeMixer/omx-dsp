@@ -60,15 +60,15 @@
 /** Report slots: the placement's. */
 #define OMX_FBS_LV2_SLOTS OMX_FBS_PLACE_SLOTS
 
-/** The modes, as the `mode` control's integer words. */
-#define OMX_FBS_LV2_CUT 0
-#define OMX_FBS_LV2_REPORT 1
+/** The modes, as the `mode` choice's positions (FBS_MODES). */
+#define OMX_FBS_LV2_CUT OMX_FBS_MODES_CUT
+#define OMX_FBS_LV2_REPORT OMX_FBS_MODES_REPORT
 
 _Static_assert(OMX_FBS_LV2_SLOTS <= OMX_EQ_MAX_BANDS, "the cascade holds one section per report slot");
-_Static_assert(OMX_FBS_MODE_RANGE_MIN == OMX_FBS_LV2_CUT && OMX_FBS_MODE_RANGE_MAX == OMX_FBS_LV2_REPORT,
-               "the declared mode travel is cut and report");
-_Static_assert(OMX_FBS_POOL_RANGE_MIN == OMX_FBS_POOL_FIXED && OMX_FBS_POOL_RANGE_MAX == OMX_FBS_POOL_LIVE,
-               "the declared pool travel is OmxFbsPool");
+_Static_assert(OMX_FBS_MODES_COUNT == 2u, "the declared modes are cut and report");
+_Static_assert((int)OMX_FBS_POOLS_FIXED == (int)OMX_FBS_POOL_FIXED && (int)OMX_FBS_POOLS_LIVE == (int)OMX_FBS_POOL_LIVE &&
+                   OMX_FBS_POOLS_COUNT == 2u,
+               "the declared pools are OmxFbsPool");
 
 /** What the audio thread hands one pass: the arming controls as they stood. Fixed size, no pointers. */
 typedef struct {
@@ -193,7 +193,7 @@ static inline int omx_fbs_lv2_init_block(OmxFbsLv2 *s, uint32_t rate, void *bloc
   omx_fbs_place_init(&s->place, OMX_FBS_POOL_LIVE);
   omx_hrp_cascade_init(&s->live);
   s->live.count = OMX_FBS_LV2_SLOTS;
-  s->mode = OMX_FBS_MODE_RANGE_DEFAULT;
+  s->mode = OMX_FBS_MODES_DEFAULT;
   s->ready = 1;
   return 1;
 }
@@ -201,11 +201,11 @@ static inline int omx_fbs_lv2_init_block(OmxFbsLv2 *s, uint32_t rate, void *bloc
 /**
  * @brief The `mode` control's word, resolved and held for the next run(): cut or report.
  * @param s The instance; NULL is a no-op.
- * @param word The control word: rounded inside the declared travel, a non-finite word reading as cut.
+ * @param word The control word: rounded to a declared mode's position, a non-finite word reading as cut.
  * @thread audio
  */
 static inline void omx_fbs_lv2_set_mode(OmxFbsLv2 *s, float word) {
-  if (s) s->mode = omx_port_int(word, OMX_FBS_MODE_RANGE_MIN, OMX_FBS_MODE_RANGE_MAX, OMX_FBS_MODE_RANGE_DEFAULT);
+  if (s) s->mode = omx_port_int(word, 0, (int)OMX_FBS_MODES_COUNT - 1, OMX_FBS_MODES_DEFAULT);
 }
 
 /**
@@ -258,7 +258,7 @@ static inline int omx_fbs_lv2_due(const OmxFbsLv2 *s) {
 static inline OmxFbsLv2Ask omx_fbs_lv2_ask_of(float pool, float hold, float bands, float notch_q, float merge,
                                               float cooldown) {
   OmxFbsLv2Ask a;
-  a.pool = omx_port_int(pool, OMX_FBS_POOL_RANGE_MIN, OMX_FBS_POOL_RANGE_MAX, OMX_FBS_POOL_RANGE_DEFAULT);
+  a.pool = omx_port_int(pool, 0, (int)OMX_FBS_POOLS_COUNT - 1, OMX_FBS_POOLS_DEFAULT);
   a.hold_s = (double)hold;
   a.max_bands = (double)bands;
   a.notch_q = (double)notch_q;

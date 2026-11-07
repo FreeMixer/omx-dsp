@@ -59,10 +59,10 @@ test('the travels carry no come-up value: the console engine states each come-up
 
 test('the kernels list their controls; align and idelay are kernels of one travel each', () => {
   const k = json().kernels;
-  // fbs keeps no control here and hrp's autoBands went to the console (f8b816e); hrp's family and band budget came in
-  // fd858d5 (#80)
-  assert.deepEqual(k.fbs.controls, []);
-  assert.deepEqual(k.hrp.controls.map((c) => c.name), ['family', 'amount', 'bands']);
+  // hrp's autoBands went to the console (f8b816e); hrp's family and band budget came in fd858d5 (#80); the live shells'
+  // mode (both) and omx-fbs's arming came with the shells (FreeMixer/omx-plugins#330)
+  assert.deepEqual(k.fbs.controls.map((c) => `${c.name}:${c.kind}`), ['mode:choice', 'pool:choice', 'hold:travel', 'bands:travel', 'merge:travel', 'cooldown:travel']);
+  assert.deepEqual(k.hrp.controls.map((c) => c.name), ['mode', 'family', 'amount', 'bands']);
   assert.deepEqual(k.balance.controls.map((c) => `${c.name}:${c.global}`), ['pan:PAN_RANGE', 'divergence:DIVERGENCE_RANGE']);
   assert.deepEqual(k.align.controls, [{ name: 'inputAlignDelay', kind: 'travel', global: 'INPUT_ALIGN_DELAY_RANGE' }]);
   assert.deepEqual(k.idelay.controls, [{ name: 'outputDelay', kind: 'travel', global: 'OUTPUT_DELAY_RANGE' }]);
