@@ -341,7 +341,8 @@ jobs:
             /usr/share/doc/omx-dsp-devel/README.md \
             /usr/share/licenses/omx-dsp-devel/LICENSE /usr/bin/omx-dsp-copy-check \
             /usr/share/man/man1/omx-dsp-copy-check.1.gz \
-            /usr/share/omxdsp/omx-dsp-exports.json /usr/share/omxdsp/hrp_peaking_corpus.h | sort > expected.txt
+            /usr/share/omxdsp/omx-dsp-exports.json /usr/share/omxdsp/hrp_peaking_corpus.h \
+            /usr/share/omxdsp/meter-view-vectors.json | sort > expected.txt
           diff -u expected.txt files.txt
           # the listing is read from a file: grep -q stops at its first match, and under pipefail the rpm it
           # cut off (SIGPIPE, exit 141) fails the step once the listing is longer than the pipe holds
