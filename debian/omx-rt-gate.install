@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+usr/bin/omx-rt-gate
+usr/share/man/man1/omx-rt-gate.1
+usr/share/omxdsp/rt-gate
