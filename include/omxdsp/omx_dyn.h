@@ -135,7 +135,8 @@ struct omx_dyn {
  * @param hold_ms The hold, ms; a value that is not positive (or NaN) is no hold.
  * @param rate The graph's rate, Hz.
  * @return The frames, at most 2^24 (far above any declared hold at any declared rate).
- * @note RT-safe: arithmetic. Thread-safe: pure.
+ * @note Arithmetic. Thread-safe: pure.
+ * @thread audio
  */
 static inline uint32_t omx_dyn_hold_frames(float hold_ms, float rate) {
   const float f = hold_ms * rate * 0.001f;
@@ -147,7 +148,8 @@ static inline uint32_t omx_dyn_hold_frames(float hold_ms, float rate) {
  * @brief The dry share a mix control resolves to: `1 - mix_pct / 100`, inside [0, 1].
  * @param mix_pct The mix, percent: 100 is fully processed, 0 the dry input; NaN reads as 100.
  * @return The dry share; exactly 0 at 100 %, so the default output is the processed one bit for bit.
- * @note RT-safe: arithmetic. Thread-safe: pure.
+ * @note Arithmetic. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_dyn_dry_share(float mix_pct) {
   if (!(mix_pct < 100.0f)) return 0.0f;
@@ -159,7 +161,8 @@ static inline float omx_dyn_dry_share(float mix_pct) {
  * @brief The detector parameters of a dynamics atom: its attack and release poles and its domain.
  * @param p The atom.
  * @return `{attack_coeff, release_coeff, detect}` as the envelope's parameters, copied unchanged.
- * @note RT-safe: three loads. Thread-safe: pure.
+ * @note Three loads. Thread-safe: pure.
+ * @thread audio
  */
 static inline struct omx_env_params omx_dyn_env_params(const struct omx_dyn *p) {
   const struct omx_env_params e = {p->attack_coeff, p->release_coeff, p->detect};
@@ -178,7 +181,8 @@ static inline struct omx_env_params omx_dyn_env_params(const struct omx_dyn *p) 
  * @param p The atom.
  * @return 4 while the 4x control path is engaged, else 1.
  * @post `bypass-identity`: the factor is 1 or 4, the two the compensation ring can carry.
- * @note RT-safe: a few compares. Thread-safe: pure.
+ * @note A few compares. Thread-safe: pure.
+ * @thread audio
  */
 static inline uint32_t omx_dyn_oversample_factor(const struct omx_dyn *p) {
   uint32_t f;
@@ -252,8 +256,9 @@ struct omx_dyn_state {
  * @return The pole the loop runs, in [0, 1).
  * @pre `ratio-at-least-one`, `pole-in-declared-range`.
  * @post `loop-pole-not-negative`: `p − (1 − p)(R − 1) ≥ 0` up to float rounding.
- * @note RT-safe: a divide and a select. Thread-safe: pure.
+ * @note A divide and a select. Thread-safe: pure.
  * @twin effectiveAttackMsOf
+ * @thread audio
  */
 static inline float omx_dyn_fb_attack_pole(float attack_pole, float ratio) {
   OMX_PRE(ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
@@ -287,7 +292,8 @@ static inline float omx_dyn_fb_attack_pole(float attack_pole, float ratio) {
  * @brief Clear one slot's state and arm its rate changers for `factor`.
  * @param st The slot's state.
  * @param factor The factor the slot starts at: 1 (base path) or 4.
- * @note RT-safe: a memset and two oversampler inits, no allocation. Thread-safe on distinct state.
+ * @note A memset and two oversampler inits, no allocation. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_dyn_state_init(struct omx_dyn_state *st, uint32_t factor) {
   memset(st, 0, sizeof *st);
@@ -304,7 +310,8 @@ static inline void omx_dyn_state_init(struct omx_dyn_state *st, uint32_t factor)
  * gate at the neutral values is the gate that shipped, bit for bit.
  * @param p The atom.
  * @return 1 or 0.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_dyn_gate_state_engaged(const struct omx_dyn *p) {
   return p->gc.mode == OMX_DYN_BELOW && (p->hold_frames > 0u || p->hyst_db > 0.0f);
@@ -335,7 +342,8 @@ static inline int omx_dyn_gate_state_engaged(const struct omx_dyn *p) {
  * @param count Samples.
  * @param hold Hold frames at the running rate.
  * @param credit_pole The release pole at the running rate, for the hysteresis credit.
- * @note RT-safe: per sample one cascade step, two gain-curve evaluations, one powf; no allocation.
+ * @note Per sample one cascade step, two gain-curve evaluations, one powf; no allocation.
+ * @thread audio
  */
 static inline void omx_dyn_gate_chain(struct omx_dyn_state *st, const struct omx_dyn *p,
                                       const struct omx_env_params *ep, float ac, float rc, float *buf,
@@ -373,7 +381,8 @@ static inline void omx_dyn_gate_chain(struct omx_dyn_state *st, const struct omx
  * At hold 0 it answers 0 and the kernel takes the cascade loop it always took, bit for bit.
  * @param p The atom.
  * @return 1 or 0.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_dyn_hold_engaged(const struct omx_dyn *p) {
   return p->gc.mode == OMX_DYN_ABOVE && p->hold_frames > 0u;
@@ -395,7 +404,8 @@ static inline int omx_dyn_hold_engaged(const struct omx_dyn *p) {
  * @param buf Rectified detector input in, detector level out, `count` samples.
  * @param count Samples.
  * @param hold Hold frames at the running rate.
- * @note RT-safe: per sample one cascade step and one level read; no allocation.
+ * @note Per sample one cascade step and one level read; no allocation.
+ * @thread audio
  */
 static inline void omx_dyn_hold_chain(struct omx_dyn_state *st, const struct omx_env_params *ep, float ac, float rc,
                                       float *buf, uint32_t count, uint32_t hold) {
@@ -416,7 +426,8 @@ static inline void omx_dyn_hold_chain(struct omx_dyn_state *st, const struct omx
  * @param gain The chunk's gains, floored in place.
  * @param m Samples.
  * @param floor_lin The floor, linear, make-up included.
- * @note RT-safe: one compare per sample. Thread-safe on distinct buffers.
+ * @note One compare per sample. Thread-safe on distinct buffers.
+ * @thread audio
  */
 static inline void omx_dyn_floor_gain(float *gain, uint32_t m, float floor_lin) {
   for (uint32_t i = 0; i < m; i++) gain[i] = omx_gaincomp_floor(gain[i], floor_lin);
@@ -431,7 +442,8 @@ static inline void omx_dyn_floor_gain(float *gain, uint32_t m, float floor_lin) 
  * @param gain The chunk's gains, blended in place.
  * @param m Samples.
  * @param dry The dry share, (0, 1].
- * @note RT-safe: one multiply-add per sample. Thread-safe on distinct buffers.
+ * @note One multiply-add per sample. Thread-safe on distinct buffers.
+ * @thread audio
  */
 static inline void omx_dyn_mix_gain(float *gain, uint32_t m, float dry) {
   const float wet = 1.0f - dry;
@@ -455,7 +467,8 @@ struct omx_dyn_flat {
  * @param p The atom.
  * @param level The detector level, linear.
  * @return `omx_lin_to_db(level) - thresh_db`.
- * @note RT-safe: one log10f. Thread-safe: pure.
+ * @note One log10f. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_dyn_flat_x(const struct omx_dyn *p, float level) {
   return omx_lin_to_db(level) - p->gc.thresh_db;
@@ -468,7 +481,8 @@ static inline float omx_dyn_flat_x(const struct omx_dyn *p, float level) {
  * @param p The atom; BELOW mode.
  * @param level The detector level, linear.
  * @return 1 or 0.
- * @note RT-safe: one log10f. Thread-safe: pure.
+ * @note One log10f. Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_dyn_flat_is_open(const struct omx_dyn *p, float level) {
   const float x = omx_dyn_flat_x(p, level);
@@ -484,7 +498,8 @@ static inline int omx_dyn_flat_is_open(const struct omx_dyn *p, float level) {
  * @param p The atom; BELOW mode.
  * @param level The detector level, linear.
  * @return 1 or 0.
- * @note RT-safe: one log10f. Thread-safe: pure.
+ * @note One log10f. Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_dyn_flat_is_floor(const struct omx_dyn *p, float level) {
   const float x = omx_dyn_flat_x(p, level);
@@ -505,7 +520,8 @@ static inline int omx_dyn_flat_is_floor(const struct omx_dyn *p, float level) {
  * and every level then takes the gain computer.
  * @param p The atom; BELOW mode.
  * @param f Receives the bounds and their gains.
- * @note RT-safe: at most a dozen log10f and powf, once per block. Thread-safe: pure.
+ * @note At most a dozen log10f and powf, once per block. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_dyn_flat_bounds(const struct omx_dyn *p, struct omx_dyn_flat *f) {
   const float step = 1.0005f; /* 0.0043 dB, far above log10f's rounding at any level */
@@ -540,7 +556,8 @@ static inline void omx_dyn_flat_bounds(const struct omx_dyn *p, struct omx_dyn_f
  * @param p The atom; BELOW mode.
  * @param level The detector level, linear.
  * @return The gain.
- * @note RT-safe: two compares, and the gain computer only between the bounds. Thread-safe: pure.
+ * @note Two compares, and the gain computer only between the bounds. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_dyn_flat_gain(const struct omx_dyn_flat *f, const struct omx_dyn *p, float level) {
   if (level <= f->lo) return f->g_floor;
@@ -562,7 +579,8 @@ static inline OMX_FM_ALWAYS float omx_dyn_flat_gain(const struct omx_dyn_flat *f
  * @param in The detector levels, linear.
  * @param out The gains, `n` samples.
  * @param n Samples.
- * @note RT-safe: no allocation, no state. Thread-safe on distinct blocks.
+ * @note No allocation, no state. Thread-safe on distinct blocks.
+ * @thread audio
  */
 static inline void omx_dyn_flat_gain_block(const struct omx_dyn_flat *f, const struct omx_dyn *p, const float *in,
                                            float *out, uint32_t n) {
@@ -602,7 +620,8 @@ static inline void omx_dyn_flat_gain_block(const struct omx_dyn_flat *f, const s
  * @param prp The program release's parameters at the rate the gain is computed at.
  * @param level The detector level, linear, not negative.
  * @return The gain, in `(0, makeup_lin]`.
- * @note RT-safe: log10f, powf and the word's one expf. Thread-safe on distinct state.
+ * @note Log10f, powf and the word's one expf. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_dyn_program_gain(const struct omx_dyn *p, struct omx_env_program_release *prs,
                                          const struct omx_env_program_release_params *prp, float level) {
@@ -619,7 +638,8 @@ static inline float omx_dyn_program_gain(const struct omx_dyn *p, struct omx_env
  * @return The reading, dB: <= 0, finite (a closed gate floors at -120 dB), and 0 for no reduction
  *         (`min_gain >= 1`).
  * @post `reading-not-positive`, `finite`.
- * @note RT-safe: one libm log10f. Thread-safe: pure.
+ * @note One libm log10f. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_gr_block_db(float min_gain) {
   if (!(min_gain > 1e-6f)) min_gain = 1e-6f; /* also catches NaN */
@@ -690,7 +710,8 @@ static inline float omx_gr_block_db(float min_gain) {
  *       `st->gr_min_db` holds the deepest gain applied in this call, per sample, the 4x path's
  *       decimated gain and a factor switch's crossfade included, in dB (omx_gr_block_db()).
  * @invariant `envelope-finite`: the detector cascade stays finite.
- * @note RT-safe: O(n), no allocation, bounded scratch. Thread-safe on distinct state.
+ * @note O(n), no allocation, bounded scratch. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint32_t n,
                                       const struct omx_dyn *p, struct omx_dyn_state *st) {
@@ -1016,7 +1037,8 @@ static inline void omx_dynamics_keyed(float *l, float *r, const float *key, uint
  * @param n Frames.
  * @param p The atom.
  * @param st The slot's state.
- * @note RT-safe and thread-safe as omx_dynamics_keyed().
+ * @note Thread-safe as omx_dynamics_keyed().
+ * @thread audio
  */
 static inline void omx_dynamics(float *l, float *r, uint32_t n,
                                 const struct omx_dyn *p, struct omx_dyn_state *st) {

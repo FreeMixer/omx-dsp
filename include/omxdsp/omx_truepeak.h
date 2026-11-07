@@ -31,19 +31,22 @@ struct omx_truepeak {
   struct omx_oversampler ovs; /**< The shared half-band element, armed at ×4. */
 };
 
+/** @thread audio */
 OMXDSP_STATE_LAYOUT(truepeak, struct omx_truepeak)
 
 /**
  * @brief Arm the detector: the interpolator at ×4, its history cleared.
  * @param t The detector.
- * @note CONTROL thread. Thread-safe on distinct state.
+ * @note Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_truepeak_init(struct omx_truepeak *t) { omx_oversampler_init(&t->ovs, OMX_TRUEPEAK_FACTOR); }
 
 /**
  * @brief The reading's lag behind its input, in base-rate samples: the ×4 interpolator's group delay.
  * @return `OMX_OVS_UP_DELAY + OMX_OVS_UP_DELAY / 2` (36).
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline uint32_t omx_truepeak_delay(void) { return OMX_OVS_UP_DELAY + OMX_OVS_UP_DELAY / 2u; }
 
@@ -54,7 +57,8 @@ static inline uint32_t omx_truepeak_delay(void) { return OMX_OVS_UP_DELAY + OMX_
  * @param n Frames in the block.
  * @param done Frames already taken, at most `n`.
  * @return Frames, in [0, OMX_TRUEPEAK_CHUNK].
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline uint32_t omx_truepeak_chunk(uint32_t n, uint32_t done) {
   return n - done < OMX_TRUEPEAK_CHUNK ? n - done : OMX_TRUEPEAK_CHUNK;
@@ -70,7 +74,8 @@ static inline uint32_t omx_truepeak_chunk(uint32_t n, uint32_t done) {
  * @pre `finite-in`.
  * @post `true-peak-at-least-sample-peak`: each reading is at least its own phase-0 image;
  *       `finite`.
- * @note RT-safe: `4·OMX_TRUEPEAK_CHUNK` floats of stack, no allocation. Thread-safe on distinct state.
+ * @note `4·OMX_TRUEPEAK_CHUNK` floats of stack, no allocation. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_truepeak_block(struct omx_truepeak *t, const float *in, uint32_t n, float *peak) {
   OMX_PRE(omx_block_finite(in, n), "finite-in");

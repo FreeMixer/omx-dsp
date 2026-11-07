@@ -102,18 +102,21 @@ struct omx_fx_delay_color_state {
   struct omx_duck_state duck;
 };
 
-/** The soft saturation of the analog mode's feedback, `x / (1 + |x|)`: unity slope at 0, never past 1. */
+/** The soft saturation of the analog mode's feedback, `x / (1 + |x|)`: unity slope at 0, never past 1.
+ * @thread audio */
 static inline float omx_fxdelay_soft(float x) { return x / (1.0f + fabsf(x)); }
 
 /** A read `d + a` samples behind the write cursor, `a` in [0, 1): linear between the two whole reads,
- * the further one held inside the ring. */
+ * the further one held inside the ring.
+ * @thread audio */
 static inline float omx_fxdelay_read_frac(const float *ring, uint32_t w, uint32_t d, float a, uint32_t cap) {
   const uint32_t d1 = d + 1u < cap ? d + 1u : cap - 1u;
   const float y0 = ring[omx_lookahead_back(w, d, cap)], y1 = ring[omx_lookahead_back(w, d1, cap)];
   return y0 + a * (y1 - y0);
 }
 
-/** Tempo-synced delay time in ms: `division_beats * 60000 / bpm` (1/4=1.0, 1/8=0.5, dotted-1/8=0.75, 1/8T=1/3). */
+/** Tempo-synced delay time in ms: `division_beats * 60000 / bpm` (1/4=1.0, 1/8=0.5, dotted-1/8=0.75, 1/8T=1/3).
+ * @thread audio */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay/bpm-division"
 static inline float omx_bpm_division_ms(float bpm, float division_beats) {
@@ -145,6 +148,7 @@ static inline float omx_bpm_division_ms(float bpm, float division_beats) {
  * CALLED ONCE PER BLOCK, never per sample — a `powf` inside the per-sample feedback path would
  * be the most expensive line in this kernel by an order of magnitude, and the per-sample filter
  * stays the plain one-pole it always was.
+ * @thread audio
  */
 static inline float omx_fxdelay_tone_pole(float tone, float sr) {
   /* A non-finite tone is no tone at all (pole 0, bright): a NaN carried into the damping state
@@ -165,6 +169,7 @@ static inline float omx_fxdelay_tone_pole(float tone, float sr) {
  * huge/NaN/negative ms (a bad tempo-sync division resolved at a low BPM) would make the
  * float->uint32 conversion UB. `> capf` saturates to the ring; `<= 0 / NaN` (both comparisons
  * false) floors to 0. omx_fxdelay_clamp then bounds to cap-1. Fixed work, no alloc — RT-safe.
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay/ms-to-samples"
@@ -182,7 +187,8 @@ static inline uint32_t omx_fxdelay_ms_to_samples(float ms, float sr) {
 }
 #undef OMX_CONTRACT_STAGE
 
-/** Clamp a per-leg delay to [0, cap-1]. */
+/** Clamp a per-leg delay to [0, cap-1].
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "fx-delay/clamp"
 static inline uint32_t omx_fxdelay_clamp(uint32_t d, uint32_t cap) {
   /* CONTRACT (omx_contract.h). The enforcement half of omx_fx_delay_process's
@@ -214,6 +220,7 @@ static inline uint32_t omx_fxdelay_clamp(uint32_t d, uint32_t cap) {
  * @param clamped out, may be NULL: 1 when the tap was asked past the travel's top and was clamped
  *        to it, else 0
  * @return the tap's time, ms, in [0, OMX_FXDELAY_MAX_MS]
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay/tap-ms"
@@ -242,6 +249,7 @@ static inline float omx_fxdelay_tap_ms(float base_ms, uint32_t num, uint32_t den
  * @param pan the tap's pan, -1..+1 (omx_clamp_pan's travel); a non-finite pan is centre
  * @param gl out: the left leg's gain, in [0, 1]
  * @param gr out: the right leg's gain, in [0, 1]
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay/tap-legs"
@@ -262,6 +270,7 @@ static inline void omx_fxdelay_tap_legs(float gain, float pan, float *gl, float 
  *
  * @param g the control thread's `gain_k x b_k,leg`
  * @return `g` clamped to [0, 1]; a non-finite gain is 0
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "fx-delay/tap-gain"
 static inline float omx_fxdelay_tap_gain(float g) {
@@ -279,6 +288,7 @@ static inline float omx_fxdelay_tap_gain(float g) {
  * @param d the clamped taps, `d[k]` for `k = 1 .. nt-1`
  * @param nt engaged taps, 1..OMX_FXDELAY_MAX_TAPS
  * @return k of the largest delay; the first on a tie, so one tap is tap 0
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "fx-delay/longest-tap"
 static inline uint32_t omx_fxdelay_longest_tap(uint32_t d0, const uint32_t *d, uint32_t nt) {
@@ -317,6 +327,7 @@ static inline uint32_t omx_fxdelay_longest_tap(uint32_t d0, const uint32_t *d, u
  * @param cs the colour's state, or NULL with `c`
  * @param s the caller-owned rings and the RT state
  * @param sr the live rate, Hz
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "fx-delay"
@@ -473,6 +484,7 @@ static inline void omx_fx_delay_process_color(float *l, float *r, uint32_t n, co
  * @param t the read taps, or NULL for the one-tap delay
  * @param s the caller-owned rings and the RT state
  * @param sr the live rate, Hz
+ * @thread audio
  */
 static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, const struct omx_fx_delay *p,
                                              const struct omx_fx_delay_taps *t, struct omx_fx_delay_state *s,
@@ -491,6 +503,7 @@ static inline void omx_fx_delay_process_taps(float *l, float *r, uint32_t n, con
  * @param p the delay's control atom
  * @param s the caller-owned rings and the RT state
  * @param sr the live rate, Hz
+ * @thread audio
  */
 static inline void omx_fx_delay_process(float *l, float *r, uint32_t n,
                                         const struct omx_fx_delay *p, struct omx_fx_delay_state *s,

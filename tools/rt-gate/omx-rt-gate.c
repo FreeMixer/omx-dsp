@@ -832,13 +832,22 @@ static void pass_functions(struct unit *u) {
   for (int i = 0; i + 1 < u->nt; i++) {
     struct tok *t = &u->t[i];
     if (t->depth != 0 || t->kind != TK_ID || !is_p(&u->t[i + 1], '(')) continue;
-    if (tin(t, QUAL_WORDS) || tin(t, SCALAR_WORDS) || is_attr(t)) continue;
+    if (tin(t, QUAL_WORDS) || tin(t, SCALAR_WORDS) || is_attr(t) || tis(t, "_Static_assert") || tis(t, "static_assert"))
+      continue;
     /* not inside an initializer or a typedef: walk back to the statement's start */
     int bad = 0;
     for (int j = i - 1; j >= 0; j--) {
       struct tok *q = &u->t[j];
       if (q->depth != 0) continue;
       if (is_p(q, ';') || is_p(q, '}')) break;
+      /* an attribute's group, `__attribute__((always_inline))`, is stepped over */
+      if (is_p(q, ')')) {
+        int o = rmatch(u, j);
+        if (o > 0 && is_attr(&u->t[o - 1])) { j = o - 1; continue; }
+        if (o > 1 && is_p(&u->t[o - 1], '(') && is_attr(&u->t[o - 2])) { j = o - 2; continue; }
+        bad = 1;
+        break;
+      }
       if (is_p(q, '=') || tis(q, "typedef") || is_p(q, '(')) { bad = 1; break; }
     }
     if (bad) continue;

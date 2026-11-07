@@ -51,7 +51,8 @@ struct omx_tilt {
  *        ±0.9999 of OMX_TILT_OCTAVE_DB, NaN reading as 0.
  * @return `a = sqrt((1 + σ)/(1 − σ))`, `σ = db_per_oct / OMX_TILT_OCTAVE_DB`; exactly 1 at 0.
  * @post `positive-finite`.
- * @note RT-safe: one sqrt. Thread-safe: pure.
+ * @note One sqrt. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_tilt_a_of_slope(double db_per_oct) {
   double sg = db_per_oct / OMX_TILT_OCTAVE_DB;
@@ -72,7 +73,8 @@ static inline double omx_tilt_a_of_slope(double db_per_oct) {
  * @return `a = 10^(span_db/40)`; exactly 1 at 0. A span of 6 dB is a ±3 dB pair whose slope at the
  *         pivot is `20·log10(2)·(a² − 1)/(a² + 1)`, 2.0 dB per octave.
  * @post `positive-finite`.
- * @note RT-safe: one exp. Thread-safe: pure.
+ * @note One exp. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_tilt_a_of_span(double span_db) {
   double sp = span_db == span_db ? span_db : 0.0;
@@ -93,7 +95,8 @@ static inline double omx_tilt_a_of_span(double span_db) {
  * @param sample_rate The rate, Hz, positive.
  * @pre `a-positive`, `pivot-below-nyquist`.
  * @post `pole-inside-the-unit-circle`.
- * @note Control thread: one tan. Thread-safe: writes only `t`.
+ * @note One tan. Thread-safe: writes only `t`.
+ * @thread audio
  */
 static inline void omx_tilt_design(struct omx_tilt *t, double a, double pivot_hz, double sample_rate) {
   OMX_PRE(a > 0.0, "a-positive");
@@ -122,7 +125,8 @@ static inline void omx_tilt_design(struct omx_tilt *t, double a, double pivot_hz
  * @param freq_hz The frequency, Hz, below Nyquist.
  * @param sample_rate The rate, Hz.
  * @return The linear magnitude the designed section has there.
- * @note RT-safe: two tan and one sqrt. Thread-safe: pure.
+ * @note Two tan and one sqrt. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_tilt_magnitude(double a, double pivot_hz, double freq_hz, double sample_rate) {
   const double o = tan(M_PI * freq_hz / sample_rate) / tan(M_PI * pivot_hz / sample_rate);
@@ -135,7 +139,8 @@ static inline double omx_tilt_magnitude(double a, double pivot_hz, double freq_h
  * @param x The sample.
  * @param s The section's history, `{x₁, x₂, y₁, y₂}`, updated in place.
  * @return The tilted sample.
- * @note RT-safe: omx_biquad_d(). Thread-safe on distinct history.
+ * @note Omx_biquad_d(). Thread-safe on distinct history.
+ * @thread audio
  */
 static inline float omx_tilt_tick(const struct omx_tilt *t, float x, double s[4]) { return omx_biquad_d(x, t->c, s); }
 

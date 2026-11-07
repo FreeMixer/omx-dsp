@@ -83,7 +83,8 @@ struct omx_key {
  *         is the un-keyed detector, bit for bit.
  * @pre `finite-in-l`: the leg the self key copies is finite.
  * @post `key-finite`: the block the detector reads is finite.
- * @note RT-safe: O(n), no allocation, no lock, no IO. Thread-safe over distinct `k` and state.
+ * @note O(n), no allocation, no lock, no IO. Thread-safe over distinct `k` and state.
+ * @thread audio
  */
 static inline const float *omx_key_build(struct omx_key *k, const float *l, const float *r, uint32_t n,
                                          float hp_state[4], float lp_state[4]) {

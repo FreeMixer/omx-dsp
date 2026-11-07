@@ -49,7 +49,8 @@ struct omx_tremolo_state {
 /**
  * @brief Start the oscillator at phase zero, frozen.
  * @param s The state.
- * @note RT-safe: `omx_lfo_start`.
+ * @note `omx_lfo_start`.
+ * @thread audio
  */
 static inline void omx_tremolo_state_init(struct omx_tremolo_state *s) {
   omx_lfo_start(&s->lfo);
@@ -65,7 +66,8 @@ static inline void omx_tremolo_state_init(struct omx_tremolo_state *s) {
  * @param gr Right gain, out.
  * @pre `a-shape-is-inside-unity`.
  * @post `a-tremolo-gain-never-adds-level`.
- * @note RT-safe and thread-safe: at most four multiplies.
+ * @note Thread-safe: at most four multiplies.
+ * @thread audio
  */
 static inline void omx_tremolo_gains(const struct omx_tremolo *p, float s, float *gl, float *gr) {
   OMX_PRE(s >= -1.0f && s <= 1.0f, "a-shape-is-inside-unity");
@@ -94,7 +96,8 @@ static inline void omx_tremolo_gains(const struct omx_tremolo *p, float s, float
  * @param s The state; its oscillator advances `n` samples.
  * @pre `finite-in`, `depth-in-unit-range`, `mix-in-unit-range`, `an-increment-is-inside-one-turn`.
  * @post `finite-out`; the oscillator's turn is `omx_lfo_advance`'s own postcondition.
- * @note RT-safe: one oscillator read and two multiplies per frame, no allocation, no libm.
+ * @note One oscillator read and two multiplies per frame, no allocation, no libm.
+ * @thread audio
  */
 static inline void omx_tremolo_process(float *l, float *r, uint32_t n, const struct omx_tremolo *p,
                                        struct omx_tremolo_state *s) {

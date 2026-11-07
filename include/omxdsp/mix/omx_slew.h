@@ -40,7 +40,8 @@
  *         the smallest normal step.
  * @pre `rate-positive`.
  * @post `step-within-one-sample`.
- * @note RT-safe: one divide. Thread-safe: pure.
+ * @note One divide. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_slew_step(float ms, float sr) {
   OMX_PRE(sr > 0.0f, "rate-positive");
@@ -57,7 +58,8 @@ static inline float omx_slew_step(float ms, float sr) {
  * @param tgt The target.
  * @param step The step, positive.
  * @return `tgt` when the step would reach or pass it, else `cur ± step`.
- * @note RT-safe: two compares. Thread-safe: pure.
+ * @note Two compares. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_slew_move(float cur, float tgt, float step) {
   if (cur < tgt) {
@@ -80,7 +82,8 @@ static inline float omx_slew_move(float cur, float tgt, float step) {
  * @param cur The cursor, kept across blocks; a non-finite value reads as 0.
  * @pre `step-positive`.
  * @post `cursor-finite`.
- * @note RT-safe: one compare and one multiply a sample. Thread-safe on distinct `cur` and `out`.
+ * @note One compare and one multiply a sample. Thread-safe on distinct `cur` and `out`.
+ * @thread audio
  */
 static inline void omx_slew_gain(const float *in, float *out, uint32_t n, float tgt, float step, float *cur) {
   OMX_PRE(step > 0.0f, "step-positive");
@@ -109,7 +112,8 @@ static inline void omx_slew_gain(const float *in, float *out, uint32_t n, float 
  * @param pos The position, kept across blocks; a non-finite value reads as 1.
  * @pre `step-positive`, `target-a-position`.
  * @post `position-a-position`.
- * @note RT-safe: three compares and two multiplies a sample. Thread-safe on distinct `pos` and outputs.
+ * @note Three compares and two multiplies a sample. Thread-safe on distinct `pos` and outputs.
+ * @thread audio
  */
 static inline void omx_slew_hold(const float *in_l, const float *in_r, float *out_l, float *out_r, uint32_t n,
                                  float tgt, float step, float *pos) {

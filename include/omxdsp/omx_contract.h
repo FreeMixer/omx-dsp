@@ -72,8 +72,9 @@ struct omx_contract_ledger omx_contract_log;
  * @param frame Frame index for a per-sample law, 0 otherwise.
  * @post `checks` grew by one; on a failure `count` grew by one and, when a slot was free, the
  *       record is stored and published with a release store on its `ready` word.
- * @note RT-safe: two relaxed fetch-adds, plain stores, one release store; no allocation, no lock.
+ * @note Two relaxed fetch-adds, plain stores, one release store; no allocation, no lock.
  * @note Thread-safe: each violation claims its own slot through the fetch-add on `count`.
+ * @thread audio
  */
 static inline void omx_contract_note(int ok, const char *stage, const char *token,
                                      const char *kind, uint32_t frame) {
@@ -94,6 +95,7 @@ static inline void omx_contract_note(int ok, const char *stage, const char *toke
  * @param r A record of `omx_contract_log.rec`.
  * @return 1 once the writer published the record, 0 while it is still being stored.
  * @note Thread-safe: an acquire load pairing with the writer's release.
+ * @thread audio
  */
 static inline int omx_contract_record_ready(const struct omx_contract_record *r) {
   return atomic_load_explicit(&r->ready, memory_order_acquire) != 0u;
@@ -103,6 +105,7 @@ static inline int omx_contract_record_ready(const struct omx_contract_record *r)
  * @brief Forget every recorded violation; `checks` is kept.
  * @post `count` is 0 and no record reads ready.
  * @note Test-only, called while no other thread evaluates contracts.
+ * @thread control
  */
 static inline void omx_contract_reset(void) {
   for (uint32_t i = 0; i < OMX_CONTRACT_MAX; i++)
@@ -155,7 +158,8 @@ static inline void omx_contract_reset(void) {
  * @brief Whether a sample rate is one the console declares.
  * @param sr Sample rate, Hz.
  * @return 1 when `sr` is a member of the generated `OMX_DECLARED_RATES`, else 0.
- * @note RT-safe and thread-safe: a read of a constant table.
+ * @note Thread-safe: a read of a constant table.
+ * @thread audio
  */
 static inline int omx_rate_is_declared(float sr) {
   for (uint32_t i = 0; i < OMX_DECLARED_RATE_COUNT; i++)
@@ -169,7 +173,8 @@ static inline int omx_rate_is_declared(float sr) {
  *        32, 64 and 128 kHz. The rule the instance faces apply at init.
  * @param sr Sample rate, Hz.
  * @return 1 when `sr` is one of the nine, else 0.
- * @note RT-safe and thread-safe: a read of a constant table.
+ * @note Thread-safe: a read of a constant table.
+ * @thread audio
  */
 static inline int omx_rate_is_oracle_full(float sr) {
   static const float rates[OMX_ORACLE_FULL_RATES_COUNT] = OMX_ORACLE_FULL_RATES_INIT;
@@ -183,7 +188,8 @@ static inline int omx_rate_is_oracle_full(float sr) {
  * @param b The block, or NULL (a block a function was not handed promises nothing).
  * @param n Samples in the block.
  * @return 1 when `b` is NULL or every sample is finite, else 0.
- * @note RT-safe and thread-safe: a read-only pass, no call.
+ * @note Thread-safe: a read-only pass, no call.
+ * @thread audio
  */
 static inline int omx_block_finite(const float *b, uint32_t n) {
   if (b == 0) return 1;
@@ -200,7 +206,8 @@ static inline int omx_block_finite(const float *b, uint32_t n) {
  * @param b The block.
  * @param n Words in the block.
  * @return 1 when every word is finite, else 0.
- * @note RT-safe and thread-safe: a read-only pass, no call.
+ * @note Thread-safe: a read-only pass, no call.
+ * @thread audio
  */
 static inline int omx_block_finite_d(const double *b, uint32_t n) {
   double z = 0.0;
@@ -214,7 +221,8 @@ static inline int omx_block_finite_d(const double *b, uint32_t n) {
  * @param r The right leg, or NULL.
  * @param n Frames in the block.
  * @return 1 when both legs are finite (omx_block_finite), else 0.
- * @note RT-safe and thread-safe: two read-only passes, no call.
+ * @note Thread-safe: two read-only passes, no call.
+ * @thread audio
  */
 static inline int omx_block_pair_finite(const float *l, const float *r, uint32_t n) {
   return omx_block_finite(l, n) && omx_block_finite(r, n);
@@ -226,7 +234,8 @@ static inline int omx_block_pair_finite(const float *l, const float *r, uint32_t
  * @param r The R leg, or NULL on a mono lane.
  * @param n Samples per leg.
  * @return 1 when both legs pass omx_block_finite(), else 0.
- * @note RT-safe and thread-safe: a read-only pass.
+ * @note Thread-safe: a read-only pass.
+ * @thread audio
  */
 static inline int omx_lane_finite(const float *l, const float *r, uint32_t n) {
   return omx_block_pair_finite(l, r, n);
@@ -237,7 +246,8 @@ static inline int omx_lane_finite(const float *l, const float *r, uint32_t n) {
  * @param b The block, or NULL.
  * @param n Samples in the block.
  * @return max |b[i]|, or 0 for a NULL block.
- * @note RT-safe and thread-safe: a read-only pass.
+ * @note Thread-safe: a read-only pass.
+ * @thread audio
  */
 static inline float omx_block_absmax(const float *b, uint32_t n) {
   float m = 0.0f;

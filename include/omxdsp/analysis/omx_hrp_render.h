@@ -235,6 +235,7 @@ typedef struct {
  * offline the caller chooses, and three quarters of overlap is the point where a partial that
  * rings for one window length is seen by four measurements rather than one — evidence §24's
  * temporal-stability term can actually count.
+ * @thread worker
  */
 static inline OmxHrpRenderConfig omx_hrp_render_config_default(uint32_t rate) {
   OmxHrpRenderConfig c;
@@ -256,6 +257,7 @@ static inline OmxHrpRenderConfig omx_hrp_render_config_default(uint32_t rate) {
  *
  * `carry`, `work_re` and `work_im` hold `fft_size` floats; `mags` and `residual` hold
  * `fft_size / 2`.
+ * @thread worker
  */
 static inline int omx_hrp_render_init(OmxHrpRender *r, const OmxHrpRenderConfig *cfg,
                                       float *carry, float *work_re, float *work_im, float *mags,
@@ -286,6 +288,7 @@ static inline int omx_hrp_render_init(OmxHrpRender *r, const OmxHrpRenderConfig 
  * pass one's last window, or the file's opening would be measured against its ending), while the
  * BASELINE — everything the file taught — is kept. Calling it a second time before a third pass
  * would be equally safe.
+ * @thread worker
  */
 static inline void omx_hrp_render_rewind(OmxHrpRender *r) {
   if (!r || !r->ready) return;
@@ -296,7 +299,8 @@ static inline void omx_hrp_render_rewind(OmxHrpRender *r) {
   memset(&r->voices, 0, sizeof(r->voices));
 }
 
-/** Forget the measurement, keeping the model — for a caller that re-measures under a new search. */
+/** Forget the measurement, keeping the model — for a caller that re-measures under a new search.
+ * @thread worker */
 static inline void omx_hrp_render_reset_report(OmxHrpRender *r) {
   if (!r) return;
   memset(&r->report, 0, sizeof(r->report));
@@ -308,7 +312,8 @@ static inline void omx_hrp_render_reset_report(OmxHrpRender *r) {
  * `hrp_analyze.c` does; measuring reads the ripe model and accumulates the deviation. The two
  * share this function rather than duplicating the chain, because a second spelling of
  * detect->track->attribute is how the two passes would come to disagree about what a window
- * contains. */
+ * contains.
+ * @thread worker */
 static inline void omx_hrp_render_window(OmxHrpRender *r, int pass) {
   const int do_learn = (pass != OMX_HRP_RENDER_MEASURE);
   const int do_measure = (pass != OMX_HRP_RENDER_LEARN);
@@ -416,6 +421,7 @@ static inline void omx_hrp_render_window(OmxHrpRender *r, int pass) {
  * into the measurement of a real partial's level — an invented number in the one place the
  * whole feature is about levels. The audio is untouched by this; only the last fraction of a
  * second is unmeasured, and a resonance is not a property of the last 170 ms of a show.
+ * @thread worker
  */
 static inline uint32_t omx_hrp_render_feed(OmxHrpRender *r, const float *in, uint32_t n,
                                            int pass) {
@@ -443,40 +449,46 @@ static inline uint32_t omx_hrp_render_feed(OmxHrpRender *r, const float *in, uin
 
 /** The mean excess, in dB, over the windows this partial was actually ringing in — §24's
  *  "positive deviation" term. Zero for a cell with no hot window, and for one below
- *  {@link OMX_HRP_RENDER_MIN_FRAMES}, which is the same statement: not evidence. */
+ *  {@link OMX_HRP_RENDER_MIN_FRAMES}, which is the same statement: not evidence.
+ * @thread worker */
 static inline float omx_hrp_render_excess_db(const OmxHrpRenderCell *c) {
   if (!c || c->frames < OMX_HRP_RENDER_MIN_FRAMES || c->hot_frames == 0u) return 0.0f;
   return c->sum_excess_db / (float)c->hot_frames;
 }
 
 /** How much of this partial's sounding time it spent above its baseline, 0..1 — §24's
- *  "temporal stability" term, and the one number that separates a resonance from a tick. */
+ *  "temporal stability" term, and the one number that separates a resonance from a tick.
+ * @thread worker */
 static inline float omx_hrp_render_duty(const OmxHrpRenderCell *c) {
   if (!c || c->frames < OMX_HRP_RENDER_MIN_FRAMES) return 0.0f;
   return (float)c->hot_frames / (float)c->frames;
 }
 
 /** The largest single positive deviation seen, in dB. What an operator reads to tell a ring
- *  from a clip; never what a correction is sized from — one window is not a take. */
+ *  from a clip; never what a correction is sized from — one window is not a take.
+ * @thread worker */
 static inline float omx_hrp_render_peak_excess_db(const OmxHrpRenderCell *c) {
   if (!c || c->frames < OMX_HRP_RENDER_MIN_FRAMES) return 0.0f;
   return c->peak_excess_db;
 }
 
-/** Mean attribution confidence over the hot windows — §10's third output, aggregated. */
+/** Mean attribution confidence over the hot windows — §10's third output, aggregated.
+ * @thread worker */
 static inline float omx_hrp_render_confidence(const OmxHrpRenderCell *c) {
   if (!c || c->hot_frames == 0u) return 0.0f;
   return c->sum_confidence / (float)c->hot_frames;
 }
 
-/** Mean voice confidence over the hot windows — §24's "voice confidence" term, aggregated. */
+/** Mean voice confidence over the hot windows — §24's "voice confidence" term, aggregated.
+ * @thread worker */
 static inline float omx_hrp_render_voice_confidence(const OmxHrpRenderCell *c) {
   if (!c || c->hot_frames == 0u) return 0.0f;
   return c->sum_voice_confidence / (float)c->hot_frames;
 }
 
 /** The MEASURED fundamental this partial belongs to, Hz — the mean over the windows it rang
- *  in, so the band lands on the note that sounded and not on the tempered grid. */
+ *  in, so the band lands on the note that sounded and not on the tempered grid.
+ * @thread worker */
 static inline float omx_hrp_render_f0_hz(const OmxHrpRenderCell *c) {
   if (!c || c->hot_frames == 0u) return 0.0f;
   return c->sum_f0_hz / (float)c->hot_frames;

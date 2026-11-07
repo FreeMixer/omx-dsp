@@ -65,7 +65,8 @@ struct omx_width_state {
  * @param sr The rate, Hz.
  * @return The samples, below OMX_WIDTH_RING.
  * @post `inside-the-ring`.
- * @note RT-safe: arithmetic. Pure.
+ * @note Arithmetic. Pure.
+ * @thread audio
  */
 static inline uint32_t omx_width_delay(float pseudo_ms, float sr) {
   const float top = (float)OMX_WIDTH_MAX_DELAY_MS;
@@ -87,7 +88,8 @@ static inline uint32_t omx_width_delay(float pseudo_ms, float sr) {
  * @param bass_hz The crossover's corner, Hz, inside (0, sr/2).
  * @param sr The rate, Hz.
  * @pre `width-not-negative`.
- * @note Control thread: one tan when bass mono is on. Thread-safe: writes only `p`.
+ * @note One tan when bass mono is on. Thread-safe: writes only `p`.
+ * @thread audio
  */
 static inline void omx_width_design(struct omx_width *p, float w, int pseudo, uint32_t d, int bass_mono, double bass_hz,
                                     double sr) {
@@ -111,8 +113,9 @@ static inline void omx_width_design(struct omx_width *p, float w, int pseudo, ui
  * @param st The state.
  * @pre `finite-in`.
  * @post `finite-out`.
- * @note RT-safe: per sample a few multiplies, and with bass mono four double sections and one
+ * @note Per sample a few multiplies, and with bass mono four double sections and one
  *       all-pass; no allocation. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_width_process(float *l, float *r, uint32_t n, const struct omx_width *p, struct omx_width_state *st) {
   if (!p->active || n == 0u) return;

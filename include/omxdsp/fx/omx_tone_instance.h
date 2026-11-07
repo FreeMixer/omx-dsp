@@ -67,6 +67,7 @@ typedef struct {
  * `TONE_FILTER_HIGH_HZ x (TONE_FILTER_LOW_HZ / TONE_FILTER_HIGH_HZ)^(-filter/100)`; above 0 the
  * high-pass, `TONE_FILTER_LOW_HZ x (TONE_FILTER_HIGH_HZ / TONE_FILTER_LOW_HZ)^(filter/100)`. Its
  * logarithm is linear in the word on each side. 0 returns 0 (open). RT-safe: one exp. Pure.
+ * @thread audio
  */
 static inline double omx_tone_filter_hz(double filter) {
   if (filter == 0.0) return 0.0;
@@ -78,7 +79,8 @@ static inline void omx_tone_instance_resolve(OmxToneInstance *s, int bypass, flo
                                              float resonance);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. The face comes up at its declared defaults, flat and open. Allocates nothing. */
+ * set. The face comes up at its declared defaults, flat and open. Allocates nothing.
+ * @thread control */
 static inline int omx_tone_instance_init(OmxToneInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -92,6 +94,7 @@ static inline int omx_tone_instance_init(OmxToneInstance *s, float sr) {
  * Resolve the host's control values for one cycle. `bypass` non-zero makes run() the identity. The
  * arguments are the tone kernel's contract controls in their declared order: the tilt's span (dB),
  * its pivot (Hz), the DJ filter (-100 to +100) and its resonance.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "tone/instance-resolve"
 static inline void omx_tone_instance_resolve(OmxToneInstance *s, int bypass, float tilt_db, float pivot_hz, float filter,
@@ -127,6 +130,7 @@ static inline void omx_tone_instance_resolve(OmxToneInstance *s, int bypass, flo
  * The face's magnitude at `freq_hz` as resolved, below Nyquist: the tilt's closed form
  * (omx_tilt_magnitude) times the filter section's `|H(e^jw)|`. What a host draws; 1 when flat and
  * open. RT-safe: a few trig calls. Thread-safe: reads `s`.
+ * @thread audio
  */
 static inline double omx_tone_instance_magnitude(const OmxToneInstance *s, double freq_hz) {
   if (!s || !s->ready) return 1.0;
@@ -143,6 +147,7 @@ static inline double omx_tone_instance_magnitude(const OmxToneInstance *s, doubl
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: each leg through the tilt then the filter, in to out. `in_*` and
  * `out_*` may alias. Not ready, bypassed, or flat and open is the identity and moves no state.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "tone/instance-run"
 static inline void omx_tone_instance_run(OmxToneInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -162,7 +167,8 @@ static inline void omx_tone_instance_run(OmxToneInstance *s, const float *in_l, 
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_tone_instance_latency(const OmxToneInstance *s) {
   (void)s;
   return 0u;

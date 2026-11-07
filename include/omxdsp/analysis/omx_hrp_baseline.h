@@ -61,7 +61,8 @@ typedef struct {
 
 /** step 0.5 dB / ripe 24: at the ~100 ms analysis tick, a note must hold (stable, confident,
  *  unambiguous) for ~2.4 s in total before its baseline speaks — soundcheck listening, not a
- *  snap judgement — and after that a full outlier costs half a decibel. */
+ *  snap judgement — and after that a full outlier costs half a decibel.
+ * @thread worker */
 static inline OmxHrpBaselineConfig omx_hrp_baseline_config_default(void) {
   OmxHrpBaselineConfig c;
   c.step_db = 0.5f;
@@ -69,10 +70,12 @@ static inline OmxHrpBaselineConfig omx_hrp_baseline_config_default(void) {
   return c;
 }
 
-/** Empty model: nothing learned, every row unripe. Also the §51 reset. */
+/** Empty model: nothing learned, every row unripe. Also the §51 reset.
+ * @thread worker */
 static inline void omx_hrp_baseline_init(OmxHrpBaseline *b) { memset(b, 0, sizeof(*b)); }
 
-/** How many (note, harmonic) rows currently answer — the "what has it learned" readout. */
+/** How many (note, harmonic) rows currently answer — the "what has it learned" readout.
+ * @thread worker */
 static inline uint32_t omx_hrp_baseline_ripe_rows(const OmxHrpBaseline *b,
                                                   const OmxHrpBaselineConfig *cfg) {
   uint32_t n = 0;
@@ -87,6 +90,7 @@ static inline uint32_t omx_hrp_baseline_ripe_rows(const OmxHrpBaseline *b,
  * of the note `midi_note`, at `level_db`. The caller has already applied §21's gates; a note or
  * harmonic outside the model is ignored rather than clamped — clamping would file a piccolo's
  * overflow under the highest note the model holds, which is a different note.
+ * @thread worker
  */
 static inline void omx_hrp_baseline_learn(OmxHrpBaseline *b, int midi_note, uint32_t harmonic,
                                           float level_db, const OmxHrpBaselineConfig *cfg) {
@@ -109,6 +113,7 @@ static inline void omx_hrp_baseline_learn(OmxHrpBaseline *b, int midi_note, uint
 /**
  * The learned level for (note, harmonic), when it is RIPE. Returns 1 and fills `out_db`, or
  * returns 0 — no baseline, and the caller does nothing (§54).
+ * @thread worker
  */
 static inline int omx_hrp_baseline_read(const OmxHrpBaseline *b, int midi_note, uint32_t harmonic,
                                         const OmxHrpBaselineConfig *cfg, float *out_db) {

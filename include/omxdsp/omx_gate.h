@@ -138,7 +138,8 @@ struct omx_gate {
  *        the key filter out until a resolve designs it at this rate.
  * @param g The instance.
  * @param rate The host's sample rate, Hz.
- * @note Not RT-safe only in that it clears the whole instance's state; no allocation.
+ * @note Clears the whole instance's state; no allocation.
+ * @thread control
  */
 static inline void omx_gate_init(struct omx_gate *g, float rate) {
   g->rate = rate;
@@ -157,7 +158,8 @@ static inline void omx_gate_init(struct omx_gate *g, float rate) {
  *        history from silence.
  * @param g The instance.
  * @param db_per_oct The slope, dB per octave, inside GATE_KEY_TILT_DB_RANGE; 0 is flat.
- * @note Control thread: one tan and one sqrt when the slope moved. Thread-safe on distinct instances.
+ * @note One tan and one sqrt when the slope moved. Thread-safe on distinct instances.
+ * @thread audio
  */
 static inline void omx_gate_key_tilt(struct omx_gate *g, float db_per_oct) {
   const double a = omx_tilt_a_of_slope((double)db_per_oct);
@@ -175,7 +177,8 @@ static inline void omx_gate_key_tilt(struct omx_gate *g, float db_per_oct) {
  * @param hi The travel's roof.
  * @param dflt The default.
  * @return The value inside [lo, hi], or `dflt`.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_gate_clampf(const float *port, float lo, float hi, float dflt) {
   return port ? omx_clampf(*port, lo, hi) : dflt;
@@ -192,8 +195,9 @@ static inline float omx_gate_clampf(const float *port, float lo, float hi, float
  * @param hp_hz The high-pass corner, Hz, inside GATE_KEY_LIMITS.hpHz; 0 is out.
  * @param lp_hz The low-pass corner, Hz, inside GATE_KEY_LIMITS.lpHz; 0 is out.
  * @post `edges-inside-the-travel`.
- * @note RT-safe: `cos`, `sin`, `exp`, `sqrt` (omx_eq_design) only for an edge that moved.
+ * @note `cos`, `sin`, `exp`, `sqrt` (omx_eq_design) only for an edge that moved.
  *       Thread-safe on distinct filters.
+ * @thread audio
  */
 static inline void omx_gate_key_design(struct omx_gate_key *k, float rate, float hp_hz, float lp_hz) {
   if (hp_hz != k->hp_hz) {
@@ -215,7 +219,8 @@ static inline void omx_gate_key_design(struct omx_gate_key *k, float rate, float
  * @brief Whether the key filter has an edge in.
  * @param k The key filter.
  * @return 1 while either corner is above 0, else 0.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_gate_key_active(const struct omx_gate_key *k) {
   return k->hp_hz > 0.0f || k->lp_hz > 0.0f;
@@ -229,7 +234,8 @@ static inline int omx_gate_key_active(const struct omx_gate_key *k) {
  * @param n Frames.
  * @pre `finite-key`.
  * @post `finite-filtered-key`.
- * @note RT-safe: O(n), no allocation, no call but omx_biquad_d(). Thread-safe on distinct filters.
+ * @note O(n), no allocation, no call but omx_biquad_d(). Thread-safe on distinct filters.
+ * @thread audio
  */
 static inline void omx_gate_key_run(struct omx_gate_key *k, float *buf, uint32_t n) {
   OMX_PRE(omx_block_finite(buf, n), "finite-key");
@@ -250,8 +256,9 @@ static inline void omx_gate_key_run(struct omx_gate_key *k, float *buf, uint32_t
  * @param g The instance (its rate read, its key filter written).
  * @param c The controls.
  * @param p The atom, written whole.
- * @note RT-safe: the key filter is designed only when an edge moves. Thread-safe on distinct
+ * @note The key filter is designed only when an edge moves. Thread-safe on distinct
  *       instances.
+ * @thread audio
  */
 static inline void omx_gate_resolve(struct omx_gate *g, const struct omx_gate_controls *c, struct omx_dyn *p) {
   memset(p, 0, sizeof *p);
@@ -283,8 +290,9 @@ static inline void omx_gate_resolve(struct omx_gate *g, const struct omx_gate_co
  * @param knee_start_db One edge of the range, dB, finite.
  * @param knee_end_db The other edge, dB, finite.
  * @post `knee-not-negative`, `shift-inside-the-knee`.
- * @note RT-safe. Thread-safe: pure in its arguments.
+ * @note Thread-safe: pure in its arguments.
  * @twin gateKnee
+ * @thread audio
  */
 static inline void omx_gate_knee(struct omx_dyn *p, float knee_start_db, float knee_end_db) {
   const float lo = knee_start_db < knee_end_db ? knee_start_db : knee_end_db;
@@ -309,7 +317,8 @@ static inline void omx_gate_knee(struct omx_dyn *p, float knee_start_db, float k
  * @param p The resolved atom.
  * @return The latency, frames.
  * @post `latency-is-the-factor-s`: 0 or OMX_OVS_LATENCY_4X, nothing else.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_gate_latency(const struct omx_dyn *p) {
   const float frames = omx_dyn_oversample_factor(p) == 4u ? (float)OMX_OVS_LATENCY_4X : 0.0f;
@@ -334,7 +343,8 @@ static inline float omx_gate_latency(const struct omx_dyn *p) {
  * @param out_r The right output block; may alias any input.
  * @param n Frames.
  * @post `bypass-identity-l`, `bypass-identity-r`: a disabled gate is the identity.
- * @note RT-safe: no allocation, no lock. Thread-safe on distinct instances.
+ * @note No allocation, no lock. Thread-safe on distinct instances.
+ * @thread audio
  */
 static inline void omx_gate_run(struct omx_gate *g, const struct omx_dyn *p, const float *key,
                                 const float *key_external, const float *in_l, const float *in_r,

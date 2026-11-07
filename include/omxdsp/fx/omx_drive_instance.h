@@ -133,6 +133,7 @@ typedef struct {
  * Coefficients are redesigned only when `band_freq` or the roll-off corner moved; the state is
  * rebuilt for the new factor only when `oversample` moved, and the latency follows the factor.
  * Allocation-free.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "drive-instance/resolve"
 static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, float amount, float character,
@@ -193,6 +194,7 @@ static inline void omx_drive_instance_resolve(OmxDriveInstance *s, int bypass, f
  * contract's defaults resolved and the bank designed, engaged. Returns 1 when usable, 0 when not: a
  * rate the console does not declare is refused, leaving `ready` clear, and run() is then the
  * identity. Allocates nothing — the caller owns the struct.
+ * @thread control
  */
 static inline int omx_drive_instance_init(OmxDriveInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
@@ -216,6 +218,7 @@ static inline int omx_drive_instance_init(OmxDriveInstance *s, float sr) {
  * One cycle: `out = drive(in)` for both legs, `n` frames. `in_*` and `out_*` may alias. Not ready,
  * or bypassed, is a copy and nothing else — the kernel's own "zero cost when disengaged" (§4g),
  * reached through the same `enabled` word.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "drive-instance/run"
 static inline void omx_drive_instance_run(OmxDriveInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -232,7 +235,8 @@ static inline void omx_drive_instance_run(OmxDriveInstance *s, const float *in_l
 #undef OMX_CONTRACT_STAGE
 
 /** The stage's declared latency in frames at the instance rate — the element's at the resolved
- * factor (0, 48 or 72 at 1x, 2x, 4x), 0 while bypassed or not ready. */
+ * factor (0, 48 or 72 at 1x, 2x, 4x), 0 while bypassed or not ready.
+ * @thread audio */
 static inline uint32_t omx_drive_instance_latency(const OmxDriveInstance *s) {
   return s && s->ready ? (uint32_t)omx_drive_latency(&s->atom) : 0u;
 }

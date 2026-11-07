@@ -818,7 +818,31 @@ $(RT_GATE_ARM): tools/rt-gate/externals-arm.c | $(BUILD)
 	@mkdir -p $(@D)
 	$(CC) -O0 -fno-builtin -Wall -Wextra -Werror -o $@ $< -lm
 
-.PHONY: rt-gate rt-gate-arm rt-gate-selftest rt-gate-sabotage
+# the thread tags: every function the shipped headers declare carries exactly one `@thread audio|worker|control`
+# in the comment above it, under each set of flags a consumer builds with (the plain libm, this toolchain's
+# libmvec, contracts compiled in); the shipped tags are their union
+RT_GATE_HEADERS_UNIT = $(RT_GATE_DIR)/headers.c
+RT_GATE_TAGS         = $(RT_GATE_DIR)/omx-dsp.tags
+RT_GATE_FLAVOURS     = plain release contracts
+RT_GATE_FLAGS_plain     = $(CFLAGS_PLAIN) $(INC)
+RT_GATE_FLAGS_release   = $(CFLAGS) $(INC)
+RT_GATE_FLAGS_contracts = $(CFLAGS) $(CONTRACTS_CFLAGS) $(INC)
+
+$(RT_GATE_HEADERS_UNIT): $(HEADERS) $(FX_HEADERS) $(ANALYSIS_HEADERS) $(MIX_HEADERS) | $(BUILD)
+	@mkdir -p $(@D)
+	@for h in $(sort $(patsubst include/%,%,$^)); do echo "#include <$$h>"; done > $@
+
+$(RT_GATE_DIR)/%.tags: $(RT_GATE) $(RT_GATE_HEADERS_UNIT)
+	./$(RT_GATE) --thread-tags $@ --selfrun $(RT_GATE_DIR)/selfrun-$*.c --under include/omxdsp --work $(RT_GATE_DIR)/tags-$* \
+	  -- $(CC) $(RT_GATE_FLAGS_$*) $(RT_GATE_HEADERS_UNIT)
+
+$(RT_GATE_TAGS): $(foreach f,$(RT_GATE_FLAVOURS),$(RT_GATE_DIR)/$(f).tags)
+	awk '/^#/ { next } !seen[$$1]++' $^ | sort > $@
+
+rt-gate-tags: $(RT_GATE_TAGS)
+	@echo "rt-gate-tags: $$(wc -l < $(RT_GATE_TAGS)) functions, each with exactly one @thread tag"
+
+.PHONY: rt-gate rt-gate-arm rt-gate-selftest rt-gate-sabotage rt-gate-tags
 rt-gate-arm: $(RT_GATE_ARM) $(RT_GATE_TABLES)/classes.tbl
 	@awk '!/^#/ && NF && $$3 !~ /^externals-arm:/ { print "rt-gate-arm: " FILENAME ":" FNR ": " $$1 " names no externals-arm case"; bad = 1 } END { exit bad }' $(RT_GATE_TABLES)/classes.tbl
 	./$(RT_GATE_ARM) $$(awk '!/^#/ && NF { sub(/^externals-arm:/, "", $$3); print $$3 }' $(RT_GATE_TABLES)/classes.tbl)
@@ -826,7 +850,7 @@ rt-gate-arm: $(RT_GATE_ARM) $(RT_GATE_TABLES)/classes.tbl
 rt-gate-selftest: $(RT_GATE) $(RT_GATE_FIXTURES) $(wildcard $(RT_GATE_TABLES)/*)
 	CC="$(CC)" TMPDIR="$(abspath $(BUILD))" bash tools/rt-gate/selftest.sh $(abspath $(RT_GATE)) $(abspath $(RT_GATE_TABLES))
 
-rt-gate: rt-gate-arm rt-gate-selftest
+rt-gate: rt-gate-arm rt-gate-selftest rt-gate-tags
 	@echo "rt-gate: the gate reads every planted red, passes every clean twin and refuses every bad row"
 
 rt-gate-sabotage: $(RT_GATE) $(RT_GATE_ARM) $(RT_GATE_FIXTURES)

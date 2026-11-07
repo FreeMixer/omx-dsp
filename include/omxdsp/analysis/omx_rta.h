@@ -50,7 +50,8 @@
 /** The FFT length for `rate`: the smallest power of two whose bins are at or under
  * {@link OMX_RTA_TARGET_BIN_HZ} (44.1/48 kHz → 8192, 88.2/96 kHz → 16384, 176.4/192 kHz →
  * 32768). Window time stays ~171 ms at every rate — resolution AND responsiveness are both
- * rate-invariant, which is the point of deriving. */
+ * rate-invariant, which is the point of deriving.
+ * @thread audio */
 static inline uint32_t omx_rta_fft_size_for(uint32_t rate) {
   uint32_t n = 2048;
   while (n < OMX_RTA_FFT_SIZE_MAX && (float)rate / (float)n > OMX_RTA_TARGET_BIN_HZ) n *= 2;
@@ -108,6 +109,7 @@ struct omx_ring {
  * arming left behind can never be read: {@link omx_ring_has} refuses the window until then.
  * Call it only while nothing is writing the ring (a disarmed lane), and publish the ring
  * afterwards, so the RT thread sees the zeroed counters before the pointer.
+ * @thread control
  */
 static inline void omx_ring_reset(struct omx_ring *ring) {
   atomic_store_explicit(&ring->pos, 0, memory_order_relaxed);
@@ -115,13 +117,15 @@ static inline void omx_ring_reset(struct omx_ring *ring) {
 }
 
 /** How many real samples the ring holds since its reset, capped at its capacity. ACQUIRE: a
- * caller that gates a read on this count must also see the samples the count describes. */
+ * caller that gates a read on this count must also see the samples the count describes.
+ * @thread audio */
 static inline uint32_t omx_ring_filled(const struct omx_ring *ring) {
   return atomic_load_explicit(&ring->filled, memory_order_acquire);
 }
 
 /** Whether a window of `n` samples read off this ring is entirely audio written since the reset
- * — the fact a reader gates a frame on. */
+ * — the fact a reader gates a frame on.
+ * @thread audio */
 static inline bool omx_ring_has(const struct omx_ring *ring, uint32_t n) {
   return omx_ring_filled(ring) >= n;
 }
@@ -131,6 +135,7 @@ static inline bool omx_ring_has(const struct omx_ring *ring, uint32_t n) {
  * and — defensively, for an oversized quantum — `n` greater than the ring's capacity (only
  * the most recent OMX_RTA_RING_SIZE samples survive). RT-safe: fixed-work memcpy(s), no
  * allocation, no branch beyond the wrap/oversize checks.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "dsp/ring-write"
 static inline void omx_ring_write(struct omx_ring *ring, const float *in, uint32_t n) {
@@ -199,6 +204,7 @@ static inline void omx_ring_write(struct omx_ring *ring, const float *in, uint32
  * `n + back` past the ring's capacity would read samples the writer has already overwritten,
  * so it is REFUSED — `out` is zeroed rather than filled with whatever is there. Silence
  * reads as an absent spectrum, which the fit refuses by name; plausible garbage would not.
+ * @thread audio
  */
 static inline void omx_ring_read_from(const struct omx_ring *ring, float *out, uint32_t n,
                                      uint32_t pos, uint32_t back) {
@@ -217,13 +223,15 @@ static inline void omx_ring_read_from(const struct omx_ring *ring, float *out, u
 
 /* {@link omx_ring_read_from} anchored on this ring's own cursor, read now. ACQUIRE: pairs with
  * the RELEASE store in {@link omx_ring_write} so the samples this cursor points at are visible
- * before the read that follows it. */
+ * before the read that follows it.
+ * @thread audio */
 static inline void omx_ring_read_at(const struct omx_ring *ring, float *out, uint32_t n,
                                     uint32_t back) {
   omx_ring_read_from(ring, out, n, atomic_load_explicit(&ring->pos, memory_order_acquire), back);
 }
 
-/* The newest `n` samples — {@link omx_ring_read_at} with no history asked for. */
+/* The newest `n` samples — {@link omx_ring_read_at} with no history asked for.
+ * @thread audio */
 static inline void omx_ring_read_latest(const struct omx_ring *ring, float *out, uint32_t n) {
   omx_ring_read_at(ring, out, n, 0);
 }
@@ -244,7 +252,8 @@ static inline void omx_ring_read_latest(const struct omx_ring *ring, float *out,
 /* Window + transform into `work_re`/`work_im`, unscaled. The ONE window and the ONE FFT
  * both readings below share: a magnitude spectrum and a complex spectrum differ only in
  * what they keep afterwards, and computing the transform twice would be a second answer to
- * the same question. */
+ * the same question.
+ * @thread worker */
 static inline void omx_rta_transform(const float *block, uint32_t n, float *work_re,
                                      float *work_im) {
   for (uint32_t i = 0; i < n; i++) work_re[i] = block[i];
@@ -257,6 +266,7 @@ static inline void omx_rta_transform(const float *block, uint32_t n, float *work
   }
 }
 
+/** @thread worker */
 static inline void omx_rta_spectrum(const float *block, uint32_t n, float *work_re,
                                     float *work_im, float *mags) {
   omx_rta_transform(block, n, work_re, work_im);
@@ -281,6 +291,7 @@ static inline void omx_rta_spectrum(const float *block, uint32_t n, float *work_
  * @param out_re The real parts out, `n/2` floats; may alias `work_re`.
  * @param out_im The imaginary parts out, `n/2` floats; may alias `work_im`.
  * @note Allocation-free, O(n log n). Thread-safe on distinct scratch.
+ * @thread worker
  */
 static inline void omx_rta_spectrum_complex(const float *block, uint32_t n, float *work_re,
                                             float *work_im, float *out_re, float *out_im) {
@@ -300,6 +311,7 @@ static inline void omx_rta_spectrum_complex(const float *block, uint32_t n, floa
  * @param last The block's last index.
  * @return The filtered sample.
  * @note Allocation-free: OMX_HALFBAND_ODD_TAPS clamped tap pairs. Thread-safe: pure.
+ * @thread worker
  */
 static inline float omx_decimate_halfband_edge(const float *in, int32_t c, int32_t last) {
   float acc = OMX_HALFBAND_CENTER * in[c];
@@ -328,6 +340,7 @@ static inline float omx_decimate_halfband_edge(const float *in, int32_t c, int32
  * @param out `n_in/2` outputs; must not overlap `in`.
  * @return Outputs written, `n_in/2`.
  * @note Allocation-free, O(n_in), no state. Thread-safe on distinct buffers.
+ * @thread worker
  */
 static inline uint32_t omx_decimate_halfband(const float *in, uint32_t n_in, float *out) {
   if (n_in < 2) return 0;

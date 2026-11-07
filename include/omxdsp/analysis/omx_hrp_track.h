@@ -90,6 +90,7 @@ typedef struct {
   uint32_t octave_hold_frames;
 } OmxHrpTrackConfig;
 
+/** @thread worker */
 static inline OmxHrpTrackConfig omx_hrp_track_config_default(void) {
   OmxHrpTrackConfig c;
   c.match_cents = 700.0f;  /* a fifth */
@@ -104,6 +105,7 @@ static inline OmxHrpTrackConfig omx_hrp_track_config_default(void) {
   return c;
 }
 
+/** @thread worker */
 static inline void omx_hrp_tracker_init(OmxHrpTracker *t) {
   memset(t, 0, sizeof(*t));
   t->next_id = 1; /* 0 is "no track", so identities start at one */
@@ -111,7 +113,8 @@ static inline void omx_hrp_tracker_init(OmxHrpTracker *t) {
 
 /** Distance between two pitches, in cents. Musical distance, not hertz: a 10 Hz move is nothing
  *  at 2 kHz and a minor third at 40 Hz, and a tracker that used hertz would follow the top of the
- *  range and lose the bottom of it. */
+ *  range and lose the bottom of it.
+ * @thread worker */
 static inline float omx_hrp_cents_between(float a_hz, float b_hz) {
   if (!(a_hz > 0.0f) || !(b_hz > 0.0f)) return 1e9f;
   return fabsf(1200.0f * log2f(a_hz / b_hz));
@@ -126,6 +129,7 @@ static inline float omx_hrp_cents_between(float a_hz, float b_hz) {
  *
  * @param tracker  caller-owned; carries the identities forward
  * @param frame    what the detector just found
+ * @thread worker
  */
 static inline void omx_hrp_track_update(OmxHrpTracker *tracker, const OmxHrpVoiceSet *frame,
                                         const OmxHrpTrackConfig *cfg) {
@@ -282,6 +286,7 @@ static inline void omx_hrp_track_update(OmxHrpTracker *tracker, const OmxHrpVoic
  *
  * The output is zeroed first, so the caller declares nothing and every unused slot — voice and
  * `by_slot` entry alike — is a zero rather than whatever the stack held.
+ * @thread worker
  */
 static inline void omx_hrp_project_voices(const OmxHrpTracker *tracker, OmxHrpVoiceSet *out,
                                           const OmxHrpTrack **by_slot) {
@@ -307,7 +312,8 @@ static inline void omx_hrp_project_voices(const OmxHrpTracker *tracker, OmxHrpVo
 }
 
 /** The track carrying `id`, or NULL. Identity is the point of this module, so looking one up by
- *  identity — rather than by slot, which moves — is how every caller should reach it. */
+ *  identity — rather than by slot, which moves — is how every caller should reach it.
+ * @thread worker */
 static inline const OmxHrpTrack *omx_hrp_track_by_id(const OmxHrpTracker *tracker, uint32_t id) {
   if (id == 0) return NULL;
   for (uint32_t k = 0; k < OMX_HRP_MAX_TRACKS; k++) {
@@ -316,7 +322,8 @@ static inline const OmxHrpTrack *omx_hrp_track_by_id(const OmxHrpTracker *tracke
   return NULL;
 }
 
-/** How many voices are being followed right now. */
+/** How many voices are being followed right now.
+ * @thread worker */
 static inline uint32_t omx_hrp_track_count(const OmxHrpTracker *tracker) {
   uint32_t n = 0;
   for (uint32_t k = 0; k < OMX_HRP_MAX_TRACKS; k++)

@@ -61,7 +61,8 @@ static inline void omx_spring_instance_resolve(OmxSpringInstance *s, int bypass,
                                                float tension_pct, float damp_hz, float mix_pct);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. It comes up at its declared defaults, a mix of 0. Allocates nothing. */
+ * set. It comes up at its declared defaults, a mix of 0. Allocates nothing.
+ * @thread control */
 static inline int omx_spring_instance_init(OmxSpringInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -72,7 +73,8 @@ static inline int omx_spring_instance_init(OmxSpringInstance *s, float sr) {
   return 1;
 }
 
-/** The chain's group delay, samples, at angular frequency `w`, radians per sample, for coefficient `a`. */
+/** The chain's group delay, samples, at angular frequency `w`, radians per sample, for coefficient `a`.
+ * @thread audio */
 static inline double omx_spring_chain_delay(double a, double w) {
   return (double)OMX_SPRING_SECTIONS * (1.0 - a * a) / (1.0 + 2.0 * a * cos(w) + a * a);
 }
@@ -82,6 +84,7 @@ static inline double omx_spring_chain_delay(double a, double w) {
  * arguments are the spring kernel's contract controls in their declared order, each clamped into its
  * travel, a non-finite one reading as its default. A length or tension change clears the tank, as does
  * the engage edge: the old tail is at another pitch.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "spring/instance-resolve"
 static inline void omx_spring_instance_resolve(OmxSpringInstance *s, int bypass, float decay_s, float length_ms,
@@ -129,7 +132,8 @@ static inline void omx_spring_instance_resolve(OmxSpringInstance *s, int bypass,
 }
 #undef OMX_CONTRACT_STAGE
 
-/** One leg, one sample: the loop's read, the chain and the low-pass, and the input written back. RT-safe. */
+/** One leg, one sample: the loop's read, the chain and the low-pass, and the input written back. RT-safe.
+ * @thread audio */
 static inline float omx_spring_leg_tick(struct omx_spring_leg *l, float x, float a, float pole) {
   uint32_t rd = l->pos + OMX_SPRING_INSTANCE_RING - l->d;
   rd = rd >= OMX_SPRING_INSTANCE_RING ? rd - OMX_SPRING_INSTANCE_RING : rd;
@@ -144,6 +148,7 @@ static inline float omx_spring_leg_tick(struct omx_spring_leg *l, float x, float
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: each leg through its spring, in to out. `in_*` and `out_*` may alias.
  * Not ready, bypassed or a mix of 0 is the identity and moves no state.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "spring/instance-run"
 static inline void omx_spring_instance_run(OmxSpringInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -162,7 +167,8 @@ static inline void omx_spring_instance_run(OmxSpringInstance *s, const float *in
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_spring_instance_latency(const OmxSpringInstance *s) {
   (void)s;
   return 0u;

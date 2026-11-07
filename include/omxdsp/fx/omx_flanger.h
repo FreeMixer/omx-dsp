@@ -94,7 +94,8 @@ struct omx_flanger_state {
 };
 
 /** Clamp the feedback into the declared bound. The row's travel is what REFUSES an out-of-range
- *  control; this is the enforcement half, at the last line before a recursion. */
+ *  control; this is the enforcement half, at the last line before a recursion.
+ * @thread audio */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "flanger/clamp"
 static inline float omx_flanger_clamp_fb(float fb) {
@@ -115,6 +116,7 @@ static inline float omx_flanger_clamp_fb(float fb) {
  * For Λ·|fb| ≥ 1 (0.8 ≤ |fb| ≤ OMX_FLANGER_FB_MAX) NO finite bound is proven — there is no
  * closed form — and this returns +INFINITY: no bound is claimed rather than a false one. The ring
  * still decays there (`tail-decays`); only the sample-peak bound is unproven.
+ * @thread audio
  */
 static inline float omx_flanger_gain_bound(const struct omx_flanger *p) {
   const float fb = omx_flanger_clamp_fb(p->feedback);
@@ -126,19 +128,23 @@ static inline float omx_flanger_gain_bound(const struct omx_flanger *p) {
 }
 
 /** The RESONANT delay, in samples: the line's own delay plus the feedback word's one sample. The
- *  number a row publishes, and the one the oracle's closed form stands on. */
+ *  number a row publishes, and the one the oracle's closed form stands on.
+ * @thread audio */
 static inline float omx_flanger_loop_delay(float delay_samples) { return delay_samples + 1.0f; }
 
 /** The stage's own effect time, in samples: the ends of the sweep. A READBACK, never a latency
- *  term — the dry path is direct and nothing downstream waits. */
+ *  term — the dry path is direct and nothing downstream waits.
+ * @thread audio */
 static inline float omx_flanger_shortest_delay(const struct omx_flanger *p) {
   return p->base_samples;
 }
+/** @thread audio */
 static inline float omx_flanger_longest_delay(const struct omx_flanger *p) {
   return p->base_samples + p->depth_samples;
 }
 
-/** Arm both legs over caller-owned rings, silence the feedback words, start the turn at zero. */
+/** Arm both legs over caller-owned rings, silence the feedback words, start the turn at zero.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "flanger/init"
 static inline enum omx_fdelay_code omx_flanger_state_init(struct omx_flanger_state *s,
                                                           float *ring_l, float *ring_r,
@@ -157,7 +163,8 @@ static inline enum omx_fdelay_code omx_flanger_state_init(struct omx_flanger_sta
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The delay the sweep is at, at the oscillator's current phase — one place, as the chorus has. */
+/** The delay the sweep is at, at the oscillator's current phase — one place, as the chorus has.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "flanger/sweep"
 static inline float omx_flanger_delay(const struct omx_flanger *p, const struct omx_lfo *lfo) {
   return omx_lfo_sweep(p->base_samples, p->depth_samples, omx_lfo_at(lfo, 0.0f));
@@ -168,6 +175,7 @@ static inline float omx_flanger_delay(const struct omx_flanger *p, const struct 
  * Process one block IN PLACE. `l`/`r` are the strip's two legs; a disabled atom, a NULL ring or an
  * unarmed line is a passthrough. RT-safe: one kernel evaluation per sample serves both legs, four
  * taps read per leg, no allocation, no libm in the loop.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "flanger"
 static inline void omx_flanger_process(float *l, float *r, uint32_t n, const struct omx_flanger *p,

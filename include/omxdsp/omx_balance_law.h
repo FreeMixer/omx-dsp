@@ -21,7 +21,8 @@
  * bounds are the contract row's (OMX_PAN_RANGE_MIN/MAX), not restated here.
  * @param pan The pan position; any value.
  * @return `pan` clamped to [OMX_PAN_RANGE_MIN, OMX_PAN_RANGE_MAX]; NaN is the centre, 0.
- * @note RT-safe: three compares. Thread-safe: pure.
+ * @note Three compares. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_clamp_pan(float pan) {
   if (pan != pan) return 0.0f;
@@ -40,7 +41,8 @@ static inline float omx_clamp_pan(float pan) {
  * @param pan The balance position; clamped by omx_clamp_pan(), so any value.
  * @param bL Out: the left leg's gain, in [0, 1].
  * @param bR Out: the right leg's gain, in [0, 1].
- * @note RT-safe: compares and one subtraction. Thread-safe: pure.
+ * @note Compares and one subtraction. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_balance_law(float pan, float *bL, float *bR) {
   float p = omx_clamp_pan(pan);

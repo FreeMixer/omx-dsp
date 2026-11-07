@@ -34,7 +34,8 @@
  * @param floor_db The lowest value answered, dB.
  * @return `max(floor_db, 20·log10|H(e^jw)|)`.
  * @pre `finite-args`.
- * @note RT-safe: `cos`, `sin`, `hypot`, `log10`, no allocation. Thread-safe: pure.
+ * @note `cos`, `sin`, `hypot`, `log10`, no allocation. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_biquad_magnitude_db_w(const double c[5], double w, double floor_db) {
   OMX_PRE(isfinite(w) && isfinite(floor_db), "finite-args");
@@ -63,7 +64,8 @@ static inline double omx_biquad_magnitude_db_w(const double c[5], double w, doub
  * @param floor_db The lowest value answered, dB.
  * @return `max(floor_db, 20·log10|H(e^jω)|)`, `ω = 2π·f/sample_rate`.
  * @pre `finite-args-and-positive-rate`, `poles-inside-the-unit-circle`.
- * @note RT-safe: `cos`, `sin`, `hypot`, `log10`, no allocation. Thread-safe: pure.
+ * @note `cos`, `sin`, `hypot`, `log10`, no allocation. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_biquad_magnitude_db_d(const double c[5], double freq_hz,
                                                double sample_rate, double floor_db) {
@@ -84,7 +86,8 @@ static inline double omx_biquad_magnitude_db_d(const double c[5], double freq_hz
  * @param sample_rate Sample rate, Hz, positive.
  * @param floor_db The lowest value answered, dB.
  * @return The section's magnitude, dB, floored at `floor_db`.
- * @note RT-safe and thread-safe: five widening loads and omx_biquad_magnitude_db_d().
+ * @note Thread-safe: five widening loads and omx_biquad_magnitude_db_d().
+ * @thread audio
  */
 static inline double omx_biquad_magnitude_db(const float c[5], double freq_hz, double sample_rate,
                                              double floor_db) {
@@ -109,7 +112,8 @@ static inline double omx_biquad_magnitude_db(const float c[5], double freq_hz, d
  * @param db_out The magnitude at each frequency, dB.
  * @pre `finite-args-and-positive-rate`.
  * @post `finite-out`.
- * @note RT-safe: O(nbands·n), no allocation. Thread-safe on distinct output; reentrant.
+ * @note O(nbands·n), no allocation. Thread-safe on distinct output; reentrant.
+ * @thread audio
  */
 static inline void omx_biquad_cascade_magnitude_db_d(const double coeffs[][5],
                                                      const uint8_t *enabled, uint32_t nbands,
@@ -140,7 +144,8 @@ static inline void omx_biquad_cascade_magnitude_db_d(const double coeffs[][5],
  * @param db_out The magnitude at each frequency, dB.
  * @pre `finite-args-and-positive-rate`.
  * @post `finite-out`.
- * @note RT-safe: O(nbands·n), no allocation. Thread-safe on distinct output; reentrant.
+ * @note O(nbands·n), no allocation. Thread-safe on distinct output; reentrant.
+ * @thread audio
  */
 static inline void omx_biquad_cascade_magnitude_db(const float coeffs[][5], const uint8_t *enabled,
                                                    uint32_t nbands, const double *freq_hz,
@@ -165,7 +170,8 @@ static inline void omx_biquad_cascade_magnitude_db(const float coeffs[][5], cons
  * @param freq_hz The band's centre or corner, Hz.
  * @param q The band's quality factor.
  * @param out `{lower edge, centre, upper edge}`, Hz.
- * @note RT-safe and thread-safe: three arithmetic stores, pure.
+ * @note Thread-safe: three arithmetic stores, pure.
+ * @thread audio
  */
 static inline void omx_eq_band_anchors(double freq_hz, double q, double out[3]) {
   const double half = freq_hz / (2.0 * (q > 0.1 ? q : 0.1));
@@ -186,8 +192,9 @@ static inline void omx_eq_band_anchors(double freq_hz, double q, double out[3]) 
  * @param floor_db The lowest value answered, dB.
  * @return The band's magnitude, dB, floored at `floor_db`.
  * @pre `finite-args-and-positive-rate`.
- * @note Not for the audio thread (a design per call); thread-safe: pure.
+ * @note Thread-safe: pure.
  * @twin biquadMagnitudeDb
+ * @thread control
  */
 static inline double omx_eq_band_magnitude_db(const struct omx_eq_band *b, double freq_hz,
                                               double sample_rate, double floor_db) {
@@ -208,8 +215,9 @@ static inline double omx_eq_band_magnitude_db(const struct omx_eq_band *b, doubl
  * @param sample_rate Sample rate, Hz, positive.
  * @param floor_db The floor each band's value is held at, dB.
  * @return The sum of omx_eq_band_magnitude_db() over the bands; 0 dB for none.
- * @note Not for the audio thread; thread-safe: pure.
+ * @note Thread-safe: pure.
  * @twin magnitudeSumDb
+ * @thread control
  */
 static inline double omx_eq_magnitude_sum_db(const struct omx_eq_band *bands, uint32_t nbands,
                                              double freq_hz, double sample_rate,
@@ -239,7 +247,8 @@ static inline double omx_eq_magnitude_sum_db(const struct omx_eq_band *bands, ui
  * @return The frequencies written.
  * @pre `ordered-positive-edges`.
  * @post `ascending`.
- * @note Not for the audio thread (`pow`, an insertion sort); thread-safe on distinct output.
+ * @note Thread-safe on distinct output.
+ * @thread control
  */
 static inline uint32_t omx_eq_curve_freqs(const struct omx_eq_band *bands, uint32_t nbands,
                                           double f_min, double f_max, uint32_t points,
@@ -284,7 +293,8 @@ static inline uint32_t omx_eq_curve_freqs(const struct omx_eq_band *bands, uint3
  * @return The points written.
  * @pre `positive-rate`.
  * @post `finite-out`.
- * @note Not for the audio thread; thread-safe on distinct output.
+ * @note Thread-safe on distinct output.
+ * @thread control
  */
 static inline uint32_t omx_eq_curve_db(const struct omx_eq_band *bands, uint32_t nbands,
                                        double f_min, double f_max, uint32_t points,
@@ -313,7 +323,8 @@ static inline uint32_t omx_eq_curve_db(const struct omx_eq_band *bands, uint32_t
  * @param out The bands drawn, each with `on` set; room for `nbands + OMX_EQ_PASS_MAX_SECTIONS`.
  * @return The bands written.
  * @post `no-more-than-room`.
- * @note RT-safe and thread-safe on distinct output: copies, no libm.
+ * @note Thread-safe on distinct output: copies, no libm.
+ * @thread audio
  */
 static inline uint32_t omx_eq_curve_bands(int eq_on, const struct omx_eq_band *bands,
                                           uint32_t nbands, const struct omx_eq_pass *hpf,

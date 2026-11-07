@@ -48,7 +48,8 @@ static inline void omx_glue_instance_resolve(OmxGlueInstance *s, int bypass, flo
                                              int detector_topology);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. It comes up at its declared defaults. Allocates nothing. */
+ * set. It comes up at its declared defaults. Allocates nothing.
+ * @thread control */
 static inline int omx_glue_instance_init(OmxGlueInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   if (!omx_comp_instance_init(&s->comp, sr)) return 0;
@@ -64,6 +65,7 @@ static inline int omx_glue_instance_init(OmxGlueInstance *s, float sr) {
  * Resolve the host's control values for one cycle. `bypass` non-zero makes run() the identity. The
  * arguments are the glue kernel's contract controls in their declared order: a travel clamped, a
  * non-finite one reading as its default; a choice its index, one outside its set reading as its default.
+ * @thread audio
  */
 static inline void omx_glue_instance_resolve(OmxGlueInstance *s, int bypass, float threshold_db, int ratio, int attack,
                                              int release, float makeup_db, float key_hp_hz, float mix_pct,
@@ -98,6 +100,7 @@ static inline void omx_glue_instance_resolve(OmxGlueInstance *s, int bypass, flo
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: the slot over both legs, in to out. `in_*` and `out_*` may alias.
  * Not ready or bypassed is the identity.
+ * @thread audio
  */
 static inline void omx_glue_instance_run(OmxGlueInstance *s, const float *in_l, const float *in_r, float *out_l,
                                          float *out_r, uint32_t n) {
@@ -108,16 +111,19 @@ static inline void omx_glue_instance_run(OmxGlueInstance *s, const float *in_l, 
   omx_comp_instance_run_keyed(&s->comp, NULL, NULL, in_l, in_r, out_l, out_r, n);
 }
 
-/** The gainReductionDb readout: the deepest gain of the last block, dB, 0 or negative. */
+/** The gainReductionDb readout: the deepest gain of the last block, dB, 0 or negative.
+ * @thread audio */
 static inline float omx_glue_instance_gain_reduction_db(const OmxGlueInstance *s) { return s ? s->comp.st.gr_min_db : 0.0f; }
 
 /** The attack the detector runs, ms: the detent's, or in `feedback` the floor of omx_dyn_fb_attack_pole() at this
- * rate where the detent is faster (0.1 ms at 10:1 runs 0.198 ms at 48 kHz). */
+ * rate where the detent is faster (0.1 ms at 10:1 runs 0.198 ms at 48 kHz).
+ * @thread audio */
 static inline float omx_glue_instance_effective_attack_ms(const OmxGlueInstance *s) {
   return s ? omx_comp_instance_effective_attack_ms(&s->comp) : 0.0f;
 }
 
-/** The frames of latency the instance introduces: none, in either topology (the slot never takes the 4x path). */
+/** The frames of latency the instance introduces: none, in either topology (the slot never takes the 4x path).
+ * @thread audio */
 static inline uint32_t omx_glue_instance_latency(const OmxGlueInstance *s) {
   (void)s;
   return 0u;

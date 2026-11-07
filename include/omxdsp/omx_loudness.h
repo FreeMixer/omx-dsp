@@ -89,6 +89,7 @@ struct omx_loudness {
   uint64_t subs;                                       /**< Sub-blocks closed since init or reset. */
 };
 
+/** @thread audio */
 OMXDSP_STATE_LAYOUT(loudness, struct omx_loudness)
 
 #define OMX_CONTRACT_STAGE "loudness/design"
@@ -103,7 +104,8 @@ OMXDSP_STATE_LAYOUT(loudness, struct omx_loudness)
  * @param c The two sections out, in double.
  * @pre `rate-is-whole-centiseconds`.
  * @post `both-sections-stable`.
- * @note CONTROL thread: calls `tan` and `pow`. Thread-safe: writes only `c`.
+ * @note Calls `tan` and `pow`. Thread-safe: writes only `c`.
+ * @thread control
  */
 static inline void omx_loudness_kweight_design(double sr, double c[2][5]) {
   OMX_PRE(sr >= 8000.0 && sr <= 768000.0 && sr / 100.0 == floor(sr / 100.0), "rate-is-whole-centiseconds");
@@ -133,7 +135,8 @@ static inline void omx_loudness_kweight_design(double sr, double c[2][5]) {
  * @brief Loudness from a K-weighted mean square: `−0.691 + 10·log10(ms)`.
  * @param ms The mean square, leg weights applied and legs summed.
  * @return LUFS; OMX_LOUDNESS_SILENCE for `ms <= 0` (or NaN).
- * @note RT-safe: one `log10`. Thread-safe: pure.
+ * @note One `log10`. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_loudness_lufs(double ms) {
   return ms > 0.0 ? OMX_LOUDNESS_OFFSET_LU + 10.0 * log10(ms) : OMX_LOUDNESS_SILENCE;
@@ -144,7 +147,8 @@ static inline double omx_loudness_lufs(double ms) {
  * @brief Start a new measurement on the same design: every window, histogram, peak and detector cleared.
  * @param s The state, initialised.
  * @post `windows-empty`.
- * @note RT-safe: no allocation, a fixed amount of clearing. Thread-safe on distinct state.
+ * @note No allocation, a fixed amount of clearing. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_loudness_reset(struct omx_loudness *s) {
   memset(s->ks, 0, sizeof s->ks);
@@ -172,7 +176,8 @@ static inline void omx_loudness_reset(struct omx_loudness *s) {
  *        the LFE); NULL for 1.0 on every leg.
  * @pre `rate-is-whole-centiseconds`, `channels-within-cap`, `weights-finite-and-non-negative`.
  * @post `windows-empty`.
- * @note CONTROL thread: calls `tan` and `pow`. Thread-safe on distinct state.
+ * @note Calls `tan` and `pow`. Thread-safe on distinct state.
+ * @thread control
  */
 static inline void omx_loudness_init(struct omx_loudness *s, float sr, uint32_t channels, const float *weight) {
   OMX_PRE(channels >= 1u && channels <= OMX_LOUDNESS_MAX_CHANNELS, "channels-within-cap");
@@ -198,7 +203,8 @@ static inline void omx_loudness_init(struct omx_loudness *s, float sr, uint32_t 
  * @param s The state.
  * @param ms The block's energy.
  * @return The bin, or -1 when `ms` is at or below the absolute gate.
- * @note RT-safe: ten comparisons. Thread-safe: reads only.
+ * @note Ten comparisons. Thread-safe: reads only.
+ * @thread audio
  */
 static inline int omx_loudness_bin(const struct omx_loudness *s, double ms) {
   if (!(ms > s->edge[0])) return -1;
@@ -216,7 +222,8 @@ static inline int omx_loudness_bin(const struct omx_loudness *s, double ms) {
  * @param s The state.
  * @param k The window, in sub-blocks, at most OMX_LOUDNESS_SHORT_TERM.
  * @return The window's mean square; a window not yet filled counts the missing time as silence.
- * @note RT-safe: `k` additions. Thread-safe: reads only.
+ * @note `k` additions. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_window_ms(const struct omx_loudness *s, uint32_t k) {
   double sum = 0.0;
@@ -233,7 +240,8 @@ static inline double omx_loudness_window_ms(const struct omx_loudness *s, uint32
  * @param s The state.
  * @param h The histogram.
  * @param ms The block's energy.
- * @note RT-safe: one bisection. Thread-safe on distinct state.
+ * @note One bisection. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_loudness_hist_add(const struct omx_loudness *s, struct omx_loudness_hist *h, double ms) {
   const int b = omx_loudness_bin(s, ms);
@@ -246,7 +254,8 @@ static inline void omx_loudness_hist_add(const struct omx_loudness *s, struct om
  * @brief Close the open sub-block: into the ring, and every 100 ms the 400 ms block and the 3 s
  *        value into their histograms.
  * @param s The state.
- * @note RT-safe: at most 340 additions. Thread-safe on distinct state.
+ * @note At most 340 additions. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_loudness_close_sub(struct omx_loudness *s) {
   double sum = 0.0;
@@ -274,8 +283,9 @@ static inline void omx_loudness_close_sub(struct omx_loudness *s) {
  * @param n Frames.
  * @pre `finite-in`.
  * @post `finite-windows`.
- * @note RT-safe: no allocation, no libm, `OMX_TRUEPEAK_CHUNK` floats of stack plus the detector's;
+ * @note No allocation, no libm, `OMX_TRUEPEAK_CHUNK` floats of stack plus the detector's;
  *       O(channels·n). Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_loudness_process(struct omx_loudness *s, const float *const *in, uint32_t n) {
   for (uint32_t c = 0; c < s->channels; c++) OMX_PRE(in[c] == NULL || omx_block_finite(in[c], n), "finite-in");
@@ -314,7 +324,8 @@ static inline void omx_loudness_process(struct omx_loudness *s, const float *con
  * @brief The momentary energy: the mean square of the last 400 ms (closed sub-blocks).
  * @param s The state.
  * @return The mean square; before 400 ms the missing time counts as silence.
- * @note RT-safe: 40 additions. Thread-safe: reads only.
+ * @note 40 additions. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_momentary_ms(const struct omx_loudness *s) {
   return omx_loudness_window_ms(s, OMX_LOUDNESS_MOMENTARY);
@@ -324,7 +335,8 @@ static inline double omx_loudness_momentary_ms(const struct omx_loudness *s) {
  * @brief The short-term energy: the mean square of the last 3 s (closed sub-blocks).
  * @param s The state.
  * @return The mean square; before 3 s the missing time counts as silence.
- * @note RT-safe: 300 additions. Thread-safe: reads only.
+ * @note 300 additions. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_short_term_ms(const struct omx_loudness *s) {
   return omx_loudness_window_ms(s, OMX_LOUDNESS_SHORT_TERM);
@@ -338,7 +350,8 @@ static inline double omx_loudness_short_term_ms(const struct omx_loudness *s) {
  * @param rel_lu The relative gate, LU (negative).
  * @param first The first bin kept, out; OMX_LOUDNESS_BINS when nothing is.
  * @return The gated energy mean; 0 when no block passes.
- * @note RT-safe: two passes over the bins, one `pow`. Thread-safe: reads only.
+ * @note Two passes over the bins, one `pow`. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_hist_gated(const struct omx_loudness_hist *h, const double *edge, double rel_lu, uint32_t *first) {
   double e = 0.0, n = 0.0;
@@ -363,7 +376,8 @@ static inline double omx_loudness_hist_gated(const struct omx_loudness_hist *h, 
  *        the relative gate, −10 LU below the absolute-gated mean.
  * @param s The state.
  * @return The gated mean square; 0 when no block passes both gates.
- * @note RT-safe: two passes over 1000 bins, one `pow`. Thread-safe: reads only.
+ * @note Two passes over 1000 bins, one `pow`. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_integrated_ms(const struct omx_loudness *s) {
   uint32_t first;
@@ -382,7 +396,8 @@ static inline double omx_loudness_integrated_ms(const struct omx_loudness *s) {
  * @param lo The 10th percentile's energy, out; 0 when no value passes.
  * @param hi The 95th percentile's energy, out; 0 when no value passes.
  * @post `low-end-not-above-high-end`.
- * @note RT-safe: three passes over 1000 bins, one `pow`. Thread-safe: reads only.
+ * @note Three passes over 1000 bins, one `pow`. Thread-safe: reads only.
+ * @thread audio
  */
 static inline void omx_loudness_range_ms(const struct omx_loudness *s, double *lo, double *hi) {
   const struct omx_loudness_hist *h = &s->range;
@@ -412,7 +427,8 @@ static inline void omx_loudness_range_ms(const struct omx_loudness *s, double *l
  * @brief The momentary loudness, LUFS.
  * @param s The state.
  * @return omx_loudness_lufs() of omx_loudness_momentary_ms().
- * @note RT-safe: one `log10`. Thread-safe: reads only.
+ * @note One `log10`. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_momentary(const struct omx_loudness *s) { return omx_loudness_lufs(omx_loudness_momentary_ms(s)); }
 
@@ -420,7 +436,8 @@ static inline double omx_loudness_momentary(const struct omx_loudness *s) { retu
  * @brief The short-term loudness, LUFS.
  * @param s The state.
  * @return omx_loudness_lufs() of omx_loudness_short_term_ms().
- * @note RT-safe: one `log10`. Thread-safe: reads only.
+ * @note One `log10`. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_short_term(const struct omx_loudness *s) { return omx_loudness_lufs(omx_loudness_short_term_ms(s)); }
 
@@ -428,7 +445,8 @@ static inline double omx_loudness_short_term(const struct omx_loudness *s) { ret
  * @brief The integrated loudness, LUFS.
  * @param s The state.
  * @return omx_loudness_lufs() of omx_loudness_integrated_ms(); OMX_LOUDNESS_SILENCE when every block is gated.
- * @note RT-safe: one `log10`, one `pow`. Thread-safe: reads only.
+ * @note One `log10`, one `pow`. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_integrated(const struct omx_loudness *s) { return omx_loudness_lufs(omx_loudness_integrated_ms(s)); }
 
@@ -436,7 +454,8 @@ static inline double omx_loudness_integrated(const struct omx_loudness *s) { ret
  * @brief The loudness range, LU: the high end's loudness less the low end's.
  * @param s The state.
  * @return LRA, LU; 0 when no short-term value passes the gates.
- * @note RT-safe: two `log10`, one `pow`. Thread-safe: reads only.
+ * @note Two `log10`, one `pow`. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_range(const struct omx_loudness *s) {
   double lo, hi;
@@ -448,7 +467,8 @@ static inline double omx_loudness_range(const struct omx_loudness *s) {
  * @brief The largest true peak since init or reset, linear (1.0 is full scale).
  * @param s The state.
  * @return The largest ×4 reading over every leg.
- * @note RT-safe and thread-safe: reads one word.
+ * @note Thread-safe: reads one word.
+ * @thread audio
  */
 static inline float omx_loudness_true_peak(const struct omx_loudness *s) { return s->peak; }
 
@@ -456,7 +476,8 @@ static inline float omx_loudness_true_peak(const struct omx_loudness *s) { retur
  * @brief The largest true peak since init or reset, dBTP.
  * @param s The state.
  * @return `20·log10(peak)`; OMX_LOUDNESS_SILENCE for no signal.
- * @note RT-safe: one `log10`. Thread-safe: reads only.
+ * @note One `log10`. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_loudness_true_peak_db(const struct omx_loudness *s) {
   return s->peak > 0.0f ? 20.0 * log10((double)s->peak) : OMX_LOUDNESS_SILENCE;

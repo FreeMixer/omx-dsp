@@ -82,7 +82,8 @@ enum omx_velocity_curve {
  * @brief A curve's name, as the console's `VELOCITY_CURVES` spells it.
  * @param curve An enum omx_velocity_curve value.
  * @return `"linear"`, `"soft"`, `"hard"` or `"fixed"`; NULL for any other value.
- * @note RT-safe: returns a string literal.
+ * @note Returns a string literal.
+ * @thread audio
  */
 static inline const char *omx_velocity_curve_name(int curve) {
   switch (curve) {
@@ -98,7 +99,8 @@ static inline const char *omx_velocity_curve_name(int curve) {
  * @brief `round(sqrt(n))` for `n` in 0..16129, in integers.
  * @param n The radicand.
  * @return The integer nearest the square root.
- * @note RT-safe: at most 128 steps, no libm.
+ * @note At most 128 steps, no libm.
+ * @thread audio
  */
 static inline int omx_note_isqrt_round(int n) {
   int s = 0;
@@ -115,7 +117,8 @@ static inline int omx_note_isqrt_round(int n) {
  * @return The mapped velocity, 1..127 (the closed forms of the file comment).
  * @pre `velocity-is-a-note-on`: `v` is 1..127.
  * @post `velocity-sounds`: the result is 1..127, never a note off.
- * @note RT-safe: integer arithmetic only. An unknown curve reads as `linear`.
+ * @note Integer arithmetic only. An unknown curve reads as `linear`.
+ * @thread audio
  */
 static inline int omx_velocity_curve_apply(int curve, int v, int fixed) {
   OMX_PRE(v >= 1 && v <= 127, "velocity-is-a-note-on");
@@ -145,7 +148,7 @@ struct omx_note_leg {
 /**
  * @brief The policy a new leg starts with: omni, every key, no transpose, `linear`, fixed 100.
  * @return The default leg.
- * @note RT-safe.
+ * @thread audio
  */
 static inline struct omx_note_leg omx_note_leg_default(void) {
   struct omx_note_leg l = {OMX_NOTE_CHANNEL_OMNI, 0, 127, 0, OMX_VELOCITY_LINEAR, 100};
@@ -156,7 +159,7 @@ static inline struct omx_note_leg omx_note_leg_default(void) {
  * @brief Whether every field of a leg lies inside its declared travel.
  * @param l The leg.
  * @return 1 when valid, else 0.
- * @note RT-safe.
+ * @thread audio
  */
 static inline int omx_note_leg_valid(const struct omx_note_leg *l) {
   return l->channel >= OMX_NOTE_CHANNEL_OMNI && l->channel <= OMX_NOTE_CHANNELS && l->key_low >= 0 &&
@@ -184,7 +187,8 @@ struct omx_note_map {
   uint32_t out_of_range;                                /**< Note ons dropped: the output key was outside 0..127. */
 };
 
-/** @brief The state layout, exported: omx_note_map_state_size() and omx_note_map_state_align(). */
+/** @brief The state layout, exported: omx_note_map_state_size() and omx_note_map_state_align().
+ * @thread audio */
 OMXDSP_STATE_LAYOUT(note_map, struct omx_note_map)
 
 /**
@@ -192,7 +196,8 @@ OMXDSP_STATE_LAYOUT(note_map, struct omx_note_map)
  * @param m The caller's state.
  * @param leg The policy; an invalid one reads as omx_note_leg_default().
  * @pre `leg-valid`: every field inside its travel.
- * @note Not RT: called where the leg is created. Writes every byte of the held table.
+ * @note Called where the leg is created. Writes every byte of the held table.
+ * @thread control
  */
 static inline void omx_note_map_init(struct omx_note_map *m, const struct omx_note_leg *leg) {
   OMX_PRE(omx_note_leg_valid(leg), "leg-valid");
@@ -210,7 +215,8 @@ static inline void omx_note_map_init(struct omx_note_map *m, const struct omx_no
  * @param m The state.
  * @param leg The new policy.
  * @return 1 when taken; 0 when `leg` is invalid, and the policy is left as it was.
- * @note RT-safe: one copy.
+ * @note One copy.
+ * @thread audio
  */
 static inline int omx_note_map_set_leg(struct omx_note_map *m, const struct omx_note_leg *leg) {
   if (!omx_note_leg_valid(leg)) return 0;
@@ -224,7 +230,7 @@ static inline int omx_note_map_set_leg(struct omx_note_map *m, const struct omx_
  * @param ch The channel index, 0..15.
  * @param key The input key, 0..127.
  * @return 1 when held, else 0.
- * @note RT-safe.
+ * @thread audio
  */
 static inline int omx_note_map_is_held(const struct omx_note_map *m, int ch, int key) {
   return (int)((m->held[ch][key >> 5] >> (key & 31)) & 1u);
@@ -236,7 +242,8 @@ static inline int omx_note_map_is_held(const struct omx_note_map *m, int ch, int
  * @param ch The channel index, 0..15.
  * @param key The input key, 0..127.
  * @param on 1 to hold, 0 to release.
- * @note RT-safe. Keeps held_count equal to the table's population.
+ * @note Keeps held_count equal to the table's population.
+ * @thread audio
  */
 static inline void omx_note_map_mark(struct omx_note_map *m, int ch, int key, int on) {
   const uint32_t bit = 1u << (key & 31);
@@ -255,7 +262,7 @@ static inline void omx_note_map_mark(struct omx_note_map *m, int ch, int key, in
  * @param m The state.
  * @param ch The channel index.
  * @return 1 when omni or `ch + 1` is the leg's channel, else 0.
- * @note RT-safe.
+ * @thread audio
  */
 static inline int omx_note_map_takes_channel(const struct omx_note_map *m, int ch) {
   return m->leg.channel == OMX_NOTE_CHANNEL_OMNI || m->leg.channel == ch + 1;
@@ -269,7 +276,8 @@ static inline int omx_note_map_takes_channel(const struct omx_note_map *m, int c
  * @return How many messages were written: 0 (dropped), 1, or 2 (a release, then a note on).
  * @pre `leg-valid`: the policy is inside its travel.
  * @post `held-key-in-range`: every message written carries data bytes 0..127.
- * @note RT-safe: no allocation, no lock, no syscall; constant time.
+ * @note No allocation, no lock, no syscall; constant time.
+ * @thread audio
  */
 static inline int omx_note_map_event(struct omx_note_map *m, struct omx_note_msg in, struct omx_note_msg *out) {
   OMX_PRE(omx_note_leg_valid(&m->leg), "leg-valid");
@@ -326,7 +334,8 @@ static inline int omx_note_map_event(struct omx_note_map *m, struct omx_note_msg
  * @param out Room for `cap` messages.
  * @param cap How many messages `out` takes; OMX_NOTE_MAP_HELD_MAX releases everything in one call.
  * @return How many note offs were written; call again while it returns `cap`.
- * @note RT-safe: bounded by OMX_NOTE_MAP_HELD_MAX steps, channel by channel, key by key.
+ * @note Bounded by OMX_NOTE_MAP_HELD_MAX steps, channel by channel, key by key.
+ * @thread audio
  */
 static inline int omx_note_map_release_all(struct omx_note_map *m, struct omx_note_msg *out, int cap) {
   int n = 0;

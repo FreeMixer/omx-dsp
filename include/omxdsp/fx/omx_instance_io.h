@@ -24,7 +24,8 @@
  * @param out_l The left output, `n` samples, may be `in_l`.
  * @param out_r The right output, `n` samples, may be `in_r`.
  * @param n The block length.
- * @note RT-safe: two memmoves at most. Thread-safe on distinct buffers.
+ * @note Two memmoves at most. Thread-safe on distinct buffers.
+ * @thread audio
  */
 static inline void omx_instance_copy(const float *in_l, const float *in_r, float *out_l, float *out_r, uint32_t n) {
   if (out_l != in_l) memmove(out_l, in_l, (size_t)n * sizeof(float));
@@ -39,7 +40,8 @@ static inline void omx_instance_copy(const float *in_l, const float *in_r, float
  * @param out_r The right output.
  * @param n The block length.
  * @return 1 when the block can be run, else 0 (nothing may be touched).
- * @note RT-safe and thread-safe: reads its arguments only.
+ * @note Thread-safe: reads its arguments only.
+ * @thread audio
  */
 static inline int omx_instance_block_ok(const float *in_l, const float *in_r, const float *out_l, const float *out_r,
                                         uint32_t n) {
@@ -54,7 +56,8 @@ static inline int omx_instance_block_ok(const float *in_l, const float *in_r, co
  * @param out_r The right output, may be `in_r`.
  * @param n The block length.
  * @return 0 when a pointer is null or `n` is 0 (nothing was touched), else 1 with out holding in.
- * @note RT-safe: omx_instance_copy(). Thread-safe on distinct buffers.
+ * @note Omx_instance_copy(). Thread-safe on distinct buffers.
+ * @thread audio
  */
 static inline int omx_instance_copy_through(const float *in_l, const float *in_r, float *out_l, float *out_r,
                                             uint32_t n) {
@@ -72,7 +75,8 @@ static inline int omx_instance_copy_through(const float *in_l, const float *in_r
  * @param n The block length.
  * @param engaged Whether the instance is ready and its kernel switched on.
  * @return 1 when out holds in and the kernel is to run on it, else 0 (out holds in, or nothing was touched).
- * @note RT-safe: omx_instance_copy_through(). Thread-safe on distinct buffers.
+ * @note Omx_instance_copy_through(). Thread-safe on distinct buffers.
+ * @thread audio
  */
 static inline int omx_instance_through_engaged(const float *in_l, const float *in_r, float *out_l, float *out_r,
                                                uint32_t n, int engaged) {
@@ -88,6 +92,7 @@ static inline int omx_instance_through_engaged(const float *in_l, const float *i
  * @param n The block length.
  * @return Non-zero when both legs compare equal.
  * @note Read by a face's bypass-identity postcondition, compiled out of a release build.
+ * @thread audio
  */
 static inline int omx_instance_same_block(const float *a_l, const float *a_r, const float *b_l, const float *b_r,
                                           uint32_t n) {
@@ -100,7 +105,8 @@ static inline int omx_instance_same_block(const float *a_l, const float *a_r, co
  * @param size The instance's size.
  * @param sr The rate.
  * @return 1 when usable, 0 when `s` is null or the rate is outside the set.
- * @note CONTROL thread. Allocates nothing.
+ * @note Allocates nothing.
+ * @thread control
  */
 static inline int omx_instance_bind(void *s, size_t size, float sr) {
   if (!s) return 0;
@@ -114,7 +120,8 @@ static inline int omx_instance_bind(void *s, size_t size, float sr) {
  * @param size The instance's size.
  * @param sr The rate.
  * @return 1 when usable, 0 when `s` is null or the rate is not positive (NaN included).
- * @note CONTROL thread. Allocates nothing.
+ * @note Allocates nothing.
+ * @thread control
  */
 static inline int omx_instance_bind_positive(void *s, size_t size, float sr) {
   if (!s) return 0;
@@ -127,7 +134,8 @@ static inline int omx_instance_bind_positive(void *s, size_t size, float sr) {
  * @param ring_l The left ring.
  * @param ring_r The right ring.
  * @param cap Samples in each ring.
- * @note CONTROL thread. Two bounded memsets, no allocation.
+ * @note Two bounded memsets, no allocation.
+ * @thread audio
  */
 static inline void omx_instance_rings_clear(float *ring_l, float *ring_r, uint32_t cap) {
   memset(ring_l, 0, (size_t)cap * sizeof(float));

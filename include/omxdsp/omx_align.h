@@ -75,7 +75,8 @@ struct omx_align_state {
  * @return 1 when both lines armed, 0 (and nothing published) otherwise.
  * @pre `align-rings-are-given`.
  * @post `the-ceiling-is-reachable-at-the-highest-rate`.
- * @note CONTROL thread, before the RT can see `ring_l` (the caller fences). No allocation.
+ * @note Before the audio thread can see `ring_l` (the caller fences). No allocation.
+ * @thread control
  */
 static inline int omx_align_arm(struct omx_align_state *a, float *rl, float *rr) {
   OMX_PRE(rl != NULL && rr != NULL, "align-rings-are-given");
@@ -104,7 +105,8 @@ static inline int omx_align_arm(struct omx_align_state *a, float *rl, float *rr)
  * @param sr The graph rate, Hz.
  * @return The target, samples.
  * @post `the-target-is-inside-the-ring`.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline float omx_align_target(float ms, float sr) {
   float m = (ms - ms == 0.0f && ms > 0.0f) ? ms : 0.0f;
@@ -134,7 +136,8 @@ static inline float omx_align_target(float ms, float sr) {
  * @return The delivered delay, samples.
  * @pre `the-applied-delay-is-not-negative`.
  * @post `a-fractional-read-clears-the-kernels-reach`.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline float omx_align_deliverable(float d) {
   OMX_PRE(d >= 0.0f, "the-applied-delay-is-not-negative");
@@ -155,7 +158,8 @@ static inline float omx_align_deliverable(float d) {
  * @return `c`, or NULL for an exact copy.
  * @pre `the-read-is-inside-the-ring`.
  * @post `the-whole-distance-is-inside-the-ring`.
- * @note RT-safe: no allocation, bounded work. RT thread only.
+ * @note No allocation, bounded work.
+ * @thread audio
  */
 static inline const float *omx_align_kernel(const struct omx_align_state *a, float dd,
                                             uint32_t *id, float *c) {
@@ -177,7 +181,8 @@ static inline const float *omx_align_kernel(const struct omx_align_state *a, flo
  * @param id The whole distance.
  * @param k The kernel, or NULL for an exact copy.
  * @pre `both-reads-are-inside-the-ring`.
- * @note RT-safe: no allocation, fixed work. RT thread only.
+ * @note No allocation, fixed work.
+ * @thread audio
  */
 static inline void omx_align_rw(struct omx_align_state *a, float *l, float *r, uint32_t i,
                                 uint32_t id, const float *k) {
@@ -205,7 +210,8 @@ static inline void omx_align_rw(struct omx_align_state *a, float *l, float *r, u
  * @param tgt The target, samples.
  * @pre `the-target-is-inside-the-ring`.
  * @invariant `write-cursor-inside-the-ring`.
- * @note RT-safe: no allocation, bounded work. RT thread only.
+ * @note No allocation, bounded work.
+ * @thread audio
  */
 static inline void omx_align_apply(struct omx_align_state *a, float *l, float *r, uint32_t n,
                                    float tgt) {

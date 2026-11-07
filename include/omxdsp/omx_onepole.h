@@ -36,7 +36,8 @@
  * @pre `finite-in`, `finite-state-in`, `pole-in-declared-range`.
  * @post `finite-out`; `no-overshoot-convex-combination`: the result lies between `x` and the
  *       previous state.
- * @note RT-safe: two multiplies, no call. Thread-safe on distinct state.
+ * @note Two multiplies, no call. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_onepole(float *state, float x, float pole) {
   OMX_PRE(x - x == 0.0f, "finite-in");
@@ -64,7 +65,8 @@ static inline float omx_onepole(float *state, float x, float pole) {
  * @param pole The pole, in [0, 1).
  * @return The new, flushed state.
  * @post `no-denormal-state`: the state is 0 or at least OMX_FLUSH_THRESHOLD in magnitude.
- * @note RT-safe: omx_onepole() and one compare. Thread-safe on distinct state.
+ * @note Omx_onepole() and one compare. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_onepole_flush(float *state, float x, float pole) {
   *state = omx_flush(omx_onepole(state, x, pole));
@@ -86,7 +88,8 @@ static inline float omx_onepole_flush(float *state, float x, float pole) {
  * @return The new state.
  * @pre `finite-target`, `finite-state-in`, `pole-in-declared-range`.
  * @post `finite-out`; `never-overshoots-target`.
- * @note RT-safe: one multiply, no call. Thread-safe on distinct state.
+ * @note One multiply, no call. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_onepole_toward(float *state, float target, float pole) {
   OMX_PRE(target - target == 0.0f, "finite-target");
@@ -111,7 +114,8 @@ static inline float omx_onepole_toward(float *state, float target, float pole) {
  * @return The pole, in [0, 1): a time so long that `exp` rounds to 1 in float gives OMX_POLE_MAX.
  * @pre `finite-ms`, `rate-is-declared`.
  * @post `pole-in-declared-range`.
- * @note RT-safe: one `expf`, on the RT-safe allowlist. Thread-safe: pure.
+ * @note One `expf`, classified maths. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_pole_from_time_ms(float ms, float sr) {
   OMX_PRE(ms - ms == 0.0f, "finite-ms");
@@ -130,7 +134,8 @@ static inline float omx_pole_from_time_ms(float ms, float sr) {
  * @return The pole, in [0, 1): a corner so low that `exp` rounds to 1 in float gives OMX_POLE_MAX.
  * @pre `finite-hz`, `rate-is-declared`.
  * @post `pole-in-declared-range`.
- * @note RT-safe: one `expf`, on the RT-safe allowlist. Thread-safe: pure.
+ * @note One `expf`, classified maths. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_pole_from_cutoff_hz(float hz, float sr) {
   OMX_PRE(hz - hz == 0.0f, "finite-hz");
@@ -155,8 +160,9 @@ static inline float omx_pole_from_cutoff_hz(float hz, float sr) {
  *         (an infinite or overflowing exponent gives 0, a vanishing one gives 1).
  * @pre `pole-in-unit-range`: `0 <= p <= 1`.
  * @post `stable-pole`: the result stays in [0, 1], never NaN.
- * @note RT-safe: one `powf`, on the RT-safe allowlist; call it once per block, never per sample.
+ * @note One `powf`, classified maths; call it once per block, never per sample.
  *       Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_pole_rescale(float p, float ref, float sr) {
   OMX_PRE(p >= 0.0f && p <= 1.0f, "pole-in-unit-range");

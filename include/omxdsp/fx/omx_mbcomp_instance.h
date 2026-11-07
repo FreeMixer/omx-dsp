@@ -65,6 +65,7 @@ static inline void omx_mbcomp_instance_resolve(OmxMbcompInstance *s, int bypass,
                                                const float makeup_db[OMX_MBC_MAX_BANDS], const int solo[OMX_MBC_MAX_BANDS],
                                                const int band_bypass[OMX_MBC_MAX_BANDS], float mix_pct, float output_db);
 
+/** @thread control */
 static inline int omx_mbcomp_instance_init(OmxMbcompInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -93,6 +94,7 @@ static inline int omx_mbcomp_instance_init(OmxMbcompInstance *s, float sr) {
  * corners (Hz, OMX_MBC_MAX_XOVERS of them, the first `bands - 1` in use), per band (OMX_MBC_MAX_BANDS
  * of each) the threshold (dB), ratio, attack and release (ms), make-up (dB), solo and bypass
  * (MBCOMP_SOLOS, MBCOMP_BAND_BYPASSES indices), then the mix (percent) and the output gain (dB).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "mbcomp/instance-resolve"
 static inline void omx_mbcomp_instance_resolve(OmxMbcompInstance *s, int bypass, float bands,
@@ -175,6 +177,7 @@ static inline void omx_mbcomp_instance_resolve(OmxMbcompInstance *s, int bypass,
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the stage in place on out,
  * apply the output gain. `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "mbcomp/instance-run"
 static inline void omx_mbcomp_instance_run(OmxMbcompInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -191,13 +194,15 @@ static inline void omx_mbcomp_instance_run(OmxMbcompInstance *s, const float *in
 #undef OMX_CONTRACT_STAGE
 
 /** Band `k`'s readout, band<k+1>GainReductionDb, dB, at most 0: 0 past the band count, for a bypassed
- * band and for a refused instance. */
+ * band and for a refused instance.
+ * @thread audio */
 static inline float omx_mbcomp_instance_band_gr_db(const OmxMbcompInstance *s, uint32_t k) {
   if (!s || !s->ready || k >= s->atom.bands) return 0.0f;
   return omx_mbcomp_band_gr_db(&s->atom, &s->st, k);
 }
 
-/** The frames of latency the instance reports: OMX_OVS_LATENCY_4X while the stage runs at 4x, else 0. */
+/** The frames of latency the instance reports: OMX_OVS_LATENCY_4X while the stage runs at 4x, else 0.
+ * @thread audio */
 static inline uint32_t omx_mbcomp_instance_latency(const OmxMbcompInstance *s) {
   return s && s->ready && omx_mbcomp_factor(&s->atom) == 4u ? (uint32_t)OMX_OVS_LATENCY_4X : 0u;
 }

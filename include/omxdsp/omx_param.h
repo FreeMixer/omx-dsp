@@ -29,8 +29,9 @@
  * @return A value inside [lo, hi]: `v` itself when it is already inside.
  * @pre `travel-is-ordered`.
  * @post `inside-the-travel`.
- * @note RT-safe and thread-safe: two compares, no state. `v >= lo` is false for a NaN, which is
+ * @note Thread-safe: two compares, no state. `v >= lo` is false for a NaN, which is
  *       the whole NaN law.
+ * @thread audio
  */
 static inline float omx_clampf(float v, float lo, float hi) {
   OMX_PRE(lo <= hi, "travel-is-ordered");
@@ -48,8 +49,9 @@ static inline float omx_clampf(float v, float lo, float hi) {
  * @return `dflt` for a non-finite `v`, else `v` clamped to [lo, hi].
  * @pre `default-inside-the-travel`.
  * @post `inside-the-travel`.
- * @note RT-safe and thread-safe: one finiteness test (`v − v == 0` is false for NaN and ±Inf)
+ * @note Thread-safe: one finiteness test (`v − v == 0` is false for NaN and ±Inf)
  *       and omx_clampf().
+ * @thread audio
  */
 static inline float omx_clamp_or(float v, float lo, float hi, float dflt) {
   OMX_PRE(lo <= hi && dflt >= lo && dflt <= hi, "default-inside-the-travel");
@@ -62,7 +64,8 @@ static inline float omx_clamp_or(float v, float lo, float hi, float dflt) {
  * @brief A unit knob: omx_clampf() over [0, 1] — NaN and −Inf read as 0, +Inf as 1.
  * @param v The value — any float.
  * @return A value inside [0, 1].
- * @note RT-safe and thread-safe: omx_clampf().
+ * @note Thread-safe: omx_clampf().
+ * @thread audio
  */
 static inline float omx_unit(float v) { return omx_clampf(v, 0.0f, 1.0f); }
 

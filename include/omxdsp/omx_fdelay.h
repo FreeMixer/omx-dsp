@@ -43,14 +43,16 @@ struct omx_fdelay {
 /**
  * @brief The state's size, for a host that lays the state out itself.
  * @return `sizeof(struct omx_fdelay)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_fdelay_state_size(void) { return sizeof(struct omx_fdelay); }
 
 /**
  * @brief The state's alignment, for a host that lays the state out itself.
  * @return `OMXDSP_ALIGNOF(struct omx_fdelay)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_fdelay_state_align(void) { return OMXDSP_ALIGNOF(struct omx_fdelay); }
 
@@ -58,7 +60,8 @@ static inline size_t omx_fdelay_state_align(void) { return OMXDSP_ALIGNOF(struct
  * @brief Samples of context the kernel reads behind the read point: (order − 1) / 2.
  * @param order The Lagrange order.
  * @return The lookbehind, 0 for an unarmed order.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline uint32_t omx_fdelay_lookbehind(int order) {
   return order <= 0 ? 0u : (uint32_t)((order - 1) / 2);
@@ -68,7 +71,8 @@ static inline uint32_t omx_fdelay_lookbehind(int order) {
  * @brief Samples of context the kernel reads ahead of the read point: (order + 1) / 2.
  * @param order The Lagrange order.
  * @return The lookahead, 0 for an unarmed order.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline uint32_t omx_fdelay_lookahead(int order) {
   return order <= 0 ? 0u : (uint32_t)((order + 1) / 2);
@@ -79,7 +83,8 @@ static inline uint32_t omx_fdelay_lookahead(int order) {
  *        delay has no floor.
  * @param order The Lagrange order.
  * @return Samples.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline float omx_fdelay_min_delay(int order) {
   return (float)omx_fdelay_lookbehind(order);
@@ -90,7 +95,8 @@ static inline float omx_fdelay_min_delay(int order) {
  * @param cap Slots in the ring.
  * @param order The Lagrange order.
  * @return Samples; 0 when the ring cannot hold the kernel's reach.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline float omx_fdelay_max_delay(uint32_t cap, int order) {
   uint32_t reach = omx_fdelay_lookbehind(order) + 2u;
@@ -103,7 +109,8 @@ static inline float omx_fdelay_max_delay(uint32_t cap, int order) {
  * @param max_delay_samples The longest delay wanted, samples.
  * @param order The Lagrange order.
  * @return Slots.
- * @note RT-safe and thread-safe: one `ceilf`.
+ * @note Thread-safe: one `ceilf`.
+ * @thread audio
  */
 static inline uint32_t omx_fdelay_cap_for(float max_delay_samples, int order) {
   float d = max_delay_samples > 0.0f ? max_delay_samples : 0.0f;
@@ -122,7 +129,8 @@ static inline uint32_t omx_fdelay_cap_for(float max_delay_samples, int order) {
  * @pre `order-is-odd-and-within-the-kernel`, `a-line-owns-no-memory-of-its-own`,
  *      `the-ring-holds-the-kernels-reach`.
  * @post `an-armed-line-carries-what-it-was-given`.
- * @note RT-safe: stores only. Thread-safe on distinct state. Called on the control thread.
+ * @note Stores only. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline enum omx_fdelay_code omx_fdelay_init(struct omx_fdelay *l, float *ring, uint32_t cap,
                                                    int order) {
@@ -154,7 +162,8 @@ static inline enum omx_fdelay_code omx_fdelay_init(struct omx_fdelay *l, float *
  * @param order The Lagrange order, in [1, OMX_FDELAY_MAX_ORDER]; the caller checked it.
  * @param f The fraction, in [0, 1).
  * @param c `order + 1` coefficients.
- * @note RT-safe: bounded products, no call. Thread-safe: pure.
+ * @note Bounded products, no call. Thread-safe: pure.
+ * @thread audio
  */
 static inline __attribute__((always_inline)) void omx_fdelay_lagrange_body(const int order,
                                                                            float f, float *c) {
@@ -181,8 +190,9 @@ static inline __attribute__((always_inline)) void omx_fdelay_lagrange_body(const
  * @post `the-kernel-is-unity-at-dc`: the coefficients sum to 1 within 1e-5;
  *       `an-order-3-kernel-is-inside-the-declared-l1-norm`: at order 3, Σ|c| is at most
  *       `OMX_FDELAY_READ_L1_NORM` (the declared bound of the order-3 read's worst fraction).
- * @note RT-safe: bounded products, no call; order 3 is the body at a constant order, unrolled,
+ * @note Bounded products, no call; order 3 is the body at a constant order, unrolled,
  *       bit-identical to the runtime-order loop. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_fdelay_lagrange(int order, float f, float *c) {
   OMX_PRE(order >= 1 && order <= OMX_FDELAY_MAX_ORDER, "kernel-order-is-within-the-tap-array");
@@ -205,7 +215,8 @@ static inline void omx_fdelay_lagrange(int order, float f, float *c) {
  * @brief Write one sample and advance the cursor; the line holds the last `cap` samples.
  * @param l The line; an unarmed line ignores the write.
  * @param x The sample.
- * @note RT-safe: one store. Thread-safe on distinct state.
+ * @note One store. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_fdelay_write(struct omx_fdelay *l, float x) {
   if (l->ring == 0 || l->cap == 0u) return;
@@ -223,7 +234,8 @@ static inline void omx_fdelay_write(struct omx_fdelay *l, float x) {
  * @param delay The requested delay, samples.
  * @return The delivered delay, samples; the number a latency row publishes.
  * @post `clamped-delay-is-inside-the-ring`.
- * @note RT-safe: compares and one `floorf`. Thread-safe: a read of the state.
+ * @note Compares and one `floorf`. Thread-safe: a read of the state.
+ * @thread audio
  */
 static inline float omx_fdelay_latency(const struct omx_fdelay *l, float delay) {
   if (l->order == 0 || l->cap == 0u) return 0.0f;
@@ -246,7 +258,8 @@ static inline float omx_fdelay_latency(const struct omx_fdelay *l, float delay) 
  * @param id The whole-sample distance.
  * @param kf The kernel's fraction, `1 − fr`, measured from the older tap.
  * @return 1 when the read is an exact copy of the tap at `*id`, 0 when the kernel runs.
- * @note RT-safe and thread-safe: arithmetic over the state.
+ * @note Thread-safe: arithmetic over the state.
+ * @thread audio
  */
 static inline int omx_fdelay_split(const struct omx_fdelay *l, float delay, uint32_t *id,
                                    float *kf) {
@@ -268,7 +281,8 @@ static inline int omx_fdelay_split(const struct omx_fdelay *l, float delay, uint
  * @return The sample.
  * @pre `the-oldest-tap-is-inside-the-ring`.
  * @post `the-exact-tap-is-inside-the-ring` on the exact branch; `a-read-is-finite` on the kernel.
- * @note RT-safe: `order + 1` multiply-adds. Thread-safe: a read of the state.
+ * @note `order + 1` multiply-adds. Thread-safe: a read of the state.
+ * @thread audio
  */
 static inline float omx_fdelay_read_at(const struct omx_fdelay *l, uint32_t id, const float *c) {
   const uint32_t cap = l->cap;
@@ -300,7 +314,8 @@ static inline float omx_fdelay_read_at(const struct omx_fdelay *l, uint32_t id, 
  * @return The sample.
  * @pre `line-is-armed`, `a-delay-is-a-finite-number-of-samples`, `delay-is-inside-the-ring`,
  *      `a-fractional-delay-clears-the-kernels-reach`.
- * @note RT-safe: one kernel and one read. Thread-safe: a read of the state.
+ * @note One kernel and one read. Thread-safe: a read of the state.
+ * @thread audio
  */
 static inline float omx_fdelay_read(const struct omx_fdelay *l, float delay) {
   OMX_PRE(l->order != 0 && l->ring != 0, "line-is-armed");
@@ -329,7 +344,8 @@ static inline float omx_fdelay_read(const struct omx_fdelay *l, float delay) {
  * @param n Frames in the block.
  * @param mix The wet share.
  * @return 1 when the block is processed, 0 when it passes through untouched.
- * @note RT-safe and thread-safe: four compares.
+ * @note Thread-safe: four compares.
+ * @thread audio
  */
 static inline int omx_fdelay_pair_live(const struct omx_fdelay *a, const struct omx_fdelay *b,
                                        int enabled, uint32_t n, float mix) {
@@ -343,7 +359,8 @@ static inline int omx_fdelay_pair_live(const struct omx_fdelay *a, const struct 
  * @param enabled The stage's switch.
  * @param longest The longest delay the stage will read, samples.
  * @return 1 when the read is inside the ring.
- * @note RT-safe and thread-safe: a read of the geometry.
+ * @note Thread-safe: a read of the geometry.
+ * @thread audio
  */
 static inline int omx_fdelay_fits_ring(const struct omx_fdelay *l, int enabled, float longest) {
   return !enabled || l->order == 0 || longest <= omx_fdelay_max_delay(l->cap, l->order);
@@ -356,7 +373,8 @@ static inline int omx_fdelay_fits_ring(const struct omx_fdelay *l, int enabled, 
  * @param enabled The stage's switch.
  * @param shortest The shortest delay the stage will read, samples.
  * @return 1 when the read clears the kernel's reach.
- * @note RT-safe and thread-safe: a read of the geometry.
+ * @note Thread-safe: a read of the geometry.
+ * @thread audio
  */
 static inline int omx_fdelay_clears_reach(const struct omx_fdelay *l, int enabled, float shortest) {
   return !enabled || l->order == 0 || shortest >= omx_fdelay_min_delay(l->order);
@@ -394,7 +412,8 @@ static inline int omx_fdelay_clears_reach(const struct omx_fdelay *l, int enable
  * @param ya The left read.
  * @param yb The right read.
  * @pre `both-legs-share-one-geometry`.
- * @note RT-safe: one kernel, two reads. Thread-safe: a read of the state.
+ * @note One kernel, two reads. Thread-safe: a read of the state.
+ * @thread audio
  */
 static inline void omx_fdelay_read_pair(const struct omx_fdelay *a, const struct omx_fdelay *b,
                                         float delay, float *ya, float *yb) {
@@ -423,7 +442,8 @@ static inline void omx_fdelay_read_pair(const struct omx_fdelay *a, const struct
  * @param delay The delay to read at, samples.
  * @return The sample read.
  * @pre `line-is-armed`.
- * @note RT-safe: one write and one read. Thread-safe on distinct state.
+ * @note One write and one read. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_fdelay_tick(struct omx_fdelay *l, float x, float delay) {
   OMX_PRE(l->order != 0 && l->ring != 0, "line-is-armed");
@@ -447,7 +467,8 @@ static inline float omx_fdelay_tick(struct omx_fdelay *l, float x, float delay) 
  * @param yb Receives the read from `b`.
  * @pre `line-is-armed`, `both-legs-share-one-geometry`, `a-delay-is-a-finite-number-of-samples`,
  *      `delay-is-inside-the-ring`, `a-fractional-delay-clears-the-kernels-reach`.
- * @note RT-safe: two writes, one kernel, two reads. Thread-safe on distinct state.
+ * @note Two writes, one kernel, two reads. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_fdelay_tick_pair(struct omx_fdelay *a, struct omx_fdelay *b, float xa,
                                         float xb, float delay, float *ya, float *yb) {
@@ -478,8 +499,9 @@ static inline void omx_fdelay_tick_pair(struct omx_fdelay *a, struct omx_fdelay 
  * @pre `finite-in`, `line-is-armed`.
  * @post `finite-out`.
  * @invariant `write-cursor-inside-the-ring`.
- * @note RT-safe: one kernel per block, one write and one read per sample. Thread-safe on
+ * @note One kernel per block, one write and one read per sample. Thread-safe on
  *       distinct state.
+ * @thread audio
  */
 static inline void omx_fdelay_process(float *buf, uint32_t n, struct omx_fdelay *l, float delay) {
   OMX_PRE(omx_block_finite(buf, n), "finite-in");

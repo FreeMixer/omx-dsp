@@ -19,7 +19,8 @@
  * @brief Flush a value below OMX_FLUSH_THRESHOLD (1e-20) in magnitude to exactly zero.
  * @param x Any sample or state word.
  * @return `x`, or 0 when |x| < OMX_FLUSH_THRESHOLD.
- * @note RT-safe and thread-safe: one compare, no call.
+ * @note Thread-safe: one compare, no call.
+ * @thread audio
  */
 static inline float omx_flush(float x) {
   return (fabsf(x) < OMX_FLUSH_THRESHOLD) ? 0.0f : x;
@@ -29,7 +30,8 @@ static inline float omx_flush(float x) {
  * @brief omx_flush() for a double-precision state word: below 1e-20 in magnitude, exactly zero.
  * @param x Any double state word.
  * @return `x`, or 0 when |x| < 1e-20.
- * @note RT-safe and thread-safe: one compare, no call.
+ * @note Thread-safe: one compare, no call.
+ * @thread audio
  */
 static inline double omx_flush_d(double x) {
   return (fabs(x) < 1e-20) ? 0.0 : x;
@@ -42,8 +44,9 @@ static inline double omx_flush_d(double x) {
 /**
  * @brief Set flush-to-zero and denormals-are-zero for the calling thread (MXCSR bits 15 and 6).
  * @post The two bits read back set.
- * @note RT-safe: one control-register read and write. Thread-safe: the mode is per thread; every
+ * @note One control-register read and write. Thread-safe: the mode is per thread; every
  *       thread that runs a process path calls this on entry.
+ * @thread audio
  */
 static inline void omx_denormals_off(void) {
   _mm_setcsr(_mm_getcsr() | 0x8040u);
@@ -53,7 +56,8 @@ static inline void omx_denormals_off(void) {
 #elif defined(__aarch64__)
 /**
  * @brief Set flush-to-zero for the calling thread (FPCR bit 24).
- * @note RT-safe: one system-register read and write. Thread-safe: the mode is per thread.
+ * @note One system-register read and write. Thread-safe: the mode is per thread.
+ * @thread audio
  */
 static inline void omx_denormals_off(void) {
   uint64_t fpcr;
@@ -63,7 +67,8 @@ static inline void omx_denormals_off(void) {
 #elif defined(__arm__) && defined(__ARM_FP)
 /**
  * @brief Set flush-to-zero for the calling thread (FPSCR bit 24), on 32-bit ARM with a VFP.
- * @note RT-safe: one system-register read and write. Thread-safe: the mode is per thread.
+ * @note One system-register read and write. Thread-safe: the mode is per thread.
+ * @thread audio
  */
 static inline void omx_denormals_off(void) {
   uint32_t fpscr;
@@ -73,7 +78,8 @@ static inline void omx_denormals_off(void) {
 #else
 /**
  * @brief No flush-to-zero mode on this architecture; correctness is unaffected.
- * @note RT-safe and thread-safe: does nothing.
+ * @note Thread-safe: does nothing.
+ * @thread audio
  */
 static inline void omx_denormals_off(void) {}
 #endif

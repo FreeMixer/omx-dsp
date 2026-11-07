@@ -49,9 +49,10 @@ struct omx_mixmatrix_entry {
  * @param n Frames per block, at least 1.
  * @pre `block-not-empty`, `every-strip-finite`.
  * @post `every-output-finite`.
- * @note RT-safe: fixed-trip-count loops of multiplies and adds, no call, no allocation. The inner
+ * @note Fixed-trip-count loops of multiplies and adds, no call, no allocation. The inner
  *       loop over `i` is the only one that runs once per frame; `restrict`-qualified locals let it
  *       vectorise without intrinsics. Thread-safe on disjoint `out` blocks.
+ * @thread audio
  */
 static inline void omx_mixmatrix_dense(float *const *out, const float *const *in,
                                         const float *g_prev, const float *g_cur,
@@ -89,9 +90,10 @@ static inline void omx_mixmatrix_dense(float *const *out, const float *const *in
  * @param n Frames per block, at least 1.
  * @pre `block-not-empty`, `every-strip-finite`, `entries-in-range`.
  * @post `every-output-finite`.
- * @note RT-safe: the same shape as omx_mixmatrix_dense(), the outer loop over `entries` instead of
+ * @note The same shape as omx_mixmatrix_dense(), the outer loop over `entries` instead of
  *       the full strip×output grid, so a strip that feeds few outputs costs that few. Thread-safe
  *       on disjoint `out` blocks.
+ * @thread audio
  */
 static inline void omx_mixmatrix_sparse(float *const *out, const float *const *in,
                                          const struct omx_mixmatrix_entry *entries,

@@ -37,7 +37,8 @@
  * @param c The ceiling, linear, positive.
  * @param a The knee, linear, in (0, c].
  * @return `u` under the knee, else the bend, signed as `u`, never past `c`.
- * @note RT-safe: one divide above the knee. Thread-safe: pure.
+ * @note One divide above the knee. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_clipper_sample(float u, float c, float a) {
   const float m = fabsf(u);
@@ -61,7 +62,8 @@ static inline void omx_clipper_instance_resolve(OmxClipperInstance *s, int bypas
                                                 float softness_pct);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. It comes up at its declared defaults. Allocates nothing. */
+ * set. It comes up at its declared defaults. Allocates nothing.
+ * @thread control */
 static inline int omx_clipper_instance_init(OmxClipperInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -75,6 +77,7 @@ static inline int omx_clipper_instance_init(OmxClipperInstance *s, float sr) {
  * Resolve the host's control values for one cycle. `bypass` non-zero makes run() the identity. The
  * arguments are the clipper kernel's contract controls in their declared order, each clamped into its
  * travel, a non-finite one reading as its default.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "clipper/instance-resolve"
 static inline void omx_clipper_instance_resolve(OmxClipperInstance *s, int bypass, float drive_db, float ceiling_db,
@@ -97,6 +100,7 @@ static inline void omx_clipper_instance_resolve(OmxClipperInstance *s, int bypas
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: the clip over both legs, in to out. `in_*` and `out_*` may alias.
  * Not ready or bypassed is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "clipper/instance-run"
 static inline void omx_clipper_instance_run(OmxClipperInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -123,10 +127,12 @@ static inline void omx_clipper_instance_run(OmxClipperInstance *s, const float *
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The gainReductionDb readout: the last block's reduction, dB, 0 or negative. */
+/** The gainReductionDb readout: the last block's reduction, dB, 0 or negative.
+ * @thread audio */
 static inline float omx_clipper_instance_gain_reduction_db(const OmxClipperInstance *s) { return s ? s->gr_db : 0.0f; }
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_clipper_instance_latency(const OmxClipperInstance *s) {
   (void)s;
   return 0u;

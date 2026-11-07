@@ -131,7 +131,8 @@ static const char *const OMX_CURVE_SHAPE_WORDS[OMX_CURVE_SHAPES_COUNT] = {
  * @param n The table's count (the set's `OMX_CURVE_*_COUNT`).
  * @param word The word, NUL-terminated; NULL is no word.
  * @return The value, or -1 for a word the table does not hold.
- * @note Not for the audio thread (string compares); thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread control
  */
 static inline int omx_curve_word(const char *const *words, uint32_t n, const char *word) {
   if (!word) return -1;
@@ -149,7 +150,8 @@ static inline int omx_curve_word(const char *const *words, uint32_t n, const cha
  * @param role The role.
  * @param unit The unit.
  * @return 1 when the role accepts the unit, else 0.
- * @note RT-safe and thread-safe: a switch, pure.
+ * @note Thread-safe: a switch, pure.
+ * @thread audio
  */
 static inline int omx_curve_unit_accepted(enum omx_curve_roles role, enum omx_curve_units unit) {
   switch (role) {
@@ -189,7 +191,8 @@ static inline int omx_curve_unit_accepted(enum omx_curve_roles role, enum omx_cu
  *        value otherwise. The one conversion each value goes through.
  * @param t The term; its unit accepted by its role (omx_curve_unit_accepted()).
  * @return The converted value.
- * @note Not for the audio thread (a log10f or a pow); thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread control
  */
 static inline double omx_curve_term_value(const struct omx_curve_term *t) {
   switch (t->unit) {
@@ -205,7 +208,8 @@ static inline double omx_curve_term_value(const struct omx_curve_term *t) {
  * @brief The design kind a drawn shape is.
  * @param shape An enum omx_curve_shapes.
  * @return The enum omx_eq_kind, or -1 for `off` and `unshaped`, which are not drawn.
- * @note RT-safe and thread-safe: a switch, pure.
+ * @note Thread-safe: a switch, pure.
+ * @thread audio
  */
 static inline int omx_curve_shape_kind(int shape) {
   switch (shape) {
@@ -227,7 +231,8 @@ static inline int omx_curve_shape_kind(int shape) {
  * @param role The role.
  * @param index The band's index, 0 for a role that is not indexed.
  * @return The term, or NULL when the request binds none.
- * @note RT-safe and thread-safe: a scan, pure.
+ * @note Thread-safe: a scan, pure.
+ * @thread audio
  */
 static inline const struct omx_curve_term *omx_curve_find(const struct omx_curve_request *rq,
                                                           enum omx_curve_roles role, uint32_t index) {
@@ -247,7 +252,8 @@ static inline const struct omx_curve_term *omx_curve_find(const struct omx_curve
  * @param out The filter, set when the answer is OMX_CURVE_OK.
  * @param present Set to 1 when a term of the filter is bound, else 0.
  * @return OMX_CURVE_OK, OMX_CURVE_TERM_MISSING or OMX_CURVE_KIND_UNKNOWN (a slope the filters do not run).
- * @note Not for the audio thread; thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread control
  */
 static inline int omx_curve_pass(const struct omx_curve_request *rq, enum omx_curve_roles freq_role,
                                  enum omx_curve_roles slope_role, enum omx_curve_roles on_role,
@@ -279,7 +285,8 @@ static inline int omx_curve_pass(const struct omx_curve_request *rq, enum omx_cu
  * @param ex The marks and the user-only curve, or NULL.
  * @param code The answer's code.
  * @return The points written; 0 with a code other than OMX_CURVE_OK.
- * @note Not for the audio thread; thread-safe on distinct output.
+ * @note Thread-safe on distinct output.
+ * @thread control
  */
 static inline uint32_t omx_curve_eq(const struct omx_curve_request *rq, double x_min, double x_max, double *x,
                                     double *y, uint32_t room, struct omx_curve_extra *ex, int *code) {
@@ -383,7 +390,8 @@ static inline uint32_t omx_curve_eq(const struct omx_curve_request *rq, double x
  * @param room Room in `x` and in `y`.
  * @param code The answer's code.
  * @return The points written; 0 with a code other than OMX_CURVE_OK.
- * @note Not for the audio thread; thread-safe on distinct output.
+ * @note Thread-safe on distinct output.
+ * @thread control
  */
 static inline uint32_t omx_curve_transfer(const struct omx_curve_request *rq, double x_min, double x_max, double *x,
                                           double *y, uint32_t room, int *code) {
@@ -451,8 +459,9 @@ static inline uint32_t omx_curve_transfer(const struct omx_curve_request *rq, do
  * @param code Set to an enum omx_curve_code.
  * @return The points written; 0 when `*code` is not OMX_CURVE_OK.
  * @post `ascending`.
- * @note Not for the audio thread (a design per band and point, libm); thread-safe on distinct output, reentrant.
+ * @note Thread-safe on distinct output, reentrant.
  * @twin curvePoints
+ * @thread control
  */
 static inline uint32_t omx_curve_points_marked(const struct omx_curve_request *rq, double *x, double *y,
                                                uint32_t room, struct omx_curve_extra *ex, int *code) {
@@ -506,7 +515,8 @@ static inline uint32_t omx_curve_points_marked(const struct omx_curve_request *r
  * @param room Room in `x` and in `y`.
  * @param code Set to an enum omx_curve_code.
  * @return The points written; 0 when `*code` is not OMX_CURVE_OK.
- * @note Not for the audio thread; thread-safe on distinct output, reentrant.
+ * @note Thread-safe on distinct output, reentrant.
+ * @thread control
  */
 static inline uint32_t omx_curve_points(const struct omx_curve_request *rq, double *x, double *y, uint32_t room,
                                         int *code) {

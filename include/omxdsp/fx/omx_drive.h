@@ -100,7 +100,8 @@ enum omx_drive_band {
 #define OMX_DRIVE_CHUNK 64u
 
 /* The factors this stage offers, clamped the way the shared element clamps them: it refuses to
- * invent a rate change it has not been measured at, rather than approximating one. */
+ * invent a rate change it has not been measured at, rather than approximating one.
+ * @thread audio */
 static inline int omx_drive_factor_of(int requested) {
   if (requested >= 4) return 4;
   if (requested == 2) return 2;
@@ -190,7 +191,8 @@ struct omx_drive_state {
 
 /** Build (or rebuild for a new factor) the state. Fixed work — a memset and two oversampler
  * inits, no allocation — so it runs on the AUDIO thread too: `omx_drive_process` is the only
- * caller that rebuilds a state the RT may be walking. */
+ * caller that rebuilds a state the RT may be walking.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "drive/state-init"
 static inline void omx_drive_state_init(struct omx_drive_state *s, int factor) {
   /* CONTRACT (omx_contract.h). Whatever factor is asked for, the state is built for one the
@@ -221,7 +223,8 @@ static inline void omx_drive_state_init(struct omx_drive_state *s, int factor) {
  */
 static inline void omx_drive_time_constants(struct omx_drive *o, float sr);
 
-/** The stage's added latency in base-rate samples — 0 while it is off. */
+/** The stage's added latency in base-rate samples — 0 while it is off.
+ * @thread audio */
 static inline int omx_drive_latency(const struct omx_drive *p) {
   return p->enabled ? (int)omx_oversampler_latency_for((uint32_t)p->os_factor) : 0;
 }
@@ -248,6 +251,7 @@ static inline int omx_drive_latency(const struct omx_drive *p) {
  * — it is measured against the fundamental, which a gentler knee also compresses, and the three
  * come out within 0.5 dB of each other in no useful order. The first version of the oracle
  * asserted a THD ordering and was wrong to.)
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "drive/shape"
 static inline OMX_FM_ALWAYS float omx_drive_shape(int curve, float u) {
@@ -300,6 +304,7 @@ struct omx_drive_bias {
 };
 
 #define OMX_CONTRACT_STAGE "drive/bias-for"
+/** @thread audio */
 static inline struct omx_drive_bias omx_drive_bias_for(int curve, float w) {
   struct omx_drive_bias s;
   s.b = w * OMX_DRIVE_BIAS_MAX;
@@ -317,6 +322,7 @@ static inline struct omx_drive_bias omx_drive_bias_for(int curve, float w) {
  *
  * At `character = -1` this is F(u) exactly: b = 0, off = F(0) = 0, inv = 1. There is no branch
  * for that case because there does not need to be — the arithmetic IS the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "drive/sample"
 static inline OMX_FM_ALWAYS float omx_drive_sample(int curve, float u, const struct omx_drive_bias *s) {
@@ -356,7 +362,8 @@ static inline OMX_FM_ALWAYS float omx_drive_sample(int curve, float u, const str
  * @param x The samples, in place; finite.
  * @param n Samples.
  * @post `finite-out`.
- * @note RT-safe: no allocation, no state. Thread-safe on distinct blocks.
+ * @note No allocation, no state. Thread-safe on distinct blocks.
+ * @thread audio
  */
 static inline void omx_drive_shape_block(int curve, const struct omx_drive_bias *s, float drive, float *x,
                                          uint32_t n) {
@@ -379,10 +386,12 @@ static inline void omx_drive_shape_block(int curve, const struct omx_drive_bias 
 
 /* ---- small in-place helpers ----------------------------------------------------------- */
 
-/** Push `n` samples into a delay line and read back what was written `lat` samples ago. */
+/** Push `n` samples into a delay line and read back what was written `lat` samples ago.
+ * @thread audio */
 static inline void omx_drive_delay_write(float *line, uint32_t w, const float *in, uint32_t n) {
   for (uint32_t i = 0; i < n; i++) line[(w + i) & OMX_DRIVE_DMASK] = in[i];
 }
+/** @thread audio */
 static inline void omx_drive_delay_read(const float *line, uint32_t w, uint32_t lat, float *out,
                                         uint32_t n) {
   for (uint32_t i = 0; i < n; i++) out[i] = line[(w + i - lat) & OMX_DRIVE_DMASK];
@@ -396,6 +405,7 @@ static inline void omx_drive_delay_read(const float *line, uint32_t w, uint32_t 
  * gain is applied by the caller, after both legs have been shaped.
  *
  * `out` receives the shaped-but-not-yet-auto-gained, not-yet-trimmed result.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "drive/leg-chunk"
 static inline void omx_drive_leg_chunk(struct omx_drive_leg *g, const struct omx_drive *p,
@@ -516,7 +526,8 @@ static inline void omx_drive_leg_chunk(struct omx_drive_leg *g, const struct omx
 /* The detector window, as a TIME — the number the prose above quotes, now where the prose is and
  * in the units the tier's one pole constructor takes (`omx_pole_from_time_ms`, omx_envelope.h). It was
  * a bare `0.05f` seconds inside `resolve_drive()` in mixer_rt.c, which is the file that clocks it,
- * not the file that owns it. */
+ * not the file that owns it.
+ * @thread audio */
 #define OMX_DRIVE_AG_WINDOW_MS 50.0f
 #define OMX_DRIVE_AG_FLOOR_MS 1e-9f /* (-90 dBFS)^2 */
 #define OMX_DRIVE_AG_MAX 15.848932f /* +24 dB */
@@ -536,6 +547,7 @@ static inline void omx_drive_time_constants(struct omx_drive *o, float sr) {
 #undef OMX_CONTRACT_STAGE
 
 #define OMX_CONTRACT_STAGE "drive/auto-gain"
+/** @thread audio */
 static inline float omx_drive_auto_gain(struct omx_drive_ag *ag, const struct omx_drive *p,
                                         double sum_in, double sum_out, uint32_t n) {
   if (!p->auto_gain || n == 0) {
@@ -590,6 +602,7 @@ static inline float omx_drive_auto_gain(struct omx_drive_ag *ag, const struct om
  * leaves every sample bit-identical AND every state word untouched — the disabled-slot contract
  * omx_dynamics and omx_biquad_cascade already carry, and the whole of "zero cost when
  * disengaged". RT-safe: fixed work per sample, no allocation, no lock, no IO.
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "drive"

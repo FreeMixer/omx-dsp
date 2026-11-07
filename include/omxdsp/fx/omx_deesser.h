@@ -119,7 +119,8 @@ struct omx_deess_state {
 _Static_assert(sizeof(struct omx_deess_state) == sizeof(float) * (OMX_DYN_ENV_STAGES + 9u),
                "de-esser state must stay plain inline floats - nothing to allocate");
 
-/** Clear one lane's de-esser state. CONTROL thread only. */
+/** Clear one lane's de-esser state. CONTROL thread only.
+ * @thread audio */
 static inline void omx_deess_state_init(struct omx_deess_state *st) { memset(st, 0, sizeof(*st)); }
 
 /*
@@ -129,6 +130,7 @@ static inline void omx_deess_state_init(struct omx_deess_state *st) { memset(st,
  * place — the drive's `omx_drive_latency` is a function for the opposite reason (its answer moves)
  * and the console's latency basis must not learn to treat the two differently. The value is proved
  * from an IMPULSE in mix_deesser.test.c, never read off this line.
+ * @thread audio
  */
 static inline int omx_deess_latency(const struct omx_deess *p) {
   (void)p;
@@ -143,6 +145,7 @@ static inline int omx_deess_latency(const struct omx_deess *p) {
  * loop and the GR readout (`publish_lane_gr`, mixer_rt.c) cannot compute it differently: the
  * meter's whole claim is that it re-runs the SAME gain computer on the SAME level the last sample
  * used, and a second transcription is how a meter and a stage quietly stop agreeing.
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "deess/gain-db"
@@ -173,6 +176,7 @@ static inline float omx_deess_gain_db(const struct omx_deess *p, float level) {
  * toward its band-notched complement by that much (split), and nothing else. So its laws are about
  * the coefficient's BOUND and about the state staying finite — the peak law needs the input peak,
  * which this function overwrites in place, so it is stated by the test battery around the call.
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "deesser"

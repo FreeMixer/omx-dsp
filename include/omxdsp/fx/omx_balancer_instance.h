@@ -60,7 +60,8 @@ typedef struct {
 static inline void omx_balancer_instance_resolve(OmxBalancerInstance *s, int bypass, float amount_pct, float range_db,
                                                  float speed_db_per_s, float slope_db_oct);
 
-/** Each section flat and the detector empty: the engage edge. */
+/** Each section flat and the detector empty: the engage edge.
+ * @thread audio */
 static inline void omx_balancer_instance_restart(OmxBalancerInstance *s) {
   memset(s->det_s, 0, sizeof s->det_s);
   memset(s->sum, 0, sizeof s->sum);
@@ -75,7 +76,8 @@ static inline void omx_balancer_instance_restart(OmxBalancerInstance *s) {
 }
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. It comes up at its declared defaults, an amount of 0. Allocates nothing. */
+ * set. It comes up at its declared defaults, an amount of 0. Allocates nothing.
+ * @thread control */
 static inline int omx_balancer_instance_init(OmxBalancerInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -102,6 +104,7 @@ static inline int omx_balancer_instance_init(OmxBalancerInstance *s, float sr) {
  * Resolve the host's control values for one cycle. `bypass` non-zero makes run() the identity. The
  * arguments are the kernel's contract controls in their declared order, each clamped into its travel, a
  * non-finite one reading as its default. A face that comes back into use starts over.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "balancer/instance-resolve"
 static inline void omx_balancer_instance_resolve(OmxBalancerInstance *s, int bypass, float amount_pct, float range_db,
@@ -127,7 +130,8 @@ static inline void omx_balancer_instance_resolve(OmxBalancerInstance *s, int byp
 #undef OMX_CONTRACT_STAGE
 
 /** One tick's decision: average the power, read the target, step each gain, design what moved. RT-safe: the
- * designer's exp, cos, sin and sqrt, each on the RT-safe allowlist. */
+ * designer's exp, cos, sin and sqrt, each, classified maths.
+ * @thread audio */
 static inline void omx_balancer_tick(OmxBalancerInstance *s) {
   float db[OMX_BALANCER_INSTANCE_BANDS], mean = 0.0f;
   for (uint32_t k = 0; k < OMX_BALANCER_INSTANCE_BANDS; k++) {
@@ -155,6 +159,7 @@ static inline void omx_balancer_tick(OmxBalancerInstance *s) {
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: the detector over the mono sum, the sections over both legs, in to
  * out. `in_*` and `out_*` may alias. Not ready, bypassed or an amount of 0 is the identity and moves no state.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "balancer/instance-run"
 static inline void omx_balancer_instance_run(OmxBalancerInstance *s, const float *in_l, const float *in_r, float *out_l,
@@ -187,12 +192,14 @@ static inline void omx_balancer_instance_run(OmxBalancerInstance *s, const float
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The band<n>GainDb readouts: band `k`'s gain now, dB, `k` from 0. */
+/** The band<n>GainDb readouts: band `k`'s gain now, dB, `k` from 0.
+ * @thread audio */
 static inline float omx_balancer_instance_band_gain_db(const OmxBalancerInstance *s, uint32_t k) {
   return s && k < OMX_BALANCER_INSTANCE_BANDS ? s->gain[k] : 0.0f;
 }
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_balancer_instance_latency(const OmxBalancerInstance *s) {
   (void)s;
   return 0u;
