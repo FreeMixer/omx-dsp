@@ -45,7 +45,8 @@
  * @param b The second leg, `n` samples; `b == a` (a mono buffer, read once) or NULL (one leg).
  * @param n Samples per leg.
  * @return The raw peak, no gain folded in; 0 for `n == 0`.
- * @note RT-safe: one pass, no allocation. Thread-safe: reads only.
+ * @note One pass, no allocation. Thread-safe: reads only.
+ * @thread audio
  */
 static inline float omx_meter_block_peak(const float *a, const float *b, uint32_t n) {
   float peak = 0.0f;
@@ -70,7 +71,8 @@ static inline float omx_meter_block_peak(const float *a, const float *b, uint32_
  * @param n Samples in the block; 0 reads the minimum.
  * @param min The meter's display minimum, dBFS.
  * @return The peak in dBFS, or `min` when that is lower than `min` or the block is silent.
- * @note RT-safe: one pass and one log10, no allocation. Thread-safe: reads only.
+ * @note One pass and one log10, no allocation. Thread-safe: reads only.
+ * @thread audio
  */
 static inline double omx_meter_level_db(const float *x, uint32_t n, double min) {
   float peak = 0.0f;
@@ -93,7 +95,8 @@ static inline double omx_meter_level_db(const float *x, uint32_t n, double min) 
  * @param n Samples per leg.
  * @param level The strip's level, linear.
  * @return omx_meter_block_peak() × `level`; 0 at level 0.
- * @note RT-safe: one pass, no allocation. Thread-safe: reads only.
+ * @note One pass, no allocation. Thread-safe: reads only.
+ * @thread audio
  */
 static inline float omx_meter_strip_peak(const float *inL, const float *inR, uint32_t n, float level) {
   return omx_meter_block_peak(inL, inR, n) * level;
@@ -112,7 +115,8 @@ static inline float omx_meter_strip_peak(const float *inL, const float *inR, uin
  * @param coef_r The right coefficient.
  * @param out_l Out: max |inL| × coef_l.
  * @param out_r Out: max |inR| × coef_r.
- * @note RT-safe: one pass, no allocation. Thread-safe: writes only the two outputs.
+ * @note One pass, no allocation. Thread-safe: writes only the two outputs.
+ * @thread audio
  */
 static inline void omx_meter_leg_peaks(const float *inL, const float *inR, uint32_t n,
                                        float coef_l, float coef_r, float *out_l, float *out_r) {
@@ -140,7 +144,8 @@ static inline void omx_meter_leg_peaks(const float *inL, const float *inR, uint3
  * @param thresh The threshold, linear (OMX_METER_CLIP_LINEAR for full scale).
  * @param need The run length that makes a clip (OMX_METER_CLIP_RUN).
  * @return true when either leg reaches the run.
- * @note RT-safe: one pass, no allocation. Thread-safe: reads only.
+ * @note One pass, no allocation. Thread-safe: reads only.
+ * @thread audio
  */
 static inline bool omx_meter_clip_run(const float *a, const float *b, uint32_t n, float scale,
                                       float thresh, uint32_t need) {
@@ -166,7 +171,8 @@ static inline bool omx_meter_clip_run(const float *a, const float *b, uint32_t n
  * @param held What the slot holds, linear.
  * @param peak This block's peak, linear (omx_meter_block_peak, omx_meter_leg_peaks).
  * @return `peak` when it is greater than `held`, else `held`.
- * @note RT-safe: one compare. Thread-safe: pure.
+ * @note One compare. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_meter_hold_peak(float held, float peak) {
   return peak > held ? peak : held;
@@ -205,7 +211,8 @@ struct omx_meter_gr {
  * @param release_pole The stage's release pole per frame at `sr` (struct omx_dyn `release_coeff`).
  * @return The reading to publish, dB, <= 0.
  * @post `reading-not-positive`, `finite`.
- * @note RT-safe: at most three powf and one log10f, no allocation. Thread-safe on disjoint states.
+ * @note At most three powf and one log10f, no allocation. Thread-safe on disjoint states.
+ * @thread audio
  */
 static inline float omx_meter_gr_step(struct omx_meter_gr *m, float block_db, uint32_t n, float sr,
                                       float release_pole) {

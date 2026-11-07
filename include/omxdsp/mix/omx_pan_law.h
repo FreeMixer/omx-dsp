@@ -64,7 +64,8 @@ struct omx_pan_layout {
 /**
  * @brief The stereo layout: two speakers, at -1 and +1, no discrete centre.
  * @param l Out: the layout.
- * @note RT-safe: stores only. Thread-safe: writes only `*l`.
+ * @note Stores only. Thread-safe: writes only `*l`.
+ * @thread audio
  */
 static inline void omx_pan_layout_stereo(struct omx_pan_layout *l) {
   l->n_axis = 2u;
@@ -81,7 +82,8 @@ static inline void omx_pan_layout_stereo(struct omx_pan_layout *l) {
  * @param centre_half_width The centre window's half width in pan units: the centre's share is 1
  *        at pan 0 and falls linearly to 0 at |pan| = this (the console's
  *        OMX_CENTRE_WINDOW_HALF_WIDTH).
- * @note RT-safe: stores only. Thread-safe: writes only `*l`.
+ * @note Stores only. Thread-safe: writes only `*l`.
+ * @thread audio
  */
 static inline void omx_pan_layout_lcr(struct omx_pan_layout *l, float centre_half_width) {
   omx_pan_layout_stereo(l);
@@ -93,7 +95,8 @@ static inline void omx_pan_layout_lcr(struct omx_pan_layout *l, float centre_hal
  * @brief The number of gains a layout produces: its axis speakers, plus one for a centre.
  * @param l The layout.
  * @return `n_axis`, plus 1 when the layout has a discrete centre.
- * @note RT-safe: one compare. Thread-safe: pure.
+ * @note One compare. Thread-safe: pure.
+ * @thread audio
  */
 static inline uint32_t omx_pan_layout_speakers(const struct omx_pan_layout *l) {
   return l->n_axis + (l->centre ? 1u : 0u);
@@ -107,7 +110,8 @@ static inline uint32_t omx_pan_layout_speakers(const struct omx_pan_layout *l) {
  * @param pan The pan position.
  * @param half_width The window's half width in pan units, > 0.
  * @return The window, in [0, 1].
- * @note RT-safe: a divide and two compares. Thread-safe: pure.
+ * @note A divide and two compares. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_pan_centre_window(float pan, float half_width) {
   float w = 1.0f - fabsf(pan) / half_width;
@@ -131,7 +135,8 @@ static inline float omx_pan_centre_window(float pan, float half_width) {
  * @pre `layout-axis-in-range`: 2 <= n_axis <= OMX_PAN_AXIS_MAX.
  * @post `legs-not-inverted`: no gain below -1e-6 (at the pair's far end cosf(π/2) is -4.4e-8, a
  *       rounding of zero); `constant-power`: the gains' squares sum to 1 within 1e-5.
- * @note RT-safe: one cosf, one sinf, a walk of at most OMX_PAN_AXIS_MAX positions. Thread-safe: pure.
+ * @note One cosf, one sinf, a walk of at most OMX_PAN_AXIS_MAX positions. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_pan_pair(const struct omx_pan_layout *l, float pan, float *g) {
   OMX_PRE(l->n_axis >= 2u && l->n_axis <= OMX_PAN_AXIS_MAX, "layout-axis-in-range");
@@ -161,7 +166,8 @@ static inline void omx_pan_pair(const struct omx_pan_layout *l, float pan, float
  * @param g Out: omx_pan_layout_speakers(l) gains.
  * @pre `layout-axis-in-range` (omx_pan_pair()).
  * @post `constant-power`: the gains' squares sum to 1 within 1e-4.
- * @note RT-safe: one cosf, one sinf, one sqrtf. Thread-safe: pure.
+ * @note One cosf, one sinf, one sqrtf. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_pan_gains(const struct omx_pan_layout *l, float pan, float divergence,
                                  float *g) {
@@ -191,7 +197,8 @@ static inline void omx_pan_gains(const struct omx_pan_layout *l, float pan, floa
  * @param pan The pan position; clamped by omx_clamp_pan().
  * @param gL Out: the left gain.
  * @param gR Out: the right gain.
- * @note RT-safe: one cosf, one sinf. Thread-safe: pure.
+ * @note One cosf, one sinf. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_pan_stereo(float pan, float *gL, float *gR) {
   struct omx_pan_layout l;

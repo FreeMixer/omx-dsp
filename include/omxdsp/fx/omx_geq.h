@@ -56,7 +56,8 @@ _Static_assert(sizeof(struct omx_geq_state) == sizeof(double) * 8u * OMX_GEQ_BAN
 /**
  * @brief Clear the state.
  * @param st The state.
- * @note CONTROL thread only.
+ * @note 
+ * @thread audio
  */
 static inline void omx_geq_state_init(struct omx_geq_state *st) { memset(st, 0, sizeof(*st)); }
 
@@ -64,6 +65,7 @@ static inline void omx_geq_state_init(struct omx_geq_state *st) { memset(st, 0, 
  * @brief The latency the graphic EQ adds, in samples: zero at every rate, engaged or not (§4 L1).
  * @param p The atom.
  * @return 0.
+ * @thread audio
  */
 static inline int omx_geq_latency(const struct omx_geq *p) {
   (void)p;
@@ -80,7 +82,8 @@ static inline int omx_geq_latency(const struct omx_geq *p) {
  * @param section_db The gain each section was designed at, dB; exactly `0.0f` skips it.
  * @pre `finite-coeffs` for every live section, `finite-gains`.
  * @post `live-iff-gain-nonzero`.
- * @note CONTROL thread only. Thread-safe on distinct atoms.
+ * @note Thread-safe on distinct atoms.
+ * @thread audio
  */
 static inline void omx_geq_set(struct omx_geq *p, int on, const double coeffs[][5],
                                const float section_db[OMX_GEQ_BANDS]) {
@@ -106,7 +109,8 @@ static inline void omx_geq_set(struct omx_geq *p, int on, const double coeffs[][
  * @param x1 The leg's last input sample of the block, before any section ran.
  * @param x2 The one before it.
  * @post `no-denormal-state`.
- * @note RT-safe: O(OMX_GEQ_BANDS), no call but omx_flush_d(). Thread-safe on distinct state.
+ * @note O(OMX_GEQ_BANDS), no call but omx_flush_d(). Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_geq_settle(const uint8_t live[OMX_GEQ_BANDS], double s[OMX_GEQ_BANDS][4],
                                   double x1, double x2) {
@@ -136,8 +140,9 @@ static inline void omx_geq_settle(const uint8_t live[OMX_GEQ_BANDS], double s[OM
  * @param st The state.
  * @pre `finite-in`.
  * @post `finite-out`.
- * @note RT-safe: O(live sections · n) through omx_biquad_cascade_d_stereo(), O(OMX_GEQ_BANDS) per
+ * @note O(live sections · n) through omx_biquad_cascade_d_stereo(), O(OMX_GEQ_BANDS) per
  *       block to settle; no allocation, no lock. Thread-safe on distinct state; reentrant.
+ * @thread audio
  */
 static inline void omx_geq_process(float *l, float *r, uint32_t n, const struct omx_geq *p,
                                    struct omx_geq_state *st) {

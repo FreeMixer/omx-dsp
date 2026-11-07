@@ -29,28 +29,32 @@ struct omx_lfo {
  * @brief Whether the oscillator's phase is inside its turn, [0, 1).
  * @param l The oscillator.
  * @return 1 when the phase is in [0, 1), else 0.
- * @note RT-safe and thread-safe: a read.
+ * @note Thread-safe: a read.
+ * @thread audio
  */
 static inline int omx_lfo_in_turn(const struct omx_lfo *l) { return l->phase >= 0.0f && l->phase < 1.0f; }
 
 /**
  * @brief The state's size, for a host that lays the state out itself.
  * @return `sizeof(struct omx_lfo)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_lfo_state_size(void) { return sizeof(struct omx_lfo); }
 
 /**
  * @brief The state's alignment, for a host that lays the state out itself.
  * @return `OMXDSP_ALIGNOF(struct omx_lfo)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_lfo_state_align(void) { return OMXDSP_ALIGNOF(struct omx_lfo); }
 
 /**
  * @brief Start an oscillator at phase zero, frozen, its carry cleared.
  * @param l The oscillator.
- * @note RT-safe: three stores.
+ * @note Three stores.
+ * @thread audio
  */
 static inline void omx_lfo_start(struct omx_lfo *l) {
   l->phase = 0.0f;
@@ -67,7 +71,8 @@ static inline void omx_lfo_start(struct omx_lfo *l) {
  * @return The increment, in [0, 0.5).
  * @pre `a-rate-is-a-finite-number-of-hz`.
  * @post `an-increment-is-inside-half-a-turn`.
- * @note RT-safe and thread-safe: one division.
+ * @note Thread-safe: one division.
+ * @thread audio
  */
 static inline float omx_lfo_inc(float rate_hz, float sr) {
   OMX_PRE(rate_hz - rate_hz == 0.0f, "a-rate-is-a-finite-number-of-hz");
@@ -83,7 +88,8 @@ static inline float omx_lfo_inc(float rate_hz, float sr) {
  * @brief The shape at a phase: `4t(1−|t|)`, `t = 2·turns − 1`, in [−1, 1].
  * @param turns The phase, in [0, 1); the caller wraps.
  * @return The shape value.
- * @note RT-safe and thread-safe: three multiplies, no call.
+ * @note Thread-safe: three multiplies, no call.
+ * @thread audio
  */
 static inline float omx_lfo_shape(float turns) {
   const float t = 2.0f * turns - 1.0f;
@@ -94,7 +100,8 @@ static inline float omx_lfo_shape(float turns) {
  * @brief Wrap a phase into [0, 1) by one subtraction; the input lies in [0, 2).
  * @param turns A phase plus an offset, each below 1.
  * @return The phase inside one turn.
- * @note RT-safe and thread-safe: two compares.
+ * @note Thread-safe: two compares.
+ * @thread audio
  */
 static inline float omx_lfo_wrap(float turns) {
   float u = turns;
@@ -111,7 +118,8 @@ static inline float omx_lfo_wrap(float turns) {
  * @return The shape, in [−1, 1].
  * @pre `a-phase-is-inside-one-turn`, `an-offset-is-inside-one-turn`.
  * @post `a-shape-is-inside-unity`.
- * @note RT-safe and thread-safe: a read of the state, no write.
+ * @note Thread-safe: a read of the state, no write.
+ * @thread audio
  */
 static inline float omx_lfo_at(const struct omx_lfo *l, float offset) {
   OMX_PRE(l->phase >= 0.0f && l->phase < 1.0f, "a-phase-is-inside-one-turn");
@@ -129,8 +137,9 @@ static inline float omx_lfo_at(const struct omx_lfo *l, float offset) {
  * @param l The oscillator, its phase and carry updated in place; `inc = 0` does not move it.
  * @pre `an-increment-is-inside-one-turn`.
  * @post `an-advanced-phase-is-still-inside-one-turn`.
- * @note RT-safe: four adds and one wrap; the wrap's subtraction of one turn is exact. Thread-safe
+ * @note Four adds and one wrap; the wrap's subtraction of one turn is exact. Thread-safe
  *       on distinct state. Needs IEEE evaluation (no `-ffast-math`), as every kernel here does.
+ * @thread audio
  */
 static inline void omx_lfo_advance(struct omx_lfo *l) {
   OMX_PRE(l->inc >= 0.0f && l->inc < 1.0f, "an-increment-is-inside-one-turn");
@@ -153,7 +162,8 @@ static inline void omx_lfo_advance(struct omx_lfo *l) {
  * @return A value in [base, base + depth].
  * @pre `a-shape-is-inside-unity`, `a-depth-is-not-negative`.
  * @post `a-sweep-stays-inside-its-own-travel`.
- * @note RT-safe and thread-safe: two multiplies.
+ * @note Thread-safe: two multiplies.
+ * @thread audio
  */
 static inline float omx_lfo_sweep(float base, float depth, float s) {
   OMX_PRE(s >= -1.0f && s <= 1.0f, "a-shape-is-inside-unity");

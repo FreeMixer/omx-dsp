@@ -60,7 +60,8 @@ struct omx_pitch_state {
  * @brief Ring capacity per leg at `sr`: the longest tap, d_min + W, plus the kernel's reach.
  * @param sr Sample rate, Hz, positive.
  * @return Floats per leg.
- * @note Control thread: called on insert and on a rate change.
+ * @note Called on insert and on a rate change.
+ * @thread control
  */
 static inline uint32_t omx_pitch_cap_for(float sr) {
   const float w = OMX_PITCH_WINDOW_MS * 1e-3f * sr;
@@ -77,7 +78,8 @@ static inline uint32_t omx_pitch_cap_for(float sr) {
  * @param cap Floats per ring, from omx_pitch_cap_for().
  * @return The line's own code.
  * @post `an-armed-shifter-reads-at-order-three`.
- * @note Control thread.
+ * @note Stores only: the shifter's state and both lines armed over the caller's rings.
+ * @thread audio
  */
 static inline enum omx_fdelay_code omx_pitch_state_init(struct omx_pitch_state *s, float *ring_l,
                                                         float *ring_r, uint32_t cap) {
@@ -101,6 +103,7 @@ static inline enum omx_fdelay_code omx_pitch_state_init(struct omx_pitch_state *
  * @param cents Fine shift, cents.
  * @return r = 2^((semitones + cents/100)/12).
  * @note Resolve-time: one exp2f.
+ * @thread audio
  */
 static inline float omx_pitch_ratio(float semitones, float cents) {
   const float st = fminf(fmaxf(semitones, OMX_PITCH_SEMITONES_MIN), OMX_PITCH_SEMITONES_MAX);
@@ -123,6 +126,7 @@ static inline float omx_pitch_ratio(float semitones, float cents) {
  * @post `an-increment-is-inside-half-a-turn`.
  * @note The increment is fixed-point, so the ramp adds and wraps exactly.
  *       Resolve-time, once per block: omx_eq_design_f's libm calls, no allocation.
+ * @thread audio
  */
 static inline void omx_pitch_resolve_ratio(struct omx_pitch *p, int enabled, float r, float mix,
                                            float sr) {
@@ -149,6 +153,7 @@ static inline void omx_pitch_resolve_ratio(struct omx_pitch *p, int enabled, flo
  * @param mix_pct Wet share, percent.
  * @param sr Sample rate, Hz.
  * @note Resolve-time.
+ * @thread audio
  */
 static inline void omx_pitch_resolve(struct omx_pitch *p, int enabled, float semitones, float cents,
                                      float mix_pct, float sr) {
@@ -161,7 +166,8 @@ static inline void omx_pitch_resolve(struct omx_pitch *p, int enabled, float sem
  * @brief A fixed-point phase as a float turn in [0, 1), exact: its top 24 bits.
  * @param x The phase, 2^32 = one turn.
  * @return The turn.
- * @note RT-safe and thread-safe: a shift and a multiply.
+ * @note Thread-safe: a shift and a multiply.
+ * @thread audio
  */
 static inline float omx_pitch_turns(uint32_t x) { return (float)(x >> 8) * 0x1p-24f; }
 
@@ -172,7 +178,8 @@ static inline float omx_pitch_turns(uint32_t x) { return (float)(x >> 8) * 0x1p-
  * @param dir −1 or +1.
  * @return The delay, samples, in [d_min, d_min + W].
  * @post `a-tap-is-inside-the-window`.
- * @note RT-safe and thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_pitch_tap_delay(float window, uint32_t phase, int dir) {
   const float v = omx_pitch_turns(phase);
@@ -191,8 +198,9 @@ static inline float omx_pitch_tap_delay(float window, uint32_t phase, int dir) {
  * @param s The state, its direction already the atom's.
  * @param yl The left sample, replaced by the output.
  * @param yr The right sample, replaced by the output.
- * @note RT-safe: two biquads, two writes, two pair reads, two parabola reads, one integer add.
+ * @note Two biquads, two writes, two pair reads, two parabola reads, one integer add.
  *       Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_pitch_frame(const struct omx_pitch *p, struct omx_pitch_state *s, float *yl,
                                    float *yr) {
@@ -228,8 +236,9 @@ static inline void omx_pitch_frame(const struct omx_pitch *p, struct omx_pitch_s
  * @pre `finite-in`, `mix-in-unit-range`, `an-increment-is-inside-half-a-turn`,
  *      `the-longest-tap-is-inside-the-ring`.
  * @post `finite-out`.
- * @note RT-safe: omx_pitch_frame per frame; no allocation, no libm call. Thread-safe on distinct
+ * @note Omx_pitch_frame per frame; no allocation, no libm call. Thread-safe on distinct
  *       state.
+ * @thread audio
  */
 static inline void omx_pitch_process(float *l, float *r, uint32_t n, const struct omx_pitch *p,
                                      struct omx_pitch_state *s) {

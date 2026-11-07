@@ -62,7 +62,8 @@ struct omx_limiter_state {
  * @param lookahead_ms The look-ahead, ms.
  * @param rate The sample rate, Hz.
  * @return `D`.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "limiter/lookahead-frames"
@@ -78,7 +79,8 @@ static inline uint32_t omx_limiter_lookahead_frames(float lookahead_ms, float ra
  * @brief The ring length every declared look-ahead fits at `rate`: `D_max + U + 2`.
  * @param rate The sample rate, Hz.
  * @return Elements per ring.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline uint32_t omx_limiter_cap(float rate) {
   return omx_limiter_lookahead_frames(OMX_LIMITER_LOOKAHEAD_MS_MAX, rate) + omx_truepeak_delay() + 2u;
@@ -88,7 +90,8 @@ static inline uint32_t omx_limiter_cap(float rate) {
  * @brief The caller's float memory for one state: four rings of `cap` (two audio, box, hold values).
  * @param cap The ring length.
  * @return Floats.
- * @note RT-safe and thread-safe: arithmetic. The hold's indices are a separate `cap` of uint32_t.
+ * @note Thread-safe: arithmetic. The hold's indices are a separate `cap` of uint32_t.
+ * @thread audio
  */
 static inline uint32_t omx_limiter_mem_floats(uint32_t cap) { return 4u * cap; }
 
@@ -96,7 +99,8 @@ static inline uint32_t omx_limiter_mem_floats(uint32_t cap) { return 4u * cap; }
  * @brief The latency the armed state declares, frames: `T = U + D`.
  * @param st The state.
  * @return `T`.
- * @note RT-safe and thread-safe: a read.
+ * @note Thread-safe: a read.
+ * @thread audio
  */
 static inline uint32_t omx_limiter_latency(const struct omx_limiter_state *st) { return st->t; }
 
@@ -111,7 +115,8 @@ static inline uint32_t omx_limiter_latency(const struct omx_limiter_state *st) {
  * @param idx `cap` indices.
  * @param cap The ring length, at least `D + U + 2`.
  * @pre `rate-is-declared`, `lookahead-in-travel`, `ring-holds-the-latency`.
- * @note CONTROL thread: O(cap). Thread-safe on distinct state.
+ * @note O(cap). Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_limiter_init(struct omx_limiter_state *st, float lookahead_ms, float rate, float *mem,
                                     uint32_t *idx, uint32_t cap) {
@@ -142,7 +147,8 @@ static inline void omx_limiter_init(struct omx_limiter_state *st, float lookahea
  * @return `min(1, c / peak)` to float precision.
  * @pre `ratio-above-one`.
  * @post `at-most-unity`.
- * @note RT-safe: `log10f` through omx_lin_to_db() and one `powf`, both on the RT-safe allowlist. Thread-safe: pure.
+ * @note `log10f` through omx_lin_to_db() and one `powf`, both, classified maths. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_limiter_request(const struct omx_gaincomp_params *gc, float peak) {
   OMX_PRE(gc->ratio > OMX_COMP_RATIO_MIN, "ratio-above-one");
@@ -166,8 +172,9 @@ static inline float omx_limiter_request(const struct omx_gaincomp_params *gc, fl
  *       `blk_gain`/`blk_peak` hold this block's smallest applied gain and largest true-peak reading —
  *       the values the engine publishes as the row's meters, computed here once.
  * @invariant bypass identity: disabled, no sample and no state word moves.
- * @note RT-safe: O(n) plus the hold's amortised deque, `2·4·OMX_TRUEPEAK_CHUNK` floats of stack. Thread-safe
+ * @note O(n) plus the hold's amortised deque, `2·4·OMX_TRUEPEAK_CHUNK` floats of stack. Thread-safe
  *       on distinct state.
+ * @thread audio
  */
 static inline void omx_limiter_process(float *l, float *r, uint32_t n, const struct omx_limiter *p,
                                        struct omx_limiter_state *st) {

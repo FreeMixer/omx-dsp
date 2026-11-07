@@ -143,9 +143,10 @@ typedef struct {
  *        Every travel is clamped into its declared range, a non-finite word reading as its default;
  *        a choice outside its ids reads as its default.
  * @post `atom-meets-the-kernel-preconditions`: every field inside the declared OMX_COMP_* travel.
- * @note RT-safe and allocation-free: two expf and one powf per call, the key filter's design
+ * @note Allocation-free: two expf and one powf per call, the key filter's design
  *       (omx_gate_key_design: cos, sin, exp, sqrt) for each leg whose edge moved, and the tilt's design
  *       (omx_tilt_design: a tan and a sqrt) when its slope moved. Thread-safe on distinct instances.
+ * @thread audio
  */
 static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
                                              float threshold_db, float ratio, float knee_db,
@@ -238,6 +239,7 @@ static inline void omx_comp_instance_resolve(OmxCompInstance *s, int bypass,
  * @return 1 when usable, 0 when not (NULL instance, rate not positive or NaN); a refused instance
  *         is the identity.
  * @note No allocation; clears the whole instance. Thread-safe on distinct instances.
+ * @thread control
  */
 static inline int omx_comp_instance_init(OmxCompInstance *s, float sr) {
   if (!omx_instance_bind_positive(s, sizeof(*s), sr)) return 0;
@@ -262,7 +264,8 @@ static inline int omx_comp_instance_init(OmxCompInstance *s, float sr) {
  * @brief The frames of latency the instance reports for its current atom.
  * @param s The instance.
  * @return OMX_OVS_LATENCY_4X while 4x is engaged, else 0; 0 for a refused instance.
- * @note RT-safe. Thread-safe: pure in `s`.
+ * @note Thread-safe: pure in `s`.
+ * @thread audio
  */
 static inline float omx_comp_instance_latency(const OmxCompInstance *s) {
   if (!s || !s->ready) return 0.0f;
@@ -280,8 +283,9 @@ static inline float omx_comp_instance_latency(const OmxCompInstance *s) {
  * @param out_r The right output block; may alias `in_r`.
  * @param n Frames.
  * @post `bypass-identity`: a bypassed slot leaves out equal to in.
- * @note RT-safe: no allocation, no lock. Not ready is the identity byte for byte. Thread-safe on
+ * @note No allocation, no lock. Not ready is the identity byte for byte. Thread-safe on
  *       distinct instances.
+ * @thread audio
  */
 static inline void omx_comp_instance_run(OmxCompInstance *s, const float *in_l,
                                              const float *in_r, float *out_l, float *out_r,
@@ -296,7 +300,8 @@ static inline void omx_comp_instance_run(OmxCompInstance *s, const float *in_l,
  * @param s The instance.
  * @param key_l The sidechain's left (or mono) leg, or NULL (unconnected).
  * @return 1 or 0.
- * @note RT-safe. Thread-safe: pure in `s`.
+ * @note Thread-safe: pure in `s`.
+ * @thread audio
  */
 static inline int omx_comp_instance_keyed(const OmxCompInstance *s, const float *key_l) {
   return (s->src && key_l) || omx_gate_key_active(&s->filt[0]) || s->tilt.a != 1.0 ||
@@ -312,7 +317,8 @@ static inline int omx_comp_instance_keyed(const OmxCompInstance *s, const float 
  * @param kr The key's right leg, `m` frames.
  * @param m Frames, at most OMX_COMP_INSTANCE_CHUNK.
  * @post `finite-key`.
- * @note RT-safe: two filter chains and a fold, no allocation. Thread-safe on distinct instances.
+ * @note Two filter chains and a fold, no allocation. Thread-safe on distinct instances.
+ * @thread audio
  */
 static inline void omx_comp_instance_key(OmxCompInstance *s, const float *kl, const float *kr, uint32_t m) {
   memcpy(s->ka, kl, m * sizeof(float));
@@ -350,8 +356,9 @@ static inline void omx_comp_instance_key(OmxCompInstance *s, const float *kl, co
  * @param out_r The right output block; may alias any input or key.
  * @param n Frames.
  * @post `bypass-identity`: a bypassed slot leaves out equal to in.
- * @note RT-safe: no allocation, no lock. With the key path idle it is omx_comp_instance_run() bit
+ * @note No allocation, no lock. With the key path idle it is omx_comp_instance_run() bit
  *       for bit. Thread-safe on distinct instances.
+ * @thread audio
  */
 static inline void omx_comp_instance_run_keyed(OmxCompInstance *s, const float *key_l, const float *key_r,
                                                const float *in_l, const float *in_r, float *out_l, float *out_r,
@@ -386,7 +393,8 @@ static inline void omx_comp_instance_run_keyed(OmxCompInstance *s, const float *
  *        envelope's level, the feedback loop's own stage while the loop ran).
  * @param s The instance.
  * @return The level, dBFS; the floor of omx_lin_to_db() for a refused instance or a silent detector.
- * @note RT-safe: one log10f. Thread-safe: reads only.
+ * @note One log10f. Thread-safe: reads only.
+ * @thread audio
  */
 static inline float omx_comp_instance_key_level_db(const OmxCompInstance *s) {
   if (!s || !s->ready) return omx_lin_to_db(0.0f);
@@ -401,8 +409,9 @@ static inline float omx_comp_instance_key_level_db(const OmxCompInstance *s) {
  *        the time constant of that floor at the instance's rate, `−1000/(sr·ln((R − 1)/R))`.
  * @param s The instance.
  * @return The attack, ms; 0 for a refused instance.
- * @note RT-safe: one logf when the floor is reached. Thread-safe: reads only.
+ * @note One logf when the floor is reached. Thread-safe: reads only.
  * @twin effectiveAttackMsOf
+ * @thread audio
  */
 static inline float omx_comp_instance_effective_attack_ms(const OmxCompInstance *s) {
   if (!s || !s->ready) return 0.0f;

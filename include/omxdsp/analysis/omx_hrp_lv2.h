@@ -233,7 +233,8 @@ typedef struct {
   int ready;
 } OmxHrpLv2;
 
-/** The analysis hop, in frames — how much audio one worker pass consumes. */
+/** The analysis hop, in frames — how much audio one worker pass consumes.
+ * @thread audio */
 static inline uint32_t omx_hrp_lv2_hop(const OmxHrpLv2 *s) {
   return (s && s->ready) ? s->render.cfg.hop : 0u;
 }
@@ -249,6 +250,7 @@ static inline uint32_t omx_hrp_lv2_hop(const OmxHrpLv2 *s) {
  * A refused init leaves `ready` clear, and every entry below is a no-op on an instance that is
  * not ready: absence is a fact, not a crash. A plugin whose host asked for a rate the engine
  * cannot analyse still passes audio — it just never corrects it.
+ * @thread control
  */
 static inline int omx_hrp_lv2_init(OmxHrpLv2 *s, uint32_t rate, float *carry, float *work_re,
                                    float *work_im, float *mags, float *residual, float *hop) {
@@ -276,8 +278,9 @@ static inline int omx_hrp_lv2_init(OmxHrpLv2 *s, uint32_t rate, float *carry, fl
  * @param rate The sample rate the instance will run at, in Hz.
  * @return Four windows (`carry`, `work_re`, `work_im`, `hop`) and two half-windows (`mags`,
  *         `residual`) of the RTA window for `rate`: `4 * fft + 2 * (fft / 2)`, so `5 * fft`.
- * @note Not for the audio thread only because a face sizes its allocation with it; it allocates
- *       nothing and is constant time. Pair it with {@link omx_hrp_lv2_init_block}.
+ * @note A face sizes its allocation with it; it allocates nothing and is constant time.
+ *       Pair it with {@link omx_hrp_lv2_init_block}.
+ * @thread control
  */
 static inline uint32_t omx_hrp_lv2_block_floats(uint32_t rate) {
   const uint32_t fft = omx_rta_fft_size_for(rate);
@@ -293,6 +296,7 @@ static inline uint32_t omx_hrp_lv2_block_floats(uint32_t rate) {
  * @note The partition lives here, once, for every face: `carry`, `work_re`, `work_im` take the
  *       first three windows, `mags` and `residual` the two half-windows after them, `hop` the
  *       last window. No two buffers overlap and the block ends exactly at the last float.
+ * @thread control
  */
 static inline int omx_hrp_lv2_init_block(OmxHrpLv2 *s, uint32_t rate, float *block) {
   if (!block) return omx_hrp_lv2_init(s, rate, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -309,6 +313,7 @@ static inline int omx_hrp_lv2_init_block(OmxHrpLv2 *s, uint32_t rate, float *blo
  * legal and cheap; it changes the next pass's search and touches neither the learned model nor
  * the corrections already in force, because the model is per NOTE and a note is a note whatever
  * family sounded it.
+ * @thread worker
  */
 static inline void omx_hrp_lv2_set_family(OmxHrpLv2 *s, int family) {
   if (!s || !s->ready) return;
@@ -321,8 +326,9 @@ static inline void omx_hrp_lv2_set_family(OmxHrpLv2 *s, int family) {
  * @param s The instance; a NULL or not-ready one is left alone.
  * @param amount The strength, held inside OMX_HRP_AMOUNT_RANGE_*; a NaN reads as its minimum.
  * @param max_bands The band budget, held inside OMX_HRP_BANDS_RANGE_MIN and the answer set's size.
- * @note Worker thread: it writes what a pass reads. A face calls it through
+ * @note It writes what a pass reads. A face calls it through
  *       {@link omx_hrp_lv2_install_ask}.
+ * @thread worker
  */
 static inline void omx_hrp_lv2_set_amount(OmxHrpLv2 *s, float amount, uint32_t max_bands) {
   if (!s || !s->ready) return;
@@ -343,8 +349,9 @@ static inline void omx_hrp_lv2_set_amount(OmxHrpLv2 *s, float amount, uint32_t m
  * @return The snapshot: the family and the band budget each held inside its declared travel and
  *         rounded half away from zero by omx_port_int(), a non-finite word reading as the
  *         declared default.
- * @note Audio thread, constant time, no state read or written. The amount's clamp is the
+ * @note Constant time, no state read or written. The amount's clamp is the
  *       worker's, in {@link omx_hrp_lv2_install_ask}, so a pass sees exactly what the host wrote.
+ * @thread audio
  */
 static inline OmxHrpLv2Ask omx_hrp_lv2_ask_of(float bypass, float family, float amount, float bands) {
   OmxHrpLv2Ask a;
@@ -361,9 +368,10 @@ static inline OmxHrpLv2Ask omx_hrp_lv2_ask_of(float bypass, float family, float 
  * @brief Install the controls a pass was asked with, at the start of the pass.
  * @param s The instance; a NULL or not-ready one is left alone.
  * @param a The pass's snapshot; NULL installs nothing.
- * @note Worker thread only. The one writer of the analysis configuration (`family`, the search
+ * @note The one writer of the analysis configuration (`family`, the search
  *       it points at, `amount`, `max_bands`), so the audio thread never writes what a pass reads.
  *       The family's search is re-pointed only when the family changed.
+ * @thread worker
  */
 static inline void omx_hrp_lv2_install_ask(OmxHrpLv2 *s, const OmxHrpLv2Ask *a) {
   if (!s || !s->ready || !a) return;
@@ -374,8 +382,9 @@ static inline void omx_hrp_lv2_install_ask(OmxHrpLv2 *s, const OmxHrpLv2Ask *a) 
 /**
  * @brief Count one pass as asked for.
  * @param s The instance; NULL is a no-op.
- * @note Audio thread only, after the pass was successfully handed to the worker. One atomic add
+ * @note After the pass was successfully handed to the worker. One atomic add
  *       with release order, so the snapshot written before it is visible to whoever reads it.
+ * @thread audio
  */
 static inline void omx_hrp_lv2_mark_asked(OmxHrpLv2 *s) {
   if (s) atomic_fetch_add_explicit(&s->asked, 1u, memory_order_release);
@@ -384,8 +393,9 @@ static inline void omx_hrp_lv2_mark_asked(OmxHrpLv2 *s) {
 /**
  * @brief Count one pass as answered.
  * @param s The instance; NULL is a no-op.
- * @note Worker thread only, once the pass's set is where the audio thread will adopt it. One
+ * @note Once the pass's set is where the audio thread will adopt it. One
  *       atomic add with release order, so the set written before it is visible to the adopter.
+ * @thread worker
  */
 static inline void omx_hrp_lv2_mark_answered(OmxHrpLv2 *s) {
   if (s) atomic_fetch_add_explicit(&s->answered, 1u, memory_order_release);
@@ -395,7 +405,8 @@ static inline void omx_hrp_lv2_mark_answered(OmxHrpLv2 *s) {
  * @brief Is a pass in flight: asked for and not yet answered?
  * @param s The instance; NULL has none.
  * @return 1 when `asked != answered`, else 0.
- * @note Any thread, constant time: two acquire loads. The same reading in every face.
+ * @note Constant time: two acquire loads. The same reading in every face.
+ * @thread audio
  */
 static inline int omx_hrp_lv2_in_flight(const OmxHrpLv2 *s) {
   if (!s) return 0;
@@ -406,9 +417,10 @@ static inline int omx_hrp_lv2_in_flight(const OmxHrpLv2 *s) {
 /**
  * @brief Drop every correction in force at once: the cascade empty and its state zero.
  * @param s The instance; NULL is a no-op.
- * @note Audio thread, constant time. The half of {@link omx_hrp_lv2_restart} that may run while a
+ * @note Constant time. The half of {@link omx_hrp_lv2_restart} that may run while a
  *       pass is in flight, since the worker never touches the live cascade. The worker's slots
  *       still hold their depths, so a pass answered after a clear plants them again.
+ * @thread audio
  */
 static inline void omx_hrp_lv2_clear(OmxHrpLv2 *s) {
   if (!s) return;
@@ -424,6 +436,7 @@ static inline void omx_hrp_lv2_clear(OmxHrpLv2 *s) {
  *       instrument. Never while a pass is in flight ({@link omx_hrp_lv2_in_flight}): the caller
  *       holds the worker idle (LV2: activate is in the instantiation class; CLAP: only when no
  *       pass is in flight). Constant time, no allocation.
+ * @thread control
  */
 static inline void omx_hrp_lv2_restart(OmxHrpLv2 *s) {
   if (!s) return;
@@ -443,6 +456,7 @@ static inline void omx_hrp_lv2_restart(OmxHrpLv2 *s) {
  *
  * Note what is NOT here: no FFT, no allocation, no lock, no logging, no decision that depends
  * on what the audio contains. §2, and the reason it is a law rather than a preference.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "hrp/lv2-run"
 static inline void omx_hrp_lv2_run(OmxHrpLv2 *s, const float *in, float *out, uint32_t n) {
@@ -475,6 +489,7 @@ static inline void omx_hrp_lv2_run(OmxHrpLv2 *s, const float *in, float *out, ui
  * through an empty cascade for ever. That is the honest reading of an absent feature, and it
  * is the only alternative §2 permits — analysing on the audio thread instead is forbidden
  * outright, so it is not on the table as a fallback.
+ * @thread audio
  */
 static inline int omx_hrp_lv2_due(const OmxHrpLv2 *s, int bypass) {
   if (!s || !s->ready) return 0;
@@ -487,7 +502,8 @@ static inline int omx_hrp_lv2_due(const OmxHrpLv2 *s, int bypass) {
 
 /* ---- the worker side ------------------------------------------------------------------ */
 
-/** Find the slot already holding this (voice, harmonic), or -1. */
+/** Find the slot already holding this (voice, harmonic), or -1.
+ * @thread audio */
 static inline int omx_hrp_lv2_slot_of(const OmxHrpLv2 *s, int32_t voice_id, uint32_t harmonic) {
   for (uint32_t i = 0; i < OMX_HRP_LV2_MAX_BANDS; i++)
     if (s->slot[i].applied_db > 0.0f && s->slot[i].voice_id == voice_id &&
@@ -496,7 +512,8 @@ static inline int omx_hrp_lv2_slot_of(const OmxHrpLv2 *s, int32_t voice_id, uint
   return -1;
 }
 
-/** Move `now` toward `target` by at most one step. */
+/** Move `now` toward `target` by at most one step.
+ * @thread audio */
 static inline float omx_hrp_lv2_ramp(float now, float target) {
   const float step = OMX_HRP_GAIN_STEP_DB;
   if (target > now) return (target - now > step) ? now + step : target;
@@ -519,6 +536,7 @@ static inline float omx_hrp_lv2_ramp(float now, float target) {
  *
  * `bypass` does not stop the ramp, it retargets it: every slot walks to exactly 0 dB and the
  * cascade arrives at the provable parked identity, from which removal is bit-identical (§49).
+ * @thread worker
  */
 static inline void omx_hrp_lv2_analyse(OmxHrpLv2 *s, int bypass, OmxHrpLv2Set *out) {
   if (!out) return;
@@ -620,8 +638,9 @@ static inline void omx_hrp_lv2_analyse(OmxHrpLv2 *s, int bypass, OmxHrpLv2Set *o
  * @param s The instance.
  * @param a The snapshot; NULL is never due.
  * @return {@link omx_hrp_lv2_due} with the snapshot's bypass.
- * @note Audio thread, constant time. A face asks with the snapshot it will send, never reaching
+ * @note Constant time. A face asks with the snapshot it will send, never reaching
  *       into it.
+ * @thread audio
  */
 static inline int omx_hrp_lv2_wants(const OmxHrpLv2 *s, const OmxHrpLv2Ask *a) {
   return a ? omx_hrp_lv2_due(s, a->bypass) : 0;
@@ -632,9 +651,10 @@ static inline int omx_hrp_lv2_wants(const OmxHrpLv2 *s, const OmxHrpLv2Ask *a) {
  * @param s The instance.
  * @param a The snapshot the pass was asked with; NULL installs nothing and analyses bypassed.
  * @param out Where the pass's correction set is written.
- * @note Worker thread only. The non-RT half of the shell as one call, the same in every face (an
+ * @note The non-RT half of the shell as one call, the same in every face (an
  *       LV2 `work()`, a CLAP face's analysis thread). The face marks the pass answered once `out`
  *       is where the audio thread will adopt it.
+ * @thread worker
  */
 static inline void omx_hrp_lv2_answer(OmxHrpLv2 *s, const OmxHrpLv2Ask *a, OmxHrpLv2Set *out) {
   omx_hrp_lv2_install_ask(s, a);
@@ -649,6 +669,7 @@ static inline void omx_hrp_lv2_answer(OmxHrpLv2 *s, const OmxHrpLv2Ask *a, OmxHr
  * input/output HISTORY, which stays meaningful under a retune (mix_dsp.h says so where the
  * kernel is defined). Zeroing it here would manufacture the discontinuity the ramp exists to
  * avoid. What bounds the move is the ramp, at the control level, which is where §48 puts it.
+ * @thread audio
  */
 static inline void omx_hrp_lv2_adopt(OmxHrpLv2 *s, const OmxHrpLv2Set *set) {
   if (!s || !s->ready || !set) return;

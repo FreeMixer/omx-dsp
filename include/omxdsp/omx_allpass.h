@@ -39,14 +39,16 @@ struct omx_allpass1 {
 /**
  * @brief The state's size, for a host that lays the state out itself.
  * @return `sizeof(struct omx_allpass1)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_allpass1_state_size(void) { return sizeof(struct omx_allpass1); }
 
 /**
  * @brief The state's alignment, for a host that lays the state out itself.
  * @return `OMXDSP_ALIGNOF(struct omx_allpass1)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_allpass1_state_align(void) { return OMXDSP_ALIGNOF(struct omx_allpass1); }
 
@@ -59,7 +61,8 @@ static inline size_t omx_allpass1_state_align(void) { return OMXDSP_ALIGNOF(stru
  * @return `a = (t − 1)/(t + 1)`, `t = tan(π·fc/sr)`, inside (−1, 1).
  * @pre `finite-fc`, `rate-is-declared`, `fc-inside-nyquist`.
  * @post `coefficient-inside-unity`.
- * @note Control-rate: one `tan`. RT-safe (no allocation, no lock) and thread-safe: pure.
+ * @note One `tan`, no allocation, no lock. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_allpass1_coef(float fc_hz, float sr) {
   OMX_PRE(fc_hz - fc_hz == 0.0f, "finite-fc");
@@ -82,7 +85,8 @@ static inline float omx_allpass1_coef(float fc_hz, float sr) {
  * @pre `coefficient-inside-unity`, `finite-in`.
  * @post `finite-out`.
  * @invariant `state-finite-and-flushed`.
- * @note RT-safe: one multiply, no call. Thread-safe on distinct state.
+ * @note One multiply, no call. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_allpass1_tick(struct omx_allpass1 *st, float x, float a) {
   OMX_PRE(a > -1.0f && a < 1.0f, "coefficient-inside-unity");
@@ -104,7 +108,8 @@ static inline float omx_allpass1_tick(struct omx_allpass1 *st, float x, float a)
  * @param x The input sample.
  * @param a The one coefficient every section shares, inside (−1, 1).
  * @return The chain's output sample.
- * @note RT-safe: `n` multiplies. Thread-safe on distinct state.
+ * @note `n` multiplies. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_allpass1_cascade(struct omx_allpass1 *st, uint32_t n, float x, float a) {
   float v = x;
@@ -122,7 +127,8 @@ static inline float omx_allpass1_cascade(struct omx_allpass1 *st, uint32_t n, fl
  * @pre `coefficient-inside-unity`.
  * @post `unity-magnitude`: `Σy² + c·s_after² = Σx² + c·s_before²`, `c = (1 − a)/(1 + a)`, to
  *       `OMX_ALLPASS_UNITY_TOLERANCE` of the larger side.
- * @note RT-safe: one multiply per sample. Thread-safe on distinct state.
+ * @note One multiply per sample. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_allpass1_block(struct omx_allpass1 *st, float *buf, uint32_t n, float a) {
   OMX_PRE(a > -1.0f && a < 1.0f, "coefficient-inside-unity");
@@ -153,7 +159,8 @@ static inline void omx_allpass1_block(struct omx_allpass1 *st, float *buf, uint3
  * @param fc Corner, Hz; inside (0, sr/2).
  * @param sr Sample rate, Hz; positive.
  * @return `tan(π·fc/sr)`, positive for a corner inside the band.
- * @note RT-safe: one `tan`, on the RT-safe allowlist. Thread-safe: pure.
+ * @note One `tan`, classified maths. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_allpass_prewarp(double fc, double sr) {
   return tan(M_PI * fc / sr);
@@ -179,7 +186,8 @@ static inline double omx_allpass_prewarp(double fc, double sr) {
  * @return The coefficient, in (−1, 1); a refused corner answers 0.
  * @pre `corner-inside-the-band`, `rate-is-declared`.
  * @post `coefficient-inside-unity`.
- * @note RT-safe: omx_allpass_prewarp() and one divide. Thread-safe: pure.
+ * @note Omx_allpass_prewarp() and one divide. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_allpass1_coef_d(double fc, double sr) {
   const int inside = sr > 0.0 && fc > 0.0 && fc < 0.5 * sr;
@@ -208,7 +216,8 @@ static inline double omx_allpass1_coef_d(double fc, double sr) {
  * @pre `corner-inside-the-band`, `rate-is-declared`, `q-positive`.
  * @post `finite-coeffs`; `poles-inside-the-unit-circle` (`|a1| < 1 + a2` and `a2 < 1`);
  *       `allpass-unity` (the numerator is the reversed denominator, bit for bit).
- * @note RT-safe: omx_allpass_prewarp() and one divide. Thread-safe: pure.
+ * @note Omx_allpass_prewarp() and one divide. Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_allpass2_design(double fc, double q, double sr, double c[5]) {
   const int inside = sr > 0.0 && fc > 0.0 && fc < 0.5 * sr;

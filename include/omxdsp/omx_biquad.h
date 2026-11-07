@@ -30,7 +30,8 @@
  *          subtracted here).
  * @param s The section's state `{x₁, x₂, y₁, y₂}`, updated in place.
  * @return The output sample.
- * @note RT-safe: five multiplies, no call, no branch. Thread-safe on distinct state.
+ * @note Five multiplies, no call, no branch. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_biquad(float x, const float c[5], float s[4]) {
   float y = c[0] * x + c[1] * s[0] + c[2] * s[1] - c[3] * s[2] - c[4] * s[3];
@@ -46,7 +47,8 @@ static inline float omx_biquad(float x, const float c[5], float s[4]) {
  *        `a2 < 1`, the stability triangle.
  * @param c The coefficients `{b0, b1, b2, a1, a2}`.
  * @return 1 when both poles are inside, else 0.
- * @note RT-safe and thread-safe: two compares, pure.
+ * @note Thread-safe: two compares, pure.
+ * @thread audio
  */
 static inline int omx_biquad_stable(const double c[5]) {
   return fabs(c[3]) < 1.0 + c[4] && c[4] < 1.0;
@@ -67,8 +69,9 @@ static inline int omx_biquad_stable(const double c[5]) {
  * @param c The normalised coefficients `{b0, b1, b2, a1, a2}`.
  * @param s The section's state `{s₁, s₂}`, updated in place.
  * @return The output sample.
- * @note RT-safe: five multiplies, no call, no branch; the state's denormals are covered by the
+ * @note Five multiplies, no call, no branch; the state's denormals are covered by the
  *       thread's FTZ mode. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline double omx_biquad_tdf2_d(double x, const double c[5], double s[2]) {
   const double y = c[0] * x + s[0];
@@ -103,8 +106,9 @@ static inline double omx_biquad_tdf2_d(double x, const double c[5], double s[2])
  * @param state_r The same for `r`; unread when `r` is NULL.
  * @pre `finite-in`, `bands-within-cap`, `finite-coeffs` per section run.
  * @post `finite-state` per section run, `finite-out`.
- * @note RT-safe: O(nbands·n), no allocation, no call but omx_biquad(), no branch in the inner
+ * @note O(nbands·n), no allocation, no call but omx_biquad(), no branch in the inner
  *       loops. Thread-safe on distinct state; reentrant — every intermediate is a local.
+ * @thread audio
  */
 static inline void omx_biquad_cascade_stereo(float *l, float *r, uint32_t n, uint32_t nbands,
                                              const float coeffs[][5], const uint8_t *enabled,
@@ -180,8 +184,9 @@ static inline void omx_biquad_cascade_stereo(float *l, float *r, uint32_t n, uin
  * @param state One `{x₁, x₂, y₁, y₂}` per section, updated in place.
  * @pre `finite-in`, `bands-within-cap`, `finite-coeffs` per section run.
  * @post `finite-state` per section run, `finite-out`.
- * @note RT-safe: O(nbands·n), no allocation, no branch in the inner loop. Thread-safe on
+ * @note O(nbands·n), no allocation, no branch in the inner loop. Thread-safe on
  *       distinct state.
+ * @thread audio
  */
 static inline void omx_biquad_cascade(float *buf, uint32_t n, uint32_t nbands,
                                       const float coeffs[][5], const uint8_t *enabled,
@@ -206,7 +211,8 @@ static inline void omx_biquad_cascade(float *buf, uint32_t n, uint32_t nbands,
  * @param c The normalised coefficients `{b0, b1, b2, a1, a2}`, in double.
  * @param s The section's state `{x₁, x₂, y₁, y₂}`, in double, updated in place.
  * @return The output sample, narrowed to float.
- * @note RT-safe: five multiplies, no call, no branch. Thread-safe on distinct state.
+ * @note Five multiplies, no call, no branch. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_biquad_d(float x, const double c[5], double s[4]) {
   const double y = c[0] * (double)x + c[1] * s[0] + c[2] * s[1] - c[3] * s[2] - c[4] * s[3];
@@ -234,8 +240,9 @@ static inline float omx_biquad_d(float x, const double c[5], double s[4]) {
  * @param state_r The same for `r`; unread when `r` is NULL.
  * @pre `finite-in`, `finite-coeffs` per section run.
  * @post `finite-state` per section run, `finite-out`.
- * @note RT-safe: O(nbands·n), no allocation, no call but omx_biquad_d(). Thread-safe on distinct
+ * @note O(nbands·n), no allocation, no call but omx_biquad_d(). Thread-safe on distinct
  *       state; reentrant — every intermediate is a local.
+ * @thread audio
  */
 static inline void omx_biquad_cascade_d_stereo(float *l, float *r, uint32_t n, uint32_t nbands,
                                                const double coeffs[][5], const uint8_t *enabled,

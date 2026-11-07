@@ -69,7 +69,8 @@ static const float OMX_MBC_COME_UP_HZ[OMX_MBC_MAX_BANDS + 1u][OMX_MBC_MAX_XOVERS
  * @brief The come-up corners for `bands` bands, ascending.
  * @param bands OMX_MBC_MIN_BANDS … OMX_MBC_MAX_BANDS; outside it, the floor's row.
  * @return `bands − 1` corners, Hz.
- * @note RT-safe, thread-safe: a read-only table.
+ * @note Thread-safe: a read-only table.
+ * @thread audio
  */
 static inline const float *omx_mbcomp_come_up_hz(uint32_t bands) {
   return OMX_MBC_COME_UP_HZ[(bands >= OMX_MBC_MIN_BANDS && bands <= OMX_MBC_MAX_BANDS) ? bands : OMX_MBC_MIN_BANDS];
@@ -109,6 +110,7 @@ struct omx_mbcomp_state {
  * @return OMX_XOVER_OK, or the first refusal (the stage then keeps that crossover the wire).
  * @pre `band-count-declared`, `corners-increasing`.
  * @note Control-thread word: one `tan` per corner, no allocation. Thread-safe: writes only `m`.
+ * @thread audio
  */
 static inline enum omx_xover_status omx_mbcomp_design(struct omx_mbcomp *m, uint32_t bands,
                                                       const float *hz, double sr) {
@@ -135,7 +137,8 @@ static inline enum omx_xover_status omx_mbcomp_design(struct omx_mbcomp *m, uint
  *        band that is on attacking faster than OMX_DYN_OVS_AUTO_MS; else 1. A disabled stage is 1.
  * @param m The atom.
  * @return 1 or 4: what every band runs at and what the stage's latency term reads.
- * @note RT-safe, thread-safe: reads `m` only.
+ * @note Thread-safe: reads `m` only.
+ * @thread audio
  */
 static inline uint32_t omx_mbcomp_factor(const struct omx_mbcomp *m) {
   if (!m->enabled || m->ovs_mode == OMX_DYN_OVS_OFF) return 1u;
@@ -157,7 +160,8 @@ static inline uint32_t omx_mbcomp_factor(const struct omx_mbcomp *m) {
  * @param k Band index, below `m->bands`.
  * @param factor The stage factor (omx_mbcomp_factor()).
  * @return The resolved band atom.
- * @note RT-safe, thread-safe: a value.
+ * @note Thread-safe: a value.
+ * @thread audio
  */
 static inline struct omx_dyn omx_mbcomp_band_atom(const struct omx_mbcomp *m, uint32_t k, uint32_t factor) {
   struct omx_dyn d = m->band[k];
@@ -179,6 +183,7 @@ static inline struct omx_dyn omx_mbcomp_band_atom(const struct omx_mbcomp *m, ui
  * @param st The state.
  * @param factor The stage factor (omx_mbcomp_factor()), 1 or 4; every band is armed at it.
  * @note Control-thread word. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_mbcomp_state_init(struct omx_mbcomp_state *st, uint32_t factor) {
   memset(st, 0, sizeof *st);
@@ -192,7 +197,8 @@ static inline void omx_mbcomp_state_init(struct omx_mbcomp_state *st, uint32_t f
  * @param st The state.
  * @param k Band index, below `m->bands`.
  * @return The gain computer's answer at the band's detector level; 0 for a band that is off.
- * @note RT-safe, thread-safe: reads only.
+ * @note Thread-safe: reads only.
+ * @thread audio
  */
 static inline float omx_mbcomp_band_gr_db(const struct omx_mbcomp *m, const struct omx_mbcomp_state *st,
                                           uint32_t k) {
@@ -210,8 +216,9 @@ static inline float omx_mbcomp_band_gr_db(const struct omx_mbcomp *m, const stru
  * @param n Samples, at most OMX_DYN_OVS_CHUNK.
  * @param m The atom.
  * @param leg The leg's tree state.
- * @note RT-safe: `bands − 1` crossovers and `(bands − 1)(bands − 2)/2` allpasses per sample.
+ * @note `bands − 1` crossovers and `(bands − 1)(bands − 2)/2` allpasses per sample.
  *       Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_mbcomp_split(const float *x, float band[][OMX_DYN_OVS_CHUNK], uint32_t n,
                                     const struct omx_mbcomp *m, struct omx_mbcomp_leg *leg) {
@@ -233,8 +240,9 @@ static inline void omx_mbcomp_split(const float *x, float band[][OMX_DYN_OVS_CHU
  * @param st The state.
  * @pre `finite-in-l`, `finite-in-r`; when enabled, `band-count-declared`.
  * @post `finite-out`.
- * @note RT-safe: no allocation, lock or syscall; scratch of OMX_MBC_MAX_BANDS × 2 × OMX_DYN_OVS_CHUNK
+ * @note No allocation, lock or syscall; scratch of OMX_MBC_MAX_BANDS × 2 × OMX_DYN_OVS_CHUNK
  *       floats on the stack whatever `n`. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_mbcomp_process(float *l, float *r, uint32_t n, const struct omx_mbcomp *m,
                                       struct omx_mbcomp_state *st) {

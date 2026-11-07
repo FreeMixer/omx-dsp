@@ -40,6 +40,23 @@ Requires: omx-contract-devel >= 3.9.0
 Requires: omx-contract-devel < 4
 Requires: %{name}-contract = %{version}-%{release}
 
+%package -n omx-rt-gate
+Summary: The static real-time gate for plugin and engine C built on libomxdsp
+Requires: %{name}-devel%{?_isa} = %{version}-%{release}
+Requires: gcc
+
+%description -n omx-rt-gate
+omx-rt-gate proves that the real-time code of a plugin or an audio engine
+never allocates, locks, sleeps, does I/O or logs. It compiles each real-time
+source with the project's own flags, reads the compiler's call graph, finds the
+functions a host calls from its audio thread in the plugin's LV2, CLAP or
+PipeWire tables, and follows every call from there, through libomxdsp's own
+code too. Each finding names the call, its place and the path from the entry
+point. The tables it judges against ship with it: one forbidden list, one
+class table and the thread roles of each ABI, with libomxdsp's thread tags and
+call graphs.
+Its documentation is on openmixer.org.
+
 %package contract
 Summary: omx-dsp's kernel and instance declarations, for programs that read them at run time
 BuildArch: noarch
@@ -69,7 +86,7 @@ Its documentation is on openmixer.org.
 
 %build
 %set_build_flags
-%make_build lib
+%make_build lib rt-gate-ship
 
 %install
 %make_install PREFIX=%{_prefix} LIBDIR=%{_libdir} INCLUDEDIR=%{_includedir}
@@ -90,6 +107,15 @@ Its documentation is on openmixer.org.
 %{_bindir}/omx-dsp-copy-check
 %{_mandir}/man1/omx-dsp-copy-check.1*
 %{_datadir}/omxdsp/
+%exclude %{_bindir}/omx-rt-gate
+%exclude %{_mandir}/man1/omx-rt-gate.1*
+%exclude %{_datadir}/omxdsp/rt-gate/
+
+%files -n omx-rt-gate
+%license LICENSE
+%{_bindir}/omx-rt-gate
+%{_mandir}/man1/omx-rt-gate.1*
+%{_datadir}/omxdsp/rt-gate/
 
 %files contract
 %license LICENSE
@@ -98,6 +124,14 @@ Its documentation is on openmixer.org.
 
 %changelog
 * Fri Nov 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.32.0-1
+- rt-gate: omx-rt-gate, the one static real-time gate, in its own package
+  omx-rt-gate: the consumer's units compiled at -O0 -fno-inline
+  -fcallgraph-info, roots from the LV2, CLAP and PipeWire tables, one
+  forbidden list, a class table measured by its arm, the worker's result by
+  value; omx-dsp's call graphs and thread tags installed for the join
+- every function of the headers carries one @thread audio, worker or control
+  tag in place of the RT prose, and make test runs the gate over every tagged
+  function (the self-run)
 - curve: a term carries its band's origin (CURVE_ORIGINS: user, fbs-fixed,
   fbs-live, hrp, room-mode); omx_curve_points_marked answers a mark per feedback corrector's
   band and, asked, the curve over the user bands alone; the twin curvePoints

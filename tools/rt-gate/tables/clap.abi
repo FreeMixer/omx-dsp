@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
+# clap.abi — the thread roles of the CLAP ABI, declared once (omx-rt-gate(1)). `--abi clap` binds the
+# plugin side, `--abi clap:host` the host side (omx-clap-core).
+
+# what a plugin provides: the host's audio thread calls these
+plugin clap_plugin process audio
+plugin clap_plugin reset audio
+plugin clap_plugin start_processing audio
+plugin clap_plugin stop_processing audio
+plugin clap_plugin_params flush audio
+plugin clap_plugin_tail get audio
+plugin clap_plugin_thread_pool exec audio
+
+# what a host provides: a plugin calls these from its audio thread
+host clap_host_thread_pool request_exec audio
+host clap_output_events try_push audio
+host clap_input_events size audio
+host clap_input_events get audio
+host clap_host_tail changed audio
+host clap_host_params request_flush audio

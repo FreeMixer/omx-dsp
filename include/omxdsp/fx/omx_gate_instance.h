@@ -78,6 +78,7 @@ static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int
                                              float release_ms, float hysteresis_db, float ratio, float hp_hz,
                                              float lp_hz, int key_listen, float key_tilt_db);
 
+/** @thread control */
 static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
   if (!omx_instance_bind_positive(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -122,8 +123,9 @@ static inline int omx_gate_instance_init(OmxGateInstance *s, float sr) {
  *        GATE_KEY_TILT_DB_RANGE, a non-finite word reading as 0 (flat).
  * @post `atom-meets-the-kernel-preconditions`: every field inside the declared OMX_GATE_* travel,
  *       and the key filter's edges inside GATE_KEY_LIMITS.
- * @note RT-safe: two expf per call, and the key filter's design when an edge moves. Thread-safe on
+ * @note Two expf per call, and the key filter's design when an edge moves. Thread-safe on
  *       distinct instances.
+ * @thread audio
  */
 static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int key_source,
                                              float threshold_db, float range_db, float knee_start_db,
@@ -174,7 +176,8 @@ static inline void omx_gate_instance_resolve(OmxGateInstance *s, int bypass, int
  * @brief The frames of latency the instance reports for its current atom.
  * @param s The instance.
  * @return OMX_OVS_LATENCY_4X while 4x is engaged, else 0; 0 for a refused instance.
- * @note RT-safe. Thread-safe: pure in `s`.
+ * @note Thread-safe: pure in `s`.
+ * @thread audio
  */
 static inline float omx_gate_instance_latency(const OmxGateInstance *s) {
   return s && s->ready ? omx_gate_latency(&s->atom) : 0.0f;
@@ -189,8 +192,9 @@ static inline float omx_gate_instance_latency(const OmxGateInstance *s) {
  * @param out_l The left output block; may alias any input or the key.
  * @param out_r The right output block; may alias any input or the key.
  * @param n Frames.
- * @note RT-safe: no allocation, no lock. Not ready is the identity byte for byte. Thread-safe on
+ * @note No allocation, no lock. Not ready is the identity byte for byte. Thread-safe on
  *       distinct instances.
+ * @thread audio
  */
 static inline void omx_gate_instance_run(OmxGateInstance *s, const float *key, const float *in_l,
                                          const float *in_r, float *out_l, float *out_r, uint32_t n) {

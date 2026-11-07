@@ -19,7 +19,8 @@
  * @brief Round half up, as JavaScript's `Math.round` does: 2.5 reads 3, -2.5 reads -2, -0.4 reads -0.
  * @param x The value.
  * @return The nearest whole number, a tie going up.
- * @note Control thread and analysis only: `floor` from libm. Thread-safe: pure.
+ * @note `floor` from libm. Thread-safe: pure.
+ * @thread control
  */
 static inline double omx_round_half_up(double x) {
   double r = floor(x);
@@ -32,7 +33,8 @@ static inline double omx_round_half_up(double x) {
  * @brief Decibels to linear amplitude, `10^(dB/20)`.
  * @param db Level, dB; any finite value.
  * @return The linear amplitude: 0 dB is 1, −6 dB is about 0.501.
- * @note RT-safe: one `powf`, on the RT-safe allowlist. Thread-safe: pure.
+ * @note One `powf`, classified maths. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_db_to_lin(float db) {
   return powf(10.0f, db * 0.05f);
@@ -42,8 +44,9 @@ static inline OMX_FM_ALWAYS float omx_db_to_lin(float db) {
  * @brief Linear amplitude to decibels, floored so silence stays finite.
  * @param lin Amplitude, linear; values below OMX_LIN_TO_DB_FLOOR_LIN (1e-9) read as the floor.
  * @return `20·log10(max(lin, OMX_LIN_TO_DB_FLOOR_LIN))`: silence is OMX_LIN_TO_DB_FLOOR_DB (−180 dB), never −inf or NaN.
- * @note RT-safe: one `log10f`, on the RT-safe allowlist (a pure function of its argument: no allocation,
+ * @note One `log10f`, classified maths (a pure function of its argument: no allocation,
  *       lock or errno write on a finite positive input). Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_lin_to_db(float lin) {
   const float floor_lin = OMX_LIN_TO_DB_FLOOR_LIN;
@@ -58,7 +61,8 @@ static inline OMX_FM_ALWAYS float omx_lin_to_db(float lin) {
  * the loop does not vectorise. The select of bits leaves one unconditional call.
  * @param lin Amplitude, linear; values below OMX_LIN_TO_DB_FLOOR_LIN (1e-9) read as the floor.
  * @return omx_lin_to_db(lin).
- * @note RT-safe: one `log10f`. Thread-safe: pure.
+ * @note One `log10f`. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_lin_to_db_lane(float lin) {
   const float floor_lin = OMX_LIN_TO_DB_FLOOR_LIN;
@@ -75,6 +79,7 @@ static inline OMX_FM_ALWAYS float omx_lin_to_db_lane(float lin) {
  * @param floor_lin The smallest magnitude read, linear, > 0.
  * @return `20·log10(max(lin, floor_lin))`.
  * @note Not for a per-sample loop: one `log10`. Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_lin_to_db_d(double lin, double floor_lin) {
   return 20.0 * log10(lin > floor_lin ? lin : floor_lin);
@@ -101,7 +106,8 @@ static inline double omx_lin_to_db_d(double lin, double floor_lin) {
  * @param lin Amplitude, linear, finite; values below OMX_LIN_TO_DB_FLOOR_LIN (1e-9) read as the floor.
  * @return `20·log10(max(lin, OMX_LIN_TO_DB_FLOOR_LIN))` to the declared tolerance: silence is −180 dB.
  * @post `finite`.
- * @note RT-safe: one divide, no call, no branch but the floor. Thread-safe: pure.
+ * @note One divide, no call, no branch but the floor. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_lin_to_db_poly(float lin) {
   const float x = lin < OMX_LIN_TO_DB_FLOOR_LIN ? OMX_LIN_TO_DB_FLOOR_LIN : lin;
@@ -134,7 +140,8 @@ static inline float omx_lin_to_db_poly(float lin) {
  * @param db Level, dB, finite.
  * @return The linear amplitude, to the declared tolerance.
  * @post `finite`.
- * @note RT-safe: no call, one float-to-int conversion. Thread-safe: pure.
+ * @note No call, one float-to-int conversion. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_db_to_lin_poly(float db) {
   /* The product in DOUBLE: rounded to float at −300 dB it alone would cost 1.3e-6 of the result

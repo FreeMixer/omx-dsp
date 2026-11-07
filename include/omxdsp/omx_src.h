@@ -50,7 +50,8 @@
  * @param a One rate.
  * @param b The other.
  * @return gcd(a, b); `a` when `b` is 0.
- * @note RT-safe and thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline uint32_t omx_src_gcd(uint32_t a, uint32_t b) {
   while (b != 0u) {
@@ -80,6 +81,7 @@ struct omx_src_plan {
  * @return 0 on success; -1 for a zero rate, a NULL plan or an interpolation factor past
  *         OMX_SRC_MAX_L (refused before anything is sized for it).
  * @note Thread-safe: pure over `out`.
+ * @thread audio
  */
 static inline int omx_src_plan_of(uint32_t in_rate, uint32_t out_rate, struct omx_src_plan *out) {
   if (in_rate == 0u || out_rate == 0u || out == NULL) return -1;
@@ -98,6 +100,7 @@ static inline int omx_src_plan_of(uint32_t in_rate, uint32_t out_rate, struct om
  * @param p The plan.
  * @return `taps * l`.
  * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline size_t omx_src_coef_count(const struct omx_src_plan *p) {
   return (size_t)p->taps * (size_t)p->l;
@@ -108,6 +111,7 @@ static inline size_t omx_src_coef_count(const struct omx_src_plan *p) {
  * @param p The plan.
  * @return `taps`.
  * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline size_t omx_src_hist_count(const struct omx_src_plan *p) {
   return (size_t)p->taps;
@@ -121,6 +125,7 @@ static inline size_t omx_src_hist_count(const struct omx_src_plan *p) {
  * @param x The argument.
  * @return I0(x).
  * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_src_bessel_i0(double x) {
   double sum = 1.0;
@@ -139,6 +144,7 @@ static inline double omx_src_bessel_i0(double x) {
  * @param x The argument.
  * @return sinc(x); 1 for |x| < 1e-12.
  * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_src_sinc(double x) {
   if (x > -1e-12 && x < 1e-12) return 1.0;
@@ -157,7 +163,8 @@ static inline double omx_src_sinc(double x) {
  * @param coef The table, omx_src_coef_count(p) floats.
  * @param rolloff The passband's share of the shared Nyquist.
  * @param stopband_db The stopband attenuation the window is designed for, dB.
- * @note Not RT: O(taps * l) Bessel series. Thread-safe on distinct tables.
+ * @note O(taps * l) Bessel series. Thread-safe on distinct tables.
+ * @thread control
  */
 static inline void omx_src_design(const struct omx_src_plan *p, float *coef, double rolloff,
                                   double stopband_db) {
@@ -231,6 +238,7 @@ struct omx_src {
  * @param coef The designed table, kept by pointer.
  * @param hist The history, omx_src_hist_count(p) floats, kept by pointer.
  * @note Thread-safe on distinct states.
+ * @thread audio
  */
 static inline void omx_src_init(struct omx_src *s, const struct omx_src_plan *p, const float *coef,
                                 float *hist) {
@@ -251,6 +259,7 @@ static inline void omx_src_init(struct omx_src *s, const struct omx_src_plan *p,
  * @param p The plan.
  * @return `in_frames * l / m`.
  * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline uint64_t omx_src_out_frames(uint64_t in_frames, const struct omx_src_plan *p) {
   return (in_frames * (uint64_t)p->l) / (uint64_t)p->m;
@@ -262,6 +271,7 @@ static inline uint64_t omx_src_out_frames(uint64_t in_frames, const struct omx_s
  * @param in_n The inputs of one call.
  * @return `in_n * l / m + 2`.
  * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline uint32_t omx_src_out_capacity(const struct omx_src_plan *p, uint32_t in_n) {
   return (uint32_t)(((uint64_t)in_n * (uint64_t)p->l) / (uint64_t)p->m + 2u);
@@ -273,6 +283,7 @@ static inline uint32_t omx_src_out_capacity(const struct omx_src_plan *p, uint32
  * @param phase The phase, below `l`.
  * @return The output sample.
  * @note Thread-safe: reads `s` only.
+ * @thread audio
  */
 static inline float omx_src_dot(const struct omx_src *s, uint32_t phase) {
   const float *c = s->coef + (size_t)phase * (size_t)s->taps;
@@ -287,6 +298,7 @@ static inline float omx_src_dot(const struct omx_src *s, uint32_t phase) {
  * @param s The conversion.
  * @param x The sample.
  * @note O(taps). Thread-safe on distinct states.
+ * @thread audio
  */
 static inline void omx_src_push(struct omx_src *s, float x) {
   memmove(s->hist + 1, s->hist, (size_t)(s->taps - 1u) * sizeof(float));
@@ -302,6 +314,7 @@ static inline void omx_src_push(struct omx_src *s, float x) {
  * @param written Outputs already in `out`.
  * @return Outputs in `out` after the call.
  * @note Thread-safe on distinct states.
+ * @thread audio
  */
 static inline uint32_t omx_src_drain(struct omx_src *s, float *out, uint32_t out_cap, uint32_t written) {
   while (written < out_cap && (s->acc / (uint64_t)s->l) < s->consumed) {
@@ -323,7 +336,8 @@ static inline uint32_t omx_src_drain(struct omx_src *s, float *out, uint32_t out
  * @param out_cap Its capacity.
  * @param flush Non-zero on the last call of a file.
  * @return Outputs written.
- * @note Not RT: O(in_n * taps) plus a memmove per input. Thread-safe on distinct states.
+ * @note O(in_n * taps) plus a memmove per input. Thread-safe on distinct states.
+ * @thread control
  */
 static inline uint32_t omx_src_run(struct omx_src *s, const float *in, uint32_t in_n, float *out,
                                    uint32_t out_cap, int flush) {

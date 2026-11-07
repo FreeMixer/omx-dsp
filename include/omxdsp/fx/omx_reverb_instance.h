@@ -87,6 +87,7 @@ typedef struct {
  * Bind an instance to its rate and lay its own pool out. Returns 1 when usable, 0 when not (a
  * refused init leaves `ready` clear and run() is the identity): the rate must be a declared one.
  * Allocates nothing.
+ * @thread control
  */
 static inline int omx_reverb_instance_init(OmxReverbInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
@@ -107,7 +108,8 @@ static inline int omx_reverb_instance_init(OmxReverbInstance *s, float sr) {
 }
 
 /** Lay the pool out again — every line handed back silent, every cursor and filter at rest:
- * the re-enable recipe. Bounded work over the instance's own pool, no allocation. */
+ * the re-enable recipe. Bounded work over the instance's own pool, no allocation.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "reverb/instance-clear"
 static inline void omx_reverb_instance_clear(OmxReverbInstance *s) {
   if (!s || !s->ready) return;
@@ -133,6 +135,7 @@ static inline void omx_reverb_instance_clear(OmxReverbInstance *s) {
  * `tail_db` (dB, each travel's floor off), `early_size_pct` (percent), the duck's `duck_db`,
  * `duck_threshold_db` and `duck_release_ms`, `wet_deess` (REVERB_WET_DEESSES: off, on) and the wet
  * de-esser's `deess_freq_hz` and `deess_threshold_db`, clamped likewise.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "reverb/instance-resolve"
 static inline void omx_reverb_instance_resolve(OmxReverbInstance *s, int bypass, float plate_mod_depth,
@@ -241,6 +244,7 @@ static inline void omx_reverb_instance_resolve(OmxReverbInstance *s, int bypass,
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
  * in place on out at the instance rate. `in_*` and `out_*` may alias. Not ready, or bypassed, is
  * the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "reverb/instance-run"
 static inline void omx_reverb_instance_run(OmxReverbInstance *s, const float *in_l,

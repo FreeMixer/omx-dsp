@@ -26,7 +26,8 @@
  * @param mix The wet share, in [0, 1].
  * @pre `mix-in-unit-range`, `dry-is-the-complement`.
  * @post `finite-out`.
- * @note RT-safe: four multiplies, no state. Reentrant.
+ * @note Four multiplies, no state. Reentrant.
+ * @thread audio
  */
 static inline void omx_wetdry_mix(float *l, float *r, float xl, float xr, float wl, float wr,
                                   float dry, float mix) {
@@ -51,7 +52,8 @@ static inline void omx_wetdry_mix(float *l, float *r, float xl, float xr, float 
  * @param wr The right wet sample.
  * @param dry `1 − mix`.
  * @param mix The wet share, in [0, 1].
- * @note RT-safe: two flushes and omx_wetdry_mix(). Thread-safe on distinct state.
+ * @note Two flushes and omx_wetdry_mix(). Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_wetdry_loop(float *l, float *r, float *fl, float *fr, float xl, float xr,
                                    float wl, float wr, float dry, float mix) {
@@ -72,7 +74,8 @@ static inline void omx_wetdry_loop(float *l, float *r, float *fl, float *fr, flo
  * @param to The incoming body, `n` samples.
  * @param n Samples in the block; 0 writes nothing.
  * @pre `dst` aliases neither `from` nor `to`.
- * @note RT-safe: one multiply-add per sample, no state, no call. Reentrant.
+ * @note One multiply-add per sample, no state, no call. Reentrant.
+ * @thread audio
  */
 static inline void omx_wetdry_xfade_block(float *dst, const float *from, const float *to, uint32_t n) {
   const float step = 1.0f / (float)n;

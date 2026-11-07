@@ -33,7 +33,8 @@
  * @pre `tap-inside-the-ring`.
  * @post `index-inside-the-ring`.
  * @invariant `write-cursor-inside-the-ring`.
- * @note RT-safe: one compare, one add. Thread-safe: no state.
+ * @note One compare, one add. Thread-safe: no state.
+ * @thread audio
  */
 static inline uint32_t omx_lookahead_back(uint32_t pos, uint32_t d, uint32_t cap) {
   OMX_PRE(d < cap, "tap-inside-the-ring");
@@ -54,7 +55,8 @@ static inline uint32_t omx_lookahead_back(uint32_t pos, uint32_t d, uint32_t cap
  * @pre `step-inside-the-ring`.
  * @post `index-inside-the-ring`.
  * @invariant `write-cursor-inside-the-ring`.
- * @note RT-safe: one add, one compare. Thread-safe: no state.
+ * @note One add, one compare. Thread-safe: no state.
+ * @thread audio
  */
 static inline uint32_t omx_lookahead_fwd(uint32_t pos, uint32_t k, uint32_t cap) {
   OMX_PRE(k <= cap, "step-inside-the-ring");
@@ -73,6 +75,7 @@ struct omx_lookahead {
   uint32_t pos; /**< The next write, in `[0, cap)`. */
 };
 
+/** @thread audio */
 OMXDSP_STATE_LAYOUT(lookahead, struct omx_lookahead)
 
 #define OMX_CONTRACT_STAGE "lookahead/init"
@@ -83,7 +86,8 @@ OMXDSP_STATE_LAYOUT(lookahead, struct omx_lookahead)
  * @param cap The ring's length, at least 1.
  * @param fill The value a tap reads before `D` writes have happened; finite.
  * @pre `ring-not-empty`, `finite-fill`.
- * @note CONTROL thread: O(cap). Thread-safe on distinct state.
+ * @note O(cap). Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_lookahead_init(struct omx_lookahead *la, float *buf, uint32_t cap, float fill) {
   OMX_PRE(cap >= 1u && buf != NULL, "ring-not-empty");
@@ -106,7 +110,8 @@ static inline void omx_lookahead_init(struct omx_lookahead *la, float *buf, uint
  * @pre `tap-inside-the-ring`, `finite-in`.
  * @post `delayed-copy`: at `d = 0` the read is the write.
  * @invariant `write-cursor-inside-the-ring`.
- * @note RT-safe: one store, one load. Thread-safe on distinct state.
+ * @note One store, one load. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_lookahead_tick(struct omx_lookahead *la, float x, uint32_t d) {
   OMX_PRE(d < la->cap, "tap-inside-the-ring");
@@ -131,6 +136,7 @@ struct omx_lookahead_min {
   uint32_t t;     /**< The next push index; wraps, compared by difference. */
 };
 
+/** @thread audio */
 OMXDSP_STATE_LAYOUT(lookahead_min, struct omx_lookahead_min)
 
 #define OMX_CONTRACT_STAGE "lookahead-min/init"
@@ -141,7 +147,8 @@ OMXDSP_STATE_LAYOUT(lookahead_min, struct omx_lookahead_min)
  * @param when `cap` indices, owned by the caller.
  * @param cap The largest window, at least 1.
  * @pre `ring-not-empty`.
- * @note CONTROL thread. Thread-safe on distinct state.
+ * @note Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_lookahead_min_init(struct omx_lookahead_min *h, float *val, uint32_t *when, uint32_t cap) {
   OMX_PRE(cap >= 1u && val != NULL && when != NULL, "ring-not-empty");
@@ -164,7 +171,8 @@ static inline void omx_lookahead_min_init(struct omx_lookahead_min *h, float *va
  * @pre `window-inside-the-ring`, `finite-in`.
  * @post `at-most-the-push`: the result is not above `x`.
  * @invariant `deque-inside-the-ring`.
- * @note RT-safe: amortised O(1), worst case O(cap) in one call. Thread-safe on distinct state.
+ * @note Amortised O(1), worst case O(cap) in one call. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_lookahead_min_push(struct omx_lookahead_min *h, float x, uint32_t w) {
   OMX_PRE(w >= 1u && w <= h->cap, "window-inside-the-ring");

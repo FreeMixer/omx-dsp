@@ -55,7 +55,8 @@ _Static_assert(OMX_IDELAY_CAP == (OMX_IDELAY_MAX_RATE / 1000) * OMX_IDELAY_MAX_M
  * @return The delay, samples, in `[0, cap)`; 0 when `cap` is 0.
  * @pre `rate-is-declared`, `ms-is-finite`.
  * @post `delay-inside-the-ring`.
- * @note RT-safe and thread-safe: arithmetic.
+ * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline uint32_t omx_idelay_samples(float ms, float sr, uint32_t cap) {
   OMX_PRE(sr <= 0.0f || OMX_RATE_IS_DECLARED(sr), "rate-is-declared");
@@ -89,8 +90,9 @@ static inline uint32_t omx_idelay_samples(float ms, float sr, uint32_t cap) {
  * @param tgt The delay wanted, samples, in `[0, cap)` (omx_idelay_samples()).
  * @pre `finite-in`, `target-clamped-by-caller`.
  * @post `finite-out`.
- * @note RT-safe: no allocation, fixed work per sample, one branch per block. Thread-safe on
+ * @note No allocation, fixed work per sample, one branch per block. Thread-safe on
  *       distinct state.
+ * @thread audio
  */
 static inline void omx_idelay_apply(float *buf, uint32_t n, float *ring, uint32_t cap, uint32_t *wpos,
                                     uint32_t *cur, uint32_t tgt) {
@@ -140,6 +142,7 @@ struct omx_idelay_pair {
   uint32_t cur_r;          /**< The right applied delay, for the cross-fade. */
 };
 
+/** @thread audio */
 OMXDSP_STATE_LAYOUT(idelay_pair, struct omx_idelay_pair)
 
 #define OMX_CONTRACT_STAGE "idelay/pair"
@@ -156,7 +159,8 @@ OMXDSP_STATE_LAYOUT(idelay_pair, struct omx_idelay_pair)
  * @param tgt_r The right delay, samples, in `[0, d->cap)`.
  * @pre `finite-in`, `both-targets-inside-the-shared-ring`.
  * @post `finite-out`.
- * @note RT-safe: no allocation, fixed work per sample. Thread-safe on distinct state.
+ * @note No allocation, fixed work per sample. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_idelay_pair_apply(float *l, float *r, uint32_t n, struct omx_idelay_pair *d,
                                          uint32_t tgt_l, uint32_t tgt_r) {

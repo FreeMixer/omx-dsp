@@ -46,14 +46,16 @@ struct omx_transient_state {
 /**
  * @brief Zeroes the state: silence, no gain applied.
  * @param st The state.
- * @note RT-safe: one memset. Thread-safe on distinct state.
+ * @note One memset. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_transient_state_init(struct omx_transient_state *st) { memset(st, 0, sizeof(*st)); }
 
 /**
  * @brief The stage's latency, samples: zero at every rate (L1).
  * @return 0.
- * @note RT-safe, pure.
+ * @note Pure.
+ * @thread audio
  */
 static inline int omx_transient_latency(void) { return 0; }
 
@@ -71,7 +73,8 @@ static inline int omx_transient_latency(void) { return 0; }
  * @pre `control-inside-travel` (a value outside is recorded, then clamped to the travel),
  *      `rate-is-declared`, `slow-follower-is-slower`.
  * @post `poles-in-declared-range`.
- * @note Not for the RT thread: six `expf` and two `powf`. Thread-safe on distinct atoms.
+ * @note six `expf` and two `powf`. Thread-safe on distinct atoms.
+ * @thread audio
  */
 static inline void omx_transient_resolve(struct omx_transient *t, int bypass, float attack_db, float sustain_db,
                                          float attack_time_ms, float sustain_time_ms, float output_db, float rate) {
@@ -118,9 +121,10 @@ static inline void omx_transient_resolve(struct omx_transient *t, int bypass, fl
  * @pre `finite-in`.
  * @post `gain-inside-the-declared-bound` (L4), `finite-out`.
  * @invariant `no-denormal-state` (L8).
- * @note RT-safe: per sample three cascades, one division and one omx_lin_to_db_poly() per
+ * @note Per sample three cascades, one division and one omx_lin_to_db_poly() per
  *       contrast, one omx_db_to_lin_poly(); no libm call, allocation, lock or syscall. Thread-safe
  *       on distinct state.
+ * @thread audio
  */
 static inline void omx_transient_process(float *l, float *r, uint32_t n, const struct omx_transient *t,
                                          struct omx_transient_state *st) {

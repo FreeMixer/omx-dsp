@@ -39,7 +39,8 @@
  * @param cur In: the gain applied at the end of the previous block. Out: `tgt`.
  * @pre `finite-in`.
  * @post `finite-out`.
- * @note RT-safe: one pass, no allocation, no branch in the loop. Thread-safe on disjoint buffers.
+ * @note One pass, no allocation, no branch in the loop. Thread-safe on disjoint buffers.
+ * @thread audio
  */
 static inline void omx_route_fill_gain(const float *in, float *out, uint32_t n, float tgt, float *cur) {
   if (n == 0) return;
@@ -65,7 +66,8 @@ static inline void omx_route_fill_gain(const float *in, float *out, uint32_t n, 
  * @param tgt The fold gain at the end of the block; a non-finite target reads as 0.
  * @param cur In: the gain at the end of the previous block. Out: `tgt`.
  * @post `finite-out`.
- * @note RT-safe: one pass, no allocation, no branch in the loop. Thread-safe on disjoint buffers.
+ * @note One pass, no allocation, no branch in the loop. Thread-safe on disjoint buffers.
+ * @thread audio
  */
 static inline void omx_route_fold_gain(const float *inL, const float *inR, float *restrict out, uint32_t n,
                                        float tgt, float *cur) {
@@ -96,7 +98,8 @@ static inline void omx_route_fold_gain(const float *inL, const float *inR, float
  * @param curR In: the right leg's gain at the end of the previous block. Out: `tgt`.
  * @pre `finite-in`.
  * @post `finite-out`.
- * @note RT-safe: one pass, no allocation. Thread-safe on disjoint buses.
+ * @note One pass, no allocation. Thread-safe on disjoint buses.
+ * @thread audio
  */
 static inline void omx_route_fold_fill(float *busL, float *busR, uint32_t n, float tgt, float *curL,
                                        float *curR) {

@@ -60,6 +60,7 @@ typedef struct {
  * Bind an instance to its rate. Returns 1 when usable, 0 when not (a refused init leaves `ready`
  * clear and run() is the identity). The kernel's inline rings are sized for the declared rates, so
  * any other rate is refused.
+ * @thread control
  */
 static inline int omx_rotary_instance_init(OmxRotaryInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
@@ -76,6 +77,7 @@ static inline int omx_rotary_instance_init(OmxRotaryInstance *s, float sr) {
  * scale), `balance` and `mix` (percent), each clamped into its declared travel, a non-finite word
  * reading as the declared default; `speed` is the ROTARY_SPEEDS index, an `enum omx_rotary_speed`
  * member (any other value reads as `slow`).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "rotary/instance-resolve"
 static inline void omx_rotary_instance_resolve(OmxRotaryInstance *s, int bypass, float horn_slow_hz,
@@ -113,6 +115,7 @@ static inline void omx_rotary_instance_resolve(OmxRotaryInstance *s, int bypass,
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
  * in place on out. `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "rotary/instance-run"
 static inline void omx_rotary_instance_run(OmxRotaryInstance *s, const float *in_l, const float *in_r,
@@ -121,7 +124,8 @@ static inline void omx_rotary_instance_run(OmxRotaryInstance *s, const float *in
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The frames of latency the instance introduces: the kernel's, zero at every rate. */
+/** The frames of latency the instance introduces: the kernel's, zero at every rate.
+ * @thread audio */
 static inline uint32_t omx_rotary_instance_latency(const OmxRotaryInstance *s) {
   (void)s;
   return omx_rotary_latency();

@@ -92,6 +92,7 @@ struct omx_reverse_render_scratch {
  * @param sr The rate, Hz.
  * @return The window `W`, frames, even and at least 2.
  * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline uint32_t omx_reverse_render_window(float reverse_ms, float sr) {
   float ms = reverse_ms;
@@ -109,6 +110,7 @@ static inline uint32_t omx_reverse_render_window(float reverse_ms, float sr) {
  * @param algorithm The row's algorithm.
  * @return OMX_REVERB_PLATE, OMX_REVERB_HALL or OMX_REVERB_ROOM.
  * @note Thread-safe: arithmetic.
+ * @thread audio
  */
 static inline int omx_reverse_render_network(int algorithm) {
   if (algorithm == OMX_REVERB_PLATE) return OMX_REVERB_PLATE;
@@ -133,6 +135,7 @@ static inline int omx_reverse_render_network(int algorithm) {
  * @param sc The caller's buffers.
  * @return 0, or -1 on a refusal.
  * @note NOT RT: a worker over a whole region. No allocation. Thread-safe on distinct buffers.
+ * @thread control
  */
 static inline int omx_reverse_render(float *l, float *r, uint32_t n, const struct omx_reverb *p,
                                      float sr, struct omx_reverse_render_scratch *sc) {

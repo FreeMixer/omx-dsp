@@ -62,7 +62,8 @@ struct omx_phaser_state {
 /**
  * @brief Arm a state: every word zero, the oscillator at its turn's zero, the ramp unprimed.
  * @param s The state.
- * @note Control-rate. RT-safe (no allocation) and thread-safe on distinct state.
+ * @note No allocation. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_phaser_state_init(struct omx_phaser_state *s) { memset(s, 0, sizeof *s); }
 
@@ -70,7 +71,8 @@ static inline void omx_phaser_state_init(struct omx_phaser_state *s) { memset(s,
  * @brief Whether a section count is on the travel: even, 2 … OMX_PHASER_MAX_STAGES.
  * @param n The count.
  * @return 1 when legal, else 0.
- * @note RT-safe and thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_phaser_stages_legal(int n) {
   return n >= 2 && n <= OMX_PHASER_MAX_STAGES && (n % 2) == 0;
@@ -80,8 +82,9 @@ static inline int omx_phaser_stages_legal(int n) {
  * @brief The section count the kernel runs for an asked count: the legal member at or below it.
  * @param n The asked count.
  * @return `n` clamped to [2, OMX_PHASER_MAX_STAGES], an odd count rounded down to even.
- * @note RT-safe and thread-safe: pure. The row's travel refuses an illegal count; this is the
+ * @note Thread-safe: pure. The row's travel refuses an illegal count; this is the
  *       enforcement half, so an odd count never reaches the chain.
+ * @thread audio
  */
 static inline int omx_phaser_stages_run(int n) {
   const int c = n < 2 ? 2 : n > OMX_PHASER_MAX_STAGES ? OMX_PHASER_MAX_STAGES : n;
@@ -92,7 +95,8 @@ static inline int omx_phaser_stages_run(int n) {
  * @brief Samples per control interval, `max(1, lrintf(sr/OMX_PHASER_CONTROL_HZ))`.
  * @param sr Sample rate, Hz, positive.
  * @return The interval: 7 at 44.1 k, 8 at 48 k, 16 at 96 k, 32 at 192 k.
- * @note RT-safe and thread-safe: one division.
+ * @note Thread-safe: one division.
+ * @thread audio
  */
 static inline uint32_t omx_phaser_control_interval(float sr) {
   const long k = lrintf(sr / OMX_PHASER_CONTROL_HZ);
@@ -103,7 +107,8 @@ static inline uint32_t omx_phaser_control_interval(float sr) {
  * @brief The feedback, clamped to ±OMX_PHASER_FB_MAX; a non-finite feedback is no feedback (0).
  * @param fb The asked feedback.
  * @return The feedback the kernel runs.
- * @note RT-safe and thread-safe: omx_clamp_or.
+ * @note Thread-safe: omx_clamp_or.
+ * @thread audio
  */
 static inline float omx_phaser_clamp_fb(float fb) {
   return omx_clamp_or(fb, -OMX_PHASER_FB_MAX, OMX_PHASER_FB_MAX, 0.0f);
@@ -118,7 +123,8 @@ static inline float omx_phaser_clamp_fb(float fb) {
  * @return `min(F_TOP, base·2^(omx_lfo_sweep(0, depth, shape)))`, Hz.
  * @pre `a-base-is-positive`.
  * @post `fc-inside-the-top`.
- * @note Control-rate: one `exp2f`. RT-safe and thread-safe: pure.
+ * @note One `exp2f`. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_phaser_fc(const struct omx_phaser *p, float shape) {
   OMX_PRE(p->base_hz > 0.0f, "a-base-is-positive");
@@ -134,7 +140,8 @@ static inline float omx_phaser_fc(const struct omx_phaser *p, float shape) {
  * @param p The atom.
  * @param lo Receives the lowest centre, Hz.
  * @param hi Receives the highest centre, Hz.
- * @note Control-rate. RT-safe and thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_phaser_sweep_hz(const struct omx_phaser *p, float *lo, float *hi) {
   *lo = omx_phaser_fc(p, -1.0f);
@@ -145,7 +152,8 @@ static inline void omx_phaser_sweep_hz(const struct omx_phaser *p, float *lo, fl
  * @brief The `output-le-input-plus` bound on the LEVEL, linear: `(1 − mix) + mix/(1 − |fb|)`.
  * @param p The atom; the feedback is read clamped.
  * @return The largest level gain at any frequency.
- * @note RT-safe and thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_phaser_level_bound(const struct omx_phaser *p) {
   const float fb = fabsf(omx_phaser_clamp_fb(p->feedback));
@@ -164,9 +172,10 @@ static inline float omx_phaser_level_bound(const struct omx_phaser *p) {
  * @pre `a-mix-is-inside-unity`, `stages-is-a-legal-member`, `feedback-inside-the-clamp`,
  *      `the-top-is-below-nyquist`.
  * @post `finite-out`, per sample, by omx_wetdry_mix().
- * @note RT-safe: no allocation, lock or per-sample libm call. Thread-safe on distinct state.
+ * @note No allocation, lock or per-sample libm call. Thread-safe on distinct state.
  *       `enabled == 0` or `mix == 0` returns before a sample or a state word is touched. A
  *       `stages` change zeroes every section from the smaller count up.
+ * @thread audio
  */
 static inline void omx_phaser_process(float *l, float *r, uint32_t n, const struct omx_phaser *p,
                                       struct omx_phaser_state *s, float sr) {

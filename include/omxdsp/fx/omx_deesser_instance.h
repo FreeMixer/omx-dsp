@@ -68,6 +68,7 @@ typedef struct {
 /**
  * Bind an instance to its rate. Returns 1 when usable, 0 when not (a refused init leaves `ready`
  * clear and run() is the identity): the rate must be a declared one. Allocates nothing.
+ * @thread control
  */
 static inline int omx_deesser_instance_init(OmxDeesserInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
@@ -84,6 +85,7 @@ static inline int omx_deesser_instance_init(OmxDeesserInstance *s, float sr) {
  * `deess_range` (dB, an attenuation), `deess_attack` and `deess_release` (ms), each clamped into
  * its declared travel, a non-finite word reading as the declared default; `deess_mode` is the
  * DEESS_MODES index, an `enum omx_deess_mode` member (any other value reads as `split`).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "deesser/instance-resolve"
 static inline void omx_deesser_instance_resolve(OmxDeesserInstance *s, int bypass, float deess_freq,
@@ -142,6 +144,7 @@ static inline void omx_deesser_instance_resolve(OmxDeesserInstance *s, int bypas
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
  * in place on out. `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "deesser/instance-run"
 static inline void omx_deesser_instance_run(OmxDeesserInstance *s, const float *in_l, const float *in_r,
@@ -150,7 +153,8 @@ static inline void omx_deesser_instance_run(OmxDeesserInstance *s, const float *
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The frames of latency the instance introduces: the kernel's, zero at every rate. */
+/** The frames of latency the instance introduces: the kernel's, zero at every rate.
+ * @thread audio */
 static inline uint32_t omx_deesser_instance_latency(const OmxDeesserInstance *s) {
   return s ? (uint32_t)omx_deess_latency(&s->atom) : 0u;
 }

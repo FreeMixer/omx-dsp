@@ -54,7 +54,8 @@ struct omx_rotary_state {
  * @param s The state, written.
  * @return The line's own code; OMX_FDELAY_OK when armed.
  * @post `four-lines-armed-at-the-rotor-order`.
- * @note Not RT: a `memset` of the state, done on insert. Thread-safe on distinct state.
+ * @note A `memset` of the state, done on insert. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline enum omx_fdelay_code omx_rotary_init(struct omx_rotary_state *s) {
   memset(s, 0, sizeof *s);
@@ -87,6 +88,7 @@ static inline enum omx_fdelay_code omx_rotary_init(struct omx_rotary_state *s) {
  * @pre `a-speed-is-a-member`, `mix-in-unit-range`.
  * @post `balance-gains-never-boost`.
  * @note Per block: two `expf` and the split's design. Thread-safe on distinct atoms.
+ * @thread audio
  */
 static inline void omx_rotary_resolve(struct omx_rotary *p, const struct omx_rotary_state *s,
                                       int enabled, int speed, float horn_slow_hz,
@@ -123,10 +125,11 @@ static inline void omx_rotary_resolve(struct omx_rotary *p, const struct omx_rot
  * @param s The state.
  * @pre `finite-in` (the atom's `mix` range is the resolve's PRE).
  * @post `finite-out`, per sample, by omx_wetdry_mix().
- * @note RT-safe: per sample two sections, two rotor ticks (four four-tap reads), no libm, no
+ * @note Per sample two sections, two rotor ticks (four four-tap reads), no libm, no
  *       allocation. `enabled == 0` returns before a word is touched; `mix == 0` returns the
  *       block bit-identical after advancing the rotors (a muted mic does not stop the cabinet).
  *       Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_rotary_process(float *l, float *r, uint32_t n, const struct omx_rotary *p,
                                       struct omx_rotary_state *s) {
@@ -155,7 +158,8 @@ static inline void omx_rotary_process(float *l, float *r, uint32_t n, const stru
 /**
  * @brief The stage's latency, samples: zero at every rate (L1 — the Doppler delay is the effect).
  * @return 0.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline uint32_t omx_rotary_latency(void) { return 0u; }
 

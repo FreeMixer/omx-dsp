@@ -56,6 +56,7 @@ typedef struct {
  * Bind an instance to its rate. Returns 1 when usable, 0 when not (a refused init leaves `ready`
  * clear and run() is the identity). The rate must be positive, finite and high enough that the
  * declared top rate stays under the oscillator's half-turn bound.
+ * @thread control
  */
 static inline int omx_tremolo_instance_init(OmxTremoloInstance *s, float sr) {
   if (!s) return 0;
@@ -74,6 +75,7 @@ static inline int omx_tremolo_instance_init(OmxTremoloInstance *s, float sr) {
  * user units: `rate_hz` (Hz), `depth` and `mix` (percent) are clamped into their declared travels,
  * a non-finite word reading as the declared default; `mode` is the TREMOLO_MODES index, an
  * `enum omx_tremolo_mode` member (any other value reads as the tremolo).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "tremolo/instance-resolve"
 static inline void omx_tremolo_instance_resolve(OmxTremoloInstance *s, int bypass, float rate_hz,
@@ -106,6 +108,7 @@ static inline void omx_tremolo_instance_resolve(OmxTremoloInstance *s, int bypas
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
  * in place on out. `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "tremolo/instance-run"
 static inline void omx_tremolo_instance_run(OmxTremoloInstance *s, const float *in_l,
@@ -116,7 +119,8 @@ static inline void omx_tremolo_instance_run(OmxTremoloInstance *s, const float *
 #undef OMX_CONTRACT_STAGE
 
 /** The frames of latency the instance introduces: none, at every rate (the gain is applied to the
- * frame it is computed for). */
+ * frame it is computed for).
+ * @thread audio */
 static inline uint32_t omx_tremolo_instance_latency(const OmxTremoloInstance *s) {
   (void)s;
   return 0u;

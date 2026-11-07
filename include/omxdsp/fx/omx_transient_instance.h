@@ -67,6 +67,7 @@ typedef struct {
  * Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the
  * oracle set (32 to 192 kHz), so any other rate is refused, `ready` stays clear and
  * {@link omx_transient_instance_run} is then the identity: absence is a wire, not a crash.
+ * @thread control
  */
 static inline int omx_transient_instance_init(OmxTransientInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
@@ -77,7 +78,8 @@ static inline int omx_transient_instance_init(OmxTransientInstance *s, float sr)
 }
 
 /** The engage-edge clear: the three followers back to silence, the gain meter to 0 dB. One
- * memset over a few dozen bytes; RT-safe. */
+ * memset over a few dozen bytes; RT-safe.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "transient/instance-clear"
 static inline void omx_transient_instance_clear(OmxTransientInstance *s) {
   if (!s || !s->ready) return;
@@ -92,6 +94,7 @@ static inline void omx_transient_instance_clear(OmxTransientInstance *s) {
  * `bypass` non-zero -> the atom is disabled and the kernel passes through. Every word is clamped
  * into its declared travel first (see the header note), so the kernel's `control-inside-travel`
  * PRE never sees a foreign value; the kernel's resolve runs only when a clamped word moved.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "transient/instance-resolve"
 static inline void omx_transient_instance_resolve(OmxTransientInstance *s, int bypass, float attack_db,
@@ -135,6 +138,7 @@ static inline void omx_transient_instance_resolve(OmxTransientInstance *s, int b
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel in
  * place on out. `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity byte for
  * byte.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "transient/instance-run"
 static inline void omx_transient_instance_run(OmxTransientInstance *s, const float *in_l, const float *in_r,
@@ -143,12 +147,14 @@ static inline void omx_transient_instance_run(OmxTransientInstance *s, const flo
 }
 #undef OMX_CONTRACT_STAGE
 
-/** The attackGainDb readout: the onset share of the last sample's gain, dB; 0 for a refused instance. */
+/** The attackGainDb readout: the onset share of the last sample's gain, dB; 0 for a refused instance.
+ * @thread audio */
 static inline float omx_transient_instance_attack_gain_db(const OmxTransientInstance *s) {
   return s && s->ready ? s->state.attack_gain_db : 0.0f;
 }
 
-/** The sustainGainDb readout: the decay share of the last sample's gain, dB; 0 for a refused instance. */
+/** The sustainGainDb readout: the decay share of the last sample's gain, dB; 0 for a refused instance.
+ * @thread audio */
 static inline float omx_transient_instance_sustain_gain_db(const OmxTransientInstance *s) {
   return s && s->ready ? s->state.sustain_gain_db : 0.0f;
 }

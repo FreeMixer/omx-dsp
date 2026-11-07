@@ -65,7 +65,8 @@ enum omx_eq_kind {
  *        above OMX_EQ_LOWPASS_HANDOVER_Q_PEAK, linear between.
  * @param q Quality factor, positive.
  * @return The weight, in [0, 1].
- * @note RT-safe and thread-safe: arithmetic only.
+ * @note Thread-safe: arithmetic only.
+ * @thread audio
  */
 static inline double omx_eq_lowpass_nyquist_handover(double q) {
   const double v = (q - OMX_EQ_LOWPASS_HANDOVER_Q_HI) / (OMX_EQ_LOWPASS_HANDOVER_Q_PEAK - OMX_EQ_LOWPASS_HANDOVER_Q_HI);
@@ -78,7 +79,8 @@ static inline double omx_eq_lowpass_nyquist_handover(double q) {
  *        the band's end the target is the prototype's Nyquist value times one plus this weight.
  * @param q Quality factor, positive.
  * @return The weight, in [0, 1].
- * @note RT-safe and thread-safe: arithmetic only.
+ * @note Thread-safe: arithmetic only.
+ * @thread audio
  */
 static inline double omx_eq_lowpass_nyquist_raise(double q) {
   const double u = (OMX_EQ_LOWPASS_HANDOVER_Q_HI - q) / (OMX_EQ_LOWPASS_HANDOVER_Q_HI - OMX_EQ_LOWPASS_HANDOVER_Q_LO);
@@ -89,7 +91,8 @@ static inline double omx_eq_lowpass_nyquist_raise(double q) {
  * @brief The low-pass hand-over band for a Q, as fractions of Nyquist.
  * @param q Quality factor, positive.
  * @param band `{start, end}`: the matched design below `start`, the bilinear poles from `end`.
- * @note RT-safe and thread-safe: arithmetic only.
+ * @note Thread-safe: arithmetic only.
+ * @thread audio
  */
 static inline void omx_eq_lowpass_handover(double q, double band[2]) {
   double u = (OMX_EQ_LOWPASS_HANDOVER_Q_HI - q) / (OMX_EQ_LOWPASS_HANDOVER_Q_HI - OMX_EQ_LOWPASS_HANDOVER_Q_LO);
@@ -115,7 +118,8 @@ static inline void omx_eq_lowpass_handover(double q, double band[2]) {
  * @param out `{p1, p2, dc}`: the z⁻¹ and z⁻² coefficients and the factored value at `z = 1`.
  * @pre `centre-and-damping-positive`.
  * @post `pair-inside-the-unit-circle`, `dc-positive`.
- * @note RT-safe: omx_matched_pair(). Thread-safe: pure.
+ * @note Omx_matched_pair(). Thread-safe: pure.
+ * @thread audio
  */
 static inline void omx_eq_matched_pair(double wn, double zeta, double out[3]) {
   OMX_PRE(wn > 0.0 && zeta > 0.0, "centre-and-damping-positive");
@@ -140,8 +144,9 @@ static inline void omx_eq_matched_pair(double wn, double zeta, double out[3]) {
  * @param c The five coefficients, in double.
  * @pre `finite-params-and-positive-rate`.
  * @post `finite-coeffs`; `poles-inside-the-unit-circle` (`|a1| < 1 + a2` and `a2 < 1`).
- * @note RT-safe: `exp`, `cos`, `sin`, `sqrt` on the RT-safe allowlist (no `pow`). Thread-safe: pure.
+ * @note `exp`, `cos`, `sin`, `sqrt`, classified maths (no `pow`). Thread-safe: pure.
  * @twin rbjCoeffs
+ * @thread audio
  */
 static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q, double gain_db,
                                  double sample_rate, double c[5]) {
@@ -296,8 +301,9 @@ static inline void omx_eq_design(enum omx_eq_kind kind, double freq_hz, double q
  * @return The quality factor, at most OMX_EQ_Q_MAX; 0 where the width overflows `sinh` (the table's own row).
  * @pre `finite-params-and-positive-rate`.
  * @post `finite-q-not-negative`.
- * @note RT-safe: `sin` and `sinh` on the RT-safe allowlist. Thread-safe: pure.
+ * @note `sin` and `sinh`, classified maths. Thread-safe: pure.
  * @twin bandwidthOctavesQ
+ * @thread audio
  */
 static inline double omx_eq_bandwidth_q(double freq_hz, double bw_oct, double sample_rate) {
   OMX_PRE(sample_rate > 0.0 && isfinite(freq_hz) && isfinite(bw_oct) && bw_oct > 0.0,
@@ -326,7 +332,8 @@ static inline double omx_eq_bandwidth_q(double freq_hz, double bw_oct, double sa
  * @param sample_rate Sample rate, Hz, positive.
  * @param out The five float coefficients.
  * @post `finite-float-coeffs`.
- * @note RT-safe and thread-safe: omx_eq_design() and five narrowing stores.
+ * @note Thread-safe: omx_eq_design() and five narrowing stores.
+ * @thread audio
  */
 static inline void omx_eq_design_f(enum omx_eq_kind kind, double freq_hz, double q,
                                    double gain_db, double sample_rate, float out[5]) {
@@ -347,8 +354,9 @@ static inline void omx_eq_design_f(enum omx_eq_kind kind, double freq_hz, double
  * @param q_out The Q of each section, in order.
  * @return The section count, 1 or 2.
  * @post `one-or-two-sections`.
- * @note RT-safe and thread-safe: constants.
+ * @note Thread-safe: constants.
  * @twin butterworthQs
+ * @thread audio
  */
 static inline uint32_t omx_eq_butterworth_qs(int slope_24, double q_out[2]) {
   uint32_t n;
@@ -375,8 +383,9 @@ static inline uint32_t omx_eq_butterworth_qs(int slope_24, double q_out[2]) {
  * @param out The complement; may be `c` itself.
  * @pre `finite-coeffs`.
  * @post `same-denominator`.
- * @note RT-safe and thread-safe: three subtractions, pure.
+ * @note Thread-safe: three subtractions, pure.
  * @twin complementSection
+ * @thread audio
  */
 static inline void omx_eq_complement(const double c[5], double out[5]) {
   OMX_PRE(omx_block_finite_d(c, 5u), "finite-coeffs");
@@ -399,8 +408,9 @@ static inline void omx_eq_complement(const double c[5], double out[5]) {
  * @return The quality factor.
  * @pre `finite-width`.
  * @post `finite-positive-q`.
- * @note Not for the audio thread (`pow`); thread-safe: pure.
+ * @note Thread-safe: pure.
  * @twin octavesToQ
+ * @thread audio
  */
 static inline double omx_eq_octaves_q(double bw_oct) {
   OMX_PRE(isfinite(bw_oct), "finite-width");
@@ -421,8 +431,9 @@ static inline double omx_eq_octaves_q(double bw_oct) {
  * @param kind The section kind.
  * @param gain_db Gain, dB.
  * @return 1 for an identity band, else 0.
- * @note RT-safe and thread-safe: two comparisons, pure.
+ * @note Thread-safe: two comparisons, pure.
  * @twin eqBandIsIdentity
+ * @thread audio
  */
 static inline int omx_eq_band_is_identity(enum omx_eq_kind kind, double gain_db) {
   return (kind == OMX_EQ_PEAKING || kind == OMX_EQ_LOWSHELF || kind == OMX_EQ_HIGHSHELF) &&
@@ -465,9 +476,9 @@ struct omx_eq_pass {
  * @return The sections written.
  * @pre `positive-rate`.
  * @post `no-more-sections-than-bands`.
- * @note Not for the audio thread (the designs' libm calls, as the desk designs on its control
- *       thread); thread-safe on distinct output.
+ * @note The designs' libm calls, as the desk designs them. Thread-safe on distinct output.
  * @twin eqCoeffs
+ * @thread control
  */
 static inline uint32_t omx_eq_bank_design(int eq_on, const struct omx_eq_band *bands,
                                           uint32_t nbands, double sample_rate,
@@ -495,7 +506,8 @@ static inline uint32_t omx_eq_bank_design(int eq_on, const struct omx_eq_band *b
  * @param lpf The low-pass, or NULL for none.
  * @param out The sections, each with `on` set; room for OMX_EQ_PASS_MAX_SECTIONS.
  * @return The sections written, at most OMX_EQ_PASS_MAX_SECTIONS.
- * @note RT-safe and thread-safe on distinct output: copies, no libm.
+ * @note Thread-safe on distinct output: copies, no libm.
+ * @thread audio
  */
 static inline uint32_t omx_eq_pass_sections(const struct omx_eq_pass *hpf, const struct omx_eq_pass *lpf,
                                             struct omx_eq_band out[OMX_EQ_PASS_MAX_SECTIONS]) {
@@ -527,8 +539,9 @@ static inline uint32_t omx_eq_pass_sections(const struct omx_eq_pass *hpf, const
  * @return The sections written, at most OMX_EQ_PASS_MAX_SECTIONS.
  * @pre `filters-and-positive-rate`.
  * @post `at-most-four-sections`.
- * @note Not for the audio thread (the designs' libm calls); thread-safe on distinct output.
+ * @note Thread-safe on distinct output.
  * @twin passFilterCoeffs
+ * @thread control
  */
 static inline uint32_t omx_eq_pass_design(const struct omx_eq_pass *hpf,
                                           const struct omx_eq_pass *lpf, double sample_rate,

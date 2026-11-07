@@ -70,7 +70,8 @@ struct omx_doppler_state {
  * @param fade The crossfade's share of the sweep, in (0, 0.5].
  * @pre `window-positive`, `fade-in-range`, `detune-under-an-octave`.
  * @post `step-below-one`.
- * @note Control thread: one pow. Thread-safe: writes only `d`.
+ * @note One pow. Thread-safe: writes only `d`.
+ * @thread audio
  */
 static inline void omx_doppler_design(struct omx_doppler *d, double cents, float window, float fade) {
   OMX_PRE(window > 0.0f, "window-positive");
@@ -89,7 +90,8 @@ static inline void omx_doppler_design(struct omx_doppler *d, double cents, float
  * @brief Put a head at the window's centre, where a head that does not move reads the mean delay.
  * @param d The design.
  * @param st The state.
- * @note RT-safe. Thread-safe on distinct state.
+ * @note Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_doppler_start(const struct omx_doppler *d, struct omx_doppler_state *st) {
   st->pos = 0.5 * (double)d->window;
@@ -103,7 +105,8 @@ static inline void omx_doppler_start(const struct omx_doppler *d, struct omx_dop
  * @brief Whether a hand-over is still fading.
  * @param st The state.
  * @return 1 while the held read still sounds, else 0.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline int omx_doppler_handing_over(const struct omx_doppler_state *st) {
   return st->hand > 0.0f;
@@ -118,7 +121,8 @@ static inline int omx_doppler_handing_over(const struct omx_doppler_state *st) {
  * @param st The state; no hand-over may be in progress.
  * @param length The crossfade, samples, at least 1.
  * @pre `one-hand-over-at-a-time`, `length-at-least-one`.
- * @note RT-safe: no libm call. Thread-safe on distinct state.
+ * @note No libm call. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_doppler_hand_over(const struct omx_doppler *d, struct omx_doppler_state *st, float length) {
   OMX_PRE(!omx_doppler_handing_over(st), "one-hand-over-at-a-time");
@@ -141,7 +145,8 @@ static inline void omx_doppler_hand_over(const struct omx_doppler *d, struct omx
  * @param mean The mean delay `D`, samples.
  * @param p The head's position, samples into the window.
  * @return The delay, samples.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_doppler_delay(const struct omx_doppler *d, float mean, double p) {
   return (float)((double)mean + (double)d->sign * (p - 0.5 * (double)d->window));
@@ -157,8 +162,9 @@ static inline float omx_doppler_delay(const struct omx_doppler *d, float mean, d
  * @return The sample.
  * @pre `delay-window-inside-the-line`.
  * @post `position-inside-the-window`.
- * @note RT-safe: one or two fractional reads, two more while a hand-over fades, no libm call.
+ * @note One or two fractional reads, two more while a hand-over fades, no libm call.
  *       Thread-safe on distinct state.
+ * @thread audio
  */
 static inline float omx_doppler_read(const struct omx_fdelay *line, const struct omx_doppler *d,
                                      struct omx_doppler_state *st, float mean) {

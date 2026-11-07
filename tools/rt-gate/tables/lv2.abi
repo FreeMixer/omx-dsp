@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
+# lv2.abi — the thread roles of the LV2 ABI, declared once (omx-rt-gate(1)). `--abi lv2` binds the
+# plugin side: the functions a unit stores in a `plugin` field are its roots, and a call through a
+# `host` field has that field's role. `--abi lv2:host` binds the host side: the other way round.
+
+# what a plugin provides: the host's audio thread calls these
+plugin LV2_Descriptor run audio
+plugin LV2_Descriptor connect_port audio
+plugin LV2_Worker_Interface work_response audio
+plugin LV2_Worker_Interface end_run audio
+# the worker: the audio role's forbidden set, on another thread
+plugin LV2_Worker_Interface work worker
+
+# what a host provides: a plugin calls these from the role named
+host LV2_Worker_Schedule schedule_work audio
+host LV2_Log_Log printf audio
+# work(instance, respond, handle, size, data): parameter 1 is the host's respond, a worker function
+handed LV2_Worker_Interface work 1 worker
+
+# the worker's result crosses by value. work_response(instance, size, body): the body is used at most
+# once, as the source of a copy into a pointer-free local; work's respond(handle, size, data) passes
+# the address of a pointer-free local
+result LV2_Worker_Interface work_response 2
+result-out LV2_Worker_Interface work 1 2

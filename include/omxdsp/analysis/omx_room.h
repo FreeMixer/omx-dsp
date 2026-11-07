@@ -104,6 +104,7 @@ typedef struct {
  * @return `OMX_ANALYSIS_OK`, or too-few-frames, shape-mismatch, empty-band, no-shared-energy.
  * @note Allocation-free, O(n). Thread-safe on distinct buffers.
  * @twin roomTransferAccumulate
+ * @thread control
  */
 enum omx_analysis_refusal omx_room_transfer(const OmxXspec *a, uint32_t min_frames, double low_hz, double high_hz,
                                             OmxRoomAccum *out);
@@ -124,6 +125,7 @@ enum omx_analysis_refusal omx_room_transfer(const OmxXspec *a, uint32_t min_fram
  *         for a response longer than 2³¹ samples, which no transform here can hold.
  * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
  * @twin accumFromImpulseResponse
+ * @thread control
  */
 enum omx_analysis_refusal omx_room_transfer_from_ir(const double *ir, uint32_t n, double sample_rate, double low_hz,
                                                     double high_hz, double *scratch_re, double *scratch_im,
@@ -135,6 +137,7 @@ enum omx_analysis_refusal omx_room_transfer_from_ir(const double *ir, uint32_t n
  * @return The smallest power of two ≥ n, at least 2; 0 for n over 2³¹, which none holds.
  * @pre `length-fits-a-power-of-two`.
  * @note Allocation-free, O(log n). Thread-safe: pure.
+ * @thread control
  */
 uint32_t omx_room_ir_fft_size(uint32_t n);
 
@@ -143,6 +146,7 @@ uint32_t omx_room_ir_fft_size(uint32_t n);
  * @param rad The phases, radians, in bin order.
  * @param n How many.
  * @note Allocation-free, O(n). Thread-safe on distinct buffers.
+ * @thread control
  */
 void omx_room_unwrap(double *rad, uint32_t n);
 
@@ -156,6 +160,7 @@ void omx_room_unwrap(double *rad, uint32_t n);
  * @param coherence Receives the coherence.
  * @note Allocation-free, O(n). Thread-safe on distinct buffers.
  * @twin roomTransferCurveFromAccum
+ * @thread control
  */
 void omx_room_curve(const OmxRoomAccum *acc, double floor_db, double *hz, double *magnitude_db, double *phase_deg,
                     double *coherence);
@@ -167,6 +172,7 @@ void omx_room_curve(const OmxRoomAccum *acc, double floor_db, double *hz, double
  * @param window_ms The early-reflection horizon, ms.
  * @return The capacity a caller's reflection array needs.
  * @note Allocation-free, O(1). Thread-safe: pure.
+ * @thread control
  */
 uint32_t omx_room_impulse_capacity(const OmxRoomAccum *acc, double window_ms);
 
@@ -187,6 +193,7 @@ uint32_t omx_room_impulse_capacity(const OmxRoomAccum *acc, double window_ms);
  * @pre `capacity-covers-the-horizon`.
  * @note Allocation-free, O(n log n + n·r) for r reflections. Thread-safe on distinct buffers.
  * @twin roomImpulseFromAccum
+ * @thread control
  */
 enum omx_analysis_refusal omx_room_impulse(const OmxRoomAccum *acc, double window_ms, double floor_db,
                                            double *scratch_re, double *scratch_im, uint32_t *direct,
@@ -206,6 +213,7 @@ enum omx_analysis_refusal omx_room_impulse(const OmxRoomAccum *acc, double windo
  *         insufficient-decay.
  * @note Allocation-free, O(n). Thread-safe on distinct buffers.
  * @twin roomRt60Of
+ * @thread control
  */
 enum omx_analysis_refusal omx_room_rt60_band(const double *samples, uint32_t n, double sample_rate, double centre_hz,
                                              double upper_db, double lower_db, double *scratch, double *t60_ms);
@@ -217,6 +225,7 @@ enum omx_analysis_refusal omx_room_rt60_band(const double *samples, uint32_t n, 
  * @param scratch `n` doubles: a sorted copy.
  * @return The middle value, or the mean of the two middle values.
  * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
+ * @thread control
  */
 double omx_room_median(const double *values, uint32_t n, double *scratch);
 
@@ -233,6 +242,7 @@ double omx_room_median(const double *values, uint32_t n, double *scratch);
  * @param out Receives the position's record, pointing at `peaks`.
  * @note Allocation-free, O(m log m) for m band bins. Thread-safe on distinct buffers.
  * @twin roomModePeaksOf
+ * @thread control
  */
 void omx_room_mode_peaks(const OmxRoomAccum *acc, double floor_db, double min_above_median_db, double *scratch,
                          OmxRoomModePeak *peaks, uint32_t cap, OmxRoomModePeaks *out);
@@ -250,6 +260,7 @@ void omx_room_mode_peaks(const OmxRoomAccum *acc, double floor_db, double min_ab
  *         shape-mismatch when the positions' rates or lengths differ.
  * @note Allocation-free, O(p·m²). Thread-safe on distinct buffers.
  * @twin roomModesOf
+ * @thread control
  */
 enum omx_analysis_refusal omx_room_modes(const OmxRoomModePeaks *positions, uint32_t n_positions,
                                          uint32_t min_positions, OmxRoomMode *out, uint32_t cap, uint32_t *n_out);
@@ -267,6 +278,7 @@ enum omx_analysis_refusal omx_room_modes(const OmxRoomModePeaks *positions, uint
  * @return 1 when stable.
  * @note Allocation-free, O(m²). Thread-safe on distinct buffers.
  * @twin roomModeSetIsStable
+ * @thread control
  */
 int omx_room_mode_set_stable(const OmxRoomMode *before, uint32_t n_before, const OmxRoomMode *after, uint32_t n_after,
                              double tolerance_hz, unsigned char *used);
@@ -282,6 +294,7 @@ int omx_room_mode_set_stable(const OmxRoomMode *before, uint32_t n_before, const
  * @param n_out Receives how many.
  * @note Allocation-free, O(n²). Thread-safe on distinct buffers.
  * @twin roomModeEqProposalsOf
+ * @thread control
  */
 void omx_room_mode_eq_proposals(const OmxRoomMode *modes, uint32_t n, uint32_t min_positions,
                                 OmxRoomModeEqProposal *out, uint32_t cap, uint32_t *n_out);
@@ -298,6 +311,7 @@ void omx_room_mode_eq_proposals(const OmxRoomMode *modes, uint32_t n, uint32_t m
  * @return 1 with `residual_db` set; 0 for an empty curve (core's `undefined`).
  * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
  * @twin roomModeResidualDb
+ * @thread control
  */
 int omx_room_mode_residual_db(const double *hz, const double *magnitude_db, uint32_t n, double target_hz,
                               double *scratch, double *residual_db);

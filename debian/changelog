@@ -1,5 +1,13 @@
 omx-dsp (0.32.0) unstable; urgency=medium
 
+  * rt-gate: omx-rt-gate, the one static real-time gate: the consumer's
+    units compiled at -O0 -fno-inline -fcallgraph-info, roots from the LV2,
+    CLAP and PipeWire tables, one forbidden list, a class table measured by
+    its arm, the worker's result by value; omx-dsp's call graphs and thread
+    tags installed for the join, in its own package omx-rt-gate.
+  * Every function of the headers carries one @thread audio, worker or
+    control tag in place of the RT prose, and make test runs the gate over
+    every tagged function (the self-run).
   * curve: a term carries its band's origin (CURVE_ORIGINS: user, fbs-fixed,
     fbs-live, hrp, room-mode); omx_curve_points_marked answers a mark per feedback
     corrector's band and, asked, the curve over the user bands alone; the

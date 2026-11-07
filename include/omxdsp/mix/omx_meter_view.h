@@ -44,7 +44,8 @@ struct omx_meter_view {
  * @brief A value held to the display's 0..1.
  * @param x The value; NaN reads 0.
  * @return `x` held to 0..1.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline double omx_meter_view_clamp(double x) {
   return x > 0.0 ? (x < 1.0 ? x : 1.0) : 0.0;
@@ -55,7 +56,8 @@ static inline double omx_meter_view_clamp(double x) {
  * @param db The level, dB (dBFS for a level meter); NaN and -inf read empty.
  * @param floor_db The floor, dB, < 0 (OMX_METER_VIEW_FLOOR_DB).
  * @return 0 at or below the floor, 1 at or above 0 dB, `(db - floor_db) / -floor_db` between.
- * @note RT-safe: two compares and a division. Thread-safe: pure.
+ * @note Two compares and a division. Thread-safe: pure.
+ * @thread audio
  * @twin meterFillDb
  */
 static inline double omx_meter_view_fill_db(double db, double floor_db) {
@@ -69,7 +71,8 @@ static inline double omx_meter_view_fill_db(double db, double floor_db) {
  * @param level The peak, linear; at or below 0 (and NaN) reads empty, at or above 1 full.
  * @param floor_db The floor, dB, < 0 (OMX_METER_VIEW_FLOOR_DB).
  * @return omx_meter_view_fill_db(20·log10(level), floor_db).
- * @note RT-safe: one log10. Thread-safe: pure.
+ * @note One log10. Thread-safe: pure.
+ * @thread audio
  * @twin meterFill
  */
 static inline double omx_meter_view_fill(double level, double floor_db) {
@@ -90,7 +93,8 @@ static inline double omx_meter_view_fill(double level, double floor_db) {
  * @param fall_db_per_s The fall, dB per second (OMX_METER_VIEW_FALL_DB_PER_SECOND).
  * @param floor_db The scale's floor, dB, < 0 (OMX_METER_VIEW_FLOOR_DB): the fall in fill is `fall / -floor`.
  * @return The marker to draw, 0..1.
- * @note RT-safe: a few flops. Thread-safe on disjoint states.
+ * @note A few flops. Thread-safe on disjoint states.
+ * @thread audio
  * @twin meterMarker
  */
 static inline double omx_meter_view_step(struct omx_meter_view *v, double fill, double dt_s, double fall_db_per_s,
@@ -113,7 +117,8 @@ static inline double omx_meter_view_step(struct omx_meter_view *v, double fill, 
  * @param v The view's state, read and written.
  * @param clip Whether the measure half saw a clip since the last tick (a sustained run, omx_meter_clip_run).
  * @return The clip word to draw.
- * @note RT-safe. Thread-safe on disjoint states.
+ * @note Thread-safe on disjoint states.
+ * @thread audio
  * @twin meterClip
  */
 static inline bool omx_meter_view_clip(struct omx_meter_view *v, bool clip) {
@@ -124,7 +129,8 @@ static inline bool omx_meter_view_clip(struct omx_meter_view *v, bool clip) {
 /**
  * @brief Clear the clip word (the operator's gesture, or a reset strip).
  * @param v The view's state, written.
- * @note RT-safe. Thread-safe on disjoint states.
+ * @note Thread-safe on disjoint states.
+ * @thread audio
  */
 static inline void omx_meter_view_clip_clear(struct omx_meter_view *v) {
   v->clip = false;
@@ -138,7 +144,8 @@ static inline void omx_meter_view_clip_clear(struct omx_meter_view *v) {
  * @param steps Segments of the ladder.
  * @param hysteresis Fraction of one step (OMX_METER_VIEW_STEP_HYSTERESIS_DOUBLE).
  * @return The count, 0..`steps`.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  * @twin meterStep
  */
 static inline int32_t omx_meter_view_ladder(int32_t prev, double fill, uint32_t steps, double hysteresis) {
@@ -155,7 +162,8 @@ static inline int32_t omx_meter_view_ladder(int32_t prev, double fill, uint32_t 
  * @param steps Segments of the ladder.
  * @return omx_meter_view_ladder(prev, omx_meter_view_fill(level, OMX_METER_VIEW_FLOOR_DB), steps,
  *         OMX_METER_VIEW_STEP_HYSTERESIS_DOUBLE).
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  * @twin meterBarStep
  */
 static inline int32_t omx_meter_view_bar_step(int32_t prev, double level, uint32_t steps) {
@@ -172,7 +180,8 @@ static inline int32_t omx_meter_view_bar_step(int32_t prev, double level, uint32
  * @param sr The rate the reduction was measured at, Hz, > 0.
  * @param release_pole The stage's release pole per frame at `sr`.
  * @return The reading to draw, dB, <= 0.
- * @note RT-safe: omx_meter_gr_step(). Thread-safe on disjoint states.
+ * @note Omx_meter_gr_step(). Thread-safe on disjoint states.
+ * @thread audio
  * @twin meterGrView
  */
 static inline float omx_meter_view_gr(struct omx_meter_gr *m, float deepest_db, double dt_s, float sr,
@@ -188,7 +197,8 @@ static inline float omx_meter_view_gr(struct omx_meter_gr *m, float deepest_db, 
  * @param kept What the window keeps so far.
  * @param value The next frame.
  * @return The larger of the two for a level, the smaller for a gain reduction.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  * @twin meterDecimate
  */
 static inline double omx_meter_view_decimate(enum omx_meter_kinds kind, double kept, double value) {
@@ -205,7 +215,8 @@ static inline double omx_meter_view_decimate(enum omx_meter_kinds kind, double k
  * @param kind The meter's kind (enum omx_meter_kinds).
  * @param measurement A level's measurement (enum omx_meter_measurements); a gain reduction ignores it.
  * @return The unit, or OMX_METER_UNITS_COUNT for a kind or measurement past its set.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  * @twin meterUnitOf
  */
 static inline enum omx_meter_units omx_meter_view_unit_of(enum omx_meter_kinds kind,

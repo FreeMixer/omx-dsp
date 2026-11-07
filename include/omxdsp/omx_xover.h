@@ -63,28 +63,32 @@ struct omx_xover_ap_state {
 /**
  * @brief The crossover state's size, for a host that lays the state out itself.
  * @return `sizeof(struct omx_xover_state)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_xover_state_size(void) { return sizeof(struct omx_xover_state); }
 
 /**
  * @brief The crossover state's alignment, for a host that lays the state out itself.
  * @return `OMXDSP_ALIGNOF(struct omx_xover_state)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_xover_state_align(void) { return OMXDSP_ALIGNOF(struct omx_xover_state); }
 
 /**
  * @brief The tree all-pass state's size, for a host that lays the state out itself.
  * @return `sizeof(struct omx_xover_ap_state)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_xover_ap_state_size(void) { return sizeof(struct omx_xover_ap_state); }
 
 /**
  * @brief The tree all-pass state's alignment, for a host that lays the state out itself.
  * @return `OMXDSP_ALIGNOF(struct omx_xover_ap_state)`.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline size_t omx_xover_ap_state_align(void) { return OMXDSP_ALIGNOF(struct omx_xover_ap_state); }
 
@@ -99,8 +103,9 @@ static inline size_t omx_xover_ap_state_align(void) { return OMXDSP_ALIGNOF(stru
  * @return OMX_XOVER_OK, or the refusal's code.
  * @pre `order-is-two-or-four`, `corner-inside-the-band`, `rate-is-declared`.
  * @post `finite-coeffs`.
- * @note Control-thread word: one `tan`, divides, no allocation; RT-safe all the same.
+ * @note One `tan`, divides, no allocation.
  *       Thread-safe: writes only `c`.
+ * @thread audio
  */
 static inline enum omx_xover_status omx_xover_design(struct omx_xover *c, uint32_t order, double fc,
                                                      double sr) {
@@ -153,8 +158,9 @@ static inline enum omx_xover_status omx_xover_design(struct omx_xover *c, uint32
  * @post `finite-out`; `bands-partition-unity`: `lo + hi` equals the all-pass `c->ap` over the
  *       same input to OMX_XOVER_PARTITION_TOLERANCE of `max(1, block peak)`.
  * @invariant `state-finite`, on return.
- * @note RT-safe: `2·sections` double sections per sample, no call, no allocation; the double
+ * @note `2·sections` double sections per sample, no call, no allocation; the double
  *       state's denormals are covered by the thread's FTZ mode. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_xover_process(const float *x, float *lo, float *hi, uint32_t n,
                                      const struct omx_xover *c, struct omx_xover_state *s) {
@@ -201,7 +207,8 @@ static inline void omx_xover_process(const float *x, float *lo, float *hi, uint3
  * @pre `finite-in`.
  * @post `finite-out`.
  * @invariant `state-finite`, on return.
- * @note RT-safe: one double section per sample, no call. Thread-safe on distinct state.
+ * @note One double section per sample, no call. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_xover_allpass(float *buf, uint32_t n, const struct omx_xover *c,
                                      struct omx_xover_ap_state *s) {

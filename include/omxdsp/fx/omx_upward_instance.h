@@ -42,7 +42,8 @@ static inline void omx_upward_instance_resolve(OmxUpwardInstance *s, int bypass,
                                                float range_db, float attack_ms, float release_ms);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. It comes up at its declared defaults, a ratio of 1. Allocates nothing. */
+ * set. It comes up at its declared defaults, a ratio of 1. Allocates nothing.
+ * @thread control */
 static inline int omx_upward_instance_init(OmxUpwardInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -58,6 +59,7 @@ static inline int omx_upward_instance_init(OmxUpwardInstance *s, float sr) {
  * Resolve the host's control values for one cycle. `bypass` non-zero makes run() the identity. The
  * arguments are the upward kernel's contract controls in their declared order, each clamped into its
  * travel, a non-finite one reading as its default.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "upward/instance-resolve"
 static inline void omx_upward_instance_resolve(OmxUpwardInstance *s, int bypass, float threshold_db, float ratio,
@@ -97,6 +99,7 @@ static inline void omx_upward_instance_resolve(OmxUpwardInstance *s, int bypass,
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: the slot over both legs, in to out. `in_*` and `out_*` may alias.
  * Not ready, bypassed, a ratio of 1 or a range of 0 is the identity and moves no state.
+ * @thread audio
  */
 static inline void omx_upward_instance_run(OmxUpwardInstance *s, const float *in_l, const float *in_r, float *out_l,
                                            float *out_r, uint32_t n) {
@@ -117,10 +120,12 @@ static inline void omx_upward_instance_run(OmxUpwardInstance *s, const float *in
   s->gain_db = before > 0.0f && after > before ? omx_lin_to_db(after / before) : 0.0f;
 }
 
-/** The gainDb readout: what the last block's loudest sample rose by, dB. */
+/** The gainDb readout: what the last block's loudest sample rose by, dB.
+ * @thread audio */
 static inline float omx_upward_instance_gain_db(const OmxUpwardInstance *s) { return s ? s->gain_db : 0.0f; }
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_upward_instance_latency(const OmxUpwardInstance *s) {
   (void)s;
   return 0u;

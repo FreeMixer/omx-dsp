@@ -10,10 +10,17 @@ include /usr/share/dpkg/architecture.mk
 	dh $@
 
 override_dh_auto_build:
-	dh_auto_build -- lib
+	dh_auto_build -- lib rt-gate-ship
 
 override_dh_auto_install:
 	dh_auto_install -- PREFIX=/usr LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH) INCLUDEDIR=/usr/include
+
+# The gate is its own package, omx-rt-gate: an executable has no place in libomxdsp-dev, which is
+# Multi-Arch: same. libomxdsp-dev.install takes whole directories (usr/bin, usr/share/man,
+# usr/share/omxdsp), so its dh_install leaves out every path that names rt-gate.
+override_dh_install:
+	dh_install -Nomx-rt-gate -Xrt-gate
+	dh_install -pomx-rt-gate
 
 # The package's check is make check-package (the tests that prove the built library; the sabotage and
 # perturbation arms run in CI's make test), one make job per CPU dpkg-buildpackage was given

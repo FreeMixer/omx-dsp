@@ -53,7 +53,8 @@ struct omx_gaincomp_params {
  * @param g The gain.
  * @param floor The floor, in `g`'s domain.
  * @return `floor` where `g` is below it, else `g` (a NaN `g` stays NaN).
- * @note RT-safe: one compare and one select, no call, so a loop of it vectorises. Thread-safe: pure.
+ * @note One compare and one select, no call, so a loop of it vectorises. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_floor(float g, float floor) { return g < floor ? floor : g; }
 
@@ -77,7 +78,8 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_floor(float g, float floor) { ret
  * @return The gain, dB: the same float for either `lanes`.
  * @pre omx_gaincomp_db()'s.
  * @post omx_gaincomp_db()'s.
- * @note RT-safe: arithmetic and selects, no call. Thread-safe: pure.
+ * @note Arithmetic and selects, no call. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_db_sel(const struct omx_gaincomp_params *p, float level_db,
                                                       const int lanes) {
@@ -123,8 +125,9 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_db_sel(const struct omx_gaincomp_
  *      `knee-not-negative` (`OMX_COMP_KNEE_DB_MIN`), `range-is-an-attenuation`
  *      (`OMX_GATE_RANGE_DB_MAX`, BELOW only), `range-is-a-boost` (UPWARD only), `finite-in`.
  * @post `finite`.
- * @note RT-safe: arithmetic and selects, no call. Thread-safe: pure.
+ * @note Arithmetic and selects, no call. Thread-safe: pure.
  * @twin gaincompDb
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_db(const struct omx_gaincomp_params *p, float level_db) {
   return omx_gaincomp_db_sel(p, level_db, 0);
@@ -137,7 +140,8 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_db(const struct omx_gaincomp_para
  * @return The gain, dB.
  * @pre omx_gaincomp_db()'s.
  * @post omx_gaincomp_db()'s.
- * @note RT-safe: arithmetic and selects, no call, no branch. Thread-safe: pure.
+ * @note Arithmetic and selects, no call, no branch. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_db_lane(const struct omx_gaincomp_params *p, float level_db) {
   return omx_gaincomp_db_sel(p, level_db, 1);
@@ -152,8 +156,9 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_db_lane(const struct omx_gaincomp
  * @return The gain, in `[0, makeup_lin]`.
  * @pre `makeup-positive`.
  * @post `no-gain-added`: the gain lies in `[0, makeup_lin]` unless `range_db` is positive.
- * @note RT-safe: `log10f` and `powf` through omx_lin_to_db() and omx_db_to_lin(), both on the
+ * @note `log10f` and `powf` through omx_lin_to_db() and omx_db_to_lin(), both on the
  *       RT-safe allowlist. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_gain(const struct omx_gaincomp_params *p, float level) {
   OMX_PRE(p->makeup_lin > 0.0f, "makeup-positive");
@@ -172,7 +177,8 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_gain(const struct omx_gaincomp_pa
  * @param p The parameters.
  * @param level The detector level, linear, not negative; finite.
  * @return The gain, in `[0, makeup_lin]`.
- * @note RT-safe: no allocation, no state. Thread-safe: pure.
+ * @note No allocation, no state. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_gain_lane(const struct omx_gaincomp_params *p, float level) {
   return omx_db_to_lin(omx_gaincomp_db_lane(p, omx_lin_to_db_lane(level))) * p->makeup_lin;
@@ -191,7 +197,8 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_gain_lane(const struct omx_gainco
  * @param xh The knee's upper edge, dB from the threshold.
  * @param x The level, dB from the threshold.
  * @return The gain, dB, before the range floor.
- * @note RT-safe: arithmetic and one sqrtf. Thread-safe: pure.
+ * @note Arithmetic and one sqrtf. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_knee_shifted(const struct omx_gaincomp_params *p, float xl, float xh, float x) {
   const float a = xl + xh, b = -2.0f * xl, d = x - xl;
@@ -233,8 +240,9 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_knee_shifted(const struct omx_gai
  * @pre `shift-is-below-mode` and `shift-inside-the-knee` when `shift_db` is not 0, and then
  *      `ratio-at-least-one`, `range-is-an-attenuation`, `finite-in`.
  * @post `finite`, `no-gain-added`.
- * @note RT-safe: arithmetic and one sqrtf. Thread-safe: pure.
+ * @note Arithmetic and one sqrtf. Thread-safe: pure.
  * @twin gaincompDbShifted
+ * @thread audio
  */
 static inline float omx_gaincomp_db_shifted(const struct omx_gaincomp_params *p, float shift_db, float level_db) {
   if (shift_db == 0.0f) return omx_gaincomp_db(p, level_db);
@@ -266,7 +274,8 @@ static inline float omx_gaincomp_db_shifted(const struct omx_gaincomp_params *p,
  * @param level The detector level, linear, not negative; finite.
  * @return The gain, in `[0, makeup_lin]`.
  * @pre `makeup-positive`, and omx_gaincomp_db_shifted's.
- * @note RT-safe. Thread-safe: pure.
+ * @note Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_gaincomp_gain_shifted(const struct omx_gaincomp_params *p, float shift_db, float level) {
   if (shift_db == 0.0f) return omx_gaincomp_gain(p, level);
@@ -287,7 +296,8 @@ static inline float omx_gaincomp_gain_shifted(const struct omx_gaincomp_params *
  * @param shift_db The knee centre's offset from the threshold, dB; not 0.
  * @param level The detector level, linear, not negative; finite.
  * @return The gain, in `[0, makeup_lin]`.
- * @note RT-safe: no allocation, no state. Thread-safe: pure.
+ * @note No allocation, no state. Thread-safe: pure.
+ * @thread audio
  */
 static inline OMX_FM_ALWAYS float omx_gaincomp_gain_shifted_lane(const struct omx_gaincomp_params *p, float shift_db, float level) {
   const float level_db = omx_lin_to_db_lane(level);
@@ -314,7 +324,8 @@ static inline OMX_FM_ALWAYS float omx_gaincomp_gain_shifted_lane(const struct om
  * @return The gain, dB.
  * @pre `ratio-at-least-one` (`OMX_COMP_RATIO_MIN`), `finite-in`.
  * @post `no-gain-added`: at most 0 dB.
- * @note RT-safe: one omx_gaincomp_db(). Thread-safe: pure.
+ * @note One omx_gaincomp_db(). Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_gaincomp_db_fb(const struct omx_gaincomp_params *p, float level_db) {
   OMX_PRE(p->ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
@@ -341,7 +352,8 @@ static inline float omx_gaincomp_db_fb(const struct omx_gaincomp_params *p, floa
  * @return The settled output level, dB: at most `x_db`.
  * @pre `ratio-at-least-one`, `finite-in`.
  * @post `no-gain-added`.
- * @note RT-safe: at most one sqrtf. Thread-safe: pure.
+ * @note At most one sqrtf. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_gaincomp_fb_settled_db(const struct omx_gaincomp_params *p, float x_db) {
   OMX_PRE(p->ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");
@@ -373,7 +385,8 @@ static inline float omx_gaincomp_fb_settled_db(const struct omx_gaincomp_params 
  * @param gr_db The reduction, dB, at most 0; finite.
  * @return The detector level, dB.
  * @pre `ratio-at-least-one`, `finite-in`.
- * @note RT-safe: at most one sqrtf. Thread-safe: pure.
+ * @note At most one sqrtf. Thread-safe: pure.
+ * @thread audio
  */
 static inline float omx_gaincomp_fb_level_of_db(const struct omx_gaincomp_params *p, float gr_db) {
   OMX_PRE(p->ratio >= OMX_COMP_RATIO_MIN, "ratio-at-least-one");

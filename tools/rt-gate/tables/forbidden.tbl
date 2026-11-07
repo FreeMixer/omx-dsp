@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
+# forbidden.tbl — the one forbidden list of omx-rt-gate(1). A call to one of these symbols from an
+# audio or a worker root is red, with the row's code. The worker (LV2 work) takes the audio role's
+# forbidden set on another thread: unbounded in time, but no allocation, lock, I/O or logging.
+#
+#   <symbol> <code> <reason>
+#
+# The codes are a closed set: RT-ALLOC RT-LOCK RT-BLOCK RT-IO RT-LOG. A symbol is forbidden once.
+# A forbidden symbol has no class (classes.tbl refuses it at load).
+
+# allocation: the allocator takes its arena lock and may enter the kernel (brk, mmap)
+malloc RT-ALLOC the allocator takes its arena lock and may enter the kernel
+calloc RT-ALLOC the allocator takes its arena lock and may enter the kernel
+realloc RT-ALLOC the allocator takes its arena lock and may enter the kernel
+reallocarray RT-ALLOC the allocator takes its arena lock and may enter the kernel
+free RT-ALLOC a free takes the same arena lock as a malloc
+posix_memalign RT-ALLOC the allocator takes its arena lock and may enter the kernel
+aligned_alloc RT-ALLOC the allocator takes its arena lock and may enter the kernel
+memalign RT-ALLOC the allocator takes its arena lock and may enter the kernel
+valloc RT-ALLOC the allocator takes its arena lock and may enter the kernel
+pvalloc RT-ALLOC the allocator takes its arena lock and may enter the kernel
+strdup RT-ALLOC allocates its copy
+strndup RT-ALLOC allocates its copy
+asprintf RT-ALLOC allocates its result
+vasprintf RT-ALLOC allocates its result
+alloca RT-ALLOC a stack allocation of a run-time size
+_Znwm RT-ALLOC C++ operator new
+_Znam RT-ALLOC C++ operator new[]
+_ZdlPv RT-ALLOC C++ operator delete
+_ZdaPv RT-ALLOC C++ operator delete[]
+_ZdlPvm RT-ALLOC C++ sized operator delete
+
+# locks: a lock held by a lower-priority thread is an unbounded wait
+pthread_mutex_lock RT-LOCK a lock: the holder may be preempted while the audio thread waits
+pthread_mutex_trylock RT-LOCK a lock: priority inversion for whoever waits on it next
+pthread_mutex_timedlock RT-LOCK a lock with a timeout is still a wait
+pthread_mutex_unlock RT-LOCK the other half of a lock; may wake a waiter in the kernel
+pthread_rwlock_rdlock RT-LOCK a lock
+pthread_rwlock_wrlock RT-LOCK a lock
+pthread_rwlock_tryrdlock RT-LOCK a lock
+pthread_rwlock_trywrlock RT-LOCK a lock
+pthread_rwlock_unlock RT-LOCK the other half of a lock
+pthread_spin_lock RT-LOCK a spin lock spins against a preempted holder
+pthread_spin_trylock RT-LOCK a spin lock
+pthread_spin_unlock RT-LOCK the other half of a spin lock
+pthread_cond_signal RT-LOCK a condition variable is used under its mutex
+pthread_cond_broadcast RT-LOCK a condition variable is used under its mutex
+pw_thread_loop_lock RT-LOCK PipeWire's thread-loop mutex
+pw_thread_loop_unlock RT-LOCK PipeWire's thread-loop mutex
+mtx_lock RT-LOCK a C11 lock
+mtx_timedlock RT-LOCK a C11 lock
+mtx_trylock RT-LOCK a C11 lock
+mtx_unlock RT-LOCK a C11 lock
+
+# blocking: the thread sleeps
+sem_wait RT-BLOCK sleeps until a post; sem_post is a wake (classes.tbl), its wait is not
+sem_timedwait RT-BLOCK sleeps until a post or the timeout
+sem_clockwait RT-BLOCK sleeps until a post or the timeout
+pthread_cond_wait RT-BLOCK sleeps until signalled
+pthread_cond_timedwait RT-BLOCK sleeps until signalled or the timeout
+pthread_cond_clockwait RT-BLOCK sleeps until signalled or the timeout
+pthread_join RT-BLOCK waits for a thread to end
+pthread_create RT-BLOCK creates a thread: allocation, a clone, the scheduler
+pw_thread_loop_wait RT-BLOCK sleeps on PipeWire's thread-loop condition
+sleep RT-BLOCK sleeps
+usleep RT-BLOCK sleeps
+nanosleep RT-BLOCK sleeps
+clock_nanosleep RT-BLOCK sleeps
+thrd_sleep RT-BLOCK sleeps
+sched_yield RT-BLOCK hands the CPU to another thread
+poll RT-BLOCK waits on descriptors
+ppoll RT-BLOCK waits on descriptors
+select RT-BLOCK waits on descriptors
+pselect RT-BLOCK waits on descriptors
+epoll_wait RT-BLOCK waits on descriptors
+syscall RT-BLOCK a raw system call, any of them
+
+# I/O: a file, a socket, the terminal
+open RT-IO a system call that can sleep on the file system
+openat RT-IO a system call that can sleep on the file system
+close RT-IO a system call; may flush
+read RT-IO a system call that can sleep
+write RT-IO a system call that can sleep
+pread RT-IO a system call that can sleep
+pwrite RT-IO a system call that can sleep
+lseek RT-IO a system call
+fsync RT-IO waits for the disk
+fstat RT-IO a system call
+stat RT-IO a system call on the file system
+fopen RT-IO allocates and opens
+fclose RT-IO flushes and frees
+fread RT-IO buffered I/O under the stream's lock
+fwrite RT-IO buffered I/O under the stream's lock
+fflush RT-IO writes under the stream's lock
+fseek RT-IO under the stream's lock
+ftell RT-IO under the stream's lock
+fgets RT-IO buffered I/O under the stream's lock
+fputs RT-IO buffered I/O under the stream's lock
+fputc RT-IO buffered I/O under the stream's lock
+putc RT-IO buffered I/O under the stream's lock
+puts RT-IO buffered I/O under the stream's lock
+putchar RT-IO buffered I/O under the stream's lock
+remove RT-IO the file system
+rename RT-IO the file system
+unlink RT-IO the file system
+mmap RT-IO maps memory: the kernel, page faults
+munmap RT-IO unmaps memory: the kernel, a TLB shootdown
+mlock RT-IO the kernel
+ioctl RT-IO a system call into a driver
+socket RT-IO a system call
+send RT-IO a system call that can sleep
+recv RT-IO a system call that can sleep
+sendto RT-IO a system call that can sleep
+recvfrom RT-IO a system call that can sleep
+sendmsg RT-IO a system call that can sleep
+recvmsg RT-IO a system call that can sleep
+system RT-IO a shell
+fork RT-IO a process
+popen RT-IO a process and a pipe
+exit RT-IO runs the atexit handlers and flushes every stream
+abort RT-IO raises a signal and dumps
+
+# logging: formatted output under the stream's lock, an allocation for wide formats
+printf RT-LOG formatted output under the stream's lock
+fprintf RT-LOG formatted output under the stream's lock
+vprintf RT-LOG formatted output under the stream's lock
+vfprintf RT-LOG formatted output under the stream's lock
+dprintf RT-LOG formatted output into a descriptor
+vdprintf RT-LOG formatted output into a descriptor
+perror RT-LOG formatted output under the stream's lock
+syslog RT-LOG a socket to the logger
+vsyslog RT-LOG a socket to the logger
+__printf_chk RT-LOG formatted output under the stream's lock
+__fprintf_chk RT-LOG formatted output under the stream's lock
+__vfprintf_chk RT-LOG formatted output under the stream's lock
+pw_log_logt RT-LOG PipeWire's logger
+pw_log_logtv RT-LOG PipeWire's logger
+pw_log_log RT-LOG PipeWire's logger
+pw_log_logv RT-LOG PipeWire's logger

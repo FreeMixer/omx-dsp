@@ -23,7 +23,8 @@
 /**
  * @brief The library version as one word, `major << 16 | minor << 8 | patch`.
  * @return The packed version of the headers this translation unit compiled against.
- * @note RT-safe and thread-safe: a constant.
+ * @note Thread-safe: a constant.
+ * @thread audio
  */
 static inline uint32_t omxdsp_version(void) {
   return ((uint32_t)OMXDSP_VERSION_MAJOR << 16) | ((uint32_t)OMXDSP_VERSION_MINOR << 8) |

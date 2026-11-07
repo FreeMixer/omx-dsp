@@ -31,8 +31,9 @@
  * @return `dflt` for a non-finite `v`, else `v` held inside [lo, hi] and rounded half away from 0.
  * @pre `default-inside-the-travel` (omx_clamp_or's).
  * @post `inside-the-travel`.
- * @note RT-safe and thread-safe: omx_clamp_or() and one conversion of a value already inside the
+ * @note Thread-safe: omx_clamp_or() and one conversion of a value already inside the
  *       travel, so the conversion is always defined.
+ * @thread audio
  */
 static inline int omx_port_int(float v, int lo, int hi, int dflt) {
   const float c = omx_clamp_or(v, (float)lo, (float)hi, (float)dflt);

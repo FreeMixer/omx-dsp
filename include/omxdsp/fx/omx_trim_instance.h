@@ -60,7 +60,8 @@ typedef struct {
 
 /** Bind an instance to its rate: unity gain, engaged. Returns 1 when usable, 0 when the rate is
  * not positive and finite (run() is then the identity). The gain does not depend on the rate; the
- * rate is checked so a host's refused instance behaves as every other face's. Allocates nothing. */
+ * rate is checked so a host's refused instance behaves as every other face's. Allocates nothing.
+ * @thread control */
 static inline int omx_trim_instance_init(OmxTrimInstance *s, float sr) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
@@ -74,6 +75,7 @@ static inline int omx_trim_instance_init(OmxTrimInstance *s, float sr) {
  * Resolve the host's control value for one cycle. `bypass` non-zero makes run() the identity.
  * The argument is the trim kernel's contract control, in its user unit: `trim_db` (dB), clamped
  * into TRIM_RANGE, a non-finite word reading as its default.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "trim-instance/resolve"
 static inline void omx_trim_instance_resolve(OmxTrimInstance *s, int bypass, float trim_db) {
@@ -89,6 +91,7 @@ static inline void omx_trim_instance_resolve(OmxTrimInstance *s, int bypass, flo
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, then ramp both legs from
  * the same start gain to the resolved one, in place on out. `in_*` and `out_*` may alias. Not
  * ready, or bypassed, is the identity.
+ * @thread audio
  */
 static inline void omx_trim_instance_run(OmxTrimInstance *s, const float *in_l, const float *in_r, float *out_l,
                                          float *out_r, uint32_t n) {
@@ -99,7 +102,8 @@ static inline void omx_trim_instance_run(OmxTrimInstance *s, const float *in_l, 
   omx_ramp_end(g, &s->cur);
 }
 
-/** The frames of latency the instance introduces: none (a gain has no delay line). */
+/** The frames of latency the instance introduces: none (a gain has no delay line).
+ * @thread audio */
 static inline uint32_t omx_trim_instance_latency(const OmxTrimInstance *s) {
   (void)s;
   return 0u;

@@ -55,8 +55,9 @@
  * @pre `finite-tap-l`, `finite-tap-r`: the inputs are finite; `finite-coef`: both targets are
  *      finite (a violation is recorded and survived); `finite-accumulator-in`.
  * @post `finite-accumulator-out`; `ramp-self-heals-to-finite`: both cursors end finite.
- * @note RT-safe: one pass per leg, no allocation, no branch in the loop. Thread-safe on disjoint
+ * @note One pass per leg, no allocation, no branch in the loop. Thread-safe on disjoint
  *       buses and cursors.
+ * @thread audio
  */
 static inline void omx_mix_strip(const float *inL, const float *inR, float *restrict busL,
                                  float *restrict busR, uint32_t n, float tgtL, float tgtR,
@@ -97,8 +98,9 @@ static inline void omx_mix_strip(const float *inL, const float *inR, float *rest
  * @param curR In: the right gain at the end of the previous block. Out: the right target.
  * @pre `balance-within-declared-range`: `balance` in [-1, +1].
  * @post `fold-coefficient-in-range`: each leg's gain in [−1e-6, fader × mute × (1 + 1e-6) + 1e-6].
- * @note RT-safe: one cosf and one sinf at most, one pass over the block, no allocation.
+ * @note One cosf and one sinf at most, one pass over the block, no allocation.
  *       Thread-safe on disjoint buses and cursors.
+ * @thread audio
  */
 static inline void omx_bus_out_gain(float *busL, float *busR, uint32_t n, int channels, float fader,
                                     int mute, float balance, float *curL, float *curR) {
@@ -134,9 +136,10 @@ static inline void omx_bus_out_gain(float *busL, float *busR, uint32_t n, int ch
  * @param peakL The left meter slot, held.
  * @param peakR The right meter slot, held.
  * @post `finite-bus-out`: the composition leaves the bus finite.
- * @note RT-safe: two passes over the block, two relaxed loads and at most two relaxed stores, no
+ * @note Two passes over the block, two relaxed loads and at most two relaxed stores, no
  *       allocation. Thread-safe on disjoint buses, cursors and slots; a reader may clear a slot
  *       concurrently.
+ * @thread audio
  */
 static inline void omx_bus_out_stage(float *busL, float *busR, uint32_t n, int channels,
                                      float fader, int mute, float balance, float *curL,

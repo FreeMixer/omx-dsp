@@ -69,7 +69,8 @@ typedef struct {
   int ready;
 } OmxPitchInstance;
 
-/** The ring, per leg, the window needs at `sr`: the floats of each inline ring the kernel uses. */
+/** The ring, per leg, the window needs at `sr`: the floats of each inline ring the kernel uses.
+ * @thread control */
 static inline uint32_t omx_pitch_instance_cap_for(float sr) { return omx_pitch_cap_for(sr); }
 
 /**
@@ -79,6 +80,7 @@ static inline uint32_t omx_pitch_instance_cap_for(float sr) { return omx_pitch_c
  * @param sr The sample rate, Hz.
  * @return 1 when accepted, 0 when not.
  * @note Thread-safe: a read of a constant table.
+ * @thread audio
  */
 static inline int omx_pitch_instance_rate_ok(float sr) {
   return omx_rate_is_oracle_full(sr);
@@ -88,6 +90,7 @@ static inline int omx_pitch_instance_rate_ok(float sr) {
  * Bind an instance to its rate, over its own rings. Returns 1 when usable, 0 when not (a refused
  * init leaves `ready` clear and run() is the identity). A rate {@link omx_pitch_instance_rate_ok}
  * refuses, or whose window the inline rings cannot hold, is refused. Allocates nothing.
+ * @thread control
  */
 static inline int omx_pitch_instance_init(OmxPitchInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
@@ -100,7 +103,8 @@ static inline int omx_pitch_instance_init(OmxPitchInstance *s, float sr) {
 }
 
 /** Clear the rings and restart the ramp — the re-enable recipe. A bounded memset over the
- * instance's own rings, no allocation. */
+ * instance's own rings, no allocation.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "pitch/instance-clear"
 static inline void omx_pitch_instance_clear(OmxPitchInstance *s) {
   if (!s || !s->ready) return;
@@ -116,6 +120,7 @@ static inline void omx_pitch_instance_clear(OmxPitchInstance *s) {
  * disables the atom. The arguments are the kernel's contract controls, in their declared order and
  * user units: `semitones`, `cents` and `mix` (percent), each clamped into its declared travel, a
  * non-finite word reading as the declared default.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "pitch/instance-resolve"
 static inline void omx_pitch_instance_resolve(OmxPitchInstance *s, int bypass, float semitones, float cents,
@@ -149,6 +154,7 @@ static inline void omx_pitch_instance_resolve(OmxPitchInstance *s, int bypass, f
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
  * in place on out. `in_*` and `out_*` may alias; `out_l` and `out_r` are distinct. Not ready, or
  * bypassed, is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "pitch/instance-run"
 static inline void omx_pitch_instance_run(OmxPitchInstance *s, const float *in_l, const float *in_r,
@@ -158,7 +164,8 @@ static inline void omx_pitch_instance_run(OmxPitchInstance *s, const float *in_l
 #undef OMX_CONTRACT_STAGE
 
 /** The frames of latency the instance publishes now: d_min + W/2, rounded, while engaged at 100 %
- * mix; 0 below 100 %, while bypassed or not ready (see the header note). */
+ * mix; 0 below 100 %, while bypassed or not ready (see the header note).
+ * @thread audio */
 static inline uint32_t omx_pitch_instance_latency(const OmxPitchInstance *s) {
   if (!s || !s->ready || !s->atom.enabled || s->atom.mix < 1.0f) return 0u;
   return (uint32_t)lroundf(omx_fdelay_min_delay(OMX_PITCH_ORDER) + 0.5f * s->atom.window);

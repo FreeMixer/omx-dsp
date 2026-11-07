@@ -108,6 +108,7 @@ struct omx_chorus_state {
  * Arm both legs over caller-owned rings and start the oscillator at the turn's zero. Returns the
  * line's own code, so a ring the caller sized wrongly is a FACT it is told rather than a stage
  * that quietly does nothing.
+ * @thread audio
  */
 #undef OMX_CONTRACT_STAGE
 #define OMX_CONTRACT_STAGE "chorus/init"
@@ -131,7 +132,8 @@ static inline enum omx_fdelay_code omx_chorus_state_init(struct omx_chorus_state
  */
 #define OMX_CONTRACT_STAGE "chorus/voice-delay"
 /** The sweep at a voice's place in the turn, `off` = k/N — the kernel hoists the N offsets out of
- *  its sample loop and reads through here, the oracle reads through `omx_chorus_voice_delay`. */
+ *  its sample loop and reads through here, the oracle reads through `omx_chorus_voice_delay`.
+ * @thread audio */
 static inline float omx_chorus_delay_at(const struct omx_chorus *p, const struct omx_lfo *lfo,
                                         float off) {
   /* CONTRACT: a voice's place is a point in ONE turn, and the delay it yields is a point of the
@@ -143,6 +145,7 @@ static inline float omx_chorus_delay_at(const struct omx_chorus *p, const struct
            "a-voice-delay-is-inside-the-sweep");
   return d;
 }
+/** @thread audio */
 static inline float omx_chorus_voice_delay(const struct omx_chorus *p, const struct omx_lfo *lfo,
                                            int k, int n) {
   OMX_PRE(n >= 1 && n <= OMX_CHORUS_MAX_VOICES, "a-voice-count-is-inside-the-ensemble");
@@ -162,7 +165,8 @@ static inline float omx_chorus_voice_delay(const struct omx_chorus *p, const str
  * @return A delay in samples inside [base, base + depth].
  * @pre `a-voice-count-is-inside-the-ensemble`, `a-voice-is-one-of-the-ensemble`,
  *      `a-spread-is-inside-half-a-turn`.
- * @note RT-safe and thread-safe: one wrap, one shape, one sweep.
+ * @note Thread-safe: one wrap, one shape, one sweep.
+ * @thread audio
  */
 static inline float omx_chorus_voice_delay_right(const struct omx_chorus *p,
                                                  const struct omx_lfo *lfo, int k, int n) {
@@ -179,13 +183,16 @@ static inline float omx_chorus_voice_delay_right(const struct omx_chorus *p,
  * The most this stage can exceed its input by, as a LINEAR factor: (1 − mix) + mix·Λ, Λ the read
  * kernel's ℓ1 norm read from the generated header — never above Λ. The `no-gain-added` law's
  * bound: the 1/N voice sum is convex, each voice read is at most Λ·max|x|.
+ * @thread audio
  */
 static inline float omx_chorus_gain_bound(const struct omx_chorus *p) {
   const float mix = omx_unit(p->mix);
   return (1.0f - mix) + mix * OMX_FDELAY_READ_L1_NORM;
 }
 
+/** @thread audio */
 static inline float omx_chorus_shortest_delay(const struct omx_chorus *p) { return p->base_samples; }
+/** @thread audio */
 static inline float omx_chorus_longest_delay(const struct omx_chorus *p) {
   return p->base_samples + p->depth_samples;
 }
@@ -197,6 +204,7 @@ static inline float omx_chorus_longest_delay(const struct omx_chorus *p) {
  *
  * RT-safe: fixed work per sample (N kernels, each read on both legs: 2N four-tap reads), no
  * allocation, no libm call in the loop. The voice offsets are computed once per block.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "chorus"
 static inline void omx_chorus_process(float *l, float *r, uint32_t n, const struct omx_chorus *p,

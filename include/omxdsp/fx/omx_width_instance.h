@@ -46,7 +46,8 @@ static inline void omx_width_instance_resolve(OmxWidthInstance *s, int bypass, f
                                               int bass_mono, float bass_mono_hz);
 
 /** Bind an instance to its rate. Returns 1 when usable, 0 when not: the rate must be one of the oracle
- * set. The face comes up at its declared defaults, the identity. Allocates nothing. */
+ * set. The face comes up at its declared defaults, the identity. Allocates nothing.
+ * @thread control */
 static inline int omx_width_instance_init(OmxWidthInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
   s->sr = sr;
@@ -62,6 +63,7 @@ static inline int omx_width_instance_init(OmxWidthInstance *s, float sr) {
  * arguments are the width kernel's contract controls in their declared order: the width (percent),
  * the pseudo-stereo (a WIDTH_PSEUDOS index), its delay (ms), the bass mono (a WIDTH_BASS_MONOS index)
  * and its corner (Hz).
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "width/instance-resolve"
 static inline void omx_width_instance_resolve(OmxWidthInstance *s, int bypass, float width_pct, int pseudo, float pseudo_ms,
@@ -99,6 +101,7 @@ static inline void omx_width_instance_resolve(OmxWidthInstance *s, int bypass, f
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: the word over both legs, in to out. `in_*` and `out_*` may alias.
  * Not ready, bypassed or at the come-up values is the identity and moves no state.
+ * @thread audio
  */
 static inline void omx_width_instance_run(OmxWidthInstance *s, const float *in_l, const float *in_r, float *out_l,
                                           float *out_r, uint32_t n) {
@@ -107,7 +110,8 @@ static inline void omx_width_instance_run(OmxWidthInstance *s, const float *in_l
   omx_width_process(out_l, out_r, n, &s->p, &s->st);
 }
 
-/** The frames of latency the instance introduces: none. */
+/** The frames of latency the instance introduces: none.
+ * @thread audio */
 static inline uint32_t omx_width_instance_latency(const OmxWidthInstance *s) {
   (void)s;
   return 0u;

@@ -33,7 +33,8 @@ struct omx_ramp {
  * @param n The block length in samples, at least 1.
  * @return The ramp.
  * @post `finite`: the start, the step and the target are finite whatever the caller held.
- * @note RT-safe: one divide, no call beyond `isfinite`. Thread-safe: no state.
+ * @note One divide, no call beyond `isfinite`. Thread-safe: no state.
+ * @thread audio
  */
 static inline struct omx_ramp omx_ramp_begin(const float *cur, float tgt, uint32_t n) {
   struct omx_ramp r;
@@ -50,7 +51,8 @@ static inline struct omx_ramp omx_ramp_begin(const float *cur, float tgt, uint32
  * @param r The ramp.
  * @param i The sample index inside the block.
  * @return `r.cur + r.step·i`.
- * @note RT-safe: one multiply-add. Thread-safe: no state.
+ * @note One multiply-add. Thread-safe: no state.
+ * @thread audio
  */
 static inline float omx_ramp_at(struct omx_ramp r, uint32_t i) {
   return r.cur + r.step * (float)i;
@@ -60,7 +62,8 @@ static inline float omx_ramp_at(struct omx_ramp r, uint32_t i) {
  * @brief Close the ramp: the applied value lands exactly on the target.
  * @param r The ramp.
  * @param cur Receives `r.tgt`.
- * @note RT-safe: one store. Thread-safe on distinct `cur`.
+ * @note One store. Thread-safe on distinct `cur`.
+ * @thread audio
  */
 static inline void omx_ramp_end(struct omx_ramp r, float *cur) { *cur = r.tgt; }
 

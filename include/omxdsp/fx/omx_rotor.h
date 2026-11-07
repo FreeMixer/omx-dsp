@@ -47,7 +47,8 @@ struct omx_rotor_state {
  * @brief The rotor's present rate, Hz — the readback a surface draws the spin-up from.
  * @param s The state.
  * @return `anchor_hz + dev_hz`.
- * @note RT-safe and thread-safe: one add.
+ * @note Thread-safe: one add.
+ * @thread audio
  */
 static inline float omx_rotor_rate(const struct omx_rotor_state *s) { return s->anchor_hz + s->dev_hz; }
 
@@ -57,7 +58,8 @@ static inline float omx_rotor_rate(const struct omx_rotor_state *s) { return s->
  * @param s The state, written.
  * @param rate_hz The rate, Hz, non-negative.
  * @param phase The phase, turns, in [0, 1).
- * @note RT-safe: five stores. Thread-safe on distinct state.
+ * @note Five stores. Thread-safe on distinct state.
+ * @thread audio
  */
 static inline void omx_rotor_settle(struct omx_rotor_state *s, float rate_hz, float phase) {
   s->lfo.phase = phase;
@@ -84,6 +86,7 @@ static inline void omx_rotor_settle(struct omx_rotor_state *s, float rate_hz, fl
  * @pre `a-target-is-not-negative`, `an-accel-scale-is-positive`, `a-swing-is-inside-unity`.
  * @post `the-sweep-clears-the-kernels-reach`.
  * @note Not per sample: one `expf` (omx_pole_from_time_ms). Thread-safe on distinct atoms.
+ * @thread audio
  */
 static inline void omx_rotor_resolve(struct omx_rotor *p, const struct omx_rotor_state *s,
                                      float target_hz, float accel_ms, float decel_ms, float accel,
@@ -111,8 +114,9 @@ static inline void omx_rotor_resolve(struct omx_rotor *p, const struct omx_rotor
  * @param a The gain: `1 − m·(1 − lfo_at(u, 1/4))/2`.
  * @pre `a-target-is-not-negative`, `a-rate-is-not-negative`.
  * @post `a-stopped-rotor-holds-an-exact-zero`, `a-gain-is-inside-the-swing`.
- * @note RT-safe: one one-pole step, one division, two parabolas, no libm. Thread-safe on distinct
+ * @note One one-pole step, one division, two parabolas, no libm. Thread-safe on distinct
  *       state.
+ * @thread audio
  */
 static inline void omx_rotor_step(const struct omx_rotor *p, struct omx_rotor_state *s, float *d,
                                   float *a) {
@@ -148,8 +152,9 @@ static inline void omx_rotor_step(const struct omx_rotor *p, struct omx_rotor_st
  * @param yl The left output.
  * @param yr The right output.
  * @pre `both-legs-share-one-geometry`, `the-sweep-is-inside-the-ring`.
- * @note RT-safe: one step, two writes, one kernel, two four-tap reads. Thread-safe on distinct
+ * @note One step, two writes, one kernel, two four-tap reads. Thread-safe on distinct
  *       state and lines.
+ * @thread audio
  */
 static inline void omx_rotor_tick(const struct omx_rotor *p, struct omx_rotor_state *s,
                                   struct omx_fdelay *ll, struct omx_fdelay *lr, float xl, float xr,

@@ -59,7 +59,8 @@ typedef struct {
   int ready;
 } OmxFlangerInstance;
 
-/** The ring, per leg, the deepest sweep needs at `sr`: the floats of each inline ring the kernel uses. */
+/** The ring, per leg, the deepest sweep needs at `sr`: the floats of each inline ring the kernel uses.
+ * @thread audio */
 static inline uint32_t omx_flanger_instance_cap_for(float sr) {
   return omx_fdelay_cap_for((OMX_FLANGER_BASE_MS + OMX_FLANGER_MAX_DEPTH_MS) * 0.001f * sr,
                             OMX_FLANGER_ORDER);
@@ -69,6 +70,7 @@ static inline uint32_t omx_flanger_instance_cap_for(float sr) {
  * Bind an instance to its rate, over its own rings. Returns 1 when usable, 0 when not (a refused
  * init leaves `ready` clear and run() is the identity). A rate that is not declared, or whose
  * sweep the inline rings cannot hold, is refused. Allocates nothing.
+ * @thread control
  */
 static inline int omx_flanger_instance_init(OmxFlangerInstance *s, float sr) {
   if (!omx_instance_bind(s, sizeof(*s), sr)) return 0;
@@ -81,7 +83,8 @@ static inline int omx_flanger_instance_init(OmxFlangerInstance *s, float sr) {
 }
 
 /** Clear the rings and restart the oscillator — the re-enable recipe. A bounded memset over the
- * instance's own rings, no allocation. */
+ * instance's own rings, no allocation.
+ * @thread audio */
 #define OMX_CONTRACT_STAGE "flanger/instance-clear"
 static inline void omx_flanger_instance_clear(OmxFlangerInstance *s) {
   if (!s || !s->ready) return;
@@ -99,6 +102,7 @@ static inline void omx_flanger_instance_clear(OmxFlangerInstance *s) {
  * user units: `rate` (Hz), `depth` (ms), `feedback` (signed) and `mix` (percent), each clamped
  * into its declared travel, a non-finite word reading as the declared default; the kernel's own
  * feedback clamp stays the last line before the recursion.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "flanger/instance-resolve"
 static inline void omx_flanger_instance_resolve(OmxFlangerInstance *s, int bypass, float rate,
@@ -137,6 +141,7 @@ static inline void omx_flanger_instance_resolve(OmxFlangerInstance *s, int bypas
 /**
  * THE AUDIO CALLBACK'S WHOLE SHARE: copy in to out where they differ, run the console's kernel
  * in place on out. `in_*` and `out_*` may alias. Not ready, or bypassed, is the identity.
+ * @thread audio
  */
 #define OMX_CONTRACT_STAGE "flanger/instance-run"
 static inline void omx_flanger_instance_run(OmxFlangerInstance *s, const float *in_l,

@@ -61,7 +61,8 @@ struct omx_rta_tap_reading {
  * @param l The left leg, `n` samples.
  * @param r The right leg, `n` samples.
  * @param n Samples.
- * @note RT-safe: one pass, no allocation. Thread-safe on disjoint outputs.
+ * @note One pass, no allocation. Thread-safe on disjoint outputs.
+ * @thread audio
  */
 static inline void omx_rta_tap_mono_sum(float *out, const float *l, const float *r, uint32_t n) {
   for (uint32_t i = 0; i < n; i++) out[i] = 0.5f * (l[i] + r[i]);
@@ -80,8 +81,9 @@ static inline void omx_rta_tap_mono_sum(float *out, const float *l, const float 
  * @param n The window, omx_rta_fft_size_for() of the rate: a power of two, at most
  *        OMX_RTA_FFT_SIZE_MAX.
  * @param low Whether the low zoom is wanted.
- * @note Not for the audio thread: one FFT of `n`, and with `low` a second of
+ * @note One FFT of `n`, and with `low` a second of
  *       OMX_RTA_LOW_FFT_SIZE plus the decimations. No allocation. Thread-safe on disjoint buffers.
+ * @thread control
  */
 static inline void omx_rta_tap_read(const struct omx_rta_tap_window *w,
                                     struct omx_rta_tap_work *scr,

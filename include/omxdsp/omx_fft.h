@@ -30,7 +30,8 @@
  * @brief 1 when `n` is a power of two and at least 2: the lengths the radix-2 transforms take.
  * @param n The length.
  * @return 1 for 2, 4, 8, …; 0 otherwise.
- * @note RT-safe: two operations. Thread-safe.
+ * @note Two operations. Thread-safe.
+ * @thread audio
  */
 static inline int omx_fft_length_ok(uint32_t n) { return n >= 2u && (n & (n - 1u)) == 0u; }
 
@@ -45,6 +46,7 @@ static inline int omx_fft_length_ok(uint32_t n) { return n >= 2u && (n & (n - 1u
  * @param buf The block, `n` samples, windowed in place.
  * @param n Its length; `n < 2` is a no-op (nothing to taper).
  * @note Allocation-free, O(n). Thread-safe on distinct buffers.
+ * @thread audio
  */
 static inline void omx_hann_window(float *buf, uint32_t n) {
   if (n < 2) return;
@@ -74,6 +76,7 @@ static inline void omx_hann_window(float *buf, uint32_t n) {
  * @param n The length, a power of two.
  * @pre `length-power-of-two`.
  * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
+ * @thread audio
  */
 static inline void omx_fft_radix2(float *re, float *im, uint32_t n) {
   OMX_PRE(omx_fft_length_ok(n) || n == 1u, "length-power-of-two");
@@ -125,6 +128,7 @@ static inline void omx_fft_radix2(float *re, float *im, uint32_t n) {
  * @param n The block length, a power of two ≥ 4.
  * @pre `length-power-of-two-ge-4`.
  * @note Allocation-free, O(n log n). Thread-safe on distinct buffers.
+ * @thread audio
  */
 static inline void omx_fft_real_half(float *work_re, float *work_im, uint32_t n) {
   OMX_PRE(omx_fft_length_ok(n) && n >= 4u, "length-power-of-two-ge-4");
@@ -181,6 +185,7 @@ static inline void omx_fft_real_half(float *work_re, float *work_im, uint32_t n)
  * @pre `length-power-of-two`.
  * @note Allocation-free, O(n log n) butterflies and n − 1 cos/sin pairs. Thread-safe on distinct
  *       buffers.
+ * @thread audio
  */
 static inline void omx_fft_radix2_d(double *re, double *im, uint32_t n, int inverse) {
   OMX_PRE(omx_fft_length_ok(n) || n == 1u, "length-power-of-two");
