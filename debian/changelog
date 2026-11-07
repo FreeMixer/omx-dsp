@@ -1,5 +1,16 @@
 omx-dsp (0.32.0) unstable; urgency=medium
 
+  * fbs: the placement in C (omx_fbs_place.h): both pools, the staged
+    release, the merge radius and the per-origin gain cap (fbs-* to
+    [-24, 0], every other origin to +-15), with its TypeScript twin
+    (FbsPlace) and one vector file both are held to; the console's own
+    feedback corrector is held to the same file on its side.
+  * fbs: omx_fbs_lv2.h, the omx-fbs live-shell core, the analogue of
+    omx_hrp_lv2.h: analysis on the worker, the set handed over by value, a
+    host with no worker passing audio bit-exact.
+  * fbs, hrp: a mode control (cut, report: the audio bit-exact), six report
+    words per slot (frequency, depth, Q, on, origin, shape) and analysing;
+    a slot keeps its find across passes; the HRP set carries a Q per band.
   * rt-gate: omx-rt-gate, the one static real-time gate: the consumer's
     units compiled at -O0 -fno-inline -fcallgraph-info, roots from the LV2,
     CLAP and PipeWire tables, one forbidden list, a class table measured by

@@ -61,6 +61,25 @@ export {
   type CurveTerm,
 } from './curve.js';
 export {
+  FBS_ACTIONS,
+  FBS_HOLD_NEVER,
+  FBS_PLACE_SLOTS,
+  FbsPlace,
+  ORIGIN,
+  ORIGIN_WORDS,
+  SHAPE,
+  SHAPE_WORDS,
+  fbsCents,
+  fbsGainCap,
+  sameRingFreq,
+  type BandReport,
+  type FbsAction,
+  type FbsEvent,
+  type FbsFind,
+  type FbsPool,
+} from './fbs-place.js';
+export { EQ_GAIN_RANGE, FBS_MAX_CUT_DB } from './definitions.js';
+export {
   METER_GR_EMPTY,
   METER_GR_HOLD_MS,
   METER_MARKER_EMPTY,

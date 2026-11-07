@@ -201,6 +201,19 @@
         "default": 8
       },
       "doc": "How many bands one HRP instance may plant at once, from one up to the size of its answer set (HRP_DEFAULT_MAX_AUTO_BANDS). It comes up at the full budget. An integer control: a face rounds the word inside the travel and reads a non-finite one as the default."
+    },
+    {
+      "name": "HRP_MODES",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/hrp.json; implemented at include/omxdsp/analysis/omx_hrp_lv2.h#omx_hrp_lv2_set_mode"
+      },
+      "default": "cut",
+      "doc": "cut runs the planted bands on the audio; report keeps the audio bit-exact while the analysis runs and the report carries what cut would plant. It comes up at cut: a host with no controller gets the corrector. The integer the shell reads is the id's position.",
+      "value": [
+        "cut",
+        "report"
+      ]
     }
   ]
 }

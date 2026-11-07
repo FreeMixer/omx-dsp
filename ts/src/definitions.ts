@@ -26,6 +26,60 @@ export const EQ_BAND_DEFAULTS = {
   q: 1,
 } as const;
 
+/** The deepest cut a band of an fbs-* origin may hold, in dB: the feedback corrector's own safety bound, never the operator EQ's ±15 (EQ_GAIN_RANGE), which stays the bound of every other origin. Declared here as one value until the vocabulary owner (omx-contract) carries it as its own word, a new ref beside EQ_GAIN_RANGE and never a widening of it; this item then becomes that ref, and no second copy of the number is ever written. (dB) @see data/kernels/fbs.json */
+export const FBS_MAX_CUT_DB = -24;
+
+/** How much deeper a live band's full depth goes each time regrowth re-clamps a release, in dB, down to FBS_MAX_CUT_DB: regrowth at a depth is the measurement that the depth was not enough. (dB) @see data/kernels/fbs.json */
+export const FBS_RECLAMP_DEEPEN_DB = 3;
+
+/** The most times the clean hold doubles after re-clamps: the hold before the first release stage is the channel's hold times 2^min(re-clamps, this). @see data/kernels/fbs.json */
+export const FBS_RECLAMP_BACKOFF_CAP = 3;
+
+/** How long one release stage's gain ramp takes, in ms, from the depth the band stands at to the stage's depth. (ms) @see data/kernels/fbs.json */
+export const FBS_LIFT_RAMP_MS = 3000;
+
+/** The equal steps one release ramp takes, FBS_LIFT_RAMP_MS / this apart: the last step lands the stage's depth exactly. @see data/kernels/fbs.json */
+export const FBS_LIFT_RAMP_STEPS = 10;
+
+/** Each release stage holds the planted depth times this ratio to the stage's power: every stage releases a third of what remains. @see data/kernels/fbs.json */
+export const FBS_RELEASE_RATIO = 0.6666666666666666;
+
+/** A release stage whose depth is shallower than this, in dB, removes the band instead of holding it: the cut is inaudible. (dB) @see data/kernels/fbs.json */
+export const FBS_RELEASE_DONE_DB = 1;
+
+/** How long a band listens at an eased stage, clean, before the next stage begins, in ms. (ms) @see data/kernels/fbs.json */
+export const FBS_RELEASE_DWELL_MS = 8000;
+
+/** The lowest frequency a confirmed ring is planted at, in Hz; one below it is refused as rejected-edge, never clamped onto the EQ's edge. (Hz) @see data/kernels/fbs.json */
+export const FBS_RING_HZ_MIN = 60;
+
+/** The highest frequency a confirmed ring is planted at, in Hz; one above it is refused as rejected-edge. (Hz) @see data/kernels/fbs.json */
+export const FBS_RING_HZ_MAX = 16000;
+
+/** Two readings are the same ringing frequency within this many Hz, or FBS_SAME_RING_SHARE of the higher one, whichever is wider. (Hz) @see data/kernels/fbs.json */
+export const FBS_SAME_RING_HZ = 3;
+
+/** The share of the higher frequency within which two readings are the same ringing frequency, when it is wider than FBS_SAME_RING_HZ: FFT bin spacing grows with frequency. @see data/kernels/fbs.json */
+export const FBS_SAME_RING_SHARE = 0.015;
+
+/** The clean hold, in seconds, before a live band's first release stage. (s) @see data/kernels/fbs.json */
+export const FBS_DEFAULT_HOLD_SECONDS = 5;
+
+/** How many bands one corrector may plant when nobody set its cap; a full pool plants nothing and says pool-full. @see data/kernels/fbs.json */
+export const FBS_DEFAULT_MAX_AUTO_BANDS = 6;
+
+/** The merge radius, in cents: a confirmed ring this close to a band already planted is that band's find, and plants nothing. (cents) @see data/kernels/fbs.json */
+export const FBS_DEFAULT_MERGE_CENTS = 100;
+
+/** How long a fully released find's re-clamp count is remembered, in seconds, so a chronic ringer re-plants with its doubled holds. (s) @see data/kernels/fbs.json */
+export const FBS_DEFAULT_COOLDOWN_SECONDS = 600;
+
+/** Default planted-notch width (Q) — the dbx-AFS-style ultra-narrow notch the corrector plants. `addBand`'s per-shape clamp holds it at 116 for a fixed notch and narrows it to 8 for a live bell, so this is the declared starting point rather than the width every notch ends up with. @see data/kernels/fbs.json */
+export const FBS_DEFAULT_NOTCH_Q = 116;
+
+/** Released finds the ring memory holds at once. The console's list is unbounded and expires by FBS_DEFAULT_COOLDOWN_SECONDS; a full memory here forgets its oldest entry first, and counts it. @see data/kernels/fbs.json */
+export const FBS_RING_MEMORY_SLOTS = 32;
+
 /** The displays a panel description draws from a closed form, the kinds omx_curve_points answers: an EQ's magnitude response, x in Hz and y in dB, and a dynamics stage's static transfer curve, input dB to output dB. The wire spells each id in snake case (`eq_response`, `transfer_curve`), the description's own display word. @see data/primitives/curve.json */
 export const CURVE_DISPLAYS = ['eqResponse', 'transferCurve'] as const;
 
@@ -95,6 +149,24 @@ export const EQ_Q_RANGE = { min: 0.3, max: 8 } as const;
 
 /** The Q extent of a NOTCH band. Wider than EQ_Q_RANGE on purpose (#116, operator decision): an ultra-narrow surgical cut is the notch shape's whole point — the FBS ring-out pool plants dbx-AFS-style ring killers at Q ≈ 116 (~1/80 octave), inaudible on program yet fatal to a single ringing frequency. Gain-carrying shapes stay bounded at EQ_Q_RANGE — a Q-116 bell is a resonator, not an EQ move. @see data/kernels/eq.json */
 export const EQ_NOTCH_Q_RANGE = { min: 0.3, max: 116 } as const;
+
+/** The parametric-band gain travel, in dB. The ± scalar `clampEqGain` enforces is READ off this (the engine derives its gain limit from `max`), so the bound is stated once and a surface cannot draw a wider knob than the clamp will honour. @see data/kernels/eq.json */
+export const EQ_GAIN_RANGE = { min: -15, max: 15 } as const;
+
+/** The frequency band a parametric band can be dragged across. @see data/kernels/eq.json */
+export const EQ_FREQ_RANGE = { min: 20, max: 20000 } as const;
+
+/** How many bands this corrector may plant at once (its pool), from one to the EQ's band count. An integer control. @see data/kernels/fbs.json */
+export const FBS_BANDS_RANGE = { min: 1, max: 24 } as const;
+
+/** The clean hold, in seconds, before a live band's first release stage. @see data/kernels/fbs.json */
+export const FBS_HOLD_RANGE = { min: 1, max: 300 } as const;
+
+/** The merge radius, in cents. An integer control. @see data/kernels/fbs.json */
+export const FBS_MERGE_RANGE = { min: 0, max: 600 } as const;
+
+/** How long a released find's escalation is remembered, in seconds. An integer control. @see data/kernels/fbs.json */
+export const FBS_COOLDOWN_RANGE = { min: 0, max: 7200 } as const;
 
 /** The travel of ratio, from its table COMP_LIMITS. @see data/kernels/comp.json */
 export const COMP_RATIO_RANGE = { min: 1, max: 20 } as const;

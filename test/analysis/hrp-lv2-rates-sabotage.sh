@@ -42,11 +42,12 @@ nrates="$(printf '#include <omxcontract/omx_contract_limits.h>\nOMX_ORACLE_FULL_
   $CC -E -P -isystem "$CONTRACT_INC" - | tail -1 | tr -d '() uU')"
 rm -rf "$OUT" && mkdir -p "$OUT"
 
-# sabotage <arm> <check text the arm must fail> <sed expression>
+# sabotage <arm> <check text the arm must fail> <sed expression> [<header>]: the sed edits the shell's header, or the
+# named header of include/omxdsp/analysis (omx_live_shell.h, the code the two live shells share)
 sabotage() {
-  local arm="$1" want="$2" expr="$3" dir="$OUT/$1"
+  local arm="$1" want="$2" expr="$3" dir="$OUT/$1" HDR="include/omxdsp/analysis/${4:-omx_hrp_lv2.h}"
   mkdir -p "$dir/omxdsp/analysis"
-  local copy="$dir/omxdsp/analysis/omx_hrp_lv2.h"
+  local copy="$dir/omxdsp/analysis/${4:-omx_hrp_lv2.h}"
   cp "$HDR" "$copy"
   sed -i "$expr" "$copy"
   if cmp -s "$HDR" "$copy"; then
@@ -70,13 +71,13 @@ sabotage() {
 }
 
 sabotage due "hop - 1 frames: not due" \
-  's|^  if (written - consumed < (uint64_t)s->render.cfg.hop) return 0;$|  if (written - consumed + 1u < (uint64_t)s->render.cfg.hop) return 0;|'
+  's|^  if (omx_live_unconsumed(&s->written, &s->consumed) < (uint64_t)s->render.cfg.hop) return 0;$|  if (omx_live_unconsumed(\&s->written, \&s->consumed) + 1u < (uint64_t)s->render.cfg.hop) return 0;|'
 sabotage idle "idle shell: one second out byte for byte" \
-  's|^  omx_hrp_cascade_apply(&s->live, in, out, n);$|  omx_hrp_cascade_apply(\&s->live, in, out, n); if (!omx_hrp_cascade_live(\&s->live)) for (uint32_t i = 0; i < n; i++) out[i] *= 0.99999994f;|'
+  's|^  omx_live_out(&s->live, s->mode == OMX_HRP_LV2_REPORT, in, out, n);$|  omx_live_out(\&s->live, s->mode == OMX_HRP_LV2_REPORT, in, out, n); if (!omx_hrp_cascade_live(\&s->live)) for (uint32_t i = 0; i < n; i++) out[i] *= 0.99999994f;|'
 sabotage cursor "k passes over 3 hops consume k hops" \
   's|^  atomic_store_explicit(&s->consumed, consumed + (uint64_t)hop, memory_order_release);$|  atomic_store_explicit(\&s->consumed, consumed + (uint64_t)hop - 1u, memory_order_release);|'
 sabotage band "a sine at the centre comes out at |H|" \
-  's|^  omx_hrp_cascade_apply(&s->live, in, out, n);$|  if (out != in) memcpy(out, in, (size_t)n * sizeof(float));|'
+  's|^  omx_live_out(&s->live, s->mode == OMX_HRP_LV2_REPORT, in, out, n);$|  omx_live_pass_through(in, out, n);|'
 sabotage walk "the walk moves one step per pass" \
   's|^  const float step = OMX_HRP_GAIN_STEP_DB;$|  const float step = 0.5f * OMX_HRP_GAIN_STEP_DB;|'
 sabotage block-size "block_floats = five windows" \
@@ -90,9 +91,10 @@ sabotage ask-bypass "bypass 0.5 is not bypassed" \
 sabotage install "install: the family and its search are installed" \
   's|^  if (a->family != s->family) omx_hrp_lv2_set_family(s, a->family);$|  if (0) omx_hrp_lv2_set_family(s, a->family);|'
 sabotage asked "answered: not in flight" \
-  's|^  if (s) atomic_fetch_add_explicit(&s->asked, 1u, memory_order_release);$|  if (s) atomic_fetch_add_explicit(\&s->asked, 2u, memory_order_release);|'
+  's|^  if (s) omx_live_count(&s->asked);$|  if (s) { omx_live_count(\&s->asked); omx_live_count(\&s->asked); }|'
 sabotage in-flight "wrapped counters: in flight" \
-  's|^  return atomic_load_explicit(&s->asked, memory_order_acquire) !=$|  return atomic_load_explicit(\&s->asked, memory_order_acquire) >|'
+  's|^  return atomic_load_explicit(asked, memory_order_acquire) != atomic_load_explicit(answered, memory_order_acquire);$|  return atomic_load_explicit(asked, memory_order_acquire) > atomic_load_explicit(answered, memory_order_acquire);|' \
+  omx_live_shell.h
 sabotage clear "cleared: the cascade is empty" \
   '/^static inline void omx_hrp_lv2_clear(OmxHrpLv2 \*s) {$/,/^}$/ s|^  omx_hrp_cascade_init(&s->live);$|  (void)s;|'
 sabotage restart-slots "restart: every slot free" \

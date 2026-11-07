@@ -5,6 +5,19 @@
   },
   "controls": [
     {
+      "name": "mode",
+      "kind": "choice",
+      "source": {
+        "impl": "include/omxdsp/analysis/omx_hrp_lv2.h#omx_hrp_lv2_set_mode"
+      },
+      "doc": "cut runs the planted bands on the audio; report keeps the audio bit-exact while the analysis runs and the report carries what cut would plant. It comes up at cut: a host with no controller gets the corrector. The integer the shell reads is the id's position.",
+      "ids": [
+        "cut",
+        "report"
+      ],
+      "default": "cut"
+    },
+    {
       "name": "family",
       "kind": "travel",
       "source": {

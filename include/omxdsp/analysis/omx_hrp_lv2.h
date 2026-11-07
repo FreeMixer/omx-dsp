@@ -77,6 +77,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <omxdsp/analysis/omx_band_report.h>
+#include <omxdsp/analysis/omx_live_shell.h>
 #include <omxdsp/analysis/omx_hrp_correct.h>
 #include <omxdsp/analysis/omx_hrp_render.h>
 #include <omxdsp/analysis/omx_rta.h>
@@ -97,6 +99,12 @@
 
 /** Bands one instance may plant — the channel's HRP budget (§29), not the cascade's capacity. */
 #define OMX_HRP_LV2_MAX_BANDS OMX_HRP_DEFAULT_MAX_AUTO_BANDS
+
+/** The modes, as the `mode` control's integer words (spec 7.16): `cut` runs the bands on the audio, `report`
+ * keeps the audio bit-exact while the analysis and the report run on. */
+#define OMX_HRP_LV2_CUT OMX_HRP_MODES_CUT
+#define OMX_HRP_LV2_REPORT OMX_HRP_MODES_REPORT
+_Static_assert(OMX_HRP_MODES_COUNT == 2u, "the declared modes are cut and report");
 
 /* The ramp step is `hrp_correct.h`'s {@link OMX_HRP_GAIN_STEP_DB} — the console's own, shared
  * rather than restated, so a shell cannot smooth at a rate the desk does not. */
@@ -161,9 +169,14 @@ typedef struct {
 typedef struct {
   uint32_t count;
   float coeffs[OMX_HRP_LV2_MAX_BANDS][5];
-  /** Reported, never acted on by the RT side: what the operator's surface would show. */
+  /** Reported, never acted on by the RT side: what the operator's surface would show, in the cascade's
+   *  (compact) order. */
   float freq_hz[OMX_HRP_LV2_MAX_BANDS];
   float cut_db[OMX_HRP_LV2_MAX_BANDS];
+  float q[OMX_HRP_LV2_MAX_BANDS];
+  /** The report by SLOT (spec 7.16): report[k] is worker slot k, whichever bands came and went around it,
+   *  so a controller that copies slot k into its omx-eq slot never sees a find move. */
+  OmxBandReport report[OMX_HRP_LV2_MAX_BANDS];
 } OmxHrpLv2Set;
 
 /**
@@ -224,6 +237,11 @@ typedef struct {
   /** The cascade the audio thread runs. Its STATE is never reset by an adopt — see
    *  {@link omx_hrp_lv2_adopt}. */
   OmxHrpCascade live;
+  /** The audio side's mode ({@link omx_hrp_lv2_set_mode}), the report as last adopted, and whether a worker has
+   *  ever answered (the read-only `analysing` control). */
+  int mode;
+  int analysing;
+  OmxBandReport report[OMX_HRP_LV2_MAX_BANDS];
 
   /** Worker-side scratch and state. */
   OmxHrpLv2Slot slot[OMX_HRP_LV2_MAX_BANDS];
@@ -269,6 +287,8 @@ static inline int omx_hrp_lv2_init(OmxHrpLv2 *s, uint32_t rate, float *carry, fl
   s->max_bands = OMX_HRP_LV2_MAX_BANDS;
   s->hop = hop;
   omx_hrp_cascade_init(&s->live);
+  s->mode = OMX_HRP_MODES_DEFAULT;
+  omx_live_report_clear(s->report, OMX_HRP_LV2_MAX_BANDS);
   s->ready = 1;
   return 1;
 }
@@ -387,7 +407,7 @@ static inline void omx_hrp_lv2_install_ask(OmxHrpLv2 *s, const OmxHrpLv2Ask *a) 
  * @thread audio
  */
 static inline void omx_hrp_lv2_mark_asked(OmxHrpLv2 *s) {
-  if (s) atomic_fetch_add_explicit(&s->asked, 1u, memory_order_release);
+  if (s) omx_live_count(&s->asked);
 }
 
 /**
@@ -398,7 +418,7 @@ static inline void omx_hrp_lv2_mark_asked(OmxHrpLv2 *s) {
  * @thread worker
  */
 static inline void omx_hrp_lv2_mark_answered(OmxHrpLv2 *s) {
-  if (s) atomic_fetch_add_explicit(&s->answered, 1u, memory_order_release);
+  if (s) omx_live_count(&s->answered);
 }
 
 /**
@@ -409,9 +429,7 @@ static inline void omx_hrp_lv2_mark_answered(OmxHrpLv2 *s) {
  * @thread audio
  */
 static inline int omx_hrp_lv2_in_flight(const OmxHrpLv2 *s) {
-  if (!s) return 0;
-  return atomic_load_explicit(&s->asked, memory_order_acquire) !=
-         atomic_load_explicit(&s->answered, memory_order_acquire);
+  return s ? omx_live_in_flight(&s->asked, &s->answered) : 0;
 }
 
 /**
@@ -442,6 +460,7 @@ static inline void omx_hrp_lv2_restart(OmxHrpLv2 *s) {
   if (!s) return;
   omx_hrp_lv2_clear(s);
   memset(s->slot, 0, sizeof(s->slot));
+  omx_live_report_clear(s->report, OMX_HRP_LV2_MAX_BANDS);
   atomic_store_explicit(&s->written, 0u, memory_order_relaxed);
   atomic_store_explicit(&s->consumed, 0u, memory_order_relaxed);
 }
@@ -462,18 +481,55 @@ static inline void omx_hrp_lv2_restart(OmxHrpLv2 *s) {
 static inline void omx_hrp_lv2_run(OmxHrpLv2 *s, const float *in, float *out, uint32_t n) {
   if (!in || !out || n == 0u) return;
   if (!s || !s->ready) {
-    if (out != in) memcpy(out, in, (size_t)n * sizeof(float));
+    omx_live_pass_through(in, out, n);
     /* R-056/laws: bypass-identity -- accepted 2026-09-17,
      * the contracts proposals notes. Not ready is not "processed a
      * little" -- it is the identity, byte for byte. */
     OMX_POST(out == in || memcmp(out, in, (size_t)n * sizeof(float)) == 0, "bypass-identity");
     return;
   }
-  omx_ring_write(&s->ring, in, n);
-  atomic_fetch_add_explicit(&s->written, n, memory_order_release);
-  omx_hrp_cascade_apply(&s->live, in, out, n);
+  omx_live_feed(&s->ring, &s->written, in, n);
+  /* spec 7.16: in report the analysis hears the input and the report runs on; the audio is the input, bit for bit */
+  omx_live_out(&s->live, s->mode == OMX_HRP_LV2_REPORT, in, out, n);
 }
 #undef OMX_CONTRACT_STAGE
+
+/**
+ * @brief The `mode` control's word, resolved and held for the next run(): cut or report.
+ * @param s The instance; NULL is a no-op.
+ * @param word The control word: rounded inside the declared travel, a non-finite word reading as cut.
+ * @thread audio
+ */
+static inline void omx_hrp_lv2_set_mode(OmxHrpLv2 *s, float word) {
+  if (s) s->mode = omx_port_int(word, 0, (int)OMX_HRP_MODES_COUNT - 1, OMX_HRP_MODES_DEFAULT);
+}
+
+/**
+ * @brief The mode in force, as a controller reads it back before it plants.
+ * @param s The instance.
+ * @return OMX_HRP_LV2_CUT or OMX_HRP_LV2_REPORT; cut for NULL.
+ * @thread audio
+ */
+static inline int omx_hrp_lv2_mode(const OmxHrpLv2 *s) { return s ? s->mode : OMX_HRP_LV2_CUT; }
+
+/**
+ * @brief Slot k's six report words, by value, as last adopted.
+ * @param s The instance.
+ * @param k The slot; one past the slots, or NULL, reads as a free slot.
+ * @return The report.
+ * @thread audio
+ */
+static inline OmxBandReport omx_hrp_lv2_report(const OmxHrpLv2 *s, uint32_t k) {
+  return s ? omx_live_report_at(s->report, OMX_HRP_LV2_MAX_BANDS, k) : omx_band_report_free();
+}
+
+/**
+ * @brief The read-only `analysing` flag: 1 once a worker has answered a pass, 0 on a host with no worker.
+ * @param s The instance.
+ * @return 1 or 0.
+ * @thread audio
+ */
+static inline int omx_hrp_lv2_analysing(const OmxHrpLv2 *s) { return s ? s->analysing : 0; }
 
 /**
  * Is there a hop's worth of new audio for the worker, and is there any reason to look at it?
@@ -493,9 +549,7 @@ static inline void omx_hrp_lv2_run(OmxHrpLv2 *s, const float *in, float *out, ui
  */
 static inline int omx_hrp_lv2_due(const OmxHrpLv2 *s, int bypass) {
   if (!s || !s->ready) return 0;
-  const uint64_t written = atomic_load_explicit(&s->written, memory_order_acquire);
-  const uint64_t consumed = atomic_load_explicit(&s->consumed, memory_order_acquire);
-  if (written - consumed < (uint64_t)s->render.cfg.hop) return 0;
+  if (omx_live_unconsumed(&s->written, &s->consumed) < (uint64_t)s->render.cfg.hop) return 0;
   if (!bypass) return 1;
   return omx_hrp_cascade_live(&s->live) > 0u;
 }
@@ -619,6 +673,7 @@ static inline void omx_hrp_lv2_analyse(OmxHrpLv2 *s, int bypass, OmxHrpLv2Set *o
 
   for (uint32_t i = 0; i < OMX_HRP_LV2_MAX_BANDS; i++) {
     s->slot[i].applied_db = omx_hrp_lv2_ramp(s->slot[i].applied_db, target[i]);
+    out->report[i] = omx_band_report_free();
     if (!(s->slot[i].applied_db > 0.0f)) {
       /* Arrived at exactly zero: the slot is free and plants nothing. */
       s->slot[i].applied_db = 0.0f;
@@ -629,7 +684,14 @@ static inline void omx_hrp_lv2_analyse(OmxHrpLv2 *s, int bypass, OmxHrpLv2Set *o
                            out->coeffs[b]);
     out->freq_hz[b] = s->slot[i].freq_hz;
     out->cut_db[b] = s->slot[i].applied_db;
+    out->q[b] = (float)OMX_HRP_BAND_Q;
     out->count = b + 1u;
+    out->report[i].freq_hz = s->slot[i].freq_hz;
+    out->report[i].depth_db = -s->slot[i].applied_db;
+    out->report[i].q = (float)OMX_HRP_BAND_Q;
+    out->report[i].on = 1.0f;
+    out->report[i].origin = (float)OMX_CURVE_ORIGINS_HRP;
+    out->report[i].shape = (float)OMX_CURVE_SHAPES_BELL;
   }
 }
 
@@ -681,6 +743,8 @@ static inline void omx_hrp_lv2_adopt(OmxHrpLv2 *s, const OmxHrpLv2Set *set) {
   }
   for (uint32_t b = n; b < s->live.count && b < OMX_EQ_MAX_BANDS; b++) s->live.enabled[b] = 0u;
   if (n > s->live.count) s->live.count = n;
+  for (uint32_t k = 0; k < OMX_HRP_LV2_MAX_BANDS; k++) s->report[k] = set->report[k];
+  s->analysing = 1;
 }
 
 #endif /* OMX_HRP_LV2_H */

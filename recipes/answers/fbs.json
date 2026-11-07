@@ -230,6 +230,282 @@
       "value": 116,
       "doc": "Default planted-notch width (Q) — the dbx-AFS-style ultra-narrow notch the corrector plants. `addBand`'s per-shape clamp holds it at 116 for a fixed notch and narrows it to 8 for a live bell, so this is the declared starting point rather than the width every notch ends up with.",
       "unit": ""
+    },
+    {
+      "name": "FBS_MAX_CUT_DB",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_MAX_CUT_DB (fbs.ts); implemented at src/omx_fbs_place.c#omx_fbs_place_gain_cap"
+      },
+      "value": -24,
+      "doc": "The deepest cut a band of an fbs-* origin may hold, in dB: the feedback corrector's own safety bound, never the operator EQ's ±15 (EQ_GAIN_RANGE), which stays the bound of every other origin. Declared here as one value until the vocabulary owner (omx-contract) carries it as its own word, a new ref beside EQ_GAIN_RANGE and never a widening of it; this item then becomes that ref, and no second copy of the number is ever written.",
+      "unit": "dB"
+    },
+    {
+      "name": "FBS_RECLAMP_DEEPEN_DB",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_RECLAMP_DEEPEN_DB (fbs.ts); implemented at src/omx_fbs_place.c#re_arm"
+      },
+      "value": 3,
+      "doc": "How much deeper a live band's full depth goes each time regrowth re-clamps a release, in dB, down to FBS_MAX_CUT_DB: regrowth at a depth is the measurement that the depth was not enough.",
+      "unit": "dB"
+    },
+    {
+      "name": "FBS_RECLAMP_BACKOFF_CAP",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_RECLAMP_BACKOFF_CAP (fbs.ts); implemented at src/omx_fbs_place.c#hold_sweep"
+      },
+      "value": 3,
+      "doc": "The most times the clean hold doubles after re-clamps: the hold before the first release stage is the channel's hold times 2^min(re-clamps, this).",
+      "unit": ""
+    },
+    {
+      "name": "FBS_LIFT_RAMP_MS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_LIFT_RAMP_MS (fbs.ts); implemented at src/omx_fbs_place.c#begin_stage"
+      },
+      "value": 3000,
+      "doc": "How long one release stage's gain ramp takes, in ms, from the depth the band stands at to the stage's depth.",
+      "unit": "ms"
+    },
+    {
+      "name": "FBS_LIFT_RAMP_STEPS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_LIFT_RAMP_STEPS (fbs-corrector.ts); implemented at src/omx_fbs_place.c#begin_stage"
+      },
+      "value": 10,
+      "doc": "The equal steps one release ramp takes, FBS_LIFT_RAMP_MS / this apart: the last step lands the stage's depth exactly.",
+      "unit": ""
+    },
+    {
+      "name": "FBS_RELEASE_RATIO",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_RELEASE_RATIO (fbs.ts); implemented at src/omx_fbs_place.c#begin_stage"
+      },
+      "value": 0.6666666666666666,
+      "doc": "Each release stage holds the planted depth times this ratio to the stage's power: every stage releases a third of what remains.",
+      "unit": ""
+    },
+    {
+      "name": "FBS_RELEASE_DONE_DB",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_RELEASE_DONE_DB (fbs.ts); implemented at src/omx_fbs_place.c#step_ramp"
+      },
+      "value": 1,
+      "doc": "A release stage whose depth is shallower than this, in dB, removes the band instead of holding it: the cut is inaudible.",
+      "unit": "dB"
+    },
+    {
+      "name": "FBS_RELEASE_DWELL_MS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_RELEASE_DWELL_MS (fbs.ts); implemented at src/omx_fbs_place.c#hold_sweep"
+      },
+      "value": 8000,
+      "doc": "How long a band listens at an eased stage, clean, before the next stage begins, in ms.",
+      "unit": "ms"
+    },
+    {
+      "name": "FBS_RING_HZ_MIN",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_RING_HZ_MIN (fbs.ts); implemented at src/omx_fbs_place.c#correct"
+      },
+      "value": 60,
+      "doc": "The lowest frequency a confirmed ring is planted at, in Hz; one below it is refused as rejected-edge, never clamped onto the EQ's edge.",
+      "unit": "Hz"
+    },
+    {
+      "name": "FBS_RING_HZ_MAX",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_RING_HZ_MAX (fbs.ts); implemented at src/omx_fbs_place.c#correct"
+      },
+      "value": 16000,
+      "doc": "The highest frequency a confirmed ring is planted at, in Hz; one above it is refused as rejected-edge.",
+      "unit": "Hz"
+    },
+    {
+      "name": "FBS_SAME_RING_HZ",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's sameRingFreq (fbs-corrector.ts); implemented at src/omx_fbs_place.c#omx_fbs_place_same_ring"
+      },
+      "value": 3,
+      "doc": "Two readings are the same ringing frequency within this many Hz, or FBS_SAME_RING_SHARE of the higher one, whichever is wider.",
+      "unit": "Hz"
+    },
+    {
+      "name": "FBS_SAME_RING_SHARE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's sameRingFreq (fbs-corrector.ts); implemented at src/omx_fbs_place.c#omx_fbs_place_same_ring"
+      },
+      "value": 0.015,
+      "doc": "The share of the higher frequency within which two readings are the same ringing frequency, when it is wider than FBS_SAME_RING_HZ: FFT bin spacing grows with frequency.",
+      "unit": ""
+    },
+    {
+      "name": "FBS_DEFAULT_HOLD_SECONDS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_DEFAULT_HOLD_SECONDS (index.ts); implemented at src/omx_fbs_place.c#omx_fbs_place_init"
+      },
+      "value": 5,
+      "doc": "The clean hold, in seconds, before a live band's first release stage.",
+      "unit": "s"
+    },
+    {
+      "name": "FBS_DEFAULT_MAX_AUTO_BANDS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_DEFAULT_MAX_AUTO_BANDS (index.ts); implemented at src/omx_fbs_place.c#omx_fbs_place_init"
+      },
+      "value": 6,
+      "doc": "How many bands one corrector may plant when nobody set its cap; a full pool plants nothing and says pool-full.",
+      "unit": ""
+    },
+    {
+      "name": "FBS_DEFAULT_MERGE_CENTS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_DEFAULT_MERGE_CENTS (fbs.ts); implemented at src/omx_fbs_place.c#omx_fbs_place_init"
+      },
+      "value": 100,
+      "doc": "The merge radius, in cents: a confirmed ring this close to a band already planted is that band's find, and plants nothing.",
+      "unit": "cents"
+    },
+    {
+      "name": "FBS_DEFAULT_COOLDOWN_SECONDS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FBS_DEFAULT_COOLDOWN_SECONDS (fbs.ts); implemented at src/omx_fbs_place.c#omx_fbs_place_init"
+      },
+      "value": 600,
+      "doc": "How long a fully released find's re-clamp count is remembered, in seconds, so a chronic ringer re-plants with its doubled holds.",
+      "unit": "s"
+    },
+    {
+      "name": "FBS_WATCH_HZ",
+      "since": "3.0.0",
+      "source": {
+        "origin": "the console engine's FEEDBACK_HZ (feedback-watcher.ts); implemented at include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_init_block"
+      },
+      "value": 10,
+      "doc": "The detector's frame rate, in Hz: the cadence the detector gates were tuned at. The live shell's hop is the rate over this.",
+      "unit": "Hz"
+    },
+    {
+      "name": "FBS_RING_MEMORY_SLOTS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/fbs.json; the C bound of src/omx_fbs_place.c#remember; implemented at src/omx_fbs_place.c#remember"
+      },
+      "value": 32,
+      "doc": "Released finds the ring memory holds at once. The console's list is unbounded and expires by FBS_DEFAULT_COOLDOWN_SECONDS; a full memory here forgets its oldest entry first, and counts it.",
+      "unit": ""
+    },
+    {
+      "name": "FBS_HOLD_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/fbs.json; implemented at src/omx_fbs_place.c#omx_fbs_place_set"
+      },
+      "value": {
+        "min": 1,
+        "max": 300,
+        "step": 1,
+        "unit": "s",
+        "default": 5
+      },
+      "doc": "The clean hold, in seconds, before a live band's first release stage."
+    },
+    {
+      "name": "FBS_BANDS_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/fbs.json; implemented at src/omx_fbs_place.c#omx_fbs_place_set"
+      },
+      "value": {
+        "min": 1,
+        "max": 24,
+        "step": 1,
+        "unit": "",
+        "default": 6
+      },
+      "doc": "How many bands this corrector may plant at once (its pool), from one to the EQ's band count. An integer control."
+    },
+    {
+      "name": "FBS_MERGE_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/fbs.json; implemented at src/omx_fbs_place.c#omx_fbs_place_set"
+      },
+      "value": {
+        "min": 0,
+        "max": 600,
+        "step": 10,
+        "unit": "cents",
+        "default": 100
+      },
+      "doc": "The merge radius, in cents. An integer control."
+    },
+    {
+      "name": "FBS_COOLDOWN_RANGE",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/fbs.json; implemented at src/omx_fbs_place.c#omx_fbs_place_set"
+      },
+      "value": {
+        "min": 0,
+        "max": 7200,
+        "step": 10,
+        "unit": "s",
+        "default": 600
+      },
+      "doc": "How long a released find's escalation is remembered, in seconds. An integer control."
+    },
+    {
+      "name": "FBS_MODES",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/fbs.json; implemented at include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_set_mode"
+      },
+      "default": "cut",
+      "doc": "cut runs the planted bands on the audio; report keeps the audio bit-exact while the detector and the placement run and the report carries what cut would plant. It comes up at cut: a host with no controller gets the corrector. The integer the shell reads is the id's position.",
+      "value": [
+        "cut",
+        "report"
+      ]
+    },
+    {
+      "name": "FBS_POOLS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/fbs.json; implemented at include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_ask_of"
+      },
+      "default": "live",
+      "doc": "Which pool the finds go to: fixed (ring-out: a true notch that never lifts) or live (a rampable bell with the staged release). The integer the shell reads is the id's position, OmxFbsPool's.",
+      "value": [
+        "fixed",
+        "live"
+      ]
+    },
+    {
+      "name": "FBS_MIN_AUTO_BANDS",
+      "since": "3.0.0",
+      "source": {
+        "origin": "first declared in omx-dsp data/kernels/fbs.json; implemented at src/omx_fbs_place.c#omx_fbs_place_set"
+      },
+      "value": 1,
+      "doc": "The smallest pool a corrector may be given: one band. A pool of none is no corrector; the cap is held at or above this.",
+      "unit": ""
     }
   ]
 }
