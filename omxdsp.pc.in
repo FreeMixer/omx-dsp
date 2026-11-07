@@ -8,6 +8,8 @@ datadir=@DATADIR@
 exports=${datadir}/omxdsp/omx-dsp-exports.json
 # the golden matched-Z peaking corpus (test/analysis/hrp_peaking_corpus.h) a consumer's HRP twins are read against
 hrpcorpus=${datadir}/omxdsp/hrp_peaking_corpus.h
+# the meter view law's golden vectors (vectors/meter-view.json) every copy of the law (a twin, a panel widget) is read against
+meterviewvectors=${datadir}/omxdsp/meter-view-vectors.json
 
 Name: @NAME@
 Description: DSP primitives and effect kernels of OpenMixer, linked statically (@FLAVOUR@)
