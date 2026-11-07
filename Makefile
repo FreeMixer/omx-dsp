@@ -631,6 +631,10 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # test/analysis/fixtures/fbs_place.vectors, which ts/test/fbs-place.test.mjs holds the twin to and
 # make fbs-place-console OPENMIXER=<checkout> CONTRACT_TS=<dir> holds the console's own FbsCorrector to;
 # test/analysis/fbs-place-sabotage.sh breaks each placement rule once and requires its vector to fail.
+# live_shells holds both correctors' live-shell cores (omx_fbs_lv2.h, omx_hrp_lv2.h) by value: a host with no
+# worker, the mode word, report bit-exact against cut, omx-fbs's staged fade at the nine rates and its quanta,
+# slots keeping their finds; test/analysis/live-shells-sabotage.sh breaks each once, and makes run() call the
+# worker's pass to require omx-rt-gate's self-run to read it red by the thread tags.
 # hrp_lv2_rates holds the live HRP shell's own decisions (the hop, when the worker is asked for, the
 # cursor, the adopted band's transfer function, the walk out) and the calls a plugin face drives it
 # through (the analysis block, the control snapshot, the pass counters, wants and answer, clear and
@@ -640,7 +644,7 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # thread: room_ts holds them to core's TypeScript through the parity table test/analysis/fixtures/room_ts.h;
 # align_fit, room and sweep hold them to closed forms at the nine oracle rates and count allocations;
 # test/analysis/room-sabotage.sh breaks each of their kernels once and requires both kinds to fail.
-ANALYSIS_TESTS = fbs_detect fbs_place rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 hrp_lv2_rates rates golden \
+ANALYSIS_TESTS = fbs_detect fbs_place live_shells rta hrp_pitch hrp_track hrp_attribute hrp_baseline hrp_correct hrp_render hrp_lv2 hrp_lv2_rates rates golden \
                  room_ts align_fit room sweep
 ANALYSIS_LDFLAGS_rates = -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free
 ANALYSIS_LDFLAGS_golden = -Wl,--wrap=log10f
@@ -661,6 +665,7 @@ test-analysis: analysis-oracles
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/room-sabotage.sh $(BUILD)/room-sabotage
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/hrp-lv2-rates-sabotage.sh $(BUILD)/hrp-lv2-rates-sabotage
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/fbs-place-sabotage.sh $(BUILD)/fbs-place-sabotage
+	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/live-shells-sabotage.sh $(BUILD)/live-shells-sabotage
 
 # the console's own placement (openmixer's fbs-corrector.ts, from a checkout) over the vectors the C placement and
 # its twin are held to; CONTRACT_TS holds the TypeScript render of a contract directory (tools/fbs-place-console.mjs)
