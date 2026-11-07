@@ -107,11 +107,12 @@ Its documentation is on openmixer.org.
   time at any draw rate, the clip word held until cleared, the LED ladder's
   step with a quarter-step hysteresis (a bar has no release), the
   gain-reduction reading over the reader's elapsed time through
-  omx_meter_gr_step, and what a decimating subscriber keeps; declared in
+  omx_meter_gr_step, what a decimating subscriber keeps, and the unit of
+  each kind and measurement (omx_meter_view_unit_of); declared in
   data/primitives/meter.json with the host read and stream rates, the kinds,
   measurements and units
 - ts: the twin meterFill, meterMarker, meterStep, meterBarStep, meterClip,
-  meterDecimate and meterGrView, pinned by the oracle and by
+  meterDecimate, meterUnitOf and meterGrView, pinned by the oracle and by
   vectors/meter-view.json at the nine oracle rates and quanta 32 to 1024,
   installed as omxdsp/meter-view-vectors.json (omxdsp.pc meterviewvectors)
 
