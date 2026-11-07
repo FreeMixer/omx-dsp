@@ -32,7 +32,7 @@ bash "$PKG/tools/kernels-gen.sh" "$OUT" >/dev/null
 sabotage() { # name sed-expression
   local name=$1 expr=$2 d="$OUT/$1" rc=0
   mkdir -p "$d/omxdsp"
-  cp "$PKG"/include/omxdsp/*.h "$d/omxdsp/"
+  cp -r "$PKG"/include/omxdsp/. "$d/omxdsp/"
   sed -i "$expr" "$d/omxdsp/omx_note_map.h"
   if cmp -s "$PKG/include/omxdsp/omx_note_map.h" "$d/omxdsp/omx_note_map.h"; then
     echo "note-map-sabotage.sh: FAIL — sabotage '$name' changed nothing; the line it targets is gone"

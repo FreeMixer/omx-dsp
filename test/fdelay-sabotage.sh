@@ -30,7 +30,7 @@ bash "$PKG/tools/kernels-gen.sh" "$OUT" >/dev/null
 sabotage() { # name sed-expression
   local name=$1 expr=$2 d="$OUT/$1" rc=0
   mkdir -p "$d/omxdsp"
-  cp "$PKG"/include/omxdsp/*.h "$d/omxdsp/"
+  cp -r "$PKG"/include/omxdsp/. "$d/omxdsp/"
   sed -i "$expr" "$d/omxdsp/omx_fdelay.h"
   if cmp -s "$PKG/include/omxdsp/omx_fdelay.h" "$d/omxdsp/omx_fdelay.h"; then
     echo "fdelay-sabotage.sh: FAIL — sabotage '$name' changed nothing; the kernel line it targets is gone"
