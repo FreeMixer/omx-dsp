@@ -10,7 +10,7 @@
  * test/meter.test.mjs: against the kernel through the oracle at the nine oracle rates, and against
  * vectors/meter-view.json, the file every copy of the law reads.
  */
-import { LIN_TO_DB_FLOOR, METER_KINDS, METER_MEASUREMENTS, METER_UNITS_LABELS, METER_VIEW } from './definitions.js';
+import { LIN_TO_DB_FLOOR, METER_DECIMATION, METER_KINDS, METER_MEASUREMENTS, METER_UNITS, METER_UNITS_LABELS, METER_VIEW } from './definitions.js';
 
 /** The wire words of the meter sets, in value order: `gain-reduction`, `true-peak`, `lufs-m`…; units as labelled. */
 export const METER_WORDS = {
@@ -91,8 +91,20 @@ export function meterBarStep(prevStep: number | undefined, level: number, steps:
 
 /** What a decimating subscriber keeps of two frames (METER_DECIMATION): a level the peak, a gain reduction the deepest; a NaN frame is never kept. Twin of omx_meter_view_decimate. */
 export function meterDecimate(kind: MeterKind, kept: number, value: number): number {
-  if (kind === 'gainReduction') return value < kept ? value : kept;
+  if (METER_DECIMATION[METER_KINDS.indexOf(kind)] === 'deepest') return value < kept ? value : kept;
   return value > kept ? value : kept;
+}
+
+/** A level's measurement, as METER_MEASUREMENTS spells it. */
+export type MeterMeasurement = (typeof METER_MEASUREMENTS)[number];
+/** A meter's unit, as METER_UNITS spells it (its label in METER_UNITS_LABELS). */
+export type MeterUnit = (typeof METER_UNITS)[number];
+
+const UNIT_OF: Record<MeterMeasurement, MeterUnit> = { peak: 'dbfs', truePeak: 'dbtp', lufsM: 'lufs', lufsS: 'lufs', lufsI: 'lufs', lra: 'lu' };
+
+/** The unit a meter's values are in: a level's from its measurement, a gain reduction's dB. Twin of omx_meter_view_unit_of. */
+export function meterUnitOf(kind: MeterKind, measurement: MeterMeasurement): MeterUnit {
+  return kind === 'gainReduction' ? 'db' : UNIT_OF[measurement];
 }
 
 /** The gain-reduction reading's hold, ms: OMX_METER_GR_HOLD_MS of mix/omx_meter.h (the oracle pins it). */

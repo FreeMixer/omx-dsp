@@ -74,7 +74,10 @@ export {
   meterGrView,
   meterMarker,
   meterStep,
+  meterUnitOf,
   type MeterGr,
   type MeterKind,
   type MeterMarker,
+  type MeterMeasurement,
+  type MeterUnit,
 } from './meter.js';

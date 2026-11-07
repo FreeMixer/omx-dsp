@@ -469,6 +469,13 @@ static int h_meter_view_gr(const double *in, int n, double *out) {
   return k;
 }
 
+/* meter_view_unit_of: kind measurement -> unit (METER_UNITS position; the count for none) */
+static int h_meter_view_unit_of(const double *in, int n, double *out) {
+  if (n != 2) return -1;
+  out[0] = (double)omx_meter_view_unit_of((enum omx_meter_kinds)(int)in[0], (enum omx_meter_measurements)(int)in[1]);
+  return 1;
+}
+
 /* meter_gr_hold_ms: -> OMX_METER_GR_HOLD_MS */
 static int h_meter_gr_hold_ms(const double *in, int n, double *out) {
   (void)in;
@@ -517,6 +524,7 @@ static const struct {
     {"meter_view_bar_step", h_meter_view_bar_step},
     {"meter_view_decimate", h_meter_view_decimate},
     {"meter_view_gr", h_meter_view_gr},
+    {"meter_view_unit_of", h_meter_view_unit_of},
     {"meter_gr_hold_ms", h_meter_gr_hold_ms},
 };
 

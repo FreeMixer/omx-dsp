@@ -17,6 +17,8 @@ import {
   METER_GR_EMPTY,
   METER_GR_HOLD_MS,
   METER_KINDS,
+  METER_MEASUREMENTS,
+  METER_UNITS,
   METER_VIEW,
   METER_WORDS,
   meterBarStep,
@@ -28,6 +30,7 @@ import {
   meterGrView,
   meterMarker,
   meterStep,
+  meterUnitOf,
 } from '../dist/index.js';
 import { TOLERANCES as T } from './tolerances.mjs';
 
@@ -61,7 +64,7 @@ const noHold = (m, d, dt, sr, pole) => {
 describe('the oracle answers the meter view kernels', () => {
   it('has every handler, and the hold is OMX_METER_GR_HOLD_MS', () => {
     const k = oracleKernels();
-    for (const n of ['meter_view_fill_db', 'meter_view_fill', 'meter_view_step', 'meter_view_clip', 'meter_view_ladder', 'meter_view_bar_step', 'meter_view_decimate', 'meter_view_gr', 'meter_gr_hold_ms']) assert.ok(k.includes(n), n);
+    for (const n of ['meter_view_fill_db', 'meter_view_fill', 'meter_view_step', 'meter_view_clip', 'meter_view_ladder', 'meter_view_bar_step', 'meter_view_decimate', 'meter_view_gr', 'meter_view_unit_of', 'meter_gr_hold_ms']) assert.ok(k.includes(n), n);
     assert.equal(ask('meter_gr_hold_ms', [[]]).answers[0][0], METER_GR_HOLD_MS);
   });
   it('the vectors cover every oracle rate at quanta 32 to 1024', () => {
@@ -83,6 +86,17 @@ describe('the declared numbers', () => {
     assert.deepEqual(METER_WORDS.kinds, ['level', 'gain-reduction']);
     assert.deepEqual(METER_WORDS.measurements, ['peak', 'true-peak', 'lufs-m', 'lufs-s', 'lufs-i', 'lra']);
     assert.deepEqual(METER_WORDS.units, ['dBFS', 'dBTP', 'LUFS', 'LU', 'dB']);
+  });
+});
+
+describe('the unit agrees with omx_meter_view_unit_of', () => {
+  const asked = ask('meter_view_unit_of', [0, 1].flatMap((k) => METER_MEASUREMENTS.map((_, m) => [k, m])));
+  const twin = (of) => (r) => [METER_UNITS.indexOf(of(METER_KINDS[r[0]], METER_MEASUREMENTS[r[1]]))];
+  it('for every kind and measurement', () => {
+    assert.deepEqual(against(asked, twin(meterUnitOf), T.meterView).failures, []);
+  });
+  it('SABOTAGE a true peak in dBFS: red', () => {
+    assert.ok(against(asked, twin((k, m) => (m === 'truePeak' ? 'dbfs' : meterUnitOf(k, m))), T.meterView).failures.length > 0);
   });
 });
 

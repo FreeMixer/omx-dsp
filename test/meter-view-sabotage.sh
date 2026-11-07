@@ -56,5 +56,5 @@ run fall "$D" 's|^#define OMX_METER_VIEW_FALL_DB_PER_SECOND 18$|#define OMX_METE
 run hysteresis "$V" 's|  if (prev >= 0 \&\& fabs(raw - (double)prev) <= 0.5 + hysteresis) return prev;|  if (prev >= 0 \&\& fabs(raw - (double)prev) <= 0.5 + 0.0 * hysteresis) return prev;|'
 run clip "$V" 's|  v->clip = v->clip \|\| clip;|  v->clip = clip;|'
 run floor "$D" 's|^#define OMX_METER_VIEW_FLOOR_DB -60$|#define OMX_METER_VIEW_FLOOR_DB -54|'
-run decimate "$V" 's|  if (kind == OMX_METER_KINDS_GAIN_REDUCTION) return value < kept ? value : kept;|  if (kind == OMX_METER_KINDS_GAIN_REDUCTION) return value > kept ? value : kept;|'
+run decimate "$V" 's|  if (keep == OMX_METER_DECIMATION_DEEPEST) return value < kept ? value : kept;|  if (keep == OMX_METER_DECIMATION_DEEPEST) return value > kept ? value : kept;|'
 echo "meter-view-sabotage: all seven sabotages are caught"

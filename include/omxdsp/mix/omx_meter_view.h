@@ -46,7 +46,7 @@ struct omx_meter_view {
  * @return `x` held to 0..1.
  * @note RT-safe. Thread-safe: pure.
  */
-static inline double omx_meter_view_unit(double x) {
+static inline double omx_meter_view_clamp(double x) {
   return x > 0.0 ? (x < 1.0 ? x : 1.0) : 0.0;
 }
 
@@ -95,7 +95,7 @@ static inline double omx_meter_view_fill(double level, double floor_db) {
  */
 static inline double omx_meter_view_step(struct omx_meter_view *v, double fill, double dt_s, double fall_db_per_s,
                                          double floor_db) {
-  const double f = omx_meter_view_unit(fill);
+  const double f = omx_meter_view_clamp(fill);
   v->elapsed_s += dt_s > 0.0 ? dt_s : 0.0;
   double m = v->peak - fall_db_per_s * v->elapsed_s / -floor_db;
   if (!(m > f)) {
@@ -142,7 +142,7 @@ static inline void omx_meter_view_clip_clear(struct omx_meter_view *v) {
  * @twin meterStep
  */
 static inline int32_t omx_meter_view_ladder(int32_t prev, double fill, uint32_t steps, double hysteresis) {
-  const double raw = omx_meter_view_unit(fill) * (double)steps;
+  const double raw = omx_meter_view_clamp(fill) * (double)steps;
   if (prev >= 0 && fabs(raw - (double)prev) <= 0.5 + hysteresis) return prev;
   return (int32_t)floor(raw + 0.5);
 }
@@ -192,8 +192,35 @@ static inline float omx_meter_view_gr(struct omx_meter_gr *m, float deepest_db, 
  * @twin meterDecimate
  */
 static inline double omx_meter_view_decimate(enum omx_meter_kinds kind, double kept, double value) {
-  if (kind == OMX_METER_KINDS_GAIN_REDUCTION) return value < kept ? value : kept;
+  const enum omx_meter_decimation keep =
+      kind == OMX_METER_KINDS_GAIN_REDUCTION ? OMX_METER_DECIMATION_DEEPEST : OMX_METER_DECIMATION_PEAK;
+  if (keep == OMX_METER_DECIMATION_DEEPEST) return value < kept ? value : kept;
   return value > kept ? value : kept;
+}
+
+/**
+ * @brief The unit a meter's values are in (METER_UNITS), from its kind and, for a level, its measurement
+ *        (METER_MEASUREMENTS): a sample peak dBFS, a true peak dBTP, a loudness LUFS, a loudness range LU, a gain
+ *        reduction dB.
+ * @param kind The meter's kind (enum omx_meter_kinds).
+ * @param measurement A level's measurement (enum omx_meter_measurements); a gain reduction ignores it.
+ * @return The unit, or OMX_METER_UNITS_COUNT for a kind or measurement past its set.
+ * @note RT-safe. Thread-safe: pure.
+ * @twin meterUnitOf
+ */
+static inline enum omx_meter_units omx_meter_view_unit_of(enum omx_meter_kinds kind,
+                                                          enum omx_meter_measurements measurement) {
+  if (kind == OMX_METER_KINDS_GAIN_REDUCTION) return OMX_METER_UNITS_DB;
+  if (kind != OMX_METER_KINDS_LEVEL) return (enum omx_meter_units)OMX_METER_UNITS_COUNT;
+  switch (measurement) {
+  case OMX_METER_MEASUREMENTS_PEAK: return OMX_METER_UNITS_DBFS;
+  case OMX_METER_MEASUREMENTS_TRUE_PEAK: return OMX_METER_UNITS_DBTP;
+  case OMX_METER_MEASUREMENTS_LUFS_M:
+  case OMX_METER_MEASUREMENTS_LUFS_S:
+  case OMX_METER_MEASUREMENTS_LUFS_I: return OMX_METER_UNITS_LUFS;
+  case OMX_METER_MEASUREMENTS_LRA: return OMX_METER_UNITS_LU;
+  }
+  return (enum omx_meter_units)OMX_METER_UNITS_COUNT;
 }
 
 #endif /* OMX_METER_VIEW_H */
