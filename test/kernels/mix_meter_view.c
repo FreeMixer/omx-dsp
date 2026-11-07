@@ -49,6 +49,14 @@ static int mvj_arr(const char *line, const char *key, double *out, int max) {
   return *p == ']' ? n : -1;
 }
 
+/* The gain-reduction reading is float arithmetic through powf, omx_db_to_lin and omx_lin_to_db: one libm's
+ * powf and log10f differ from another's (glibc 2.36 on bookworm, 2.39 on ubuntu 24.04, 2.41 on fc44) by a float
+ * step of the dB value, and the recovery carries it from read to read: measured 2.4e-7 to 2.9e-6 dB against a file
+ * written on one of them. The twin declares the same bound (ts/test/tolerances.mjs meterGr); a hold one read off
+ * is a whole dB, so every sabotage of the step stays red under it. The held values, the fall, the ladder and the
+ * clip word are double arithmetic in one order and stay at 1e-12 or 0. */
+#define MV_GR_TOL 1e-4
+
 /** Every entry of `got` within `tol` of `want`: the count that is not. */
 static uint32_t mv_off(const double *got, const double *want, uint32_t n, double tol, double *worst) {
   uint32_t bad = 0;
@@ -95,12 +103,12 @@ static void mv_file_case(const char *line, uint32_t *seen) {
       return;
     }
     uint32_t bad = mv_off(r.in, w[0], r.n, 0.0, &worst) + mv_off(r.dt, w[1], r.n, 0.0, &worst);
-    bad += mv_off(r.out, w[2], r.n, held ? 1e-12 : 0.0, &worst);
+    bad += mv_off(r.out, w[2], r.n, held ? 1e-12 : MV_GR_TOL, &worst);
     if (held) bad += mv_off(r.marker, w[3], r.n, 1e-12, &worst);
     if (held)
       ok(bad == 0, "held: the peak, fill and marker of every read are the file's", worst, 1e-12);
     else
-      ok(bad == 0, "gr: the reading of every read is the file's", worst, 0.0);
+      ok(bad == 0, "gr: the reading of every read is the file's within MV_GR_TOL", worst, MV_GR_TOL);
     if (!held && fabs(mvj_num(line, "pole") - (double)mv_pole(sr)) != 0.0)
       ok(0, "gr: the pole is the file's", mvj_num(line, "pole"), (double)mv_pole(sr));
     seen[held ? 0 : 1]++;
