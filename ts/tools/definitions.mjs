@@ -32,7 +32,7 @@ const CONSTANTS = {
 };
 /** data file -> control name -> the exported name of its { min, max } travel */
 const TRAVELS = {
-  'eq.json': { q: 'EQ_Q_RANGE', notchQ: 'EQ_NOTCH_Q_RANGE', gain: 'EQ_GAIN_RANGE' },
+  'eq.json': { q: 'EQ_Q_RANGE', notchQ: 'EQ_NOTCH_Q_RANGE', gain: 'EQ_GAIN_RANGE', freq: 'EQ_FREQ_RANGE' },
   'fbs.json': { bands: 'FBS_BANDS_RANGE', hold: 'FBS_HOLD_RANGE', merge: 'FBS_MERGE_RANGE', cooldown: 'FBS_COOLDOWN_RANGE' },
   'comp.json': { ratio: 'COMP_RATIO_RANGE', kneeDb: 'COMP_KNEE_DB_RANGE' },
   'gate.json': { ratio: 'GATE_RATIO_RANGE', rangeDb: 'GATE_RANGE_DB_RANGE' },

@@ -129,6 +129,9 @@ export const EQ_NOTCH_Q_RANGE = { min: 0.3, max: 116 } as const;
 /** The parametric-band gain travel, in dB. The ± scalar `clampEqGain` enforces is READ off this (the engine derives its gain limit from `max`), so the bound is stated once and a surface cannot draw a wider knob than the clamp will honour. @see data/kernels/eq.json */
 export const EQ_GAIN_RANGE = { min: -15, max: 15 } as const;
 
+/** The frequency band a parametric band can be dragged across. @see data/kernels/eq.json */
+export const EQ_FREQ_RANGE = { min: 20, max: 20000 } as const;
+
 /** How many bands this corrector may plant at once (its pool), from one to the EQ's band count. An integer control. @see data/kernels/fbs.json */
 export const FBS_BANDS_RANGE = { min: 1, max: 24 } as const;
 
