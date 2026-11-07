@@ -2,8 +2,8 @@
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
  * fbs_place.test.c — the feedback corrector's placement in C (omx_fbs_place.h) held to the shared vector file,
- * test/analysis/fixtures/fbs_place.vectors, which the TypeScript twin's test (ts/test/fbs-place.test.mjs) and the
- * console's own FbsCorrector (tools/fbs-place-console.mjs) read too. Every line of every vector is judged, inside
+ * test/analysis/fixtures/fbs_place.vectors, which the TypeScript twin's test (ts/test/fbs-place.test.mjs) reads
+ * too. Every line of every vector is judged, inside
  * the tolerances the file states; test/analysis/fbs-place-sabotage.sh breaks each rule once in a copy of
  * src/omx_fbs_place.c and requires this program to fail.
  *

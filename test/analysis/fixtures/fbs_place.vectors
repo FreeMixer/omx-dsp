@@ -1,8 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+#
 # fbs_place.vectors: the feedback corrector's placement by value (FreeMixer/omx-plugins#330, spec 7.7 and 7.16).
 # One file, read by the C placement's test (test/analysis/fbs_place.test.c) and by its TypeScript twin's
 # (ts/test/fbs-place.test.mjs): both are held to the values below, so they are held to each other.
-# The values are the console's rules (openmixer packages/server/src/fbs-corrector.ts and core's fbs.ts clamps)
-# worked by hand; tools/fbs-place-console.mjs runs the console's own FbsCorrector over the same inputs.
+# The values are the console's placement rules worked by hand; the console holds its own corrector to this
+# file on its side.
 #
 #   vector <name>                       a fresh placement (pool live, the declared defaults)
 #   pool fixed|live                     the pool the next finds go to

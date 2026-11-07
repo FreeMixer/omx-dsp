@@ -2,8 +2,7 @@
  * Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
  *
  * omx_fbs_place.c — the feedback corrector's placement (omx_fbs_place.h): the console's FbsCorrector rules
- * (openmixer packages/server/src/fbs-corrector.ts) over fixed slots. Each rule below names the console's method
- * it ports; ts/src/fbs-place.ts is the twin and test/analysis/fixtures/fbs_place.vectors holds both.
+ * over fixed slots. Each rule below names the console's method it ports; ts/src/fbs-place.ts is the twin and test/analysis/fixtures/fbs_place.vectors holds both.
  */
 #include <omxdsp/analysis/omx_fbs_place.h>
 
@@ -202,7 +201,7 @@ static void begin_stage(OmxFbsPlace *p, uint32_t k, uint32_t stage) {
 }
 
 /* the interval's callback: one step, the last lands the stage or removes the band */
-static void ramp_step(OmxFbsPlace *p, uint32_t k) {
+static void step_ramp(OmxFbsPlace *p, uint32_t k) {
   OmxFbsPlaceSlot *s = &p->slot[k];
   s->ramp_step++;
   if (s->ramp_step < OMX_FBS_LIFT_RAMP_STEPS) {
@@ -239,7 +238,7 @@ void omx_fbs_place_advance(OmxFbsPlace *p, double now_ms) {
     }
     if (next < 0) break;
     p->now_ms = p->slot[next].ramp_due_ms;
-    ramp_step(p, (uint32_t)next);
+    step_ramp(p, (uint32_t)next);
   }
   if (now_ms > p->now_ms) p->now_ms = now_ms;
 }

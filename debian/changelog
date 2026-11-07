@@ -4,7 +4,7 @@ omx-dsp (0.32.0) unstable; urgency=medium
     release, the merge radius and the per-origin gain cap (fbs-* to
     [-24, 0], every other origin to +-15), with its TypeScript twin
     (FbsPlace) and one vector file both are held to; the console's own
-    FbsCorrector holds the same file (tools/fbs-place-console.mjs).
+    feedback corrector is held to the same file on its side.
   * fbs: omx_fbs_lv2.h, the omx-fbs live-shell core, the analogue of
     omx_hrp_lv2.h: analysis on the worker, the set handed over by value, a
     host with no worker passing audio bit-exact.

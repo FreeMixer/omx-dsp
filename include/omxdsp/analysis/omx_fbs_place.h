@@ -4,9 +4,9 @@
  * omx_fbs_place.h — the feedback corrector's PLACEMENT in C: what a confirmed ring becomes.
  *
  * Spec 7.7: omx-fbs carries both pools with the staged fade, and its placement is C, held equal to
- * the console's by a twin test. This is the port of the console's `FbsCorrector` rules (openmixer
- * packages/server/src/fbs-corrector.ts, with core's fbs.ts clamps and the strip store's per-origin
- * gain bound), without the store writes and the rows: a fixed set of slots instead of an EQ list.
+ * the console's by a twin test. This is the port of the console's feedback corrector rules (with its
+ * clamps and the strip store's per-origin gain bound), without the store writes and the rows: a fixed
+ * set of slots instead of an EQ list.
  * ts/src/fbs-place.ts is its TypeScript twin, and test/analysis/fixtures/fbs_place.vectors is the
  * one vector file the C test and the twin test both read.
  *

@@ -180,7 +180,7 @@ VERSION    := $(shell sed -n 's/^\#define OMXDSP_VERSION_\(MAJOR\|MINOR\|PATCH\)
 
 
 
-.PHONY: fbs-place-console fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check contract-proof contract-tests test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage curve-golden curve-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
+.PHONY: fuzz fuzz-run fuzz-corpus all lib test lint docs clean contract-dir definitions definitions-check contract-proof contract-tests test-tsan suite negative consumer gen-once perturb fdelay-sabotage doppler-sabotage onepole-sabotage threads threads-sabotage checks cost-prel test-fx test-analysis install version golden-write flavours bench-mixmatrix bench-gate bench-drive bench-flanger check-log10f strip-input-identity analysis-engine-identity test-mix mix-engine-identity test-engine-kernels engine-kernels-identity magnitude-sabotage eq-sabotage curve-golden curve-sabotage geq-true-sabotage delay-taps-sabotage align-fdelay-sabotage pitch-rates-sabotage instance-rates-sabotage bandwidth-q-table bandwidth-q-sabotage eq-default-bands eq-defaults-table room-ts-golden public-sources private-refs deps deps-check cost-deesser note-map-sabotage exports copy-check
 
 all: lib
 
@@ -628,8 +628,7 @@ golden-write: $(foreach k,$(FX_KERNELS),$(BUILD)/fx_$(k)_golden) $(foreach k,$(F
 # test/analysis/sabotage.sh breaks one line of each kernel (fbs, rta, render, live) in a scratch copy
 # and requires the golden digests of that kernel to move.
 # fbs_place holds the feedback corrector's placement (omx_fbs_place.h) to the shared vector file
-# test/analysis/fixtures/fbs_place.vectors, which ts/test/fbs-place.test.mjs holds the twin to and
-# make fbs-place-console OPENMIXER=<checkout> CONTRACT_TS=<dir> holds the console's own FbsCorrector to;
+# test/analysis/fixtures/fbs_place.vectors, which ts/test/fbs-place.test.mjs holds the twin to;
 # test/analysis/fbs-place-sabotage.sh breaks each placement rule once and requires its vector to fail.
 # live_shells holds both correctors' live-shell cores (omx_fbs_lv2.h, omx_hrp_lv2.h) by value: a host with no
 # worker, the mode word, report bit-exact against cut, omx-fbs's staged fade at the nine rates and its quanta,
@@ -666,13 +665,6 @@ test-analysis: analysis-oracles
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/hrp-lv2-rates-sabotage.sh $(BUILD)/hrp-lv2-rates-sabotage
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/fbs-place-sabotage.sh $(BUILD)/fbs-place-sabotage
 	CC="$(CC)" CFLAGS="$(CFLAGS)" bash test/analysis/live-shells-sabotage.sh $(BUILD)/live-shells-sabotage
-
-# the console's own placement (openmixer's fbs-corrector.ts, from a checkout) over the vectors the C placement and
-# its twin are held to; CONTRACT_TS holds the TypeScript render of a contract directory (tools/fbs-place-console.mjs)
-fbs-place-console:
-	@[ -n "$(OPENMIXER)" ] && [ -n "$(CONTRACT_TS)" ] || { echo "fbs-place-console: OPENMIXER=<checkout> CONTRACT_TS=<render dir>"; exit 2; }
-	cd ts && npx tsc -p tsconfig.json
-	node --experimental-strip-types tools/fbs-place-console.mjs $(OPENMIXER) $(CONTRACT_TS)
 
 analysis-engine-identity: $(LIB)
 	@test -n "$(OPENMIXER)" || { echo "make analysis-engine-identity OPENMIXER=<openmixer checkout>"; exit 2; }

@@ -8,7 +8,7 @@
       "name": "mode",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_ask_of"
+        "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_set_mode"
       },
       "doc": "cut (0) runs the planted bands on the audio; report (1) keeps the audio bit-exact while the detector and the placement run and the report carries what cut would plant. It comes up at cut: a host with no controller gets the corrector. An integer control.",
       "travel": {
@@ -38,7 +38,7 @@
       "name": "hold",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_ask_of"
+        "impl": "src/omx_fbs_place.c#omx_fbs_place_set"
       },
       "doc": "The clean hold, in seconds, before a live band's first release stage.",
       "travel": {
@@ -55,7 +55,7 @@
       "name": "bands",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_ask_of"
+        "impl": "src/omx_fbs_place.c#omx_fbs_place_set"
       },
       "doc": "How many bands this corrector may plant at once (its pool), from one to the EQ's band count. An integer control.",
       "travel": {
@@ -74,7 +74,7 @@
       "name": "merge",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_ask_of"
+        "impl": "src/omx_fbs_place.c#omx_fbs_place_set"
       },
       "doc": "The merge radius, in cents. An integer control.",
       "travel": {
@@ -91,7 +91,7 @@
       "name": "cooldown",
       "kind": "travel",
       "source": {
-        "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_ask_of"
+        "impl": "src/omx_fbs_place.c#omx_fbs_place_set"
       },
       "doc": "How long a released find's escalation is remembered, in seconds. An integer control.",
       "travel": {
@@ -484,7 +484,7 @@
           "link": "core/src/fbs.ts#FBS_RELEASE_DONE_DB",
           "at": "openmixer@5fd8481123c8b8800e967cb042f18c549d821184"
         },
-        "impl": "src/omx_fbs_place.c#ramp_step"
+        "impl": "src/omx_fbs_place.c#step_ramp"
       },
       "doc": "A release stage whose depth is shallower than this, in dB, removes the band instead of holding it: the cut is inaudible.",
       "unit": "dB",
@@ -614,7 +614,7 @@
           "link": "server/src/feedback-watcher.ts#FEEDBACK_HZ",
           "at": "openmixer@5fd8481123c8b8800e967cb042f18c549d821184"
         },
-        "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_hop"
+        "impl": "include/omxdsp/analysis/omx_fbs_lv2.h#omx_fbs_lv2_init_block"
       },
       "doc": "The detector's frame rate, in Hz: the cadence the detector gates were tuned at. The live shell's hop is the rate over this.",
       "unit": "Hz",
