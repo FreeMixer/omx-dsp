@@ -77,7 +77,7 @@ sabotage idle "idle shell: one second out byte for byte" \
 sabotage cursor "k passes over 3 hops consume k hops" \
   's|^  atomic_store_explicit(&s->consumed, consumed + (uint64_t)hop, memory_order_release);$|  atomic_store_explicit(\&s->consumed, consumed + (uint64_t)hop - 1u, memory_order_release);|'
 sabotage band "a sine at the centre comes out at |H|" \
-  's|^  omx_live_out(&s->live, s->mode == OMX_HRP_LV2_REPORT, in, out, n);$|  if (out != in) memcpy(out, in, (size_t)n * sizeof(float));|'
+  's|^  omx_live_out(&s->live, s->mode == OMX_HRP_LV2_REPORT, in, out, n);$|  omx_live_pass_through(in, out, n);|'
 sabotage walk "the walk moves one step per pass" \
   's|^  const float step = OMX_HRP_GAIN_STEP_DB;$|  const float step = 0.5f * OMX_HRP_GAIN_STEP_DB;|'
 sabotage block-size "block_floats = five windows" \
