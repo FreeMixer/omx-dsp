@@ -31,6 +31,7 @@
 #include <omxdsp/analysis/omx_room.h>
 #include <omxdsp/analysis/omx_rta.h>
 #include <omxdsp/fx/omx_eq_instance.h>
+#include <omxdsp/mix/omx_meter_view.h>
 #include <omxdsp/mix/omx_pan_law.h>
 #include <omxdsp/omx_balance_law.h>
 #include <omxdsp/omx_contract.h>
@@ -403,6 +404,86 @@ static int h_room_mode_set_stable(const double *in, int n, double *out) {
   return 1;
 }
 
+/* meter_view_fill_db: db floor_db -> fill */
+static int h_meter_view_fill_db(const double *in, int n, double *out) {
+  if (n != 2) return -1;
+  out[0] = omx_meter_view_fill_db(in[0], in[1]);
+  return 1;
+}
+
+/* meter_view_fill: level floor_db -> fill */
+static int h_meter_view_fill(const double *in, int n, double *out) {
+  if (n != 2) return -1;
+  out[0] = omx_meter_view_fill(in[0], in[1]);
+  return 1;
+}
+
+/* meter_view_step: fall_db_per_s floor_db { fill dt_s }*k -> the marker at each tick, from a fresh view */
+static int h_meter_view_step(const double *in, int n, double *out) {
+  if (n < 2 || (n - 2) % 2 != 0) return -1;
+  struct omx_meter_view v = {0};
+  const int k = (n - 2) / 2;
+  for (int i = 0; i < k; i++) out[i] = omx_meter_view_step(&v, in[2 + 2 * i], in[3 + 2 * i], in[0], in[1]);
+  return k;
+}
+
+/* meter_view_clip: { clip clear }*k -> the clip word at each tick (a clear is taken before the tick's clip) */
+static int h_meter_view_clip(const double *in, int n, double *out) {
+  if (n % 2 != 0) return -1;
+  struct omx_meter_view v = {0};
+  for (int i = 0; i < n / 2; i++) {
+    if (in[2 * i + 1] != 0.0) omx_meter_view_clip_clear(&v);
+    out[i] = omx_meter_view_clip(&v, in[2 * i] != 0.0);
+  }
+  return n / 2;
+}
+
+/* meter_view_ladder: steps hysteresis prev fill -> count (prev negative: none) */
+static int h_meter_view_ladder(const double *in, int n, double *out) {
+  if (n != 4) return -1;
+  out[0] = omx_meter_view_ladder((int32_t)in[2], in[3], (uint32_t)in[0], in[1]);
+  return 1;
+}
+
+/* meter_view_bar_step: steps prev level -> count */
+static int h_meter_view_bar_step(const double *in, int n, double *out) {
+  if (n != 3) return -1;
+  out[0] = omx_meter_view_bar_step((int32_t)in[1], in[2], (uint32_t)in[0]);
+  return 1;
+}
+
+/* meter_view_decimate: kind kept value -> kept */
+static int h_meter_view_decimate(const double *in, int n, double *out) {
+  if (n != 3) return -1;
+  out[0] = omx_meter_view_decimate((enum omx_meter_kinds)(int)in[0], in[1], in[2]);
+  return 1;
+}
+
+/* meter_view_gr: rate pole { deepest_db dt_s }*k -> the reading at each tick, from no reduction */
+static int h_meter_view_gr(const double *in, int n, double *out) {
+  if (n < 2 || (n - 2) % 2 != 0) return -1;
+  struct omx_meter_gr m = {0.0f, 0.0f};
+  const int k = (n - 2) / 2;
+  for (int i = 0; i < k; i++)
+    out[i] = (double)omx_meter_view_gr(&m, (float)in[2 + 2 * i], in[3 + 2 * i], (float)in[0], (float)in[1]);
+  return k;
+}
+
+/* meter_view_unit_of: kind measurement -> unit (METER_UNITS position; the count for none) */
+static int h_meter_view_unit_of(const double *in, int n, double *out) {
+  if (n != 2) return -1;
+  out[0] = (double)omx_meter_view_unit_of((enum omx_meter_kinds)(int)in[0], (enum omx_meter_measurements)(int)in[1]);
+  return 1;
+}
+
+/* meter_gr_hold_ms: -> OMX_METER_GR_HOLD_MS */
+static int h_meter_gr_hold_ms(const double *in, int n, double *out) {
+  (void)in;
+  if (n != 0) return -1;
+  out[0] = (double)OMX_METER_GR_HOLD_MS;
+  return 1;
+}
+
 static const struct {
   const char *name;
   handler fn;
@@ -435,6 +516,16 @@ static const struct {
     {"room_mode_eq_proposals", h_room_mode_eq_proposals},
     {"room_mode_residual_db", h_room_mode_residual_db},
     {"room_mode_set_stable", h_room_mode_set_stable},
+    {"meter_view_fill_db", h_meter_view_fill_db},
+    {"meter_view_fill", h_meter_view_fill},
+    {"meter_view_step", h_meter_view_step},
+    {"meter_view_clip", h_meter_view_clip},
+    {"meter_view_ladder", h_meter_view_ladder},
+    {"meter_view_bar_step", h_meter_view_bar_step},
+    {"meter_view_decimate", h_meter_view_decimate},
+    {"meter_view_gr", h_meter_view_gr},
+    {"meter_view_unit_of", h_meter_view_unit_of},
+    {"meter_gr_hold_ms", h_meter_gr_hold_ms},
 };
 
 /* The kernels the table answers, for a test that asks "is the oracle really here". */

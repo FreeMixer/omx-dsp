@@ -120,6 +120,30 @@ export const LIN_TO_DB_FLOOR = {
   db: -180,
 } as const;
 
+/** A meter's view law, the same on every surface: the fill is linear in dB from `floorDb` (dBFS, an empty display) to 0 dBFS (a full one); a stepped display (an LED ladder) holds its count until the level moves `stepHysteresis` of a step past the count's own rounding edge; the peak marker falls `fallDbPerSecond` dB for each second elapsed at the view's draw tick, whatever the tick's rate, silence included. A host reads a plugin's held meter at `hostReadHz`; the console streams meter values at `streamHz`. dBFS, a fraction of a step, dB per second and Hz. @see data/primitives/meter.json */
+export const METER_VIEW = {
+  floorDb: -60,
+  stepHysteresis: 0.25,
+  fallDbPerSecond: 18,
+  hostReadHz: 50,
+  streamHz: 20,
+} as const;
+
+/** What a meter measures, as a plugin's descriptor and the panel description spell it: `level`, a signal level (its measurement one of METER_MEASUREMENTS), and `gainReduction`, the gain a dynamics stage takes off, dB at or below 0. The wire spells them `level` and `gain-reduction`. `rms`, `vu` and `ppm` are not kinds. @see data/primitives/meter.json */
+export const METER_KINDS = ['level', 'gainReduction'] as const;
+
+/** The measurement of a `level` meter: the sample peak (`peak`, dBFS), the true peak (`truePeak`, dBTP), and the loudness measures of omx_loudness.h: momentary, short-term and integrated loudness (`lufsM`, `lufsS`, `lufsI`, LUFS) and the loudness range (`lra`, LU). The wire spells them `peak`, `true-peak`, `lufs-m`, `lufs-s`, `lufs-i` and `lra`. A foreign meter's measurement is null, never guessed. @see data/primitives/meter.json */
+export const METER_MEASUREMENTS = ['peak', 'truePeak', 'lufsM', 'lufsS', 'lufsI', 'lra'] as const;
+
+/** The unit a meter's values are in, spelt as its label: dBFS for a sample peak, dBTP for a true peak, LUFS for a loudness, LU for a loudness range, dB for a gain reduction. The scale a surface draws is captioned with it. @see data/primitives/meter.json */
+export const METER_UNITS = ['dbfs', 'dbtp', 'lufs', 'lu', 'db'] as const;
+
+/** The labels of METER_UNITS, in its order. @see data/primitives/meter.json */
+export const METER_UNITS_LABELS = ['dBFS', 'dBTP', 'LUFS', 'LU', 'dB'] as const;
+
+/** What a subscriber that decimates a meter stream keeps of the frames it drops, one per kind in METER_KINDS order, as the engine's slot keeps between two reads: a `level` keeps the `peak` (the largest value), a `gainReduction` the `deepest` (the smallest dB). Never the newest. @see data/primitives/meter.json */
+export const METER_DECIMATION = ['peak', 'deepest'] as const;
+
 /** The Q (resonance) extent of a parametric band. @see data/kernels/eq.json */
 export const EQ_Q_RANGE = { min: 0.3, max: 8 } as const;
 

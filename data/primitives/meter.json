@@ -1,0 +1,90 @@
+{
+  "$schema": "../../schema/omx-contract.schema.json",
+  "requires": {
+    "omx-contract-schema": ">= 3.0.0"
+  },
+  "METER_VIEW": {
+    "kind": "sheet",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/mix/omx_meter_view.h#omx_meter_view_bar_step"
+    },
+    "doc": "A meter's view law, the same on every surface: the fill is linear in dB from `floorDb` (dBFS, an empty display) to 0 dBFS (a full one); a stepped display (an LED ladder) holds its count until the level moves `stepHysteresis` of a step past the count's own rounding edge; the peak marker falls `fallDbPerSecond` dB for each second elapsed at the view's draw tick, whatever the tick's rate, silence included. A host reads a plugin's held meter at `hostReadHz`; the console streams meter values at `streamHz`. dBFS, a fraction of a step, dB per second and Hz.",
+    "value": {
+      "floorDb": -60,
+      "stepHysteresis": 0.25,
+      "fallDbPerSecond": 18,
+      "hostReadHz": 50,
+      "streamHz": 20
+    },
+    "docs": {
+      "floorDb": "dBFS at or below which a meter reads empty.",
+      "stepHysteresis": "The fraction of one step a level must pass a stepped count's rounding edge by before the count changes.",
+      "fallDbPerSecond": "How fast the peak marker falls, dB per second of elapsed time.",
+      "hostReadHz": "The rate a host reads a plugin's held meter at, Hz.",
+      "streamHz": "The rate the console streams meter values at, Hz."
+    }
+  },
+  "METER_KINDS": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/mix/omx_meter_view.h#omx_meter_view_decimate"
+    },
+    "doc": "What a meter measures, as a plugin's descriptor and the panel description spell it: `level`, a signal level (its measurement one of METER_MEASUREMENTS), and `gainReduction`, the gain a dynamics stage takes off, dB at or below 0. The wire spells them `level` and `gain-reduction`. `rms`, `vu` and `ppm` are not kinds.",
+    "ids": [
+      "level",
+      "gainReduction"
+    ]
+  },
+  "METER_MEASUREMENTS": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/mix/omx_meter_view.h#omx_meter_view_unit_of"
+    },
+    "doc": "The measurement of a `level` meter: the sample peak (`peak`, dBFS), the true peak (`truePeak`, dBTP), and the loudness measures of omx_loudness.h: momentary, short-term and integrated loudness (`lufsM`, `lufsS`, `lufsI`, LUFS) and the loudness range (`lra`, LU). The wire spells them `peak`, `true-peak`, `lufs-m`, `lufs-s`, `lufs-i` and `lra`. A foreign meter's measurement is null, never guessed.",
+    "ids": [
+      "peak",
+      "truePeak",
+      "lufsM",
+      "lufsS",
+      "lufsI",
+      "lra"
+    ]
+  },
+  "METER_UNITS": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/mix/omx_meter_view.h#omx_meter_view_unit_of"
+    },
+    "doc": "The unit a meter's values are in, spelt as its label: dBFS for a sample peak, dBTP for a true peak, LUFS for a loudness, LU for a loudness range, dB for a gain reduction. The scale a surface draws is captioned with it.",
+    "ids": [
+      "dbfs",
+      "dbtp",
+      "lufs",
+      "lu",
+      "db"
+    ],
+    "labels": [
+      "dBFS",
+      "dBTP",
+      "LUFS",
+      "LU",
+      "dB"
+    ]
+  },
+  "METER_DECIMATION": {
+    "kind": "set",
+    "since": "3.0.0",
+    "source": {
+      "impl": "include/omxdsp/mix/omx_meter_view.h#omx_meter_view_decimate"
+    },
+    "doc": "What a subscriber that decimates a meter stream keeps of the frames it drops, one per kind in METER_KINDS order, as the engine's slot keeps between two reads: a `level` keeps the `peak` (the largest value), a `gainReduction` the `deepest` (the smallest dB). Never the newest.",
+    "ids": [
+      "peak",
+      "deepest"
+    ]
+  }
+}

@@ -38,6 +38,12 @@ export {
   GATE_RATIO_RANGE,
   LIN_TO_DB_FLOOR,
   LOWPASS_HANDOVER,
+  METER_DECIMATION,
+  METER_KINDS,
+  METER_MEASUREMENTS,
+  METER_UNITS,
+  METER_UNITS_LABELS,
+  METER_VIEW,
   RTA_FFT_SIZE_MAX,
   RTA_TARGET_BIN_HZ,
 } from './definitions.js';
@@ -73,3 +79,24 @@ export {
   type FbsPool,
 } from './fbs-place.js';
 export { EQ_GAIN_RANGE, FBS_MAX_CUT_DB } from './definitions.js';
+export {
+  METER_GR_EMPTY,
+  METER_GR_HOLD_MS,
+  METER_MARKER_EMPTY,
+  METER_WORDS,
+  meterBarStep,
+  meterClip,
+  meterDecimate,
+  meterFill,
+  meterFillDb,
+  meterGrStep,
+  meterGrView,
+  meterMarker,
+  meterStep,
+  meterUnitOf,
+  type MeterGr,
+  type MeterKind,
+  type MeterMarker,
+  type MeterMeasurement,
+  type MeterUnit,
+} from './meter.js';

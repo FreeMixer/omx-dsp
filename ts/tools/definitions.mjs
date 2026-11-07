@@ -41,6 +41,7 @@ const TRAVELS = {
 const PRIMITIVES = {
   'curve.json': ['CURVE_DISPLAYS', 'CURVE_FAMILIES', 'CURVE_ROLES', 'CURVE_UNITS', 'CURVE_SHAPES', 'CURVE_ORIGINS', 'CURVE_CODES', 'CURVE_POINTS_MAX', 'CURVE_EXTENTS'],
   'lin-to-db-floor.json': ['LIN_TO_DB_FLOOR'],
+  'meter.json': ['METER_VIEW', 'METER_KINDS', 'METER_MEASUREMENTS', 'METER_UNITS', 'METER_DECIMATION'],
 };
 
 const read = (file) => JSON.parse(readFileSync(join(DATA, file), 'utf8'));
@@ -99,6 +100,8 @@ export const render = () => {
         lines.push('', doc(c.doc, file, undefined, 'primitives'), `export const ${name} = {`, ...body, '} as const;');
       } else if (c?.kind === 'set' && Array.isArray(c.ids) && c.ids.every((i) => typeof i === 'string')) {
         lines.push('', doc(c.doc, file, undefined, 'primitives'), `export const ${name} = [${c.ids.map((i) => `'${i}'`).join(', ')}] as const;`);
+        if (Array.isArray(c.labels))
+          lines.push('', `/** The labels of ${name}, in its order. @see data/primitives/${file} */`, `export const ${name}_LABELS = [${c.labels.map((i) => `'${i}'`).join(', ')}] as const;`);
       } else throw new Error(`data/primitives/${file}: ${name} is no scalar, flat sheet or set of named ids`);
     }
   }

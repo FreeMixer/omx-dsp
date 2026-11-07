@@ -45,4 +45,13 @@ export const TOLERANCES = {
   // A gain given as a linear factor goes through omx_lin_to_db, which is log10f: V8's log10 rounded to float differs
   // from it by up to one float step of the dB value (1e-6 dB at 12 dB); measured 1.3e-6 dB at worst.
   curvePointsEqCoef: { abs: 4e-6 },
+  // The meter view law is double arithmetic on both sides in the same order: a fill from dB, the marker, the ladder,
+  // the clip word and the decimation are bit for bit. A fill from a linear peak goes through log10, libm against V8's:
+  // a few ulp of a value at most 1.
+  meterView: { abs: 0 },
+  meterFill: { abs: 1e-15 },
+  // The gain-reduction reading is float arithmetic: powf and log10f against V8's pow and log10 rounded to float differ by
+  // a float step of the dB value, and the recovery carries it from read to read; measured below 2e-6 dB, and a hold one
+  // read off is a whole dB.
+  meterGr: { abs: 1e-4 },
 };
