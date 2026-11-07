@@ -31,6 +31,7 @@ PREDEFINED             = OMX_CONTRACTS __x86_64__ "__attribute__(x)=" "OMXDSP_ST
 ALIASES               += "pre=\par Precondition:^^" \
                          "post=\par Postcondition:^^" \
                          "invariant=\par Invariant:^^" \
-                         "twin=\par Twin in TypeScript:^^"
+                         "twin=\par Twin in TypeScript:^^" \
+                         "thread=\par Thread:^^"
 HAVE_DOT               = NO
 EXCLUDE_SYMBOLS        = OMX_CONTRACT_STAGE M_PI

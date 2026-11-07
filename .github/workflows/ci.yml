@@ -334,19 +334,24 @@ jobs:
         run: |
           set -euo pipefail
           rpm=$(ls rpms/omx-dsp-devel-[0-9]*.${{ matrix.arch }}.rpm)
+          # the gate's share directory (its tables, omx-dsp's thread tags and one call graph per compiled unit) is
+          # checked by name below, not listed here
           rpm -qp --qf '[%{FILEMODES:perms} %{FILENAMES}\n]' "$rpm" | grep -v '^d' | cut -d' ' -f2 \
-            | sed 's,/usr/lib64/,/usr/lib*/,' | grep -v '^/usr/include/omxdsp/' | sort > files.txt
+            | sed 's,/usr/lib64/,/usr/lib*/,' | grep -v '^/usr/include/omxdsp/\|^/usr/share/omxdsp/rt-gate/' | sort > files.txt
           printf '%s\n' '/usr/lib*/libomxdsp.a' '/usr/lib*/libomxdsp-contracts.a' '/usr/lib*/libomxdsp-tsan.a' \
             '/usr/lib*/pkgconfig/omxdsp.pc' '/usr/lib*/pkgconfig/omxdsp-contracts.pc' '/usr/lib*/pkgconfig/omxdsp-tsan.pc' \
             /usr/share/doc/omx-dsp-devel/README.md \
-            /usr/share/licenses/omx-dsp-devel/LICENSE /usr/bin/omx-dsp-copy-check \
-            /usr/share/man/man1/omx-dsp-copy-check.1.gz /usr/share/omxdsp/omx-dsp-exports.json /usr/share/omxdsp/hrp_peaking_corpus.h | sort > expected.txt
+            /usr/share/licenses/omx-dsp-devel/LICENSE /usr/bin/omx-dsp-copy-check /usr/bin/omx-rt-gate \
+            /usr/share/man/man1/omx-dsp-copy-check.1.gz /usr/share/man/man1/omx-rt-gate.1.gz \
+            /usr/share/omxdsp/omx-dsp-exports.json /usr/share/omxdsp/hrp_peaking_corpus.h | sort > expected.txt
           diff -u expected.txt files.txt
           # the listing is read from a file: grep -q stops at its first match, and under pipefail the rpm it
           # cut off (SIGPIPE, exit 141) fails the step once the listing is longer than the pipe holds
           rpm -qlp "$rpm" > listing.txt
           grep -q '^/usr/include/omxdsp/fx/omx_delay.h$' listing.txt
           grep -q '^/usr/include/omxdsp/fx/omx_reverb.h$' listing.txt
+          for f in tables/forbidden.tbl tables/classes.tbl tables/lv2.abi tables/clap.abi tables/pipewire.abi tables/omxdsp.abi \
+                   omx-dsp.tags graphs/omx_fbs_detect.ci; do grep -q "^/usr/share/omxdsp/rt-gate/$f\$" listing.txt; done
           ! grep -E '\.so(\.|$)' listing.txt
           # the contract directory is read at run time: it is omx-dsp-contract's, never the devel package's (omx-contract#150)
           ! grep -q '^/usr/share/omx-contract/' listing.txt
@@ -423,6 +428,8 @@ jobs:
           ! grep -E '\.so(\.|$)' listing.txt
           for a in libomxdsp libomxdsp-contracts libomxdsp-tsan; do grep -q "/$a\.a\$" listing.txt; done
           for p in omxdsp omxdsp-contracts omxdsp-tsan; do grep -q "/pkgconfig/$p\.pc\$" listing.txt; done
+          for f in /usr/bin/omx-rt-gate /usr/share/man/man1/omx-rt-gate.1.gz /usr/share/omxdsp/rt-gate/tables/forbidden.tbl \
+                   /usr/share/omxdsp/rt-gate/omx-dsp.tags /usr/share/omxdsp/rt-gate/graphs/omx_fbs_detect.ci; do grep -q "^$f\$" listing.txt; done
           dpkg -L omx-dsp-contract > listing.txt
           grep -q '^/usr/share/omx-contract/contract.d/3/omx-dsp/MANIFEST.json$' listing.txt
           diff <(cd data && find . -name '*.json' | sed 's|^\./|/usr/share/omx-contract/contract.d/3/omx-dsp/|' | sort) \

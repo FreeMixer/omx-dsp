@@ -27,7 +27,9 @@ Description: audio toolbox of the OpenMixer console, a real-time-safe C library
  each with its pkg-config file: libomxdsp.a (omxdsp), libomxdsp-contracts.a
  (omxdsp-contracts, contracts compiled in) and libomxdsp-tsan.a (omxdsp-tsan,
  contracts and ThreadSanitizer). Programs link the library statically; no
- shared library exists.
+ shared library exists. omx-rt-gate, the static real-time gate for plugin
+ and engine C built on the library, is here too, with the tables, thread
+ tags and call graphs it judges against.
  .
  Its documentation is on openmixer.org.
 

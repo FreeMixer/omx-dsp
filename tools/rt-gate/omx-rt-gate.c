@@ -1722,7 +1722,7 @@ static void show_log(const char *log) {
 /* the consumer's flags, without what would change the input: optimisation, output, LTO, the
  * dependency files; then -O0 -fno-inline -fcallgraph-info */
 static char **cc_argv(char **cc, int ncc, const char *unit, const char *out, int preprocess) {
-  char **a = xrealloc(NULL, (size_t)(ncc + 14) * sizeof *a);
+  char **a = xrealloc(NULL, (size_t)(ncc + 16) * sizeof *a);
   int n = 0;
   for (int i = 0; i < ncc; i++) {
     const char *f = cc[i];
@@ -1743,6 +1743,9 @@ static char **cc_argv(char **cc, int ncc, const char *unit, const char *out, int
   a[n++] = "-fno-inline";
   /* a distribution's -D_FORTIFY_SOURCE warns at -O0, and a -Werror build stops on it */
   a[n++] = "-Wp,-U_FORTIFY_SOURCE";
+  /* the stack protector's __stack_chk_fail is the compiler's own guard, not a call the source makes:
+   * the graph is read without it */
+  a[n++] = "-fno-stack-protector";
   if (preprocess) {
     a[n++] = "-E";
   } else {
@@ -1884,7 +1887,7 @@ static int block_above(struct srcfile *f, int line, int *first, int *last) {
   return 0;
 }
 
-static int thread_tags(char **cc, int ncc, const char *unit, const char *under, const char *out, const char *selfrun, const char *work) {
+static int thread_tags(char **cc, int ncc, const char *unit, const char *under, const char *except, const char *out, const char *selfrun, const char *work) {
   struct unit u = {0};
   u.src = xstrdup(unit);
   u.ipath = xasprintf("%s/tags.i", work);
@@ -1904,6 +1907,8 @@ static int thread_tags(char **cc, int ncc, const char *unit, const char *under, 
     roles[i] = ROLE_NONE;
     const char *file = u.files[u.t[fd->tok].file];
     if (strncmp(file, under, strlen(under))) continue;
+    /* the header omx-contract renders from data/ carries no tag: its items are documented there */
+    if (except && !strcmp(file, except)) continue;
     int start = decl_start(&u, fd->tok);
     int line = u.t[start].file == u.t[fd->tok].file ? u.t[start].line : fd->line;
     struct srcfile *sf = source(file);
@@ -1951,13 +1956,38 @@ static int thread_tags(char **cc, int ncc, const char *unit, const char *under, 
   return bad ? 1 : 0;
 }
 
+/* ---- the shipped graphs: each compiled unit's call graph, read the way the gate reads a consumer's ------- */
+
+static int write_graphs(char **cc, int ncc, char **units, int nunits, const char *dir) {
+  mkdir(dir, 0755);
+  for (int i = 0; i < nunits; i++) {
+    const char *slash = strrchr(units[i], '/');
+    char *base = xstrdup(slash ? slash + 1 : units[i]);
+    size_t l = strlen(base);
+    if (l > 2 && !strcmp(base + l - 2, ".c")) base[l - 2] = 0;
+    char *obj = xasprintf("%s/%s.o", dir, base), *ci = xasprintf("%s/%s.ci", dir, base), *log = xasprintf("%s/%s.log", dir, base);
+    unlink(ci);
+    if (run(cc_argv(cc, ncc, units[i], obj, 0), log) != 0) {
+      show_log(log);
+      die_nj("%s does not compile at -O0 -fno-inline -fcallgraph-info", units[i]);
+    }
+    struct stat sb;
+    if (stat(ci, &sb) != 0) die_nj("%s: the compiler wrote no call graph %s", units[i], ci);
+    unlink(obj);
+    unlink(log);
+  }
+  fprintf(stderr, "omx-rt-gate: %d call graphs under %s\n", nunits, dir);
+  return 0;
+}
+
 /* ---- main ------------------------------------------------------------------------------------- */
 
 static void usage(void) {
   fputs("usage: omx-rt-gate [--tables DIR] --abi NAME[:host]... [--tags FILE]... [--graphs DIR|FILE]...\n"
         "                   [--work DIR] [--list-roots] -- CC [FLAGS...] UNIT.c...\n"
         "       omx-rt-gate [--tables DIR] [--tags FILE]... --check-tables\n"
-        "       omx-rt-gate --thread-tags OUT [--selfrun UNIT.c] [--under DIR] [--work DIR] -- CC [FLAGS...] HEADERS.c\n", stderr);
+        "       omx-rt-gate --thread-tags OUT [--selfrun UNIT.c] [--under DIR] [--except FILE] [--work DIR] -- CC [FLAGS...] HEADERS.c\n"
+        "       omx-rt-gate --write-graphs DIR -- CC [FLAGS...] UNIT.c...\n", stderr);
   exit(2);
 }
 
@@ -1983,7 +2013,7 @@ int main(int argc, char **argv) {
   const char *tables = xasprintf("%s/tables", data);
   char **tags = NULL, **graphs = NULL;
   int ntags = 0, ctags = 0, ngraphs = 0, cgraphs = 0, check_only = 0, list_roots = 0, defaults = 1;
-  const char *work = NULL, *tags_out = NULL, *selfrun_out = NULL, *under = "include/";
+  const char *work = NULL, *tags_out = NULL, *selfrun_out = NULL, *under = "include/", *except = NULL, *graphs_out = NULL;
   int i = 1;
   setvbuf(stdout, NULL, _IOLBF, 0);
   for (; i < argc; i++) {
@@ -2007,7 +2037,20 @@ int main(int argc, char **argv) {
     else if (!strcmp(a, "--thread-tags") && i + 1 < argc) tags_out = argv[++i];
     else if (!strcmp(a, "--selfrun") && i + 1 < argc) selfrun_out = argv[++i];
     else if (!strcmp(a, "--under") && i + 1 < argc) under = argv[++i];
+    else if (!strcmp(a, "--except") && i + 1 < argc) except = argv[++i];
+    else if (!strcmp(a, "--write-graphs") && i + 1 < argc) graphs_out = argv[++i];
     else usage();
+  }
+  if (graphs_out) {
+    char **cc = NULL, **units = NULL;
+    int nc = 0, cc_cap = 0, nu = 0, cu = 0;
+    for (int k = i; k < argc; k++) {
+      size_t l = strlen(argv[k]);
+      if (k > i && l > 2 && !strcmp(argv[k] + l - 2, ".c") && argv[k][0] != '-') PUSH(units, nu, cu, argv[k]);
+      else PUSH(cc, nc, cc_cap, argv[k]);
+    }
+    if (nc < 1 || nu == 0) usage();
+    return write_graphs(cc, nc, units, nu, graphs_out);
   }
   if (tags_out) {
     int ncc = argc - i;
@@ -2016,7 +2059,7 @@ int main(int argc, char **argv) {
     if (!work) work = mkdtemp(tmpl2);
     else mkdir(work, 0700);
     if (!work) die_nj("mkdtemp: %s", strerror(errno));
-    return thread_tags(argv + i, ncc - 1, argv[argc - 1], under, tags_out, selfrun_out, work);
+    return thread_tags(argv + i, ncc - 1, argv[argc - 1], under, except, tags_out, selfrun_out, work);
   }
   /* one forbidden list and one class table: a tables directory with any other list is refused */
   {
