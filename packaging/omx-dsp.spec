@@ -102,6 +102,19 @@ Its documentation is on openmixer.org.
   fbs-live, hrp, room-mode); omx_curve_points_marked answers a mark per feedback corrector's
   band and, asked, the curve over the user bands alone; the twin curvePoints
   answers the same
+- meter: the view law moves here from the console, mix/omx_meter_view.h: the
+  fill from the -60 dBFS floor, the peak marker that falls 18 dB/s of elapsed
+  time at any draw rate, the clip word held until cleared, the LED ladder's
+  step with a quarter-step hysteresis (a bar has no release), the
+  gain-reduction reading over the reader's elapsed time through
+  omx_meter_gr_step, what a decimating subscriber keeps, and the unit of
+  each kind and measurement (omx_meter_view_unit_of); declared in
+  data/primitives/meter.json with the host read and stream rates, the kinds,
+  measurements and units
+- ts: the twin meterFill, meterMarker, meterStep, meterBarStep, meterClip,
+  meterDecimate, meterUnitOf and meterGrView, pinned by the oracle and by
+  vectors/meter-view.json at the nine oracle rates and quanta 32 to 1024,
+  installed as omxdsp/meter-view-vectors.json (omxdsp.pc meterviewvectors)
 
 * Fri Nov 06 2026 Pau Aliagas <linuxnow@gmail.com> - 0.31.0-1
 - curve: omx_curve_points (omx_curve.h), one curve function for every surface:
