@@ -7,8 +7,9 @@
 #
 #   tools/rt-gate/selftest.sh GATE TABLES [--graphs DIR --tags FILE] [--cflags "FLAGS"]
 #
-# Each fixture is built the way a distribution builds, -O2 -Werror -D_FORTIFY_SOURCE=2 (the gate takes the
-# optimisation and the fortification out of its input). Each fixtures/*.c names what it binds and what the
+# Each fixture is built the way a distribution builds, -O2 -Werror -D_FORTIFY_SOURCE=2
+# -fstack-protector-strong (the gate takes the optimisation, the fortification and the stack
+# protector's guard call out of its input). Each fixtures/*.c names what it binds and what the
 # gate must say about it:
 #   // abi: lv2|clap|...          the --abi it binds
 #   // tags: <file>               a thread-tag file the run reads
@@ -53,7 +54,7 @@ judge() { # judge <fixture> <graphs?> <want-exit> <want-reds-file> <label>
   if [ "$g" = yes ]; then args+=(--graphs "$GRAPHS" --tags "$TAGS"); fi
   out="$SCRATCH/out.$cases"
   # shellcheck disable=SC2086 # EXTRA is a flag list
-  (cd "$HERE" && "$GATE" "${args[@]}" -- "$CC" -Wall -Wextra -Werror -O2 -Wp,-D_FORTIFY_SOURCE=2 -Ifixtures $EXTRA "$f") \
+  (cd "$HERE" && "$GATE" "${args[@]}" -- "$CC" -Wall -Wextra -Werror -O2 -Wp,-D_FORTIFY_SOURCE=2 -fstack-protector-strong -Ifixtures $EXTRA "$f") \
     > "$out" 2> "$out.err"
   rc=$?
   cases=$((cases + 1))

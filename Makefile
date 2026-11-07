@@ -847,11 +847,10 @@ rt-gate-tags: $(RT_GATE_TAGS)
 # the call graphs of the compiled units, per set of flags (-O0 -fno-inline: the gate's input, never -O2); the
 # release ones ship, for the consumers' join
 RT_GATE_GRAPHS = $(RT_GATE_DIR)/graphs-release
-$(RT_GATE_DIR)/graphs-%.stamp: $(SRC) $(HEADERS) $(ANALYSIS_HEADERS) | $(BUILD)
-	@mkdir -p $(RT_GATE_DIR)/graphs-$*
-	@for f in $(SRC); do b=$$(basename $$f .c); \
-	  $(CC) $(RT_GATE_FLAGS_$*) -O0 -fno-inline -fcallgraph-info -c -o $(RT_GATE_DIR)/graphs-$*/$$b.o $$f || exit 1; \
-	  rm -f $(RT_GATE_DIR)/graphs-$*/$$b.o; done
+# the gate compiles them itself, so a graph is read the way a consumer's unit is (-O0 -fno-inline, the
+# fortification and the stack protector taken out), whatever flags the packaging build adds
+$(RT_GATE_DIR)/graphs-%.stamp: $(RT_GATE) $(SRC) $(HEADERS) $(ANALYSIS_HEADERS) | $(BUILD)
+	./$(RT_GATE) --write-graphs $(RT_GATE_DIR)/graphs-$* -- $(CC) $(RT_GATE_FLAGS_$*) $(SRC)
 	@touch $@
 
 # the self-run: the generated unit takes the address of every tagged function, each audio one an audio root
@@ -881,7 +880,7 @@ install-rt-gate: rt-gate-ship
 	install -m 0644 $(RT_GATE_TAGS) $(DESTDIR)$(DATADIR)/omxdsp/rt-gate/
 	install -m 0644 $(RT_GATE_GRAPHS)/*.ci $(DESTDIR)$(DATADIR)/omxdsp/rt-gate/graphs/
 
-rt-gate-installed: | $(BUILD)
+rt-gate-installed: rt-gate-ship | $(BUILD)
 	rm -rf $(RT_GATE_DIR)/root
 	$(MAKE) --no-print-directory install-rt-gate DESTDIR=$(abspath $(RT_GATE_DIR)/root) PREFIX=/usr
 	@cd tools/rt-gate && for f in join.c join.clean.c; do \
