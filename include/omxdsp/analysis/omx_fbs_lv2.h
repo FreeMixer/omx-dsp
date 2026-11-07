@@ -46,6 +46,7 @@
 #include <omxdsp/analysis/omx_fbs_detect.h>
 #include <omxdsp/analysis/omx_fbs_place.h>
 #include <omxdsp/analysis/omx_hrp_correct.h>
+#include <omxdsp/analysis/omx_live_shell.h>
 #include <omxdsp/analysis/omx_rta.h>
 #include <omxdsp/omx_eq_design.h>
 #include <omxdsp/omx_port_int.h>
@@ -93,11 +94,7 @@ typedef struct {
   uint32_t hop;
 
   /* audio -> worker */
-  struct omx_ring ring;
-  _Atomic uint64_t written;
-  _Atomic uint64_t consumed;
-  _Atomic uint32_t asked;
-  _Atomic uint32_t answered;
+  OmxLiveFeed feed;
 
   /* the audio side */
   OmxHrpCascade live;
@@ -151,7 +148,7 @@ static inline size_t omx_fbs_lv2_block_bytes(uint32_t rate) {
 static inline int omx_fbs_lv2_init_block(OmxFbsLv2 *s, uint32_t rate, void *block) {
   if (!s) return 0;
   memset(s, 0, sizeof(*s));
-  for (uint32_t k = 0; k < OMX_FBS_LV2_SLOTS; k++) s->report[k] = omx_band_report_free();
+  omx_live_report_clear(s->report, OMX_FBS_LV2_SLOTS);
   if (rate == 0u || !block || ((uintptr_t)block & 7u) != 0u) return 0;
   const size_t fft = omx_rta_fft_size_for(rate), bins = fft / 2u, n = OMX_FBS_TRACK_SLOTS;
   unsigned char *b = (unsigned char *)block;
@@ -230,20 +227,9 @@ static inline int omx_fbs_lv2_mode(const OmxFbsLv2 *s) { return s ? s->mode : OM
  */
 #define OMX_CONTRACT_STAGE "fbs/lv2-run"
 static inline void omx_fbs_lv2_run(OmxFbsLv2 *s, const float *in, float *out, uint32_t n) {
-  if (!in || !out || n == 0u) return;
-  if (!s || !s->ready) {
-    if (out != in) memcpy(out, in, (size_t)n * sizeof(float));
-    OMX_POST(out == in || memcmp(out, in, (size_t)n * sizeof(float)) == 0, "bypass-identity");
-    return;
-  }
-  omx_ring_write(&s->ring, in, n);
-  atomic_fetch_add_explicit(&s->written, n, memory_order_release);
-  if (s->mode == OMX_FBS_LV2_REPORT) {
-    if (out != in) memcpy(out, in, (size_t)n * sizeof(float));
-    OMX_POST(out == in || memcmp(out, in, (size_t)n * sizeof(float)) == 0, "report-bit-exact");
-    return;
-  }
-  omx_hrp_cascade_apply(&s->live, in, out, n);
+  if (!omx_live_block(s && s->ready, in, out, n)) return;
+  omx_live_feed(&s->feed.ring, &s->feed.written, in, n);
+  omx_live_out(&s->live, s->mode == OMX_FBS_LV2_REPORT, in, out, n);
 }
 #undef OMX_CONTRACT_STAGE
 
@@ -255,9 +241,7 @@ static inline void omx_fbs_lv2_run(OmxFbsLv2 *s, const float *in, float *out, ui
  */
 static inline int omx_fbs_lv2_due(const OmxFbsLv2 *s) {
   if (!s || !s->ready) return 0;
-  const uint64_t written = atomic_load_explicit(&s->written, memory_order_acquire);
-  const uint64_t consumed = atomic_load_explicit(&s->consumed, memory_order_acquire);
-  return written - consumed >= (uint64_t)s->hop;
+  return omx_live_unconsumed(&s->feed.written, &s->feed.consumed) >= (uint64_t)s->hop;
 }
 
 /**
@@ -289,7 +273,7 @@ static inline OmxFbsLv2Ask omx_fbs_lv2_ask_of(float pool, float hold, float band
  * @thread audio
  */
 static inline void omx_fbs_lv2_mark_asked(OmxFbsLv2 *s) {
-  if (s) atomic_fetch_add_explicit(&s->asked, 1u, memory_order_release);
+  if (s) omx_live_count(&s->feed.asked);
 }
 
 /**
@@ -298,7 +282,7 @@ static inline void omx_fbs_lv2_mark_asked(OmxFbsLv2 *s) {
  * @thread worker
  */
 static inline void omx_fbs_lv2_mark_answered(OmxFbsLv2 *s) {
-  if (s) atomic_fetch_add_explicit(&s->answered, 1u, memory_order_release);
+  if (s) omx_live_count(&s->feed.answered);
 }
 
 /**
@@ -308,9 +292,7 @@ static inline void omx_fbs_lv2_mark_answered(OmxFbsLv2 *s) {
  * @thread audio
  */
 static inline int omx_fbs_lv2_in_flight(const OmxFbsLv2 *s) {
-  if (!s) return 0;
-  return atomic_load_explicit(&s->asked, memory_order_acquire) !=
-         atomic_load_explicit(&s->answered, memory_order_acquire);
+  return s ? omx_live_in_flight(&s->feed.asked, &s->feed.answered) : 0;
 }
 
 /**
@@ -326,31 +308,20 @@ static inline int omx_fbs_lv2_in_flight(const OmxFbsLv2 *s) {
 static inline void omx_fbs_lv2_answer(OmxFbsLv2 *s, const OmxFbsLv2Ask *a, OmxFbsLv2Set *out) {
   if (!out) return;
   memset(out, 0, sizeof(*out));
-  for (uint32_t k = 0; k < OMX_FBS_LV2_SLOTS; k++) out->report[k] = omx_band_report_free();
+  omx_live_report_clear(out->report, OMX_FBS_LV2_SLOTS);
   if (!s || !s->ready) return;
   if (a) {
     omx_fbs_place_set(&s->place, a->hold_s, a->max_bands, a->notch_q, a->merge_cents, a->cooldown_s);
     omx_fbs_place_set_pool(&s->place, (OmxFbsPool)a->pool);
     s->det.pool = (OmxFbsPool)a->pool;
   }
-  const uint64_t hop = s->hop;
-  const uint64_t written = atomic_load_explicit(&s->written, memory_order_acquire);
-  uint64_t consumed = atomic_load_explicit(&s->consumed, memory_order_acquire);
-  if (written - consumed >= hop) {
-    uint64_t back = written - (consumed + hop);
-    if (back + (uint64_t)s->fft > (uint64_t)OMX_RTA_RING_SIZE) {
-      consumed = written - hop;
-      back = 0u;
-    }
-    omx_ring_read_at(&s->ring, s->frame, s->fft, (uint32_t)back);
-    consumed += hop;
-    atomic_store_explicit(&s->consumed, consumed, memory_order_release);
+  if (omx_live_take(&s->feed, s->frame, s->fft, s->hop)) {
     omx_rta_spectrum(s->frame, s->fft, s->work_re, s->work_im, s->mags_f);
     const uint32_t bins = s->fft / 2u;
     for (uint32_t i = 0; i < bins; i++) s->mags[i] = (double)s->mags_f[i];
     omx_fbs_push(&s->det, s->mags, bins, &s->res);
     for (uint32_t i = 0; i < s->res.n_snapshot; i++) s->snap_hz[i] = s->res.snapshot[i].freq_hz;
-    s->elapsed += hop;
+    s->elapsed += s->hop;
     s->place.n_log = 0u;
     omx_fbs_place_tick(&s->place, (double)s->elapsed * 1000.0 / (double)s->rate, s->snap_hz, s->res.n_snapshot,
                        s->res.confirmed, s->res.n_confirmed);
@@ -393,8 +364,7 @@ static inline void omx_fbs_lv2_adopt(OmxFbsLv2 *s, const OmxFbsLv2Set *set) {
  * @thread audio
  */
 static inline OmxBandReport omx_fbs_lv2_report(const OmxFbsLv2 *s, uint32_t k) {
-  if (!s || k >= OMX_FBS_LV2_SLOTS) return omx_band_report_free();
-  return s->report[k];
+  return s ? omx_live_report_at(s->report, OMX_FBS_LV2_SLOTS, k) : omx_band_report_free();
 }
 
 /**
@@ -415,9 +385,9 @@ static inline int omx_fbs_lv2_analysing(const OmxFbsLv2 *s) { return s ? s->anal
 static inline void omx_fbs_lv2_restart(OmxFbsLv2 *s) {
   if (!s || !s->ready) return;
   memset(s->live.state, 0, sizeof(s->live.state));
-  omx_ring_reset(&s->ring);
-  atomic_store_explicit(&s->written, 0u, memory_order_relaxed);
-  atomic_store_explicit(&s->consumed, 0u, memory_order_relaxed);
+  omx_ring_reset(&s->feed.ring);
+  atomic_store_explicit(&s->feed.written, 0u, memory_order_relaxed);
+  atomic_store_explicit(&s->feed.consumed, 0u, memory_order_relaxed);
   omx_fbs_init(&s->det);
 }
 

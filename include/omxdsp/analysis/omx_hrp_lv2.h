@@ -78,6 +78,7 @@
 #include <string.h>
 
 #include <omxdsp/analysis/omx_band_report.h>
+#include <omxdsp/analysis/omx_live_shell.h>
 #include <omxdsp/analysis/omx_hrp_correct.h>
 #include <omxdsp/analysis/omx_hrp_render.h>
 #include <omxdsp/analysis/omx_rta.h>
@@ -288,7 +289,7 @@ static inline int omx_hrp_lv2_init(OmxHrpLv2 *s, uint32_t rate, float *carry, fl
   s->hop = hop;
   omx_hrp_cascade_init(&s->live);
   s->mode = OMX_HRP_MODE_RANGE_DEFAULT;
-  for (uint32_t k = 0; k < OMX_HRP_LV2_MAX_BANDS; k++) s->report[k] = omx_band_report_free();
+  omx_live_report_clear(s->report, OMX_HRP_LV2_MAX_BANDS);
   s->ready = 1;
   return 1;
 }
@@ -407,7 +408,7 @@ static inline void omx_hrp_lv2_install_ask(OmxHrpLv2 *s, const OmxHrpLv2Ask *a) 
  * @thread audio
  */
 static inline void omx_hrp_lv2_mark_asked(OmxHrpLv2 *s) {
-  if (s) atomic_fetch_add_explicit(&s->asked, 1u, memory_order_release);
+  if (s) omx_live_count(&s->asked);
 }
 
 /**
@@ -418,7 +419,7 @@ static inline void omx_hrp_lv2_mark_asked(OmxHrpLv2 *s) {
  * @thread worker
  */
 static inline void omx_hrp_lv2_mark_answered(OmxHrpLv2 *s) {
-  if (s) atomic_fetch_add_explicit(&s->answered, 1u, memory_order_release);
+  if (s) omx_live_count(&s->answered);
 }
 
 /**
@@ -429,9 +430,7 @@ static inline void omx_hrp_lv2_mark_answered(OmxHrpLv2 *s) {
  * @thread audio
  */
 static inline int omx_hrp_lv2_in_flight(const OmxHrpLv2 *s) {
-  if (!s) return 0;
-  return atomic_load_explicit(&s->asked, memory_order_acquire) !=
-         atomic_load_explicit(&s->answered, memory_order_acquire);
+  return s ? omx_live_in_flight(&s->asked, &s->answered) : 0;
 }
 
 /**
@@ -462,7 +461,7 @@ static inline void omx_hrp_lv2_restart(OmxHrpLv2 *s) {
   if (!s) return;
   omx_hrp_lv2_clear(s);
   memset(s->slot, 0, sizeof(s->slot));
-  for (uint32_t k = 0; k < OMX_HRP_LV2_MAX_BANDS; k++) s->report[k] = omx_band_report_free();
+  omx_live_report_clear(s->report, OMX_HRP_LV2_MAX_BANDS);
   atomic_store_explicit(&s->written, 0u, memory_order_relaxed);
   atomic_store_explicit(&s->consumed, 0u, memory_order_relaxed);
 }
@@ -483,22 +482,16 @@ static inline void omx_hrp_lv2_restart(OmxHrpLv2 *s) {
 static inline void omx_hrp_lv2_run(OmxHrpLv2 *s, const float *in, float *out, uint32_t n) {
   if (!in || !out || n == 0u) return;
   if (!s || !s->ready) {
-    if (out != in) memcpy(out, in, (size_t)n * sizeof(float));
+    omx_live_pass_through(in, out, n);
     /* R-056/laws: bypass-identity -- accepted 2026-09-17,
      * the contracts proposals notes. Not ready is not "processed a
      * little" -- it is the identity, byte for byte. */
     OMX_POST(out == in || memcmp(out, in, (size_t)n * sizeof(float)) == 0, "bypass-identity");
     return;
   }
-  omx_ring_write(&s->ring, in, n);
-  atomic_fetch_add_explicit(&s->written, n, memory_order_release);
-  if (s->mode == OMX_HRP_LV2_REPORT) {
-    /* spec 7.16: the analysis hears the input and the report runs on; the audio is the input, bit for bit */
-    if (out != in) memcpy(out, in, (size_t)n * sizeof(float));
-    OMX_POST(out == in || memcmp(out, in, (size_t)n * sizeof(float)) == 0, "report-bit-exact");
-    return;
-  }
-  omx_hrp_cascade_apply(&s->live, in, out, n);
+  omx_live_feed(&s->ring, &s->written, in, n);
+  /* spec 7.16: in report the analysis hears the input and the report runs on; the audio is the input, bit for bit */
+  omx_live_out(&s->live, s->mode == OMX_HRP_LV2_REPORT, in, out, n);
 }
 #undef OMX_CONTRACT_STAGE
 
@@ -528,8 +521,7 @@ static inline int omx_hrp_lv2_mode(const OmxHrpLv2 *s) { return s ? s->mode : OM
  * @thread audio
  */
 static inline OmxBandReport omx_hrp_lv2_report(const OmxHrpLv2 *s, uint32_t k) {
-  if (!s || k >= OMX_HRP_LV2_MAX_BANDS) return omx_band_report_free();
-  return s->report[k];
+  return s ? omx_live_report_at(s->report, OMX_HRP_LV2_MAX_BANDS, k) : omx_band_report_free();
 }
 
 /**
@@ -558,9 +550,7 @@ static inline int omx_hrp_lv2_analysing(const OmxHrpLv2 *s) { return s ? s->anal
  */
 static inline int omx_hrp_lv2_due(const OmxHrpLv2 *s, int bypass) {
   if (!s || !s->ready) return 0;
-  const uint64_t written = atomic_load_explicit(&s->written, memory_order_acquire);
-  const uint64_t consumed = atomic_load_explicit(&s->consumed, memory_order_acquire);
-  if (written - consumed < (uint64_t)s->render.cfg.hop) return 0;
+  if (omx_live_unconsumed(&s->written, &s->consumed) < (uint64_t)s->render.cfg.hop) return 0;
   if (!bypass) return 1;
   return omx_hrp_cascade_live(&s->live) > 0u;
 }
